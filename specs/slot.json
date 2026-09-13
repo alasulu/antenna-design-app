@@ -5,85 +5,240 @@
       "key": "half_wave_slot",
       "name": "Half-wave slot in an infinite ground plane",
       "summary": "Narrow rectangular slot of length ~lambda/2 cut in a large conducting screen, the Babinet complement of a half-wave strip dipole.",
-      "freq_range_hz": [3e7, 3e11],
+      "freq_range_hz": [
+        30000000.0,
+        300000000000.0
+      ],
       "confidence": "high",
       "notes": "BABINET/BOOKER DERIVATION. Babinet's optical principle states that the fields of a screen and of its complement sum to the incident field. Booker (1946) extended it to vector electromagnetics: the complementary structure of a perfectly conducting screen is obtained by interchanging metal and aperture AND interchanging E and H. Write the slot problem as an equivalent magnetic-current sheet: the tangential E across the aperture, E_t = -n x M, drives a magnetic current M. The complementary electric-current dipole radiates with the same pattern shape but with E and H exchanged. Enforcing the duality transformation E -> H, H -> -E, eta0 -> 1/eta0 on the terminal quantities gives V_slot proportional to eta0*I_dipole/2 and I_slot proportional to 2*V_dipole/eta0, hence Z_slot = V_slot/I_slot = (eta0^2/4)*(I_dipole/V_dipole) = eta0^2/(4*Z_dipole). The factor of 4 (not 1) is the whole content of Booker's correction and comes from the two-sided radiation of a zero-thickness screen: the slot radiates into BOTH half spaces, so each side sees half the terminal current. Numerically eta0^2/4 = 376.730313412^2/4 = 35481.43 ohm^2. SIGN OF THE REACTANCE. With the classic thin half-wave dipole Z_d = 73.1 + j42.5 ohm (Balanis eq. 4-93, l = lambda/2 exactly, which is slightly LONGER than resonance, hence inductive), Z_s = 35481.43/(73.1 + j42.5) = 35481.43*(73.1 - j42.5)/(73.1^2 + 42.5^2) = 362.8 - j210.9 ohm. The slot is CAPACITIVE exactly where its complementary dipole is inductive, because Z_s is proportional to 1/Z_d and inversion conjugates the reactance sign. The magnitude 363 + j211 is very widely quoted (including in lecture notes and several handbooks) with a POSITIVE reactance; that printed sign is inconsistent with the +j42.5 dipole it is derived from. This spec returns the algebraically correct 362.8 - j210.9 ohm and exposes |Z| = 419.6 ohm and the 363/211 magnitudes separately so a user chasing the textbook numbers still finds them. The physical consequence is real: to tune a slot to resonance you SHORTEN it, exactly as for a dipole, because X_slot and X_dipole cross zero at the same electrical length (~0.475 lambda for a moderately wide slot). RESTRICTION -- READ THIS BEFORE USING Z = 363 - j211. The relation Z_slot*Z_dipole = eta0^2/4 holds ONLY for (a) an INFINITE screen, (b) a PERFECTLY CONDUCTING screen, (c) a ZERO-THICKNESS screen, (d) free space on both sides, and (e) a complementary dipole that is the exact metal/aperture inverse of the slot (a STRIP dipole of width w, not a round wire; the equivalent round-wire radius is a = w/4). This is the single most misapplied result in the whole slot family. A slot in a finite ground plane, a slot with a cavity or a dielectric behind it, a slot in a thick wall, or a slot fed by a transmission line that loads one side, does NOT obey it. Closing off one half space (cavity backing, or a half-space mount) removes half the radiated power for the same aperture voltage, halving the radiation conductance and DOUBLING the impedance to ~726 - j422 ohm; that case is the cavity_backed_slot archetype. Finite screens ripple the impedance by +/-20% with screen size and add a rear lobe. PATTERN. Duality also fixes the pattern: the slot's far-field pattern SHAPE is identical to the complementary dipole's with E and H interchanged, so the directivity of the two-sided slot equals the dipole's, D0 = 1.643 (2.155 dBi). The plane containing the slot's long axis carries the 78 deg figure-of-eight cut (the dipole's E-plane, which for the slot is the H-plane); the plane perpendicular to the slot axis is uniform. Radiated E is PERPENDICULAR to the slot's long axis: a vertical slot radiates HORIZONTAL polarisation, the opposite of a vertical dipole, and this catches people out in practice. BANDWIDTH. Because Z_s = k/Z_d, the slot's Q equals the complementary strip dipole's, so the VSWR-2 fractional bandwidth about resonance is that of a strip dipole of width w. The returned bandwidth is a two-point engineering interpolation (8.5% at w/L = 0.02, 20.5% at w/L = 0.10) and is good to about +/-30%.",
       "parameters": [
-        {"symbol": "f0", "name": "design_frequency", "unit": "Hz", "role": "requirement",
-         "description": "Resonant (design) frequency of the slot", "typical": "3e7 .. 3e11"},
-        {"symbol": "L", "name": "slot_length", "unit": "m", "role": "geometry",
-         "description": "Long dimension of the slot, end to end", "typical": "0.4785*lambda0"},
-        {"symbol": "w", "name": "slot_width", "unit": "m", "role": "geometry",
-         "description": "Short dimension (gap) of the slot", "typical": "0.02*L .. 0.15*L"},
-        {"symbol": "w_over_L", "name": "width_to_length_ratio", "unit": "-", "role": "material",
-         "description": "Slot width / slot length. Auto-defaults to 0.05; raise it for more bandwidth, lower it for a narrower beam-free thin slot.", "typical": "0.05"},
-        {"symbol": "Rd", "name": "complementary_dipole_resistance", "unit": "ohm", "role": "material",
-         "description": "Input resistance of the complementary STRIP dipole at the same electrical length. Auto-defaults to 73.1 ohm, the classic l = lambda/2 thin-dipole value.", "typical": "73.1"},
-        {"symbol": "Xd", "name": "complementary_dipole_reactance", "unit": "ohm", "role": "material",
-         "description": "Input reactance of the complementary STRIP dipole at the same electrical length. Auto-defaults to +42.5 ohm (l = lambda/2 exactly, i.e. above resonance, inductive).", "typical": "42.5"},
-        {"symbol": "Rd_res", "name": "complementary_dipole_resonant_resistance", "unit": "ohm", "role": "material",
-         "description": "Input resistance of the complementary strip dipole at ITS resonance (X = 0), where the slot is also resonant. Auto-defaults to 67 ohm, appropriate for a moderately thick (w/L ~ 0.05) radiator.", "typical": "67.0"}
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Resonant (design) frequency of the slot",
+          "typical": "3e7 .. 3e11"
+        },
+        {
+          "symbol": "L",
+          "name": "slot_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Long dimension of the slot, end to end",
+          "typical": "0.4785*lambda0"
+        },
+        {
+          "symbol": "w",
+          "name": "slot_width",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Short dimension (gap) of the slot",
+          "typical": "0.02*L .. 0.15*L"
+        },
+        {
+          "symbol": "w_over_L",
+          "name": "width_to_length_ratio",
+          "unit": "-",
+          "role": "material",
+          "description": "Slot width / slot length. Auto-defaults to 0.05; raise it for more bandwidth, lower it for a narrower beam-free thin slot.",
+          "typical": "0.05"
+        },
+        {
+          "symbol": "Rd",
+          "name": "complementary_dipole_resistance",
+          "unit": "ohm",
+          "role": "material",
+          "description": "Input resistance of the complementary STRIP dipole at the same electrical length. Auto-defaults to 73.1 ohm, the classic l = lambda/2 thin-dipole value.",
+          "typical": "73.1"
+        },
+        {
+          "symbol": "Xd",
+          "name": "complementary_dipole_reactance",
+          "unit": "ohm",
+          "role": "material",
+          "description": "Input reactance of the complementary STRIP dipole at the same electrical length. Auto-defaults to +42.5 ohm (l = lambda/2 exactly, i.e. above resonance, inductive).",
+          "typical": "42.5"
+        },
+        {
+          "symbol": "Rd_res",
+          "name": "complementary_dipole_resonant_resistance",
+          "unit": "ohm",
+          "role": "material",
+          "description": "Input resistance of the complementary strip dipole at ITS resonance (X = 0), where the slot is also resonant. Auto-defaults to 67 ohm, appropriate for a moderately thick (w/L ~ 0.05) radiator.",
+          "typical": "67.0"
+        }
       ],
       "synthesis": [
-        {"output": "L", "expr": "0.4785*c/f0", "units_out": "m",
-         "notes": "Nominal resonant slot length. Exactly as for a dipole, the resonant length is a few percent below lambda/2 and shortens as the slot widens: 0.49*lambda0 for a very thin slot (L/w > 1000), 0.4785*lambda0 near w/L = 0.05, 0.455*lambda0 for w/L ~ 0.2 (King's dipole resonant-length data, transferred through Babinet with equivalent round-wire radius a = w/4). Accurate to about +/-2% in length, which is +/-2% in f0.",
-         "depends_on": ["f0"]},
-        {"output": "w", "expr": "w_over_L*0.4785*c/f0", "units_out": "m",
-         "notes": "Slot gap from the width ratio. w barely affects the pattern; it sets bandwidth and the resonant-length correction.",
-         "depends_on": ["w_over_L", "f0"]},
-        {"output": "L_half_wave", "expr": "0.5*c/f0", "units_out": "m",
-         "notes": "The exact lambda/2 reference length at which the quoted 362.8 - j210.9 ohm applies. The slot is NOT resonant here; it is capacitive.",
-         "depends_on": ["f0"]},
-        {"output": "A_slot", "expr": "0.4785*w_over_L*(c/f0)**2*0.4785", "units_out": "m2",
-         "notes": "Physical aperture area L*w. Of no use for directivity (the slot is not an aperture-limited radiator) but needed for mechanical work.",
-         "depends_on": ["w_over_L", "f0"]}
+        {
+          "output": "L",
+          "expr": "0.4785*c/f0",
+          "units_out": "m",
+          "notes": "Nominal resonant slot length. Exactly as for a dipole, the resonant length is a few percent below lambda/2 and shortens as the slot widens: 0.49*lambda0 for a very thin slot (L/w > 1000), 0.4785*lambda0 near w/L = 0.05, 0.455*lambda0 for w/L ~ 0.2 (King's dipole resonant-length data, transferred through Babinet with equivalent round-wire radius a = w/4). Accurate to about +/-2% in length, which is +/-2% in f0.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "w",
+          "expr": "w_over_L*0.4785*c/f0",
+          "units_out": "m",
+          "notes": "Slot gap from the width ratio. w barely affects the pattern; it sets bandwidth and the resonant-length correction.",
+          "depends_on": [
+            "w_over_L",
+            "f0"
+          ]
+        },
+        {
+          "output": "L_half_wave",
+          "expr": "0.5*c/f0",
+          "units_out": "m",
+          "notes": "The exact lambda/2 reference length at which the quoted 362.8 - j210.9 ohm applies. The slot is NOT resonant here; it is capacitive.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "A_slot",
+          "expr": "0.4785*w_over_L*(c/f0)**2*0.4785",
+          "units_out": "m2",
+          "notes": "Physical aperture area L*w. Of no use for directivity (the slot is not an aperture-limited radiator) but needed for mechanical work.",
+          "depends_on": [
+            "w_over_L",
+            "f0"
+          ]
+        }
       ],
       "analysis": [
-        {"metric": "babinet_product_ohm2", "expr": "eta0**2/4.0", "units_out": "ohm^2",
-         "notes": "Z_slot * Z_dipole = eta0^2/4 = 35481.43 ohm^2. Booker's relation. The constant is exact given eta0 = 376.730313412 ohm; the older eta = 120*pi convention gives 35530.6, a 0.14% difference.",
-         "depends_on": []},
-        {"metric": "input_resistance_ohm", "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2))", "units_out": "ohm",
-         "notes": "Re{eta0^2/(4*Zd)}. With the default 73.1 + j42.5 dipole this is 362.8 ohm.",
-         "depends_on": ["Rd", "Xd"]},
-        {"metric": "input_reactance_ohm", "expr": "-eta0**2*Xd/(4.0*(Rd**2 + Xd**2))", "units_out": "ohm",
-         "notes": "Im{eta0^2/(4*Zd)} = -eta0^2*Xd/(4*|Zd|^2). NEGATIVE for the default inductive dipole: -210.9 ohm. See the sign discussion in notes.",
-         "depends_on": ["Rd", "Xd"]},
-        {"metric": "input_impedance_ohm", "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2)) + 1j*(-eta0**2*Xd/(4.0*(Rd**2 + Xd**2)))", "units_out": "ohm",
-         "notes": "Complex form, 362.8 - j210.9 ohm by default. Two-sided infinite zero-thickness screen only.",
-         "depends_on": ["Rd", "Xd"]},
-        {"metric": "input_impedance_magnitude_ohm", "expr": "eta0**2/(4.0*np.sqrt(Rd**2 + Xd**2))", "units_out": "ohm",
-         "notes": "|Zs| = (eta0^2/4)/|Zd| = 419.6 ohm for the default dipole.",
-         "depends_on": ["Rd", "Xd"]},
-        {"metric": "resonant_resistance_ohm", "expr": "eta0**2/(4.0*Rd_res)", "units_out": "ohm",
-         "notes": "Purely real slot impedance at the length where X = 0 (about 0.4785*lambda0 for w/L = 0.05). With Rd_res = 67 ohm this is 529.6 ohm. The usual engineering shorthand 'a resonant slot is about 500 ohm' comes from here. Ranges 500-530 ohm over any realistic slot width.",
-         "depends_on": ["Rd_res"]},
-        {"metric": "resonant_resistance_one_sided_ohm", "expr": "eta0**2/(2.0*Rd_res)", "units_out": "ohm",
-         "notes": "Same slot with one half space closed off (cavity backing or a half-space mount): the radiation conductance halves so the resistance doubles, 1059 ohm. This is why cavity-backed slots are nearly always fed off-centre or through a transformer.",
-         "depends_on": ["Rd_res"]},
-        {"metric": "radiation_conductance_S", "expr": "4.0*Rd/eta0**2", "units_out": "S",
-         "notes": "G = Re{Y_slot} = 4*Rd/eta0^2 = 2.060e-3 S for Rd = 73.1 ohm. The slot is naturally described by an admittance because it is a shunt element across whatever feeds it.",
-         "depends_on": ["Rd"]},
-        {"metric": "directivity_dbi", "expr": "10.0*np.log10(1.6409)", "units_out": "dBi",
-         "notes": "D0 = 1.6409 (2.1517 dBi), identical to the complementary half-wave dipole because Babinet preserves the pattern shape. Radiation is split between the two half spaces.",
-         "depends_on": []},
-        {"metric": "directivity_one_sided_dbi", "expr": "10.0*np.log10(2.0*1.6409)", "units_out": "dBi",
-         "notes": "5.16 dBi if one half space is closed off (cavity-backed or flush half-space mount): the same power into half the solid angle.",
-         "depends_on": []},
-        {"metric": "hpbw_plane_of_slot_axis_deg", "expr": "78.0", "units_out": "deg",
-         "notes": "Half-power beamwidth in the plane CONTAINING the slot's long axis -- the slot's H-plane, and the dual of the dipole's 78 deg E-plane cut.",
-         "depends_on": []},
-        {"metric": "hpbw_plane_across_slot_deg", "expr": "360.0", "units_out": "deg",
-         "notes": "In the plane PERPENDICULAR to the slot axis (the slot's E-plane) the pattern of an infinite zero-thickness screen is UNIFORM -- there are no half-power points, so 360 deg is returned as a sentinel meaning omnidirectional in that cut. A finite screen introduces edge-diffraction ripple of a few dB and a null in the screen plane.",
-         "depends_on": []},
-        {"metric": "polarisation_tilt_deg", "expr": "90.0", "units_out": "deg",
-         "notes": "Angle between the radiated E vector and the slot's LONG axis. Exactly 90 deg: a vertical slot radiates horizontal polarisation. Linear polarisation; cross-pol is set only by screen finiteness and feed asymmetry.",
-         "depends_on": []},
-        {"metric": "fractional_bandwidth_vswr2", "expr": "1.5*w/L + 0.055", "units_out": "-",
-         "notes": "VSWR-2 bandwidth referenced to the resonant resistance. Engineering interpolation anchored at 8.5% for w/L = 0.02 and 20.5% for w/L = 0.10, derived from the complementary strip dipole's measured bandwidth (the slot's Q equals the dipole's because Zs = k/Zd). Good to about +/-30%. Do not extrapolate beyond w/L = 0.2.",
-         "depends_on": ["w", "L"]},
-        {"metric": "quality_factor", "expr": "1.0/(1.5*w/L + 0.055)*(2.0-1.0)/np.sqrt(2.0)", "units_out": "-",
-         "notes": "Q from the VSWR-2 bandwidth using the Yaghjian-Best relation FBW = (s-1)/(Q*sqrt(s)) with s = 2, i.e. Q = 0.7071/FBW. Inherits the bandwidth model's +/-30%.",
-         "depends_on": ["w", "L"]}
+        {
+          "metric": "babinet_product_ohm2",
+          "expr": "eta0**2/4.0",
+          "units_out": "ohm^2",
+          "notes": "Z_slot * Z_dipole = eta0^2/4 = 35481.43 ohm^2. Booker's relation. The constant is exact given eta0 = 376.730313412 ohm; the older eta = 120*pi convention gives 35530.6, a 0.14% difference.",
+          "depends_on": []
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2))",
+          "units_out": "ohm",
+          "notes": "Re{eta0^2/(4*Zd)}. With the default 73.1 + j42.5 dipole this is 362.8 ohm.",
+          "depends_on": [
+            "Rd",
+            "Xd"
+          ]
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "-eta0**2*Xd/(4.0*(Rd**2 + Xd**2))",
+          "units_out": "ohm",
+          "notes": "Im{eta0^2/(4*Zd)} = -eta0^2*Xd/(4*|Zd|^2). NEGATIVE for the default inductive dipole: -210.9 ohm. See the sign discussion in notes.",
+          "depends_on": [
+            "Rd",
+            "Xd"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2)) + 1j*(-eta0**2*Xd/(4.0*(Rd**2 + Xd**2)))",
+          "units_out": "ohm",
+          "notes": "Complex form, 362.8 - j210.9 ohm by default. Two-sided infinite zero-thickness screen only.",
+          "depends_on": [
+            "Rd",
+            "Xd"
+          ]
+        },
+        {
+          "metric": "input_impedance_magnitude_ohm",
+          "expr": "eta0**2/(4.0*np.sqrt(Rd**2 + Xd**2))",
+          "units_out": "ohm",
+          "notes": "|Zs| = (eta0^2/4)/|Zd| = 419.6 ohm for the default dipole.",
+          "depends_on": [
+            "Rd",
+            "Xd"
+          ]
+        },
+        {
+          "metric": "resonant_resistance_ohm",
+          "expr": "eta0**2/(4.0*Rd_res)",
+          "units_out": "ohm",
+          "notes": "Purely real slot impedance at the length where X = 0 (about 0.4785*lambda0 for w/L = 0.05). With Rd_res = 67 ohm this is 529.6 ohm. The usual engineering shorthand 'a resonant slot is about 500 ohm' comes from here. Ranges 500-530 ohm over any realistic slot width.",
+          "depends_on": [
+            "Rd_res"
+          ]
+        },
+        {
+          "metric": "resonant_resistance_one_sided_ohm",
+          "expr": "eta0**2/(2.0*Rd_res)",
+          "units_out": "ohm",
+          "notes": "Same slot with one half space closed off (cavity backing or a half-space mount): the radiation conductance halves so the resistance doubles, 1059 ohm. This is why cavity-backed slots are nearly always fed off-centre or through a transformer.",
+          "depends_on": [
+            "Rd_res"
+          ]
+        },
+        {
+          "metric": "radiation_conductance_S",
+          "expr": "4.0*Rd/eta0**2",
+          "units_out": "S",
+          "notes": "G = Re{Y_slot} = 4*Rd/eta0^2 = 2.060e-3 S for Rd = 73.1 ohm. The slot is naturally described by an admittance because it is a shunt element across whatever feeds it.",
+          "depends_on": [
+            "Rd"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10.0*np.log10(1.6409)",
+          "units_out": "dBi",
+          "notes": "D0 = 1.6409 (2.1517 dBi), identical to the complementary half-wave dipole because Babinet preserves the pattern shape. Radiation is split between the two half spaces.",
+          "depends_on": []
+        },
+        {
+          "metric": "directivity_one_sided_dbi",
+          "expr": "10.0*np.log10(2.0*1.6409)",
+          "units_out": "dBi",
+          "notes": "5.16 dBi if one half space is closed off (cavity-backed or flush half-space mount): the same power into half the solid angle.",
+          "depends_on": []
+        },
+        {
+          "metric": "hpbw_plane_of_slot_axis_deg",
+          "expr": "78.0",
+          "units_out": "deg",
+          "notes": "Half-power beamwidth in the plane CONTAINING the slot's long axis -- the slot's H-plane, and the dual of the dipole's 78 deg E-plane cut.",
+          "depends_on": []
+        },
+        {
+          "metric": "hpbw_plane_across_slot_deg",
+          "expr": "360.0",
+          "units_out": "deg",
+          "notes": "In the plane PERPENDICULAR to the slot axis (the slot's E-plane) the pattern of an infinite zero-thickness screen is UNIFORM -- there are no half-power points, so 360 deg is returned as a sentinel meaning omnidirectional in that cut. A finite screen introduces edge-diffraction ripple of a few dB and a null in the screen plane.",
+          "depends_on": []
+        },
+        {
+          "metric": "polarisation_tilt_deg",
+          "expr": "90.0",
+          "units_out": "deg",
+          "notes": "Angle between the radiated E vector and the slot's LONG axis. Exactly 90 deg: a vertical slot radiates horizontal polarisation. Linear polarisation; cross-pol is set only by screen finiteness and feed asymmetry.",
+          "depends_on": []
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.5*w/L + 0.055",
+          "units_out": "-",
+          "notes": "VSWR-2 bandwidth referenced to the resonant resistance. Engineering interpolation anchored at 8.5% for w/L = 0.02 and 20.5% for w/L = 0.10, derived from the complementary strip dipole's measured bandwidth (the slot's Q equals the dipole's because Zs = k/Zd). Good to about +/-30%. Do not extrapolate beyond w/L = 0.2.",
+          "depends_on": [
+            "w",
+            "L"
+          ]
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "1.0/(1.5*w/L + 0.055)*(2.0-1.0)/np.sqrt(2.0)",
+          "units_out": "-",
+          "notes": "Q from the VSWR-2 bandwidth using the Yaghjian-Best relation FBW = (s-1)/(Q*sqrt(s)) with s = 2, i.e. Q = 0.7071/FBW. Inherits the bandwidth model's +/-30%.",
+          "depends_on": [
+            "w",
+            "L"
+          ]
+        }
       ],
       "validity": [
         "INFINITE, perfectly conducting, ZERO-THICKNESS screen. This is the restriction on Booker's relation and it is routinely ignored. A screen smaller than about 2*lambda on a side changes the impedance by tens of percent and adds a rear lobe",
@@ -95,30 +250,73 @@
         "the 78 deg / omnidirectional beamwidths apply to a lambda/2 slot; longer slots break up into multiple lobes exactly as a long dipole does"
       ],
       "known_cases": [
-        {"given": {"f0": 3e8},
-         "expect": {"L_m": 0.478169, "L_half_wave_m": 0.4996541, "w_m": 0.02390847},
-         "tol_pct": 0.5,
-         "source": "L = 0.4785*lambda0 resonant-length rule (King/Balanis dipole resonant lengths carried through Babinet); lambda0 = c/f0 = 0.99930819 m at 300 MHz"},
-        {"given": {},
-         "expect": {"babinet_product_ohm2": 35481.43},
-         "tol_pct": 0.05,
-         "source": "Booker 1946; Balanis, Antenna Theory 4th ed., eq. 12-11 (Zs*Zd = eta^2/4); eta0 = 376.730313412 ohm"},
-        {"given": {"Rd": 73.1, "Xd": 42.5},
-         "expect": {"input_resistance_ohm": 362.8, "input_reactance_ohm": -210.9, "input_impedance_magnitude_ohm": 419.6},
-         "tol_pct": 0.5,
-         "source": "Babinet/Booker applied to the classic lambda/2 dipole 73.1 + j42.5 ohm. Magnitudes 363 and 211 are the textbook values; the reactance sign is negative -- see notes"},
-        {"given": {"Rd_res": 67.0},
-         "expect": {"resonant_resistance_ohm": 529.57, "resonant_resistance_one_sided_ohm": 1059.15},
-         "tol_pct": 1.0,
-         "source": "Resonant slot ~500 ohm rule of thumb; Balanis Ch. 12, and the one-sided doubling used in every cavity-backed slot design"},
-        {"given": {},
-         "expect": {"directivity_dbi": 2.15168, "directivity_one_sided_dbi": 5.16168, "hpbw_plane_of_slot_axis_deg": 78.0, "polarisation_tilt_deg": 90.0},
-         "tol_pct": 0.5,
-         "source": "Balanis, Antenna Theory 4th ed., eq. 4-91 (D0 = 1.643 for a lambda/2 dipole) carried through Babinet; HPBW 78 deg from eq. 4-65"},
-        {"given": {"f0": 3e8, "w_over_L": 0.05},
-         "expect": {"fractional_bandwidth_vswr2": 0.13, "quality_factor": 5.44},
-         "tol_pct": 3.0,
-         "source": "Strip-dipole bandwidth interpolation (8.5% at w/L = 0.02, 20.5% at w/L = 0.10); Q from Yaghjian & Best FBW = (s-1)/(Q*sqrt(s))"}
+        {
+          "given": {
+            "f0": 300000000.0
+          },
+          "expect": {
+            "L_m": 0.478169,
+            "L_half_wave_m": 0.4996541,
+            "w_m": 0.02390847
+          },
+          "tol_pct": 0.5,
+          "source": "L = 0.4785*lambda0 resonant-length rule (King/Balanis dipole resonant lengths carried through Babinet); lambda0 = c/f0 = 0.99930819 m at 300 MHz"
+        },
+        {
+          "given": {},
+          "expect": {
+            "babinet_product_ohm2": 35481.43
+          },
+          "tol_pct": 0.05,
+          "source": "Booker 1946; Balanis, Antenna Theory 4th ed., eq. 12-11 (Zs*Zd = eta^2/4); eta0 = 376.730313412 ohm"
+        },
+        {
+          "given": {
+            "Rd": 73.1,
+            "Xd": 42.5
+          },
+          "expect": {
+            "input_resistance_ohm": 362.8,
+            "input_reactance_ohm": -210.9,
+            "input_impedance_magnitude_ohm": 419.6
+          },
+          "tol_pct": 0.5,
+          "source": "Babinet/Booker applied to the classic lambda/2 dipole 73.1 + j42.5 ohm. Magnitudes 363 and 211 are the textbook values; the reactance sign is negative -- see notes"
+        },
+        {
+          "given": {
+            "Rd_res": 67.0
+          },
+          "expect": {
+            "resonant_resistance_ohm": 529.57,
+            "resonant_resistance_one_sided_ohm": 1059.15
+          },
+          "tol_pct": 1.0,
+          "source": "Resonant slot ~500 ohm rule of thumb; Balanis Ch. 12, and the one-sided doubling used in every cavity-backed slot design"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 2.15168,
+            "directivity_one_sided_dbi": 5.16168,
+            "hpbw_plane_of_slot_axis_deg": 78.0,
+            "polarisation_tilt_deg": 90.0
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis, Antenna Theory 4th ed., eq. 4-91 (D0 = 1.643 for a lambda/2 dipole) carried through Babinet; HPBW 78 deg from eq. 4-65"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "w_over_L": 0.05
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.13,
+            "quality_factor": 5.44
+          },
+          "tol_pct": 3.0,
+          "source": "Strip-dipole bandwidth interpolation (8.5% at w/L = 0.02, 20.5% at w/L = 0.10); Q from Yaghjian & Best FBW = (s-1)/(Q*sqrt(s))"
+        }
       ],
       "references": [
         "H. G. Booker, 'Slot aerials and their relation to complementary wire aerials (Babinet's principle)', J. IEE 93 Part IIIA, pp. 620-626, 1946",
@@ -128,6 +326,298 @@
         "Volakis (ed.), Antenna Engineering Handbook, 4th ed., Ch. 13 (slot antennas)",
         "Yaghjian & Best, 'Impedance, Bandwidth and Q of Antennas', IEEE T-AP 53(4), 2005"
       ]
+    },
+    {
+      "key": "cavity_backed_slot",
+      "name": "Cavity-backed rectangular slot",
+      "family": "slot",
+      "summary": "Half-wave slot over a shorted cavity, making the pattern unidirectional.",
+      "freq_range_hz": [
+        100000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "slot_length",
+          "name": "slot length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "slot_width",
+          "name": "slot width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "cavity_depth",
+          "name": "cavity depth",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slot_length",
+          "expr": "0.48*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "slightly under lambda/2, as with a dipole"
+        },
+        {
+          "output": "slot_width",
+          "expr": "0.05*(0.48*c/f0)",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "width sets the bandwidth; 5% of the length is a typical starting point"
+        },
+        {
+          "output": "cavity_depth",
+          "expr": "0.25*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "A quarter-wave deep cavity transforms the short at the back wall into an open circuit at the slot, so it does not load the slot. This depth is the whole reason the cavity works, and it is inherently narrowband."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "2*363.0",
+          "units_out": "ohm",
+          "notes": "Radiating into a half space instead of a full one doubles the impedance of the equivalent open slot, so roughly 726 ohm at resonance."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2*1.6409)",
+          "units_out": "dBi",
+          "notes": "unidirectional, so twice the open slot's directivity: about 5.16 dBi"
+        },
+        {
+          "metric": "cavity_depth_over_lambda",
+          "expr": "cavity_depth*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "cavity_depth",
+            "f0"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "0.05",
+          "units_out": "-",
+          "notes": "Indicative: the quarter-wave cavity is resonant, so the cavity-backed slot trades roughly half the open slot's bandwidth for its unidirectional pattern."
+        }
+      ],
+      "validity": [
+        "cavity depth is correct at one frequency only; the structure is narrowband by construction",
+        "assumes a cavity at least a half wave across laterally, or the cavity modes shift the resonance",
+        "bandwidth entry is indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1000000000.0
+          },
+          "expect": {
+            "slot_length_m": 0.1439,
+            "cavity_depth_m": 0.0749481,
+            "cavity_depth_over_lambda": 0.25,
+            "directivity_dbi": 5.15143
+          },
+          "tol_pct": 1.0,
+          "source": "1 GHz: 0.48 lambda slot = 143.9 mm over a lambda/4 = 74.95 mm cavity; unidirectional directivity is 2x the open slot. Balanis, Antenna Theory 4th ed., Ch. 12"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 12",
+        "Elliott, Antenna Theory and Design, revised ed., Ch. 8"
+      ]
+    },
+    {
+      "key": "waveguide_longitudinal_slot",
+      "name": "Waveguide longitudinal shunt slot",
+      "family": "slot",
+      "summary": "Broad-wall slot offset from the centreline; the element of every slotted-waveguide array.",
+      "freq_range_hz": [
+        1000000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_wg",
+          "name": "guide broad wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "b_wg",
+          "name": "guide narrow wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.01016"
+        },
+        {
+          "symbol": "x1",
+          "name": "slot offset from centreline",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.003"
+        },
+        {
+          "symbol": "slot_length",
+          "name": "slot length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slot_length",
+          "expr": "0.48*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "resonant slot length, trimmed from lambda/2 by the finite slot width"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "cutoff_te10_hz",
+          "expr": "c/(2*a_wg)",
+          "units_out": "Hz",
+          "depends_on": [
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "guide_wavelength_m",
+          "expr": "(c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "g1_normalised",
+          "expr": "2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "a_wg",
+            "b_wg"
+          ],
+          "notes": "Stevenson's peak normalised conductance: g1 = 2.09*(lambda_g/lambda)*(a/b)*cos^2(pi*lambda/(2*lambda_g)) - note this is the value at maximum offset, and the leading lambda ratio is inverted relative to some printings, so cross-check against the source before building an array."
+        },
+        {
+          "metric": "normalised_conductance",
+          "expr": "(2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2)*np.sin(pi*x1/a_wg)**2",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "a_wg",
+            "b_wg",
+            "x1"
+          ],
+          "notes": "g = g1*sin^2(pi*x1/a). The sin^2 offset law is exact in Stevenson's theory and is what lets an array designer set each element's coupling by displacement alone."
+        },
+        {
+          "metric": "offset_fraction",
+          "expr": "x1/a_wg",
+          "units_out": "-",
+          "depends_on": [
+            "x1",
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "slots_for_unity_total",
+          "expr": "1/((2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2)*np.sin(pi*x1/a_wg)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "a_wg",
+            "b_wg",
+            "x1"
+          ],
+          "notes": "A resonant standing-wave array needs the shunt conductances to sum to 1 for a matched input; this is how many identical slots at this offset that would take."
+        }
+      ],
+      "validity": [
+        "a slot on the centreline (x1 = 0) does not cut longitudinal current and therefore does not radiate at all - the sin^2 law makes this explicit",
+        "Stevenson's theory assumes a thin wall and a narrow slot",
+        "single-mode TE10 operation",
+        "mutual coupling between adjacent slots is NOT modelled and matters in real arrays",
+        "the g1 expression should be cross-checked against the source before committing an array design to fabrication"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.0
+          },
+          "expect": {
+            "normalised_conductance": 0.0
+          },
+          "tol_abs": 1e-09,
+          "source": "A centreline slot cuts no transverse current and radiates nothing: sin^2(0) = 0. This is the defining property of the longitudinal shunt slot. Stevenson, Theory of Slots in Rectangular Waveguides, J. Appl. Phys. 19, 1948"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.01143
+          },
+          "expect": {
+            "offset_fraction": 0.5
+          },
+          "tol_pct": 0.5,
+          "source": "An offset of a/2 is the maximum-coupling position, where sin^2(pi/2) = 1. Stevenson, Theory of Slots in Rectangular Waveguides, J. Appl. Phys. 19, 1948"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.003
+          },
+          "expect": {
+            "cutoff_te10_hz": 6555900000.0,
+            "guide_wavelength_m": 0.039733
+          },
+          "tol_pct": 1.0,
+          "source": "WR-90 at 10 GHz: TE10 cutoff 6.556 GHz, guide wavelength 39.73 mm. Pozar, Microwave Engineering 4th ed., Ch. 3"
+        }
+      ],
+      "references": [
+        "Stevenson, Theory of Slots in Rectangular Waveguides, J. Appl. Phys. 19, 1948",
+        "Elliott, Antenna Theory and Design, revised ed., Ch. 8",
+        "Balanis, Antenna Theory 4th ed., Ch. 12"
+      ],
+      "confidence": "low"
     }
   ]
 }
