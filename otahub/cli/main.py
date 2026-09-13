@@ -215,6 +215,16 @@ def cmd_check(args: argparse.Namespace, reg: Registry) -> int:
     return 1 if failed else 0
 
 
+def cmd_gui(args: argparse.Namespace, reg: Registry) -> int:
+    try:
+        from ..gui.app import main as gui_main
+    except ImportError as exc:
+        print(f"the GUI needs PySide6: {exc}\n\n"
+              f"  python -m pip install PySide6", file=sys.stderr)
+        return 1
+    return gui_main([sys.argv[0]])
+
+
 def cmd_doctor(args: argparse.Namespace, reg: Registry) -> int:
     probs = reg.problems()
     if not probs:
@@ -381,6 +391,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     pd = sub.add_parser("doctor", help="report structural faults in the specs")
     pd.set_defaults(func=cmd_doctor)
+
+    pui = sub.add_parser("gui", help="launch the graphical interface")
+    pui.set_defaults(func=cmd_gui)
 
     pg = sub.add_parser("guide", help="analyse a rectangular waveguide")
     pg.add_argument("name", help="WR designation, or 'list' for the whole series")

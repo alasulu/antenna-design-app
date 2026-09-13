@@ -19,7 +19,7 @@ worked. **Do not delegate spec authoring to subagents.**
 |---|-------|--------|
 | S1 | Core engine, registry, 40 archetypes, CLI, tests | **DONE** (2026-09-13 22:30) |
 | S2 | Waveguides module + arrays (layouts, tapers, array factor) | **DONE** (2026-09-14) |
-| S3 | PySide6 GUI shell: catalog browser, param panel, plots | PENDING |
+| S3 | PySide6 GUI shell: catalogue browser, param panel, plots | **DONE** (2026-09-14) |
 | S4 | Exporters (CST VBA, HFSS script), matching/network utils | PENDING |
 
 The user typed `Continue` before the 01:12 run fired, and S2 was done in that
@@ -84,7 +84,29 @@ session. The 01:12 run, if it still fires, should pick up **S3 (GUI)**. S4
   measured, Chebyshev wins for n >= 20, consistent with its optimality proof.
   Taylor's real advantages are no edge spikes and decaying far sidelobes.
 
+## Completed in S3
+- PySide6 6.11.2 installed (~2 GB; 28 GB free remains).
+- `otahub/gui/`: three tabs - Catalogue (tree + search + generated form + Design/Sweep/
+  Pattern results), Arrays (live taper designer), Waveguides (WR calculator with a
+  dispersion plot). `otahub.core` remains GUI-free.
+- The catalogue form is generated from each spec's declared parameters, so a new
+  archetype in `specs/` gets a working UI with no GUI code change.
+- `gui` subcommand added to the CLI and launcher.
+- 40/40 archetypes verified to produce a non-empty design from form defaults.
+- GUI tests run headless under QT_QPA_PLATFORM=offscreen.
+
+## Bugs found in S3
+- Catalogue filter delegated family rows to the base class, whose empty regex accepts
+  everything, so every family survived any search. Family rows must return False and
+  be pulled back in by recursive filtering.
+- Form opened with an empty f0 (no spec declares a typical for it), so synthesis
+  produced zero geometry and looked broken. Frequency is now prefilled from the
+  geometric mean of each archetype's validity band.
+- Polar plots left the lower half blank; patterns here are azimuthally symmetric, so
+  a blank half reads as a one-sided pattern. Now mirrored.
+
 ## Next action
-S3: PySide6 GUI shell - catalogue browser over the 40 archetypes, parameter panel
-driven by each spec's declared parameters, and pattern/impedance plots. Disk now has
-~30 GB free so PySide6 installs without trouble. Keep `otahub.core` GUI-free.
+S4 (last): CST Studio VBA and Ansys HFSS script exporters, plus impedance-matching
+and network-parameter utilities. The exporters should read a DesignResult and emit a
+parameterised model; note that most archetypes carry only primary dimensions, so the
+exporter must state plainly what it does and does not place.

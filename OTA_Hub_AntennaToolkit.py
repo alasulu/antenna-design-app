@@ -8,8 +8,9 @@ Run the command line interface:
     python OTA_Hub_AntennaToolkit.py synth rectangular_patch_inset --f0 2.4GHz --set eps_r=4.4
     python OTA_Hub_AntennaToolkit.py check
 
-The graphical front end arrives in a later build session; when it does, this
-launcher gains a ``gui`` subcommand and the CLI stays exactly as it is.
+Or launch the graphical interface:
+
+    python OTA_Hub_AntennaToolkit.py gui
 """
 from __future__ import annotations
 
