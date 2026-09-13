@@ -1,0 +1,2850 @@
+{
+  "family": "loop",
+  "archetypes": [
+    {
+      "key": "small_circular_loop",
+      "name": "Electrically small circular loop",
+      "summary": "Single-turn circular loop with C < lambda/3, behaving as a magnetic dipole with essentially uniform current.",
+      "freq_range_hz": [
+        10000.0,
+        10000000000.0
+      ],
+      "confidence": "high",
+      "notes": "Radiation resistance uses the classic uniform-current magnetic-dipole result Rr = 20*pi^2*(C/lambda)^4 = 31171*(A/lambda^2)^2 (the two forms agree to 3e-6 because 320*pi^4 = 31170.909). The coefficient 20*pi^2 = 197.392 embeds eta = 120*pi; using the exact eta0 = 376.7303 gives 197.253, a 0.07% difference that is far below the accuracy of any other term, so the textbook coefficient is kept for test reproducibility. Against the exact uniform-current integral Rr = eta*(pi/2)*ka*Int(0,2ka){J2(x)dx}, the quartic law reads HIGH by +0.27% at C=0.1*lambda, +2.3% at C=lambda/3, +5.2% at C=lambda/2, +22.5% at C=lambda -- this is exactly why the validity limit is C < lambda/3. Loss resistance is the SKIN-EFFECT-LIMITED value for an isolated conductor; it is a LOWER bound (see proximity-effect caveat in validity). Inductance uses the high-frequency (surface-current) circular-loop formula L = mu0*a*(ln(8a/b) - 2); the low-frequency form uses -7/4 instead of -2 because it adds the internal inductance mu0*l/(8*pi). Efficiency of a practical small loop is usually a few percent or less; the number this spec returns is optimistic unless a realistic proximity factor is supplied.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Operating (tuned) frequency",
+          "typical": "1e6 .. 1e9"
+        },
+        {
+          "symbol": "C",
+          "name": "circumference",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean circumference of the loop conductor, C = 2*pi*a",
+          "typical": "0.01*lambda .. 0.33*lambda"
+        },
+        {
+          "symbol": "a",
+          "name": "loop_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean radius of the loop, a = C/(2*pi)",
+          "typical": "C/(2*pi)"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the round conductor",
+          "typical": "0.001*a .. 0.05*a"
+        },
+        {
+          "symbol": "N",
+          "name": "turns",
+          "unit": "-",
+          "role": "geometry",
+          "description": "Number of turns (1 for this archetype)",
+          "typical": "1"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor DC conductivity (copper 5.8e7, aluminium 3.54e7)",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor (1 for Cu/Al, ~100-1000 for steel)",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "C_over_lambda",
+          "name": "electrical_size",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Target C/lambda for synthesis; keep < 1/3",
+          "typical": "0.1"
+        },
+        {
+          "symbol": "eta_target",
+          "name": "efficiency_target",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Target radiation efficiency used to size the wire",
+          "typical": "0.5"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "C",
+          "expr": "C_over_lambda*c/f0",
+          "units_out": "m",
+          "notes": "Circumference follows directly from the chosen electrical size. C_over_lambda <= 1/3 keeps the quartic Rr law within 2.3%.",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "a",
+          "expr": "C_over_lambda*c/(2*pi*f0)",
+          "units_out": "m",
+          "notes": "Loop radius a = C/(2*pi).",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "b",
+          "expr": "(N*(C_over_lambda*c/f0)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))/(2*pi*20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0))",
+          "units_out": "m",
+          "notes": "Wire radius needed to hit eta_target, from Rloss = Rr*(1/eta - 1) with Rloss = (N*C/(2*pi*b))*Rs. Inverts to b = N*C*Rs/(2*pi*Rr*(1/eta - 1)). Ignores proximity effect, so the real efficiency will be lower; for N>1 divide the resulting b by the expected proximity factor's square root or simply use the largest conductor that fits.",
+          "depends_on": [
+            "N",
+            "C_over_lambda",
+            "f0",
+            "mu_r_c",
+            "sigma",
+            "eta_target"
+          ]
+        },
+        {
+          "output": "L_tune",
+          "expr": "mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2)",
+          "units_out": "H",
+          "notes": "Loop self-inductance that must be series-resonated. 8*a/b = 4*C/(pi*b).",
+          "depends_on": [
+            "N",
+            "C",
+            "b"
+          ]
+        },
+        {
+          "output": "C_tune",
+          "expr": "1.0/((2*pi*f0)**2*mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2))",
+          "units_out": "F",
+          "notes": "Series capacitance to resonate the loop at f0: C_tune = 1/(omega^2 * L). For a transmitting small loop this capacitor carries the full loop current and stands off V = I*X_C, which is typically kilovolts -- the capacitor, not the conductor, is usually the limiting component.",
+          "depends_on": [
+            "f0",
+            "N",
+            "C",
+            "b"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "20*pi**2*N**2*(C*f0/c)**4",
+          "units_out": "ohm",
+          "notes": "Rr = 20*pi^2*(C/lambda)^4 = 31171*(A/lambda^2)^2. Uniform current assumed. Reads high by 2.3% at C=lambda/3.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0"
+          ]
+        },
+        {
+          "metric": "surface_resistance_ohm",
+          "expr": "np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rs = sqrt(pi*f*mu/sigma) = 1/(sigma*delta). Copper: Rs = 2.6090e-7*sqrt(f) ohm.",
+          "depends_on": [
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "skin_depth_m",
+          "expr": "np.sqrt(1.0/(pi*f0*mu0*mu_r_c*sigma))",
+          "units_out": "m",
+          "notes": "delta = sqrt(1/(pi*f*mu*sigma)) = sqrt(2/(omega*mu*sigma)). Copper at 100 MHz: 6.61 um.",
+          "depends_on": [
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rloss = (N*C/(2*pi*b))*Rs, i.e. conductor length divided by the effective conducting perimeter 2*pi*b, times the surface resistance. SKIN-EFFECT-LIMITED, isolated-conductor value only -- see validity for the proximity-effect multiplier and the b/delta floor.",
+          "depends_on": [
+            "N",
+            "C",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "dc_resistance_ohm",
+          "expr": "N*C/(sigma*pi*b**2)",
+          "units_out": "ohm",
+          "notes": "Low-frequency limit. The skin-effect expression is only valid when b/delta > ~3; below that use max(Rdc, Rhf) or the exact Bessel form.",
+          "depends_on": [
+            "N",
+            "C",
+            "sigma",
+            "b"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rr/(Rr + Rloss). Optimistic: excludes proximity effect, tuning-capacitor ESR and any ground/nearby-object loss.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10*np.log10(1.5)",
+          "units_out": "dBi",
+          "notes": "D0 = 1.5 exactly (sin^2(theta) pattern, identical to a Hertzian dipole), i.e. 1.7609 dBi. Maximum lies IN the plane of the loop; there is a null on the loop axis.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*np.log10(1.5*(20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))))",
+          "units_out": "dBi",
+          "notes": "G = e_cd * D0.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "inductance_H",
+          "expr": "mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2)",
+          "units_out": "H",
+          "notes": "L = mu0*N^2*a*(ln(8a/b) - 2), high-frequency (surface current) circular-loop inductance. Accurate to ~2% for b/a < 0.1. Use -7/4 instead of -2 at DC.",
+          "depends_on": [
+            "N",
+            "C",
+            "b"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)) + 1j*(2*pi*f0*mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2))",
+          "units_out": "ohm",
+          "notes": "Untuned terminal impedance: Zin = Rr + Rloss + j*omega*L. Strongly inductive; a series capacitor of C_tune cancels X.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "((2*pi*f0*mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "-",
+          "notes": "Q = omega*L/(Rr + Rloss), the tuned (series-resonant) loop Q. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_3db",
+          "expr": "1.0/((2*pi*f0*mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "-",
+          "notes": "Half-power fractional bandwidth = 1/Q.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(((2*pi*f0*mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=s) = (s-1)/(Q*sqrt(s)) for a matched, singly-tuned antenna (Yaghjian & Best 2005). s=2 gives 0.7071/Q.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "chu_limit_q",
+          "expr": "1.0/(C*f0/c)**3 + 1.0/(C*f0/c)",
+          "units_out": "-",
+          "notes": "Chu-McLean lower bound Q_lb = 1/(ka)^3 + 1/(ka) for a lossless antenna in a sphere of radius a; here ka = C/lambda. A lossy antenna can go below this as Q >= e_cd*Q_lb, so the useful check is quality_factor >= radiation_efficiency * chu_limit_q.",
+          "depends_on": [
+            "C",
+            "f0"
+          ]
+        },
+        {
+          "metric": "effective_aperture_m2",
+          "expr": "1.5*(c/f0)**2/(4*pi)*(20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "m^2",
+          "notes": "Ae = G*lambda^2/(4*pi). For receiving use with the externally-noise-limited argument in the ferrite archetype.",
+          "depends_on": [
+            "f0",
+            "N",
+            "C",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        }
+      ],
+      "validity": [
+        "C < lambda/3 (ka < 0.333) -- beyond this the quartic Rr law over-predicts (+5.2% at C=lambda/2, +22.5% at C=lambda)",
+        "uniform current around the loop, which requires C << lambda and a loop whose feed/tuning gap is small",
+        "thin wire, b/a < 0.1, and turns-free single conductor",
+        "skin-effect loss expression requires b/delta > ~3; below that use the DC or exact-Bessel resistance",
+        "PROXIMITY EFFECT: for a single isolated turn the given Rloss is correct; whenever conductors are near each other (N>1, or a loop close to a ground plane/shield) the true loss is Rloss*(1 + Rp/R0) with Rp/R0 typically 0.5-4 (Balanis Fig. 5-9). This spec returns the Rp/R0 = 0 value",
+        "free space; a real loop near ground or lossy dielectric loses far more than Rloss predicts",
+        "excludes tuning-capacitor ESR, solder-joint and connector resistance, which often exceed the conductor loss in a high-Q transmitting loop"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.1,
+            "N": 1
+          },
+          "expect": {
+            "C_m": 0.0999308193,
+            "a_m": 0.0159042228,
+            "radiation_resistance_ohm": 0.0197392088
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis, Antenna Theory 4th ed., eq. 5-24 (Rr = 20*pi^2*(C/lambda)^4)"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C_over_lambda": 0.2513274123,
+            "N": 1
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.78757
+          },
+          "tol_pct": 1.0,
+          "source": "Balanis, Antenna Theory 4th ed., Example 5.2 (a = lambda/25, single turn, quoted 0.788 ohm)"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C": 0.7534612,
+            "b": 0.001,
+            "N": 1,
+            "sigma": 58000000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "surface_resistance_ohm": 0.002608951,
+            "skin_depth_m": 6.6093e-06,
+            "loss_resistance_ohm": 0.3128566,
+            "radiation_efficiency": 0.715695,
+            "inductance_H": 7.33304e-07,
+            "quality_factor": 418.7,
+            "fractional_bandwidth_vswr2": 0.00168894,
+            "gain_dbi": 0.30819
+          },
+          "tol_pct": 1.5,
+          "source": "Balanis, Antenna Theory 4th ed., eqs. 5-24a and 2-90b; copper Rs = 2.609e-7*sqrt(f)"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 1.7609126
+          },
+          "tol_pct": 0.1,
+          "source": "Balanis, Antenna Theory 4th ed., eq. 5-27 (D0 = 3/2)"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.3333333,
+            "N": 1
+          },
+          "expect": {
+            "radiation_resistance_ohm": 2.43694
+          },
+          "tol_pct": 0.5,
+          "source": "Validity-edge check: exact uniform-current integral gives 2.3817 ohm, so the quartic law is +2.3% here"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory: Analysis and Design, 4th ed., Ch. 5.2-5.3 (eqs. 5-24, 5-24a, 5-27)",
+        "Kraus & Marhefka, Antennas for All Applications, 3rd ed., Ch. 7 (small loop)",
+        "Stutzman & Thiele, Antenna Theory and Design, 3rd ed., Sec. 3.2 (small loop, Rr = 31171*(A/lambda^2)^2)",
+        "Yaghjian & Best, 'Impedance, Bandwidth and Q of Antennas', IEEE T-AP 53(4), 2005 (FBW = (s-1)/(Q*sqrt(s)))",
+        "McLean, 'A Re-Examination of the Fundamental Limits on the Radiation Q', IEEE T-AP 44(5), 1996"
+      ]
+    },
+    {
+      "key": "small_square_loop",
+      "name": "Electrically small square loop",
+      "summary": "Single-turn square loop of side s with perimeter < lambda/3; same magnetic-dipole physics as the circular loop but with a smaller enclosed area for a given conductor length.",
+      "freq_range_hz": [
+        10000.0,
+        10000000000.0
+      ],
+      "confidence": "high",
+      "notes": "The small-loop result depends only on the ENCLOSED AREA, not the shape: Rr = 31171*(A/lambda^2)^2 with A = s^2. Written against the perimeter P = 4s this becomes Rr = 121.76*(P/lambda)^4, i.e. (pi/4)^2 = 0.6169 times the circular value for the same conductor length -- the circle is the best small loop per metre of wire. The inductance constant -0.77401 is exact for a square of round wire at HF and is derivable from partial inductances: L = 4*(Lp - M) with Lp = (mu0*s/2pi)*(ln(2s/b)-1) and M = (mu0*s/2pi)*(ln(1+sqrt2) - sqrt2 + 1), giving L = (2*mu0*s/pi)*(ln(s/b) + ln2 - 1 - (ln(1+sqrt2) - sqrt2 + 1)) = (2*mu0*s/pi)*(ln(s/b) - 0.774013). Add mu0*s/(2*pi) (i.e. +0.25 inside the bracket) for the DC/low-frequency value. Corner current crowding adds a few percent of extra loss that this spec does not model.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Operating (tuned) frequency",
+          "typical": "1e6 .. 1e9"
+        },
+        {
+          "symbol": "s",
+          "name": "side_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Length of one side of the square",
+          "typical": "0.005*lambda .. 0.083*lambda"
+        },
+        {
+          "symbol": "P",
+          "name": "perimeter",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Conductor perimeter, P = 4*s",
+          "typical": "4*s"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the round conductor",
+          "typical": "0.001*s .. 0.05*s"
+        },
+        {
+          "symbol": "N",
+          "name": "turns",
+          "unit": "-",
+          "role": "geometry",
+          "description": "Number of turns (1 for this archetype)",
+          "typical": "1"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor DC conductivity",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "P_over_lambda",
+          "name": "electrical_size",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Target perimeter/lambda for synthesis; keep < 1/3",
+          "typical": "0.1"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "P",
+          "expr": "P_over_lambda*c/f0",
+          "units_out": "m",
+          "notes": "Perimeter from the chosen electrical size.",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "s",
+          "expr": "P_over_lambda*c/(4*f0)",
+          "units_out": "m",
+          "notes": "Side length s = P/4.",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "L_tune",
+          "expr": "(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401)",
+          "units_out": "H",
+          "notes": "Square-loop self-inductance (HF form). For N tightly bunched turns multiply by N^2.",
+          "depends_on": [
+            "N",
+            "s",
+            "b"
+          ]
+        },
+        {
+          "output": "C_tune",
+          "expr": "1.0/((2*pi*f0)**2*(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401))",
+          "units_out": "F",
+          "notes": "Series capacitance for resonance at f0.",
+          "depends_on": [
+            "f0",
+            "N",
+            "s",
+            "b"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "31171.0*N**2*(s**2*f0**2/c**2)**2",
+          "units_out": "ohm",
+          "notes": "Rr = 31171*N^2*(A/lambda^2)^2 with A = s^2; equivalently 121.76*N^2*(P/lambda)^4.",
+          "depends_on": [
+            "N",
+            "s",
+            "f0"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_perimeter_form_ohm",
+          "expr": "121.7617*N**2*(4*s*f0/c)**4",
+          "units_out": "ohm",
+          "notes": "Identical result expressed against perimeter; 31171/256 = 121.7617 = 20*pi^2*(pi/4)^2.",
+          "depends_on": [
+            "N",
+            "s",
+            "f0"
+          ]
+        },
+        {
+          "metric": "surface_resistance_ohm",
+          "expr": "np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rs = sqrt(pi*f*mu/sigma).",
+          "depends_on": [
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "skin_depth_m",
+          "expr": "np.sqrt(1.0/(pi*f0*mu0*mu_r_c*sigma))",
+          "units_out": "m",
+          "notes": "delta = sqrt(1/(pi*f*mu*sigma)).",
+          "depends_on": [
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rloss = (N*P/(2*pi*b))*Rs with P = 4*s. Skin-effect-limited, isolated conductor; ignores corner crowding and proximity effect.",
+          "depends_on": [
+            "N",
+            "s",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "31171.0*N**2*(s**2*f0**2/c**2)**2/(31171.0*N**2*(s**2*f0**2/c**2)**2 + (N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rr/(Rr + Rloss).",
+          "depends_on": [
+            "N",
+            "s",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10*np.log10(1.5)",
+          "units_out": "dBi",
+          "notes": "D0 = 1.5 (1.7609 dBi), identical to the circular small loop -- shape does not affect the pattern in the small-loop limit.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*np.log10(1.5*(31171.0*N**2*(s**2*f0**2/c**2)**2/(31171.0*N**2*(s**2*f0**2/c**2)**2 + (N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))))",
+          "units_out": "dBi",
+          "notes": "G = e_cd*D0.",
+          "depends_on": [
+            "N",
+            "s",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "inductance_H",
+          "expr": "(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401)",
+          "units_out": "H",
+          "notes": "L = (2*mu0*N^2*s/pi)*(ln(s/b) - 0.77401), HF (external) inductance of a square of round wire. Accurate to ~2% for b/s < 0.05.",
+          "depends_on": [
+            "N",
+            "s",
+            "b"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "(31171.0*N**2*(s**2*f0**2/c**2)**2 + (N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)) + 1j*(2*pi*f0*(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401))",
+          "units_out": "ohm",
+          "notes": "Zin = Rr + Rloss + j*omega*L (untuned).",
+          "depends_on": [
+            "N",
+            "s",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "((2*pi*f0*(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401))/(31171.0*N**2*(s**2*f0**2/c**2)**2 + (N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "-",
+          "notes": "Q = omega*L/(Rr + Rloss).",
+          "depends_on": [
+            "N",
+            "s",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(((2*pi*f0*(2*mu0*N**2*s/pi)*(np.log(s/b)-0.77401))/(31171.0*N**2*(s**2*f0**2/c**2)**2 + (N*4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q.",
+          "depends_on": [
+            "N",
+            "s",
+            "f0",
+            "b",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "area_penalty_vs_circle",
+          "expr": "(pi/4)**2",
+          "units_out": "-",
+          "notes": "For equal conductor length, Rr_square/Rr_circle = (pi/4)^2 = 0.61685 (-2.10 dB).",
+          "depends_on": []
+        }
+      ],
+      "validity": [
+        "perimeter P = 4*s < lambda/3",
+        "uniform current around the loop",
+        "b/s < 0.05 for the inductance constant -0.77401 to hold",
+        "skin-effect loss expression requires b/delta > ~3",
+        "proximity effect and corner current crowding not modelled -- treat Rloss as a lower bound",
+        "free space"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "P_over_lambda": 0.1
+          },
+          "expect": {
+            "P_m": 0.0999308193,
+            "s_m": 0.0249827048
+          },
+          "tol_pct": 0.5,
+          "source": "Geometry definition P = 4*s"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "s": 0.0249827048,
+            "N": 1
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.01217617,
+            "radiation_resistance_perimeter_form_ohm": 0.01217617,
+            "area_penalty_vs_circle": 0.6168503
+          },
+          "tol_pct": 0.5,
+          "source": "Stutzman & Thiele 3rd ed. Sec. 3.2: Rr = 31171*(A/lambda^2)^2, A = s^2, s = lambda/40"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "s": 0.07494811,
+            "b": 0.001,
+            "N": 1
+          },
+          "expect": {
+            "inductance_H": 2.124195e-07
+          },
+          "tol_pct": 1.0,
+          "source": "Grover, Inductance Calculations, square of round wire; constant -0.77401 derived from partial inductances"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 1.7609126
+          },
+          "tol_pct": 0.1,
+          "source": "Balanis 4th ed. eq. 5-27; small-loop directivity is shape-independent"
+        }
+      ],
+      "references": [
+        "Stutzman & Thiele, Antenna Theory and Design, 3rd ed., Sec. 3.2",
+        "Balanis, Antenna Theory, 4th ed., Ch. 5.2 (small loop of arbitrary shape depends only on area)",
+        "Grover, Inductance Calculations, Dover, Ch. 6 (square of round wire)",
+        "Paul, Inductance: Loop and Partial, Wiley 2010, Ch. 5 (partial-inductance derivation of the -0.774 constant)"
+      ]
+    },
+    {
+      "key": "multiturn_small_loop",
+      "name": "Multi-turn electrically small loop",
+      "summary": "N-turn air-core small loop; radiation resistance rises as N^2 while loss rises roughly as N, so multi-turn loops trade bandwidth for a usable feed impedance.",
+      "freq_range_hz": [
+        10000.0,
+        1000000000.0
+      ],
+      "confidence": "high",
+      "notes": "Rr scales as N^2 exactly (the N turns are coincident magnetic dipoles adding in phase, so the magnetic moment is N*I*A). Loss resistance scales as N to first order because the conductor length scales as N -- BUT the proximity effect between adjacent turns makes the true loss grow faster. Balanis writes Rohmic = (N*a/b)*Rs*(Rp/R0 + 1), where Rp/R0 is a measured proximity factor (Balanis Fig. 5-9) that depends on the turn spacing/wire-diameter ratio and on N; it is 0 for an isolated turn and typically 0.5-4 for a tightly wound multi-turn loop. This spec exposes Rp_ratio as an explicit input with a conservative default of 1.0 rather than pretending the skin-effect value is the answer. Set Rp_ratio = 0 to reproduce the textbook skin-effect-only figure. Inductance is given in two forms: bunched (all turns effectively coincident, L = N^2 * single-turn L, an UPPER bound) and Wheeler's current-sheet solenoid formula (better whenever l_coil > 0.8*a; accurate to ~1% there). Wheeler's SI form L = mu0*N^2*pi*a^2/(l + 0.9*a) is identical to the classic L[uH] = a^2*N^2/(9a + 10l) with a, l in inches to within 0.3%. Self-resonance from inter-turn capacitance is NOT modelled and is the practical ceiling on N.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Operating (tuned) frequency",
+          "typical": "1e4 .. 3e8"
+        },
+        {
+          "symbol": "C",
+          "name": "mean_turn_circumference",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean circumference of one turn",
+          "typical": "0.01*lambda .. 0.33*lambda"
+        },
+        {
+          "symbol": "a",
+          "name": "mean_turn_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean radius of one turn, a = C/(2*pi)",
+          "typical": "C/(2*pi)"
+        },
+        {
+          "symbol": "N",
+          "name": "turns",
+          "unit": "-",
+          "role": "geometry",
+          "description": "Number of turns",
+          "typical": "2 .. 50"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the round conductor",
+          "typical": "0.0005*a .. 0.02*a"
+        },
+        {
+          "symbol": "l_coil",
+          "name": "winding_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Axial length of the winding (solenoidal loop)",
+          "typical": "N*2.2*b .. a"
+        },
+        {
+          "symbol": "Rp_ratio",
+          "name": "proximity_factor",
+          "unit": "-",
+          "role": "material",
+          "description": "Rp/R0 proximity-effect multiplier from Balanis Fig. 5-9; 0 for an isolated turn, 0.5-4 for close winding",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor DC conductivity",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "C_over_lambda",
+          "name": "electrical_size",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Target C/lambda for synthesis; keep < 1/3",
+          "typical": "0.1"
+        },
+        {
+          "symbol": "Rin_target",
+          "name": "target_input_resistance",
+          "unit": "ohm",
+          "role": "requirement",
+          "description": "Radiation resistance you want at the terminals, used to solve for N",
+          "typical": "50.0"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "C",
+          "expr": "C_over_lambda*c/f0",
+          "units_out": "m",
+          "notes": "Circumference from the chosen electrical size.",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "a",
+          "expr": "C_over_lambda*c/(2*pi*f0)",
+          "units_out": "m",
+          "notes": "Mean turn radius.",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "N",
+          "expr": "np.ceil(np.sqrt(Rin_target/(20*pi**2*C_over_lambda**4)))",
+          "units_out": "-",
+          "notes": "Turns needed for a target radiation resistance, from Rr = 20*pi^2*N^2*(C/lambda)^4. Rounded up to an integer. Note this sizes Rr, not the terminal resistance, which also contains Rloss.",
+          "depends_on": [
+            "Rin_target",
+            "C_over_lambda"
+          ]
+        },
+        {
+          "output": "l_coil",
+          "expr": "N*2.2*b",
+          "units_out": "m",
+          "notes": "Minimum solenoidal winding length for close-wound round wire with a small insulation allowance (pitch ~ 2.2*b).",
+          "depends_on": [
+            "N",
+            "b"
+          ]
+        },
+        {
+          "output": "L_tune",
+          "expr": "mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))",
+          "units_out": "H",
+          "notes": "Wheeler current-sheet inductance of the N-turn winding, used to pick the tuning capacitor.",
+          "depends_on": [
+            "N",
+            "C",
+            "l_coil"
+          ]
+        },
+        {
+          "output": "C_tune",
+          "expr": "1.0/((2*pi*f0)**2*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))",
+          "units_out": "F",
+          "notes": "Series capacitance to resonate the multi-turn loop at f0.",
+          "depends_on": [
+            "f0",
+            "N",
+            "C",
+            "l_coil"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "20*pi**2*N**2*(C*f0/c)**4",
+          "units_out": "ohm",
+          "notes": "Rr = 20*pi^2*N^2*(C/lambda)^4 = 31171*N^2*(A/lambda^2)^2. The N^2 law is exact for coincident turns.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0"
+          ]
+        },
+        {
+          "metric": "surface_resistance_ohm",
+          "expr": "np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rs = sqrt(pi*f*mu/sigma).",
+          "depends_on": [
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_skin_only_ohm",
+          "expr": "(N*C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Textbook skin-effect-limited value, equal to Balanis (N*a/b)*Rs. Rp/R0 = 0. This is a LOWER bound for N>1.",
+          "depends_on": [
+            "N",
+            "C",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Rohmic = (N*C/(2*pi*b))*Rs*(1 + Rp/R0). Use Rp_ratio from Balanis Fig. 5-9 or from measurement.",
+          "depends_on": [
+            "N",
+            "C",
+            "b",
+            "Rp_ratio",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rr/(Rr + Rohmic), with the proximity factor included.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "Rp_ratio",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10*np.log10(1.5)",
+          "units_out": "dBi",
+          "notes": "D0 = 1.5 (1.7609 dBi); unchanged by N as long as the winding stays electrically small.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*np.log10(1.5*(20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))))",
+          "units_out": "dBi",
+          "notes": "G = e_cd*D0.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "Rp_ratio",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "inductance_wheeler_H",
+          "expr": "mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))",
+          "units_out": "H",
+          "notes": "Wheeler current-sheet solenoid formula L = mu0*N^2*pi*a^2/(l_coil + 0.9*a). ~1% accurate for l_coil > 0.8*a; degrades for very short (pancake) windings.",
+          "depends_on": [
+            "N",
+            "C",
+            "l_coil"
+          ]
+        },
+        {
+          "metric": "inductance_bunched_H",
+          "expr": "mu0*N**2*(C/(2*pi))*(np.log(4*C/(pi*b))-2)",
+          "units_out": "H",
+          "notes": "Upper bound for turns bunched into a bundle of effective radius b: L = N^2*mu0*a*(ln(8a/b) - 2). Real windings fall between this and the Wheeler value.",
+          "depends_on": [
+            "N",
+            "C",
+            "b"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma)) + 1j*(2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))",
+          "units_out": "ohm",
+          "notes": "Zin = Rr + Rohmic + j*omega*L_wheeler (untuned).",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "Rp_ratio",
+            "l_coil",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "(2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "Q = omega*L/(Rr + Rohmic). Higher N raises both L (as N^2) and R (as ~N), so Q rises roughly as N -- multi-turn loops are narrower, not wider.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "Rp_ratio",
+            "l_coil",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/((2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0",
+            "b",
+            "Rp_ratio",
+            "l_coil",
+            "mu_r_c",
+            "sigma"
+          ]
+        }
+      ],
+      "validity": [
+        "C < lambda/3 for every turn, and the whole winding electrically small (l_coil << lambda)",
+        "N^2 law requires the turns to be close together compared with lambda (they are, by construction)",
+        "operate well below the winding's self-resonant frequency; inter-turn capacitance is not modelled",
+        "Wheeler formula: l_coil > 0.8*a for 1% accuracy; for flat spiral (pancake) windings use a dedicated spiral formula",
+        "Rp_ratio is an empirical input, not a prediction -- the default 1.0 is a placeholder, not a measurement",
+        "skin-effect loss expression requires b/delta > ~3"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C_over_lambda": 0.2513274123,
+            "N": 8,
+            "C": 0.7534612
+          },
+          "expect": {
+            "radiation_resistance_ohm": 50.40448
+          },
+          "tol_pct": 1.0,
+          "source": "Balanis, Antenna Theory 4th ed., Example 5.2: eight-turn loop of radius lambda/25, quoted ~50.43 ohm"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C": 0.7534612,
+            "N": 1
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.78757
+          },
+          "tol_pct": 1.0,
+          "source": "Same geometry, N=1, demonstrating the exact N^2 scaling (50.40448/0.787570 = 64 = 8^2)"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C": 0.7534612,
+            "N": 10
+          },
+          "expect": {
+            "radiation_resistance_ohm": 78.757
+          },
+          "tol_pct": 1.0,
+          "source": "N^2 scaling check: 100x the single-turn value"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C": 0.7534612,
+            "b": 0.001,
+            "N": 8,
+            "Rp_ratio": 0.0,
+            "sigma": 58000000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "loss_resistance_skin_only_ohm": 2.502853,
+            "loss_resistance_ohm": 2.502853,
+            "radiation_efficiency": 0.95272
+          },
+          "tol_pct": 1.5,
+          "source": "Balanis eq. 5-24a with Rp/R0 = 0: Rohmic = (N*a/b)*Rs = 8*119.917*2.60895e-3"
+        },
+        {
+          "given": {
+            "C": 0.3141593,
+            "N": 10,
+            "l_coil": 0.05
+          },
+          "expect": {
+            "inductance_wheeler_H": 1.038906e-05
+          },
+          "tol_pct": 2.0,
+          "source": "Wheeler 1928 current-sheet formula; a = 0.05 m, l = 0.05 m, N = 10. Classic inch form a^2*N^2/(9a+10l) gives 10.36 uH"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory, 4th ed., Ch. 5.2.4 and eq. 5-24a; Fig. 5-9 for Rp/R0",
+        "Wheeler, 'Simple Inductance Formulas for Radio Coils', Proc. IRE 16(10), 1928",
+        "Kraus & Marhefka, Antennas for All Applications, 3rd ed., Ch. 7",
+        "ARRL Antenna Book, 24th ed., Ch. 5 (small transmitting loops) and Ch. 2 (loop Q and bandwidth)"
+      ]
+    },
+    {
+      "key": "ferrite_rod_loop",
+      "name": "Ferrite-rod loaded receiving loop",
+      "summary": "Multi-turn coil on a ferrite rod, used as an electrically tiny receiving antenna at LF/MF/HF where its dreadful efficiency is irrelevant because external noise dominates.",
+      "freq_range_hz": [
+        10000.0,
+        30000000.0
+      ],
+      "confidence": "low",
+      "notes": "THE CRITICAL POINT: the useful permeability is the ROD permeability mu_rod, not the material's initial permeability mu_i. A finite rod demagnetises itself, and mu_rod = mu_i / (1 + D*(mu_i - 1)) where D is the demagnetising factor set by the rod's LENGTH/DIAMETER RATIO m = l_rod/d_rod. As mu_i -> infinity, mu_rod -> 1/D: the rod saturates at a geometry-determined ceiling. Worked ceilings (prolate-spheroid D): m=5 -> 17.9, m=10 -> 49.3, m=20 -> 148.2, m=50 -> 693. So a 10:1 rod of mu_i = 125 material gives mu_rod = 35.6 while the same rod of mu_i = 2000 material gives only 48.1 -- a 16x change in mu_i buys 1.35x in mu_rod. Using mu_i directly is the single most common error in ferrite-rod antenna calculations and over-predicts signal voltage by one to two orders of magnitude. D here is the EXACT prolate-spheroid (ellipsoid of revolution) value, D = (1/(m^2-1))*((m/sqrt(m^2-1))*ln(m + sqrt(m^2-1)) - 1); the large-m limit is (ln(2m)-1)/m^2. CONFIDENCE IS LOW on mu_rod's absolute accuracy because real rods are CYLINDERS, not spheroids: measured cylinder demagnetising factors (Bozorth & Chapin) run roughly 10-20% below the equivalent-spheroid value (e.g. m=10: D_cyl ~ 0.017 vs D_spheroid = 0.0203), so this spec UNDER-estimates mu_rod by of order 10-20%. The D expression itself is exact and is tested tightly; the physical mapping to a cylinder is the uncertain step. SECOND EMPIRICAL STEP: a coil shorter than the rod does not see the full mu_rod. k_coil (Snelling's coil-length correction, ~0.4 for a very short centred coil to ~1.0 for a coil covering the rod) is an empirical input with a default of 0.7, not a prediction. Ferrite loss (mu''), not copper loss, usually sets Q above a few hundred kHz; MnZn materials are unusable above ~2 MHz and NiZn above ~30 MHz. Do NOT use this archetype for transmitting: rod flux density saturates and the core heats.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Tuned receive frequency",
+          "typical": "1.5e5 .. 3e7"
+        },
+        {
+          "symbol": "mu_i",
+          "name": "initial_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Material initial relative permeability (NiZn type 61: 125; MnZn type 33/77: 800-2000)",
+          "typical": "125 .. 2000"
+        },
+        {
+          "symbol": "l_rod",
+          "name": "rod_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Physical rod length",
+          "typical": "0.05 .. 0.30"
+        },
+        {
+          "symbol": "d_rod",
+          "name": "rod_diameter",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Physical rod diameter",
+          "typical": "0.006 .. 0.020"
+        },
+        {
+          "symbol": "N",
+          "name": "turns",
+          "unit": "-",
+          "role": "geometry",
+          "description": "Number of coil turns",
+          "typical": "30 .. 200"
+        },
+        {
+          "symbol": "l_coil",
+          "name": "coil_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Axial length of the winding",
+          "typical": "0.2*l_rod .. 0.8*l_rod"
+        },
+        {
+          "symbol": "k_coil",
+          "name": "coil_coverage_factor",
+          "unit": "-",
+          "role": "material",
+          "description": "Empirical Snelling factor mapping mu_rod to the permeability the coil actually sees; ~0.4 (short centred coil) to ~1.0 (full-length coil)",
+          "typical": "0.7"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the winding conductor (or of one Litz strand bundle)",
+          "typical": "1e-4 .. 5e-4"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor conductivity",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "Q_coil",
+          "name": "loaded_coil_q",
+          "unit": "-",
+          "role": "material",
+          "description": "Measured unloaded Q of the coil-on-rod at f0, dominated by ferrite mu''; 80-250 typical",
+          "typical": "150.0"
+        },
+        {
+          "symbol": "ld_target",
+          "name": "target_length_diameter_ratio",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Desired rod length/diameter ratio for synthesis",
+          "typical": "10.0"
+        },
+        {
+          "symbol": "L_target",
+          "name": "target_inductance",
+          "unit": "H",
+          "role": "requirement",
+          "description": "Coil inductance required to resonate with the chosen tuning capacitor",
+          "typical": "5e-4"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "l_rod",
+          "expr": "ld_target*d_rod",
+          "units_out": "m",
+          "notes": "Rod length from the target aspect ratio. Longer rods win: mu_rod rises roughly as m^2/(ln(2m)-1).",
+          "depends_on": [
+            "ld_target",
+            "d_rod"
+          ]
+        },
+        {
+          "output": "mu_rod",
+          "expr": "mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))",
+          "units_out": "-",
+          "notes": "Rod (apparent) permeability from the demagnetising factor. Depends on l_rod/d_rod, NOT on mu_i alone. Saturates at 1/D for large mu_i.",
+          "depends_on": [
+            "l_rod",
+            "d_rod",
+            "mu_i"
+          ]
+        },
+        {
+          "output": "mu_eff",
+          "expr": "k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0)))",
+          "units_out": "-",
+          "notes": "Permeability the coil actually sees, mu_eff = k_coil*mu_rod. k_coil is empirical (Snelling coil-length chart).",
+          "depends_on": [
+            "l_rod",
+            "d_rod",
+            "mu_i",
+            "k_coil"
+          ]
+        },
+        {
+          "output": "N",
+          "expr": "np.sqrt(L_target*l_coil/(mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*((pi*d_rod**2/4.0))))",
+          "units_out": "-",
+          "notes": "Turns for a target inductance, from the solenoid-on-core relation L = mu0*mu_eff*N^2*A_rod/l_coil. Round to an integer and re-check L. Accurate only to ~20% -- always trim the winding against a measured L or against the tuning capacitor.",
+          "depends_on": [
+            "L_target",
+            "l_coil",
+            "l_rod",
+            "d_rod",
+            "mu_i",
+            "k_coil"
+          ]
+        },
+        {
+          "output": "C_tune",
+          "expr": "1.0/((2*pi*f0)**2*L_target)",
+          "units_out": "F",
+          "notes": "Parallel tuning capacitance, C = 1/(omega^2*L). Add stray and varactor capacitance before choosing the gang.",
+          "depends_on": [
+            "f0",
+            "L_target"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "demagnetising_factor",
+          "expr": "(1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0)",
+          "units_out": "-",
+          "notes": "Prolate-spheroid demagnetising factor along the rod axis, D = (1/(m^2-1))*((m/sqrt(m^2-1))*arccosh(m) - 1) with m = l_rod/d_rod. EXACT for a spheroid; a real cylinder measures roughly 10-20% lower.",
+          "depends_on": [
+            "l_rod",
+            "d_rod"
+          ]
+        },
+        {
+          "metric": "demagnetising_factor_asymptote",
+          "expr": "(np.log(2.0*l_rod/d_rod)-1.0)/((l_rod/d_rod)**2-1.0)",
+          "units_out": "-",
+          "notes": "Large-m simplification D ~ (ln(2m)-1)/(m^2-1); within 0.7% of the exact value for m >= 10.",
+          "depends_on": [
+            "l_rod",
+            "d_rod"
+          ]
+        },
+        {
+          "metric": "mu_rod",
+          "expr": "mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))",
+          "units_out": "-",
+          "notes": "mu_rod = mu_i/(1 + D*(mu_i - 1)). THE FORMULA THAT MATTERS. Ceiling 1/D is independent of mu_i.",
+          "depends_on": [
+            "l_rod",
+            "d_rod",
+            "mu_i"
+          ]
+        },
+        {
+          "metric": "mu_rod_ceiling",
+          "expr": "1.0/((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))",
+          "units_out": "-",
+          "notes": "1/D, the largest rod permeability obtainable from this geometry no matter how high mu_i is.",
+          "depends_on": [
+            "l_rod",
+            "d_rod"
+          ]
+        },
+        {
+          "metric": "mu_eff",
+          "expr": "k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0)))",
+          "units_out": "-",
+          "notes": "mu_eff = k_coil*mu_rod, the flux-concentration factor seen by the winding. k_coil is empirical.",
+          "depends_on": [
+            "l_rod",
+            "d_rod",
+            "mu_i",
+            "k_coil"
+          ]
+        },
+        {
+          "metric": "effective_height_m",
+          "expr": "2.0*pi*N*(pi*d_rod**2/4.0)*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*f0/c",
+          "units_out": "m",
+          "notes": "h_eff = 2*pi*N*A_rod*mu_eff/lambda. Open-circuit EMF for an incident field E (V/m) arriving in the loop plane is V_oc = h_eff*E; after tuning, the voltage across the tank is Q_coil*h_eff*E. Typical MF rod: h_eff of a few mm.",
+          "depends_on": [
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "f0"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2",
+          "units_out": "ohm",
+          "notes": "Rr = 31171*N^2*mu_eff^2*(A_rod/lambda^2)^2 (Balanis eq. 5-25a). Typically 1e-7 ohm or less at MF -- the antenna radiates essentially nothing, which is fine for reception.",
+          "depends_on": [
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "f0"
+          ]
+        },
+        {
+          "metric": "inductance_H",
+          "expr": "mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*N**2*(pi*d_rod**2/4.0)/l_coil",
+          "units_out": "H",
+          "notes": "L = mu0*mu_eff*N^2*A_rod/l_coil. Solenoid-on-core approximation, ~20% accurate; measure and trim.",
+          "depends_on": [
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "l_coil"
+          ]
+        },
+        {
+          "metric": "coil_loss_resistance_ohm",
+          "expr": "2*pi*f0*(mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*N**2*(pi*d_rod**2/4.0)/l_coil)/Q_coil",
+          "units_out": "ohm",
+          "notes": "Equivalent series loss R = omega*L/Q_coil, lumping copper loss, ferrite hysteresis/eddy loss (mu'') and dielectric loss into the measured coil Q. Above ~1 MHz on MnZn material, mu'' dominates.",
+          "depends_on": [
+            "f0",
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "l_coil",
+            "Q_coil"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2/(31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2 + 2*pi*f0*(mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*N**2*(pi*d_rod**2/4.0)/l_coil)/Q_coil)",
+          "units_out": "-",
+          "notes": "e_cd = Rr/(Rr + R_loss). Expect 1e-7 to 1e-9 (-70 to -90 dB) at MF. This is NOT a defect: at LF/MF the external atmospheric and man-made noise floor is 40-80 dB above kTB, so the receiver stays externally-noise-limited even with this efficiency.",
+          "depends_on": [
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "l_coil",
+            "Q_coil",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10*np.log10(1.5)",
+          "units_out": "dBi",
+          "notes": "D0 = 1.5 (1.7609 dBi). The pattern is the small-loop figure-of-eight with deep nulls OFF THE ROD ENDS -- the rod is broadside-sensitive, which is what gives the classic AM-radio nulling behaviour.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*np.log10(1.5*(31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2/(31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2 + 2*pi*f0*(mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*N**2*(pi*d_rod**2/4.0)/l_coil)/Q_coil)))",
+          "units_out": "dBi",
+          "notes": "G = e_cd*D0, a large negative number. Use effective_height_m, not gain, to predict receive performance.",
+          "depends_on": [
+            "N",
+            "d_rod",
+            "l_rod",
+            "mu_i",
+            "k_coil",
+            "l_coil",
+            "Q_coil",
+            "f0"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_3db",
+          "expr": "1.0/Q_coil",
+          "units_out": "-",
+          "notes": "The tuned-circuit bandwidth is set by the loaded Q of the tank, dominated by ferrite loss and by the detector/amplifier loading, not by radiation.",
+          "depends_on": [
+            "Q_coil"
+          ]
+        }
+      ],
+      "validity": [
+        "RECEIVING ONLY -- core saturation and heating rule out transmitting at anything but milliwatt levels",
+        "l_rod/d_rod > 2 (the demagnetising expression has a removable singularity at m = 1 and is meaningless below it)",
+        "material frequency ceiling: MnZn (mu_i 800-5000) to ~2 MHz; NiZn (mu_i 40-800) to ~30 MHz. Above the ceiling mu'' collapses Q",
+        "mu_rod is a SPHEROID result applied to a cylinder -- expect it to read 10-20% low",
+        "k_coil is an empirical input, not a prediction",
+        "rod electrically tiny (l_rod << lambda), which is automatic at LF/MF",
+        "small-signal only: mu_i is field-dependent and the numbers here assume B well below the material knee",
+        "inductance formula ignores winding position along the rod; a coil at the rod centre sees more flux than one near an end"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "l_rod": 0.1,
+            "d_rod": 0.01
+          },
+          "expect": {
+            "demagnetising_factor": 0.0202859,
+            "demagnetising_factor_asymptote": 0.0201588,
+            "mu_rod_ceiling": 49.2953
+          },
+          "tol_pct": 1.0,
+          "source": "Prolate-spheroid demagnetising factor, m = 10; Bozorth, Ferromagnetism, Ch. 19 (Osborn 1945 tables)"
+        },
+        {
+          "given": {
+            "l_rod": 0.1,
+            "d_rod": 0.01,
+            "mu_i": 1000.0
+          },
+          "expect": {
+            "mu_rod": 47.0245
+          },
+          "tol_pct": 20.0,
+          "source": "Snelling, Soft Ferrites, rod-permeability chart: mu_i = 1000, l/d = 10 gives mu_rod ~ 45-55. Cylinder vs spheroid drives the 20% tolerance"
+        },
+        {
+          "given": {
+            "l_rod": 0.1,
+            "d_rod": 0.01,
+            "mu_i": 125.0
+          },
+          "expect": {
+            "mu_rod": 35.5606
+          },
+          "tol_pct": 20.0,
+          "source": "Same 10:1 rod with NiZn type-61 material (mu_i = 125): 16x less mu_i costs only 1.35x in mu_rod"
+        },
+        {
+          "given": {
+            "l_rod": 0.2,
+            "d_rod": 0.01,
+            "mu_i": 1000000.0
+          },
+          "expect": {
+            "mu_rod": 148.1288,
+            "mu_rod_ceiling": 148.1694
+          },
+          "tol_pct": 2.0,
+          "source": "Saturation check: with mu_i -> infinity, mu_rod -> 1/D = 148.2 for l/d = 20, proving mu_rod is geometry-limited"
+        },
+        {
+          "given": {
+            "f0": 1000000.0,
+            "l_rod": 0.1,
+            "d_rod": 0.01,
+            "mu_i": 1000.0,
+            "k_coil": 0.7,
+            "N": 60.0
+          },
+          "expect": {
+            "mu_eff": 32.9172,
+            "effective_height_m": 0.00325102,
+            "radiation_resistance_ohm": 9.2852e-08
+          },
+          "tol_pct": 20.0,
+          "source": "Typical MF broadcast rod: 100x10 mm, 60 turns, 1 MHz. h_eff of a few mm and Rr ~ 1e-7 ohm are the well-known magnitudes"
+        },
+        {
+          "given": {
+            "f0": 1000000.0,
+            "l_rod": 0.1,
+            "d_rod": 0.01,
+            "mu_i": 1000.0,
+            "k_coil": 0.7,
+            "N": 60.0,
+            "l_coil": 0.03,
+            "Q_coil": 150.0
+          },
+          "expect": {
+            "inductance_H": 0.000389854,
+            "coil_loss_resistance_ohm": 16.3299
+          },
+          "tol_pct": 20.0,
+          "source": "Solenoid-on-core inductance; ~390 uH is a realistic MF loopstick value for tuning with a 60-160 pF gang"
+        }
+      ],
+      "references": [
+        "Snelling, Soft Ferrites: Properties and Applications, 2nd ed., Ch. 6 (rod permeability, coil-length correction)",
+        "Bozorth, Ferromagnetism, IEEE Press reissue, Ch. 19; Osborn, 'Demagnetizing Factors of the General Ellipsoid', Phys. Rev. 67, 1945",
+        "Balanis, Antenna Theory, 4th ed., Sec. 5.4 (ferrite loop, eqs. 5-25 to 5-26) and Fig. 5-13",
+        "Laurent & Carvalho, 'Ferrite Antennas for AM Broadcast Receivers', IEEE Trans. Broadcast & TV Receivers, 1962",
+        "ARRL Antenna Book, 24th ed., Ch. 5 (receiving loops, external-noise argument)",
+        "ITU-R P.372 (radio noise) for the external-noise floor that justifies the low efficiency"
+      ]
+    },
+    {
+      "key": "one_wavelength_circular_loop",
+      "name": "Resonant one-wavelength circular loop",
+      "summary": "Full-wave circular loop with a cosinusoidal current distribution; radiates broadside to the loop plane with about 3.4 dBi and a convenient ~100 ohm resistive feed.",
+      "freq_range_hz": [
+        1000000.0,
+        30000000000.0
+      ],
+      "confidence": "medium",
+      "notes": "A one-wavelength loop is a completely different animal from a small loop: the current is NOT uniform but approximately cosinusoidal, the pattern maximum flips from IN the loop plane to NORMAL to it, and the feed impedance is a usable resistive value instead of milliohms. The pattern flip happens near C ~ 0.5*lambda. Do NOT apply the uniform-current (Alford) formulas here -- they would give D = 1.42 (1.53 dBi) with the maximum in the wrong plane. Resonance (X_in = 0) occurs at C ~ 1.09*lambda for a thin wire; the loop must be made LONGER than one wavelength, the opposite of the dipole's 0.47*lambda shortening. The exact resonant circumference depends on the thickness parameter Omega = 2*ln(2*pi*C/b) (King's loop theory, reproduced in Balanis Figs. 5-19/5-20): C_res/lambda falls from ~1.09 for very thin wire (Omega ~ 15-20) toward ~1.05 for fat conductors (Omega ~ 8-10). The engine uses 1.09; expect 1-4% trimming on a real build, and use the wire-thickness expression provided as a first correction. Rin ~ 100 ohm at that resonance is likewise a thin-wire figure that ranges roughly 80-130 ohm over practical conductor sizes. D ~ 3.4 dBi is the standard engineering figure (about 1.3 dB over a half-wave dipole); published values run 3.1-3.7 dBi depending on the assumed current distribution and conductor thickness. Bandwidth is estimated from a typical measured Q and is the weakest number here.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Resonant frequency",
+          "typical": "1e6 .. 3e9"
+        },
+        {
+          "symbol": "C",
+          "name": "circumference",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean circumference of the loop conductor",
+          "typical": "1.09*lambda"
+        },
+        {
+          "symbol": "a",
+          "name": "loop_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean radius, a = C/(2*pi)",
+          "typical": "0.1735*lambda"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the round conductor",
+          "typical": "1e-4*lambda .. 5e-3*lambda"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor conductivity",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "Q_meas",
+          "name": "measured_q",
+          "unit": "-",
+          "role": "material",
+          "description": "Measured/assumed resonator Q used for the bandwidth estimate",
+          "typical": "12.0"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "C",
+          "expr": "1.09*c/f0",
+          "units_out": "m",
+          "notes": "Resonant circumference. Thin-wire value; the loop is ~9% LONGER than one free-space wavelength. See thickness correction below.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "a",
+          "expr": "1.09*c/(2*pi*f0)",
+          "units_out": "m",
+          "notes": "Loop radius a = C/(2*pi) = 0.17348*lambda.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "C_thick_corrected",
+          "expr": "(1.09 - 0.0045*(20.0 - 2*np.log(2*pi*1.09*c/(f0*b))))*c/f0",
+          "units_out": "m",
+          "notes": "First-order thickness correction: C_res/lambda drifts down as the thickness parameter Omega = 2*ln(2*pi*C/b) falls. Linearised about Omega = 20 with a slope of 0.0045 per unit Omega, consistent with Balanis Fig. 5-20. CONFIDENCE LOW on the slope -- treat as a trimming hint, not a design value.",
+          "depends_on": [
+            "f0",
+            "b"
+          ]
+        },
+        {
+          "output": "thickness_parameter",
+          "expr": "2*np.log(2*pi*C/b)",
+          "units_out": "-",
+          "notes": "King's Omega = 2*ln(2*pi*C/b). Omega ~ 20 is thin wire, ~10 is a fat tube.",
+          "depends_on": [
+            "C",
+            "b"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "directivity_dbi",
+          "expr": "3.4",
+          "units_out": "dBi",
+          "notes": "Standard engineering value for a one-wavelength loop, ~1.25 dB over a half-wave dipole; maximum is NORMAL to the loop plane. Published figures span 3.1-3.7 dBi.",
+          "depends_on": []
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "10**0.34",
+          "units_out": "-",
+          "notes": "2.188 linear.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_over_dipole_db",
+          "expr": "3.4 - 2.15",
+          "units_out": "dB",
+          "notes": "1.25 dBd. The commonly quoted '1.35 dB over a dipole' corresponds to 3.5 dBi.",
+          "depends_on": []
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "100.0 + 0.0j",
+          "units_out": "ohm",
+          "notes": "Resistive ~100 ohm at C = 1.09*lambda. Range over practical conductors is ~80-130 ohm. A quarter-wave of 75 ohm line transforms 100 ohm to ~56 ohm, which is the classic way to feed one from 50 ohm coax.",
+          "depends_on": []
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "100.0",
+          "units_out": "ohm",
+          "notes": "Real part at resonance.",
+          "depends_on": []
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "100.0/(100.0 + (C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rin/(Rin + Rloss) with Rloss = (C/(2*pi*b))*Rs. Conductor loss is negligible here (>99% for any sane wire) because Rin is ~100 ohm rather than milliohms -- the defining practical advantage of a resonant loop over a small one.",
+          "depends_on": [
+            "C",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Skin-effect conductor loss over the whole circumference. This over-states the loss slightly because the current is not uniform.",
+          "depends_on": [
+            "C",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "3.4 + 10*np.log10(100.0/(100.0 + (C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "dBi",
+          "notes": "G = D0 + 10*log10(e_cd).",
+          "depends_on": [
+            "C",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "effective_aperture_m2",
+          "expr": "10**0.34*(c/f0)**2/(4*pi)",
+          "units_out": "m^2",
+          "notes": "Ae = D0*lambda^2/(4*pi), lossless.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "Q_meas",
+          "units_out": "-",
+          "notes": "Resonator Q. Thin-wire full-wave loops measure Q ~ 10-20; the default 12 corresponds to a 2:1 SWR bandwidth of ~5.9%. LOW CONFIDENCE.",
+          "depends_on": [
+            "Q_meas"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q. With Q = 12 this is 5.9%. LOW CONFIDENCE -- verify by simulation for any real build.",
+          "depends_on": [
+            "Q_meas"
+          ]
+        },
+        {
+          "metric": "polarisation",
+          "expr": "0.0",
+          "units_out": "-",
+          "notes": "Placeholder numeric. Physically: linear, parallel to the diameter through the feed point; the loop is a balanced structure and needs a balun on coax.",
+          "depends_on": []
+        }
+      ],
+      "validity": [
+        "0.9*lambda < C < 1.2*lambda -- outside this the current distribution assumption and the ~100 ohm figure fail",
+        "thin wire: b/a < 0.01 for the 1.09 resonance constant; thicker conductors resonate at a shorter circumference",
+        "free space, at least ~0.5*lambda from ground and other conductors",
+        "balanced feed required; coax without a balun puts current on the shield and skews the pattern",
+        "the uniform-current small-loop formulas (Rr = 20*pi^2*(C/lambda)^4, D = 1.5) DO NOT apply at this size and would err by +22% and by 90 degrees in pattern orientation",
+        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0
+          },
+          "expect": {
+            "C_m": 1.0892459,
+            "a_m": 0.1733593
+          },
+          "tol_pct": 0.5,
+          "source": "C = 1.09*lambda at 300 MHz (lambda = 0.999308 m); Balanis 4th ed. Sec. 5.4, Figs. 5-19/5-20"
+        },
+        {
+          "given": {
+            "f0": 14200000.0
+          },
+          "expect": {
+            "C_m": 23.012226,
+            "a_m": 3.662607
+          },
+          "tol_pct": 0.5,
+          "source": "Same rule at 14.2 MHz (lambda = 21.1121 m)"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 3.4,
+            "directivity_linear": 2.1877616,
+            "gain_over_dipole_db": 1.25
+          },
+          "tol_pct": 2.0,
+          "source": "Kraus & Marhefka, Antennas for All Applications 3rd ed., Ch. 7; ARRL Antenna Book Ch. 5 (full-wave loop ~1.2-1.35 dB over a dipole)"
+        },
+        {
+          "given": {},
+          "expect": {
+            "input_resistance_ohm": 100.0
+          },
+          "tol_pct": 25.0,
+          "source": "Balanis 4th ed. Fig. 5-19: Rin ~ 100 ohm at the first resonance of a thin-wire circular loop"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C": 1.0892459,
+            "b": 0.001,
+            "sigma": 58000000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "loss_resistance_ohm": 0.7836887,
+            "radiation_efficiency": 0.9922238,
+            "gain_dbi": 3.3660893
+          },
+          "tol_pct": 2.0,
+          "source": "Conductor loss of a 1 mm-radius copper loop at 300 MHz; Rs = 4.5188e-3 ohm"
+        },
+        {
+          "given": {
+            "Q_meas": 12.0
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.0589256
+          },
+          "tol_pct": 2.0,
+          "source": "FBW = (s-1)/(Q*sqrt(s)); Yaghjian & Best 2005. Q = 12 is an assumed typical value"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory, 4th ed., Sec. 5.4 and Figs. 5-19, 5-20 (King's circular-loop impedance)",
+        "King, 'The Loop Antenna for Transmission and Reception', in Antenna Theory Part 1 (Collin & Zucker, eds.), 1969",
+        "Kraus & Marhefka, Antennas for All Applications, 3rd ed., Ch. 7",
+        "ARRL Antenna Book, 24th ed., Ch. 5 (loop antennas)"
+      ]
+    },
+    {
+      "key": "quad_loop_square",
+      "name": "Resonant square loop (quad element)",
+      "summary": "Full-wave square loop fed at the centre of one side, the driven element of a cubical quad; ~1.02 lambda perimeter, ~120 ohm feed, ~3.3 dBi broadside.",
+      "freq_range_hz": [
+        1000000.0,
+        3000000000.0
+      ],
+      "confidence": "medium",
+      "notes": "The perimeter constant comes from the long-standing amateur design rule L(ft) = 1005/f(MHz), which is 1005*0.3048/299.792458 = 1.0218 wavelengths -- about 2.2% longer than one free-space wavelength. Note this is noticeably SHORTER in wavelengths than the 1.09*lambda quoted for a thin CIRCULAR loop; the corner discontinuities and the practical wire sizes assumed by the amateur rule both pull the resonance down, and the rule was fitted to real wire antennas near ground rather than to a free-space thin-wire model. Treat 1.0218 as the practical build number and 1.05-1.09 as the free-space thin-wire range. Feed resistance of a free-space square quad loop is commonly measured at 100-130 ohm; 120 ohm is used here with a 25% tolerance. Feeding at the centre of a side gives polarisation PARALLEL to that side; feeding at a corner rotates it 45 degrees. Gain is ~3.1-3.5 dBi; the square is very slightly worse than the circle because it encloses less area for the same perimeter. Bandwidth again rests on an assumed Q.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Resonant frequency",
+          "typical": "1e6 .. 1e9"
+        },
+        {
+          "symbol": "P",
+          "name": "perimeter",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Total conductor perimeter",
+          "typical": "1.0218*lambda"
+        },
+        {
+          "symbol": "s",
+          "name": "side_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Length of one side, s = P/4",
+          "typical": "0.2554*lambda"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the round conductor",
+          "typical": "1e-5*lambda .. 2e-3*lambda"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor conductivity",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "Q_meas",
+          "name": "measured_q",
+          "unit": "-",
+          "role": "material",
+          "description": "Measured/assumed resonator Q for the bandwidth estimate",
+          "typical": "14.0"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "P",
+          "expr": "1.0218*c/f0",
+          "units_out": "m",
+          "notes": "Perimeter from the ARRL rule L(ft) = 1005/f(MHz), i.e. P = 306.324/f_MHz metres = 1.0218*lambda.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "s",
+          "expr": "1.0218*c/(4*f0)",
+          "units_out": "m",
+          "notes": "Side length s = P/4 = 0.25545*lambda.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "d_diag",
+          "expr": "1.0218*c/(4*f0)*np.sqrt(2.0)",
+          "units_out": "m",
+          "notes": "Corner-to-corner diagonal, useful for mechanical layout (spreader length).",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "area_m2",
+          "expr": "(1.0218*c/(4*f0))**2",
+          "units_out": "m^2",
+          "notes": "Enclosed area s^2.",
+          "depends_on": [
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "directivity_dbi",
+          "expr": "3.3",
+          "units_out": "dBi",
+          "notes": "Broadside to the loop plane. Published range 3.1-3.5 dBi; ~1.15 dB over a half-wave dipole.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_over_dipole_db",
+          "expr": "3.3 - 2.15",
+          "units_out": "dB",
+          "notes": "1.15 dBd.",
+          "depends_on": []
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "120.0 + 0.0j",
+          "units_out": "ohm",
+          "notes": "Resistive at resonance; measured free-space quad loops run 100-130 ohm. A quarter-wave 75 ohm line transforms 120 ohm to 47 ohm, which is the classic quad matching stub.",
+          "depends_on": []
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "120.0",
+          "units_out": "ohm",
+          "notes": "Real part at resonance.",
+          "depends_on": []
+        },
+        {
+          "metric": "matching_stub_z0_ohm",
+          "expr": "np.sqrt(120.0*50.0)",
+          "units_out": "ohm",
+          "notes": "Characteristic impedance of a quarter-wave transformer from 120 ohm to 50 ohm: sqrt(120*50) = 77.5 ohm, which is why RG-11/RG-59 (75 ohm) is the standard quad matching line.",
+          "depends_on": []
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Skin-effect loss over the full perimeter; conservative because the current is not uniform.",
+          "depends_on": [
+            "s",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "120.0/(120.0 + (4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rin/(Rin + Rloss). Essentially unity for any practical wire.",
+          "depends_on": [
+            "s",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "3.3 + 10*np.log10(120.0/(120.0 + (4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "units_out": "dBi",
+          "notes": "G = D0 + 10*log10(e_cd).",
+          "depends_on": [
+            "s",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "effective_aperture_m2",
+          "expr": "10**0.33*(c/f0)**2/(4*pi)",
+          "units_out": "m^2",
+          "notes": "Ae = D0*lambda^2/(4*pi), lossless.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 14 gives 5.05%. LOW CONFIDENCE -- measured HF wire quads are often narrower (2-4%).",
+          "depends_on": [
+            "Q_meas"
+          ]
+        }
+      ],
+      "validity": [
+        "0.95*lambda < P < 1.15*lambda",
+        "fed at the centre of one side (polarisation parallel to that side) or at a corner (45-degree polarisation); the constants here assume side-centre feed",
+        "free space or at least 0.5*lambda above ground; a quad close to ground shifts both resonance and Rin substantially",
+        "balanced feed; use a balun or a symmetric matching stub",
+        "the 1.0218 constant is an empirical amateur-practice rule, not a free-space thin-wire result -- expect to trim",
+        "bandwidth figure derives from an assumed Q"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 14200000.0
+          },
+          "expect": {
+            "P_m": 21.572113,
+            "s_m": 5.393028
+          },
+          "tol_pct": 0.5,
+          "source": "ARRL Antenna Book quad rule L(ft) = 1005/f(MHz) at 14.2 MHz: 70.77 ft = 21.572 m perimeter"
+        },
+        {
+          "given": {
+            "f0": 300000000.0
+          },
+          "expect": {
+            "P_m": 1.021093,
+            "s_m": 0.2552733,
+            "area_m2": 0.0651645
+          },
+          "tol_pct": 0.5,
+          "source": "Same rule at 300 MHz; P/lambda = 1.0218"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 3.3,
+            "gain_over_dipole_db": 1.15
+          },
+          "tol_pct": 10.0,
+          "source": "ARRL Antenna Book Ch. 5: a quad loop runs roughly 1.1-1.35 dB over a dipole"
+        },
+        {
+          "given": {},
+          "expect": {
+            "input_resistance_ohm": 120.0,
+            "matching_stub_z0_ohm": 77.4597
+          },
+          "tol_pct": 25.0,
+          "source": "Free-space quad loop feed resistance 100-130 ohm; 75 ohm quarter-wave stub is the standard match"
+        },
+        {
+          "given": {
+            "f0": 14200000.0,
+            "s": 5.393028,
+            "b": 0.000813,
+            "sigma": 58000000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "loss_resistance_ohm": 4.151761,
+            "radiation_efficiency": 0.966559
+          },
+          "tol_pct": 2.0,
+          "source": "AWG 14 copper (b = 0.8138 mm) at 14.2 MHz, uniform-current model: Rs = 9.8313e-4 ohm/sq over a 21.57 m perimeter gives R_loss = 4.15 ohm against a 120 ohm feed, i.e. e_cd = 0.967 (-0.15 dB). Uniform current is the conservative bound; the true standing-wave distribution roughly halves this. Balanis 4th ed. eq. 5-24."
+        }
+      ],
+      "references": [
+        "ARRL Antenna Book, 24th ed., Ch. 5 (quad and delta loops), quad length rule 1005/f(MHz)",
+        "Balanis, Antenna Theory, 4th ed., Sec. 5.4 (resonant loops)",
+        "Orr & Cowan, All About Cubical Quad Antennas, 3rd ed.",
+        "Stutzman & Thiele, Antenna Theory and Design, 3rd ed., Ch. 3"
+      ]
+    },
+    {
+      "key": "halo_loop",
+      "name": "Halo (bent half-wave dipole loop)",
+      "summary": "A half-wave dipole bent into a near-circle with a capacitive gap opposite the feed, giving horizontal polarisation with a nearly omnidirectional azimuth pattern.",
+      "freq_range_hz": [
+        28000000.0,
+        1000000000.0
+      ],
+      "confidence": "low",
+      "notes": "A halo is NOT a loop antenna in the radiating sense -- it is a half-wave dipole rolled into a circle. Its circumference is about HALF a wavelength, not one wavelength, and the gap at the far end from the feed is a capacitive end-load that tunes it. Because the two halves are bent toward each other, their currents partially cancel: the radiation resistance falls to roughly 10-25 ohm (against 73 ohm for a straight dipole) and the pattern flattens toward omnidirectional in the plane of the ring, with a typical 1-2 dB azimuth ripple. GEOMETRY IS THE RELIABLE PART: total conductor length ~0.46-0.48*lambda, mean ring diameter ~0.5*lambda/pi = 0.159*lambda. That predicts a 2 m (146 MHz) halo 12.9 inches across and a 6 m (50.1 MHz) halo 37.5 inches across, both matching commercial products. EVERYTHING ELECTRICAL IS LOW CONFIDENCE: feed resistance, gain and bandwidth all depend strongly on the gap capacitance, the gap-plate geometry and the matching scheme (gamma, hairpin/beta, or folded conductor). The 15 ohm figure here is a mid-range value from published NEC studies and carries a 60% tolerance. A FOLDED halo (two parallel conductors, the outer one broken at the gap) steps the feed impedance up by the usual folded-dipole factor of about 4 for equal-diameter conductors, landing near 50-60 ohm, which is why most modern commercial halos are folded. Any real build must be modelled or trimmed; do not treat these electrical numbers as design values.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Resonant frequency",
+          "typical": "2.8e7 .. 5e8"
+        },
+        {
+          "symbol": "Lc",
+          "name": "conductor_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Total developed length of the conductor, end to end across the gap",
+          "typical": "0.47*lambda"
+        },
+        {
+          "symbol": "Dm",
+          "name": "mean_diameter",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Mean diameter of the ring",
+          "typical": "0.159*lambda"
+        },
+        {
+          "symbol": "g",
+          "name": "gap",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Physical gap between the two conductor ends",
+          "typical": "0.005*lambda .. 0.03*lambda"
+        },
+        {
+          "symbol": "b",
+          "name": "wire_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the tubing/wire",
+          "typical": "0.001*lambda .. 0.01*lambda"
+        },
+        {
+          "symbol": "n_cond",
+          "name": "conductor_count",
+          "unit": "-",
+          "role": "geometry",
+          "description": "1 for a plain halo, 2 for a folded halo",
+          "typical": "1"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor conductivity (aluminium tubing 3.54e7)",
+          "typical": "3.54e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "Q_meas",
+          "name": "measured_q",
+          "unit": "-",
+          "role": "material",
+          "description": "Measured/assumed resonator Q for the bandwidth estimate",
+          "typical": "25.0"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "Lc",
+          "expr": "0.47*c/f0",
+          "units_out": "m",
+          "notes": "Total conductor length. A straight thin dipole resonates near 0.47-0.48*lambda; bending it into a ring and adding the gap capacitance pulls it a little shorter still, so 0.46-0.48 is the practical trim range. LOW CONFIDENCE on the third digit -- build it long and trim.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "Dm",
+          "expr": "0.5*c/(pi*f0)",
+          "units_out": "m",
+          "notes": "Mean ring diameter from a half-wavelength circumference: D = 0.5*lambda/pi = 0.15915*lambda.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "circumference_m",
+          "expr": "0.5*c/f0",
+          "units_out": "m",
+          "notes": "Mean circumference, one half wavelength.",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "g",
+          "expr": "0.015*c/f0",
+          "units_out": "m",
+          "notes": "Starting gap of ~0.015*lambda. The gap capacitance is the main tuning control: widening it raises the resonant frequency. Expect to adjust it on the bench.",
+          "depends_on": [
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "15.0*n_cond**2",
+          "units_out": "ohm",
+          "notes": "Plain halo (n_cond = 1): ~15 ohm, roughly a fifth of a straight dipole's 73 ohm because the bent halves' currents partially cancel. Folded halo (n_cond = 2): x4 to ~60 ohm, the standard folded-dipole impedance step for equal-diameter conductors. LOW CONFIDENCE: published values span 10-25 ohm unfolded.",
+          "depends_on": [
+            "n_cond"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "15.0*n_cond**2 + 0.0j",
+          "units_out": "ohm",
+          "notes": "At the gap-tuned resonance the reactance is nulled by construction; off resonance X moves fast because Q is high for the size.",
+          "depends_on": [
+            "n_cond"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "1.0",
+          "units_out": "dBi",
+          "notes": "Peak directivity in the plane of the ring. LOW CONFIDENCE: published free-space NEC results for halos run roughly 0 to 2 dBi peak. It must be below the 2.15 dBi of the straight dipole it was bent from, and above about -1 dBi.",
+          "depends_on": []
+        },
+        {
+          "metric": "azimuth_ripple_db",
+          "expr": "1.5",
+          "units_out": "dB",
+          "notes": "Peak-to-null variation around the horizon; 1-2 dB is typical, with the shallow null looking toward the gap.",
+          "depends_on": []
+        },
+        {
+          "metric": "gain_min_azimuth_dbi",
+          "expr": "1.0 - 1.5",
+          "units_out": "dBi",
+          "notes": "Worst-case azimuth gain = peak minus ripple; this is the number that matters for an omnidirectional link budget.",
+          "depends_on": []
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(Lc/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Skin-effect loss over the conductor length. Not negligible relative to a 15 ohm feed for thin wire -- use tubing.",
+          "depends_on": [
+            "Lc",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "15.0*n_cond**2/(15.0*n_cond**2 + (Lc/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rin/(Rin + Rloss). Low Rin makes a halo noticeably more loss-sensitive than a dipole.",
+          "depends_on": [
+            "n_cond",
+            "Lc",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "matching_transformer_ratio",
+          "expr": "50.0/(15.0*n_cond**2)",
+          "units_out": "-",
+          "notes": "Impedance ratio a matching network must supply to reach 50 ohm: 3.33:1 for a plain halo, 0.83:1 for a folded one (i.e. the folded halo is already close).",
+          "depends_on": [
+            "n_cond"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 25 gives 2.8%, consistent with a 2 m halo covering ~4 MHz. LOW CONFIDENCE.",
+          "depends_on": [
+            "Q_meas"
+          ]
+        },
+        {
+          "metric": "polarisation",
+          "expr": "0.0",
+          "units_out": "-",
+          "notes": "Placeholder numeric. Physically: horizontal when the ring is mounted horizontally -- that is the whole point of a halo, matching horizontally polarised VHF weak-signal practice.",
+          "depends_on": []
+        }
+      ],
+      "validity": [
+        "geometry constants (0.47*lambda conductor, 0.159*lambda diameter) are reliable to a few percent; the electrical constants are NOT design-grade",
+        "gap capacitance dominates tuning and is not modelled; every halo needs bench trimming or NEC modelling",
+        "requires a matching network (gamma, hairpin/beta) unless folded",
+        "mounting mast and boom sit inside the near field and shift resonance by several percent",
+        "not valid as a general loop model -- do not apply small-loop or full-wave-loop formulas to this structure",
+        "free space; a halo less than 0.25*lambda above ground loses its omnidirectional azimuth pattern"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 146000000.0
+          },
+          "expect": {
+            "Lc_m": 0.9650853,
+            "Dm_m": 0.326836,
+            "circumference_m": 1.0266865
+          },
+          "tol_pct": 3.0,
+          "source": "2 m halo: mean diameter 0.3268 m = 12.87 in, matching commercial 2 m halos of 12-13 in"
+        },
+        {
+          "given": {
+            "f0": 50100000.0
+          },
+          "expect": {
+            "Lc_m": 2.8124243,
+            "Dm_m": 0.9523766
+          },
+          "tol_pct": 3.0,
+          "source": "6 m halo: mean diameter 0.9524 m = 37.5 in, matching commercial 6 m halos of 36-40 in"
+        },
+        {
+          "given": {
+            "n_cond": 1.0
+          },
+          "expect": {
+            "input_resistance_ohm": 15.0,
+            "matching_transformer_ratio": 3.3333333
+          },
+          "tol_pct": 60.0,
+          "source": "Plain halo feed resistance; published NEC values span roughly 10-25 ohm, hence the wide tolerance"
+        },
+        {
+          "given": {
+            "n_cond": 2.0
+          },
+          "expect": {
+            "input_resistance_ohm": 60.0
+          },
+          "tol_pct": 50.0,
+          "source": "Folded halo: the folded-dipole 4:1 step for equal-diameter conductors takes ~15 ohm to ~60 ohm, near 50 ohm without a matching network"
+        },
+        {
+          "given": {},
+          "expect": {
+            "directivity_dbi": 1.0,
+            "gain_min_azimuth_dbi": -0.5
+          },
+          "tol_pct": 100.0,
+          "source": "LOW CONFIDENCE placeholder; bounded above by the 2.15 dBi of the dipole the halo is bent from"
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "Lc": 0.9650853,
+            "b": 0.00476,
+            "n_cond": 1.0,
+            "sigma": 35400000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "loss_resistance_ohm": 0.1302068,
+            "radiation_efficiency": 0.9913943
+          },
+          "tol_pct": 3.0,
+          "source": "3/8 in aluminium tubing (b = 4.76 mm, sigma = 3.54e7 S/m) at 146 MHz: skin depth 7.00 um, Rs = 4.0351e-3 ohm/sq (= 1/(sigma*delta)), giving R_loss = 0.130 ohm against a 15 ohm feed, e_cd = 0.991. Balanis 4th ed. eq. 5-24."
+        }
+      ],
+      "references": [
+        "ARRL Antenna Book, 24th ed., Ch. 15 (VHF/UHF antennas: halos, squalos, horizontally polarised omnis)",
+        "Balanis, Antenna Theory, 4th ed., Ch. 4 (folded dipole impedance step) and Ch. 5",
+        "Sorrentino/Bianchi and general folded-dipole theory for the n_cond^2 impedance ratio",
+        "Marked LOW CONFIDENCE: the electrical constants here are consensus values from published NEC models and commercial datasheets, not from a closed-form derivation"
+      ]
+    },
+    {
+      "key": "alford_loop",
+      "name": "Alford loop (uniform-current loop)",
+      "summary": "A square loop, typically 0.5-1.0 lambda in perimeter, with folded/capacitively-loaded corner sections that force the current to stay uniform and in phase, giving a horizontally polarised omnidirectional pattern with a usable feed impedance.",
+      "freq_range_hz": [
+        30000000.0,
+        3000000000.0
+      ],
+      "confidence": "medium",
+      "notes": "The Alford loop's defining trick is FORCING UNIFORM IN-PHASE CURRENT around a loop that is no longer electrically small. That means the small-loop pattern (D = 1.5, omnidirectional in the loop plane, nulls on the axis) is retained while the loop is big enough to have a sane radiation resistance. The correct analysis is therefore the EXACT uniform-current circular-loop solution, not the quartic small-loop approximation: Rr = eta*(pi/2)*ka*Int(0,2ka){J2(x) dx} and D0 = 2*ka*J1(ka)^2 / Int(0,2ka){J2(x) dx}, valid for 0 < ka < 1.8412 where the maximum stays in the loop plane (Balanis eqs. 5-33, 5-34b). Above ka = 1.8412 (J1's first maximum) the beam tilts off the plane and the antenna stops being omnidirectional in the useful sense. Both Bessel quantities are evaluated here as truncated power series (8 terms), which reproduce scipy's jv to better than 1e-10 over the whole valid range -- no numerical solve is needed. A square Alford loop is mapped onto the equivalent circular loop by EQUAL ENCLOSED AREA, ka_eq = 2*sqrt(pi*A)*f0/c, which is the correct small-loop equivalence and stays within a few percent up to ka ~ 1. Directivity falls slowly with size: 1.500 (1.761 dBi) at ka -> 0, 1.481 at ka = 0.5, 1.422 (1.530 dBi) at ka = 1, 1.211 (0.830 dBi) at ka = 1.8412. Real Alford loops measure below these because the current is never perfectly uniform and the folded corner sections radiate a little cross-polarised energy; budget 0.5-1 dB. CONFIDENCE MEDIUM overall: the uniform-current physics is exact, but the mapping from a real folded-corner structure to an ideal uniform-current loop, and hence the achievable feed impedance, is a design-dependent approximation.",
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design_frequency",
+          "unit": "Hz",
+          "role": "requirement",
+          "description": "Operating frequency",
+          "typical": "1e8 .. 2e9"
+        },
+        {
+          "symbol": "A",
+          "name": "enclosed_area",
+          "unit": "m^2",
+          "role": "geometry",
+          "description": "Area enclosed by the loop (s^2 for a square of side s)",
+          "typical": "(0.1875*lambda/... )"
+        },
+        {
+          "symbol": "s",
+          "name": "side_length",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Side length of the square loop",
+          "typical": "0.125*lambda .. 0.25*lambda"
+        },
+        {
+          "symbol": "P",
+          "name": "perimeter",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Loop perimeter, P = 4*s",
+          "typical": "0.5*lambda .. 1.0*lambda"
+        },
+        {
+          "symbol": "b",
+          "name": "conductor_radius",
+          "unit": "m",
+          "role": "geometry",
+          "description": "Radius of the loop conductor",
+          "typical": "0.002*lambda .. 0.01*lambda"
+        },
+        {
+          "symbol": "P_over_lambda",
+          "name": "electrical_size",
+          "unit": "-",
+          "role": "requirement",
+          "description": "Target perimeter/lambda for synthesis",
+          "typical": "0.75"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "description": "Conductor conductivity",
+          "typical": "3.54e7"
+        },
+        {
+          "symbol": "mu_r_c",
+          "name": "conductor_rel_permeability",
+          "unit": "-",
+          "role": "material",
+          "description": "Relative permeability of the conductor",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "Q_meas",
+          "name": "measured_q",
+          "unit": "-",
+          "role": "material",
+          "description": "Measured/assumed resonator Q for the bandwidth estimate",
+          "typical": "20.0"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "P",
+          "expr": "P_over_lambda*c/f0",
+          "units_out": "m",
+          "notes": "Perimeter from the chosen electrical size. Classic Alford designs sit near P = 0.5-1.0*lambda (side just under lambda/4).",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "s",
+          "expr": "P_over_lambda*c/(4*f0)",
+          "units_out": "m",
+          "notes": "Side length s = P/4.",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "A",
+          "expr": "(P_over_lambda*c/(4*f0))**2",
+          "units_out": "m^2",
+          "notes": "Enclosed area A = s^2.",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "ka_equiv",
+          "expr": "2.0*np.sqrt(pi*(P_over_lambda*c/(4*f0))**2)*f0/c",
+          "units_out": "-",
+          "notes": "Electrical size of the equal-area circular loop, ka_eq = 2*sqrt(pi*A)/lambda = 0.8862*(P/lambda) for a square. Must stay below 1.8412.",
+          "depends_on": [
+            "P_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "corner_load_note",
+          "expr": "0.0",
+          "units_out": "-",
+          "notes": "Placeholder numeric. Design guidance: the current is kept uniform by splitting each corner into a pair of folded, capacitively end-loaded arms so that the phase reversal that would occur in a plain loop of this size is cancelled. The gap dimension is set by simulation; there is no closed form for it, and this spec deliberately does not invent one.",
+          "depends_on": []
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "ka_equiv",
+          "expr": "(2.0*np.sqrt(pi*A)*f0/c)",
+          "units_out": "-",
+          "notes": "ka of the equal-area circular loop, ka_eq = 2*sqrt(pi*A)*f0/c. For a square of perimeter P this is 0.88623*(P/lambda).",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "j2_integral",
+          "expr": "((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0)",
+          "units_out": "-",
+          "notes": "Int(0, 2ka){J2(x) dx} as an 8-term power series, 2*sum_k (-1)^k*(ka)^(2k+3)/((2k+3)*k!*(k+2)!). Matches scipy to <1e-10 for ka <= 1.85.",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "eta0*(pi/2.0)*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0)",
+          "units_out": "ohm",
+          "notes": "EXACT uniform-current loop radiation resistance, Rr = eta0*(pi/2)*ka*Int(0,2ka){J2 dx} (Balanis eq. 5-33). In the small-loop limit this reduces to 20*pi^2*(C/lambda)^4 (agrees to 0.27% at ka = 0.1).",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_small_loop_approx_ohm",
+          "expr": "20*pi**2*((2.0*np.sqrt(pi*A)*f0/c))**4",
+          "units_out": "ohm",
+          "notes": "The quartic approximation, shown for comparison only. It reads +5.2% high at ka = 0.5 and +22.5% high at ka = 1, so it must NOT be used for an Alford loop.",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "2.0*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)/2.0 - (2.0*np.sqrt(pi*A)*f0/c)**3/16.0 + (2.0*np.sqrt(pi*A)*f0/c)**5/384.0 - (2.0*np.sqrt(pi*A)*f0/c)**7/18432.0 + (2.0*np.sqrt(pi*A)*f0/c)**9/1474560.0 - (2.0*np.sqrt(pi*A)*f0/c)**11/176947200.0 + (2.0*np.sqrt(pi*A)*f0/c)**13/29727129600.0 - (2.0*np.sqrt(pi*A)*f0/c)**15/6658877030400.0)**2/((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0)",
+          "units_out": "-",
+          "notes": "D0 = 2*ka*J1(ka)^2 / Int(0,2ka){J2 dx} (Balanis eq. 5-34b), maximum in the plane of the loop, valid for ka < 1.8412.",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "10*np.log10(2.0*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)/2.0 - (2.0*np.sqrt(pi*A)*f0/c)**3/16.0 + (2.0*np.sqrt(pi*A)*f0/c)**5/384.0 - (2.0*np.sqrt(pi*A)*f0/c)**7/18432.0 + (2.0*np.sqrt(pi*A)*f0/c)**9/1474560.0 - (2.0*np.sqrt(pi*A)*f0/c)**11/176947200.0 + (2.0*np.sqrt(pi*A)*f0/c)**13/29727129600.0 - (2.0*np.sqrt(pi*A)*f0/c)**15/6658877030400.0)**2/((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0))",
+          "units_out": "dBi",
+          "notes": "Ranges 1.761 dBi (ka -> 0) down to 0.830 dBi (ka = 1.8412). Subtract 0.5-1 dB for real corner-loaded structures.",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "(4*np.sqrt(A)/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
+          "units_out": "ohm",
+          "notes": "Skin-effect loss over the perimeter 4*sqrt(A). Uniform current makes this expression exactly the right one here, unlike for a resonant loop.",
+          "depends_on": [
+            "A",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "eta0*(pi/2.0)*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0)/(eta0*(pi/2.0)*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0) + (4*np.sqrt(A)/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "units_out": "-",
+          "notes": "e_cd = Rr/(Rr + Rloss). Because Rr is tens of ohms rather than milliohms, efficiency is typically >99%.",
+          "depends_on": [
+            "A",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*np.log10((2.0*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)/2.0 - (2.0*np.sqrt(pi*A)*f0/c)**3/16.0 + (2.0*np.sqrt(pi*A)*f0/c)**5/384.0 - (2.0*np.sqrt(pi*A)*f0/c)**7/18432.0 + (2.0*np.sqrt(pi*A)*f0/c)**9/1474560.0 - (2.0*np.sqrt(pi*A)*f0/c)**11/176947200.0 + (2.0*np.sqrt(pi*A)*f0/c)**13/29727129600.0 - (2.0*np.sqrt(pi*A)*f0/c)**15/6658877030400.0)**2/((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0))*(eta0*(pi/2.0)*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0)/(eta0*(pi/2.0)*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0) + (4*np.sqrt(A)/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))))",
+          "units_out": "dBi",
+          "notes": "G = e_cd*D0.",
+          "depends_on": [
+            "A",
+            "b",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "azimuth_ripple_db",
+          "expr": "0.5",
+          "units_out": "dB",
+          "notes": "Ideal uniform current gives a perfectly circular azimuth pattern; practical folded-corner Alford loops measure 0.3-1.0 dB of ripple.",
+          "depends_on": []
+        },
+        {
+          "metric": "effective_aperture_m2",
+          "expr": "(2.0*(2.0*np.sqrt(pi*A)*f0/c)*((2.0*np.sqrt(pi*A)*f0/c)/2.0 - (2.0*np.sqrt(pi*A)*f0/c)**3/16.0 + (2.0*np.sqrt(pi*A)*f0/c)**5/384.0 - (2.0*np.sqrt(pi*A)*f0/c)**7/18432.0 + (2.0*np.sqrt(pi*A)*f0/c)**9/1474560.0 - (2.0*np.sqrt(pi*A)*f0/c)**11/176947200.0 + (2.0*np.sqrt(pi*A)*f0/c)**13/29727129600.0 - (2.0*np.sqrt(pi*A)*f0/c)**15/6658877030400.0)**2/((2.0*np.sqrt(pi*A)*f0/c)**3/3.0 - (2.0*np.sqrt(pi*A)*f0/c)**5/15.0 + (2.0*np.sqrt(pi*A)*f0/c)**7/168.0 - (2.0*np.sqrt(pi*A)*f0/c)**9/3240.0 + (2.0*np.sqrt(pi*A)*f0/c)**11/95040.0 - (2.0*np.sqrt(pi*A)*f0/c)**13/3931200.0 + (2.0*np.sqrt(pi*A)*f0/c)**15/217728000.0 - (2.0*np.sqrt(pi*A)*f0/c)**17/15545779200.0))*(c/f0)**2/(4*pi)",
+          "units_out": "m^2",
+          "notes": "Ae = D0*lambda^2/(4*pi), lossless.",
+          "depends_on": [
+            "A",
+            "f0"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "units_out": "-",
+          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 20 gives 3.5%. LOW CONFIDENCE -- real Alford loop bandwidth is set by the corner-loading network, which can be made broader.",
+          "depends_on": [
+            "Q_meas"
+          ]
+        }
+      ],
+      "validity": [
+        "ka_equiv < 1.8412 -- above J1's first maximum the pattern peak leaves the loop plane and the antenna is no longer usefully omnidirectional",
+        "current must actually be uniform and in phase; this is engineered by the folded, capacitively loaded corner sections and is NOT automatic for a loop of this size",
+        "the equal-area circular equivalence is good to a few percent up to ka ~ 1 and degrades beyond",
+        "feed impedance is set by the corner-loading and matching network, not by Rr alone -- Rr here is the radiation resistance referred to the uniform loop current",
+        "free space; horizontal polarisation requires a horizontal loop plane and at least ~0.25*lambda of clearance",
+        "does not model the cross-polarised radiation from the corner sections (typically -15 to -20 dB)"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 100000000.0,
+            "P_over_lambda": 0.5
+          },
+          "expect": {
+            "P_m": 1.4989623,
+            "s_m": 0.3747406,
+            "A_m2": 0.1404305,
+            "ka_equiv": 0.4431135
+          },
+          "tol_pct": 0.5,
+          "source": "Geometry: for a square, ka_eq = 2*sqrt(pi)*s/lambda = 0.88623*(P/lambda)"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "A": 0.1404305
+          },
+          "expect": {
+            "ka_equiv": 0.4431135,
+            "j2_integral": 0.02788298,
+            "radiation_resistance_ohm": 7.311186,
+            "directivity_linear": 1.4851326,
+            "directivity_dbi": 1.7189846
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis 4th ed. eqs. 5-33, 5-34b evaluated at ka = 0.4431 (square Alford loop of perimeter lambda/2)"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "A": 0.7155417
+          },
+          "expect": {
+            "ka_equiv": 1.0,
+            "j2_integral": 0.2723207,
+            "radiation_resistance_ohm": 161.1496,
+            "directivity_linear": 1.4221803,
+            "directivity_dbi": 1.529626,
+            "radiation_resistance_small_loop_approx_ohm": 197.392088
+          },
+          "tol_pct": 0.5,
+          "source": "Exact uniform-current loop at ka = 1: Rr = 161.15 ohm, D0 = 1.4222. The quartic approximation gives 197.39 ohm, +22.5% -- the reason this archetype does not use it"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "A": 0.00715542
+          },
+          "expect": {
+            "ka_equiv": 0.1,
+            "radiation_resistance_ohm": 0.01968527,
+            "radiation_resistance_small_loop_approx_ohm": 0.01973921,
+            "directivity_linear": 1.4992466
+          },
+          "tol_pct": 1.0,
+          "source": "Small-loop limit check at ka = 0.1: the exact integral and the quartic law agree to 0.27%, and D0 -> 1.5"
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "A": 2.4256884
+          },
+          "expect": {
+            "ka_equiv": 1.8412,
+            "directivity_linear": 1.2105896,
+            "directivity_dbi": 0.8296263,
+            "radiation_resistance_ohm": 1122.0894
+          },
+          "tol_pct": 0.5,
+          "source": "Upper validity edge ka = 1.8412 (first maximum of J1), where the in-plane maximum is about to be lost"
+        },
+        {
+          "given": {
+            "f0": 118000000.0,
+            "P_over_lambda": 0.75
+          },
+          "expect": {
+            "P_m": 1.9054606,
+            "s_m": 0.4763651
+          },
+          "tol_pct": 0.5,
+          "source": "VHF omni (VOR band) Alford loop at 118 MHz with a 0.75*lambda perimeter: 476 mm sides"
+        }
+      ],
+      "references": [
+        "Alford & Kandoian, 'Ultrahigh-Frequency Loop Antennas', Trans. AIEE 59(12), 1940",
+        "Balanis, Antenna Theory, 4th ed., Sec. 5.3 (loop of any size with constant current), eqs. 5-33 and 5-34b",
+        "Kraus & Marhefka, Antennas for All Applications, 3rd ed., Ch. 7 (loops of any size, J1/J2 formulation)",
+        "Johnson (ed.), Antenna Engineering Handbook, 3rd ed., Ch. 27 (horizontally polarised omnidirectional antennas)"
+      ]
+    }
+  ]
+}

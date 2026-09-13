@@ -24,6 +24,12 @@ class DesignResult:
     units: dict[str, str]
     warnings: tuple[str, ...] = ()
     notes: tuple[str, ...] = ()
+    #: output symbol -> the requirement symbols that would unlock it
+    unresolved: dict[str, list[str]] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.unresolved is None:
+            self.unresolved = {}
 
     def get(self, name: str, default: Any = None) -> Any:
         if name in self.parameters:
@@ -67,19 +73,35 @@ class Archetype:
     def _seed(self, requirements: Mapping[str, Any]) -> dict[str, Any]:
         """Requirements plus the universally-derived frequency quantities."""
         known: dict[str, Any] = dict(requirements)
+        # Material properties have defensible defaults (copper, mu_r = 1); a
+        # design requirement does not, so it is never silently invented.
+        for p in self.spec.parameters:
+            if p.role != "material" or p.symbol in known:
+                continue
+            try:
+                known[p.symbol] = float(p.typical)
+            except (TypeError, ValueError):
+                continue
         f0 = known.get("f0")
         if f0 is not None and f0 > 0:
             known.setdefault("lambda0", C0 / f0)
             known.setdefault("k0", 2.0 * math.pi * f0 / C0)
         return known
 
-    def synthesize(self, **requirements: Any) -> DesignResult:
+    def synthesize(self, strict: bool = False, **requirements: Any) -> DesignResult:
         """Requirements -> physical dimensions, then analyse the result.
 
         Rules are resolved by repeated relaxation on their *actual* referenced
         symbols rather than the declared ``depends_on``, so a spec with a stale
         dependency list still resolves correctly (the discrepancy is reported
         by :meth:`ArchetypeSpec.problems`, not silently honoured here).
+
+        Resolution is *partial by design*. An archetype commonly carries
+        optional rules — a wire radius derived from an efficiency target, a
+        tuning capacitor — that need requirements a given caller has no reason
+        to supply. Those become warnings and populate
+        :attr:`DesignResult.unresolved`; everything that *can* be computed
+        still is. Pass ``strict=True`` to demand a complete geometry instead.
         """
         known = self._seed(requirements)
         warnings: list[str] = []
@@ -111,15 +133,17 @@ class Archetype:
                     still.append(rule)
             pending = still
 
-        if pending:
-            detail = "; ".join(
-                f"{r.output!r} needs {sorted(referenced_symbols(r.expr, syms) - set(known))}"
-                for r in pending
+        unresolved: dict[str, list[str]] = {}
+        for rule in pending:
+            missing = sorted(referenced_symbols(rule.expr, syms) - set(known))
+            unresolved[rule.output] = missing
+            warnings.append(
+                f"{rule.output!r} not computed: needs {missing}. "
+                f"Supply them as requirements to complete the design."
             )
-            raise SynthesisError(
-                f"{self.spec.key}: could not resolve {len(pending)} rule(s) — {detail}. "
-                f"Supply the missing values as requirements."
-            )
+        if strict and unresolved:
+            detail = "; ".join(f"{k} needs {v}" for k, v in unresolved.items())
+            raise SynthesisError(f"{self.spec.key}: incomplete design — {detail}")
 
         params = {k: v for k, v in known.items() if k not in requirements}
         metrics, mwarn = self._analyse_into(known, units)
@@ -134,6 +158,7 @@ class Archetype:
             units=units,
             warnings=tuple(warnings),
             notes=tuple(self.spec.validity),
+            unresolved=dict(unresolved),
         )
 
     # -------------------------------------------------------------- analysis
@@ -248,11 +273,22 @@ def _lookup(design: DesignResult, name: str) -> Any:
     value = design.get(name)
     if value is not None:
         return value
+
     lowered = name.lower()
     for suffix in _UNIT_SUFFIXES:
         if lowered.endswith(suffix):
-            stripped = name[: -len(suffix)]
-            value = design.get(stripped)
+            value = design.get(name[: -len(suffix)])
+            if value is not None:
+                return value
+
+    # Fall back to stripping trailing underscore-separated segments, which
+    # catches ad-hoc unit tags a spec may carry ("A_m2", "ka_equiv_-").
+    # Only a candidate that actually resolves is accepted, so this widens
+    # what matches without inventing a value.
+    parts = name.split("_")
+    for cut in (1, 2):
+        if len(parts) > cut:
+            value = design.get("_".join(parts[:-cut]))
             if value is not None:
                 return value
     return None

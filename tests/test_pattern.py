@@ -63,10 +63,23 @@ def test_uniform_line_source_hpbw_follows_50_8_lambda_over_L():
 
 
 def test_radiated_power_of_isotropic_pattern_is_four_pi():
+    # Trapezoidal integration of sin(theta) on the default grid converges to
+    # 4*pi from below with O(h^2) error (~6e-6 here), so the tolerance tracks
+    # the quadrature scheme rather than claiming exactness.
     theta, phi = p.make_grid()
     iso = p.Pattern(theta, phi, np.ones((theta.size, phi.size)))
-    assert iso.radiated_power() == pytest.approx(4 * math.pi, rel=1e-6)
-    assert iso.directivity() == pytest.approx(1.0, rel=1e-6)
+    assert iso.radiated_power() == pytest.approx(4 * math.pi, rel=1e-4)
+    assert iso.directivity() == pytest.approx(1.0, rel=1e-4)
+
+
+def test_isotropic_quadrature_error_shrinks_as_the_grid_refines():
+    """Guards the quadrature itself: refining the grid must improve accuracy."""
+    errors = []
+    for n in (91, 361, 1441):
+        theta, phi = p.make_grid(n, n // 2 + 1)
+        iso = p.Pattern(theta, phi, np.ones((theta.size, phi.size)))
+        errors.append(abs(iso.radiated_power() - 4 * math.pi))
+    assert errors[0] > errors[1] > errors[2], f"not converging: {errors}"
 
 
 def test_mismatched_grid_is_rejected():
@@ -79,3 +92,17 @@ def test_non_radiating_pattern_has_no_directivity():
     theta, phi = p.make_grid(21, 11)
     with pytest.raises(ValueError, match="radiates no power"):
         p.Pattern(theta, phi, np.zeros((21, 11))).directivity()
+
+
+# --- engine behaviour that the loop-spec repair depended on -----------------
+
+def test_skin_effect_surface_resistance_two_ways_agree():
+    """Rs = sqrt(pi f mu / sigma) must equal 1/(sigma * delta).
+
+    The loop spec shipped two known cases whose loss resistances were wrong by
+    30.9x and 3.3x; this identity is what settled which side was right.
+    """
+    from otahub.core import constants as k
+    for f, sigma in ((14.2e6, 5.8e7), (146e6, 3.54e7), (2.4e9, 5.8e7)):
+        rs = k.surface_resistance(f, sigma)
+        assert rs == pytest.approx(1.0 / (sigma * k.skin_depth(f, sigma)), rel=1e-12)
