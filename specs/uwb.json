@@ -1,0 +1,714 @@
+{
+  "family": "uwb",
+  "archetypes": [
+    {
+      "key": "bowtie",
+      "name": "Bowtie antenna",
+      "family": "uwb",
+      "summary": "Planar triangular dipole; the flat approximation to a biconical antenna.",
+      "freq_range_hz": [
+        30000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lowest frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "flare_deg",
+          "name": "full flare angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "90"
+        },
+        {
+          "symbol": "Lside",
+          "name": "triangle side length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "Wend",
+          "name": "open-end width",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "Lside",
+          "expr": "0.25*c/f_low",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ],
+          "notes": "each half is about a quarter wave at the low-frequency edge"
+        },
+        {
+          "output": "Wend",
+          "expr": "2*(0.25*c/f_low)*np.tan(rad(flare_deg/2))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "flare_deg"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "total_length_m",
+          "expr": "2*Lside",
+          "units_out": "m",
+          "depends_on": [
+            "Lside"
+          ]
+        },
+        {
+          "metric": "self_complementary_impedance_ohm",
+          "expr": "eta0/2",
+          "units_out": "ohm",
+          "notes": "Mushiake's relation: a self-complementary planar structure in an infinite zero-thickness sheet has Zin = eta0/2 = 188.37 ohm, INDEPENDENT of frequency and of the flare angle. A bowtie is self-complementary only at a 90 degree flare."
+        },
+        {
+          "metric": "is_self_complementary",
+          "expr": "1.0*(np.abs(flare_deg - 90.0) < 1.0)",
+          "units_out": "-",
+          "depends_on": [
+            "flare_deg"
+          ],
+          "notes": "1 when the flare is 90 degrees, where the metal and air regions are congruent"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.7)",
+          "units_out": "dBi",
+          "notes": "Indicative: slightly above a thin dipole, roughly 2.3 dBi, and fairly flat with frequency over the operating band"
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "4.0",
+          "units_out": "-",
+          "notes": "Indicative: a practical finite bowtie gives roughly 4:1 usable VSWR bandwidth. The infinite structure would be frequency-independent; truncation is what ends it."
+        }
+      ],
+      "validity": [
+        "Mushiake's impedance assumes an INFINITE, zero-thickness, perfectly conducting self-complementary sheet. A real bowtie is finite and printed on a substrate, so measured impedance typically lands well below 188 ohm.",
+        "a substrate shifts the impedance down by roughly sqrt(eps_reff)",
+        "bandwidth and directivity entries are indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "flare_deg": 90.0
+          },
+          "expect": {
+            "self_complementary_impedance_ohm": 188.365157,
+            "is_self_complementary": 1.0,
+            "Lside_m": 0.07494811,
+            "total_length_m": 0.14989623
+          },
+          "tol_pct": 0.5,
+          "source": "Mushiake: Zin = eta0/2 = 188.365 ohm for the 90 degree self-complementary bowtie. Quarter wave at 1 GHz = 74.95 mm. Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "flare_deg": 60.0
+          },
+          "expect": {
+            "is_self_complementary": 0.0
+          },
+          "tol_abs": 0.01,
+          "source": "A 60 degree flare is not self-complementary, so Mushiake's relation does not apply. Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+        }
+      ],
+      "references": [
+        "Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992",
+        "Balanis, Antenna Theory 4th ed., Ch. 11",
+        "Schantz, The Art and Science of Ultra-Wideband Antennas, Artech House"
+      ]
+    },
+    {
+      "key": "planar_monopole_circular",
+      "name": "Planar circular disc monopole",
+      "family": "uwb",
+      "summary": "Circular disc fed against a ground plane; a common printed UWB radiator.",
+      "freq_range_hz": [
+        300000000.0,
+        20000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lower band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "p_gap",
+          "name": "feed gap to ground",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.001"
+        },
+        {
+          "symbol": "r_disc",
+          "name": "disc radius",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "r_disc",
+          "expr": "(7.2e7/f_low - p_gap)/3",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "p_gap"
+          ],
+          "notes": "Inverts the standard empirical rule f_low[GHz] = 7.2/(L + r + p) with lengths in cm, where for a disc the effective height L = 2*r. In SI this reads f_low = 7.2e7/(2r + r + p), hence r = (7.2e7/f_low - p)/3. EMPIRICAL, roughly 10% accurate."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "disc_diameter_m",
+          "expr": "2*r_disc",
+          "units_out": "m",
+          "depends_on": [
+            "r_disc"
+          ]
+        },
+        {
+          "metric": "f_low_check_hz",
+          "expr": "7.2e7/(3*r_disc + p_gap)",
+          "units_out": "Hz",
+          "depends_on": [
+            "r_disc",
+            "p_gap"
+          ],
+          "notes": "forward check of the empirical rule; must return f_low"
+        },
+        {
+          "metric": "equivalent_cylinder_height_m",
+          "expr": "2*r_disc",
+          "units_out": "m",
+          "depends_on": [
+            "r_disc"
+          ],
+          "notes": "the disc is modelled as an equivalent cylindrical monopole of this height, which is where the empirical rule comes from"
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "Indicative: disc monopoles routinely cover 10:1 for VSWR < 2, limited at the top by the feed transition rather than the disc"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.8)",
+          "units_out": "dBi",
+          "notes": "Indicative: roughly monopole-like at the low end, becoming more directive and less predictable as higher-order modes appear"
+        }
+      ],
+      "validity": [
+        "EMPIRICAL rule, roughly 10% accurate on f_low; always verify in a solver",
+        "assumes a ground plane at least a quarter wave across at f_low",
+        "the pattern degrades badly at the top of the band as the disc becomes several wavelengths across - bandwidth here means impedance bandwidth, not pattern bandwidth",
+        "bandwidth and directivity entries are indicative"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 3000000000.0,
+            "p_gap": 0.001
+          },
+          "expect": {
+            "r_disc_m": 0.0076667,
+            "f_low_check_hz": 3000000000.0
+          },
+          "tol_pct": 1.0,
+          "source": "f_low = 3 GHz with a 1 mm feed gap gives r = (24.0 - 1.0)/3 = 7.67 mm by the 7.2/(L+r+p) rule. Ammann & Chen, Wideband monopole antennas for multi-band wireless systems, IEEE AP Magazine 45(2), 2003"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "p_gap": 0.001
+          },
+          "expect": {
+            "r_disc_m": 0.0236667,
+            "disc_diameter_m": 0.0473333
+          },
+          "tol_pct": 1.0,
+          "source": "Scaling check: 1 GHz needs r = (72.0 - 1.0)/3 = 23.67 mm."
+        }
+      ],
+      "references": [
+        "Ammann & Chen, Wideband monopole antennas for multi-band wireless systems, IEEE AP Magazine 45(2), 2003",
+        "Schantz, The Art and Science of Ultra-Wideband Antennas, Artech House"
+      ],
+      "confidence": "low"
+    },
+    {
+      "key": "archimedean_spiral",
+      "name": "Archimedean spiral",
+      "family": "uwb",
+      "summary": "Two-arm spiral with linear radial growth; circularly polarised over a wide band.",
+      "freq_range_hz": [
+        100000000.0,
+        40000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lower band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "f_high",
+          "name": "upper band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "n_turns",
+          "name": "number of turns",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "6"
+        },
+        {
+          "symbol": "r_out",
+          "name": "outer radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "r_in",
+          "name": "inner (feed) radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "growth",
+          "name": "spiral growth rate",
+          "unit": "m/rad",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "r_out",
+          "expr": "c/(2*pi*f_low)",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ],
+          "notes": "The active region is the ring whose circumference is one wavelength, so the lowest frequency is set by the OUTER circumference: 2*pi*r_out = lambda_low."
+        },
+        {
+          "output": "r_in",
+          "expr": "c/(2*pi*f_high)",
+          "units_out": "m",
+          "depends_on": [
+            "f_high"
+          ],
+          "notes": "the highest frequency is set by the innermost circumference at the feed"
+        },
+        {
+          "output": "growth",
+          "expr": "(c/(2*pi*f_low) - c/(2*pi*f_high))/(2*pi*n_turns)",
+          "units_out": "m/rad",
+          "depends_on": [
+            "f_low",
+            "f_high",
+            "n_turns"
+          ],
+          "notes": "r = r_in + growth*phi; the growth rate follows from spanning r_in to r_out in n_turns revolutions"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "outer_diameter_m",
+          "expr": "2*r_out",
+          "units_out": "m",
+          "depends_on": [
+            "r_out"
+          ]
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "f_high/f_low",
+          "units_out": "-",
+          "depends_on": [
+            "f_high",
+            "f_low"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "eta0/2",
+          "units_out": "ohm",
+          "notes": "Mushiake again: a self-complementary two-arm spiral (equal metal and gap widths) presents eta0/2 = 188.37 ohm. Needs a balun and a taper to reach 50 ohm."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.5)",
+          "units_out": "dBi",
+          "notes": "Indicative: a bare spiral radiates a broad bidirectional CP pattern, roughly 1.5 dBi per side"
+        },
+        {
+          "metric": "cavity_backed_directivity_dbi",
+          "expr": "db10(1.5*2*0.5)",
+          "units_out": "dBi",
+          "notes": "Backing the spiral with an absorber-loaded cavity makes it unidirectional but absorbs half the power, so the net gain is roughly unchanged from bidirectional. A resonant cavity does better but only over a narrow band. Do NOT assume 3 dB free."
+        },
+        {
+          "metric": "axial_ratio_db",
+          "expr": "1.0",
+          "units_out": "dB",
+          "notes": "Indicative: a well-formed spiral holds AR below about 1-2 dB on boresight over most of its band, degrading near the band edges"
+        }
+      ],
+      "validity": [
+        "the spiral must have enough turns for the active region to form: n_turns >= 3",
+        "truncation at r_out causes reflection from the open end, which is the main source of axial-ratio degradation at the low edge",
+        "radiates bidirectionally; a cavity costs roughly 3 dB unless it is resonant",
+        "directivity and axial ratio entries are indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "f_high": 10000000000.0,
+            "n_turns": 6
+          },
+          "expect": {
+            "r_out_m": 0.04771345,
+            "r_in_m": 0.004771345,
+            "outer_diameter_m": 0.0954269,
+            "bandwidth_ratio": 10.0
+          },
+          "tol_pct": 0.5,
+          "source": "2*pi*r_out = lambda at 1 GHz gives r_out = 47.71 mm; the 10 GHz inner radius is one tenth of it. Balanis, Antenna Theory 4th ed., Ch. 11"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "f_high": 10000000000.0,
+            "n_turns": 6
+          },
+          "expect": {
+            "input_impedance_ohm": 188.365157
+          },
+          "tol_pct": 0.5,
+          "source": "Self-complementary two-arm spiral: eta0/2. Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 11 (11.3)",
+        "Rumsey, Frequency Independent Antennas, Academic Press 1966",
+        "Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+      ]
+    },
+    {
+      "key": "equiangular_spiral",
+      "name": "Equiangular (log-spiral) antenna",
+      "family": "uwb",
+      "summary": "Exponentially growing two-arm spiral; shape defined by angles alone, so truly frequency independent.",
+      "freq_range_hz": [
+        100000000.0,
+        40000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lower band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "f_high",
+          "name": "upper band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_growth",
+          "name": "exponential growth rate",
+          "unit": "1/rad",
+          "role": "assumption",
+          "typical": "0.221"
+        },
+        {
+          "symbol": "r0",
+          "name": "starting radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "r_out",
+          "name": "outer radius",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "r_out",
+          "expr": "c/(2*pi*f_low)",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ]
+        },
+        {
+          "output": "r0",
+          "expr": "c/(2*pi*f_high)",
+          "units_out": "m",
+          "depends_on": [
+            "f_high"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "turns_required",
+          "expr": "np.log((c/(2*pi*f_low))/(c/(2*pi*f_high)))/(2*pi*a_growth)",
+          "units_out": "-",
+          "depends_on": [
+            "f_low",
+            "f_high",
+            "a_growth"
+          ],
+          "notes": "r = r0*exp(a*phi), so spanning the band needs phi = ln(r_out/r0)/a radians"
+        },
+        {
+          "metric": "expansion_per_turn",
+          "expr": "np.exp(2*pi*a_growth)",
+          "units_out": "-",
+          "depends_on": [
+            "a_growth"
+          ],
+          "notes": "the radius multiplier per revolution; 4 is a common choice (a = 0.221)"
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "f_high/f_low",
+          "units_out": "-",
+          "depends_on": [
+            "f_high",
+            "f_low"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "eta0/2",
+          "units_out": "ohm",
+          "notes": "self-complementary case; Mushiake's relation"
+        },
+        {
+          "metric": "outer_diameter_m",
+          "expr": "2*r_out",
+          "units_out": "m",
+          "depends_on": [
+            "r_out"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.5)",
+          "units_out": "dBi",
+          "notes": "Indicative, bidirectional, as for the Archimedean spiral"
+        }
+      ],
+      "validity": [
+        "the defining property is that the shape is specified entirely by angles, so performance is frequency independent only where the structure is untruncated",
+        "both band edges come from truncation: the outer radius at the low end, the feed region at the high end",
+        "self-complementary impedance requires equal arm and gap angular widths",
+        "directivity entry is indicative"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "f_high": 10000000000.0,
+            "a_growth": 0.221
+          },
+          "expect": {
+            "expansion_per_turn": 4.00722,
+            "turns_required": 1.65851,
+            "outer_diameter_m": 0.0954269
+          },
+          "tol_pct": 1.0,
+          "source": "a = 0.221 gives exp(2*pi*0.221) = 4.007, i.e. the radius quadruples per turn, so a decade needs ln(10)/(2*pi*0.221) = 1.66 turns. Rumsey, Frequency Independent Antennas, Academic Press 1966"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "f_high": 10000000000.0,
+            "a_growth": 0.221
+          },
+          "expect": {
+            "input_impedance_ohm": 188.365157
+          },
+          "tol_pct": 0.5,
+          "source": "Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+        }
+      ],
+      "references": [
+        "Rumsey, Frequency Independent Antennas, Academic Press 1966",
+        "Dyson, The Equiangular Spiral Antenna, IRE Trans. AP-7, 1959",
+        "Mushiake, Self-Complementary Antennas, IEEE AP Magazine 34(6), 1992"
+      ]
+    },
+    {
+      "key": "vivaldi_tsa",
+      "name": "Vivaldi (exponentially tapered slot) antenna",
+      "family": "uwb",
+      "summary": "Exponentially flared slot in a ground plane; endfire, wideband, linearly polarised.",
+      "freq_range_hz": [
+        500000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lower band edge",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "Lax",
+          "name": "axial length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "R_open",
+          "name": "taper opening rate",
+          "unit": "1/m",
+          "role": "assumption",
+          "typical": "10"
+        },
+        {
+          "symbol": "W_ap",
+          "name": "aperture width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "w_slot",
+          "name": "throat slot width",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0003"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "W_ap",
+          "expr": "0.5*c/f_low",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ],
+          "notes": "The low-frequency limit is set by the APERTURE WIDTH reaching about half a wavelength, not by the taper rate or the axial length."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "aperture_width_over_lambda_low",
+          "expr": "W_ap*f_low/c",
+          "units_out": "-",
+          "depends_on": [
+            "W_ap",
+            "f_low"
+          ],
+          "notes": "should be 0.5 by construction"
+        },
+        {
+          "metric": "length_over_lambda_low",
+          "expr": "Lax*f_low/c",
+          "units_out": "-",
+          "depends_on": [
+            "Lax",
+            "f_low"
+          ],
+          "notes": "Gain grows with axial length in wavelengths; below about 1 the antenna is not really endfire"
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "10*log10(10*Lax*f_low/c)",
+          "units_out": "dBi",
+          "depends_on": [
+            "Lax",
+            "f_low"
+          ],
+          "notes": "APPROXIMATE endfire scaling G ~ 10*(L/lambda), the standard travelling-wave estimate. Real Vivaldis run 5-12 dBi and the figure rises across the band because L/lambda does. Expect 2 dB error."
+        },
+        {
+          "metric": "taper_ratio",
+          "expr": "np.exp(R_open*Lax)",
+          "units_out": "-",
+          "depends_on": [
+            "R_open",
+            "Lax"
+          ],
+          "notes": "y = C1*exp(R*z) + C2; this is the growth factor over the full axial length"
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "Indicative: the top of the band is set by the feed transition (microstrip-to-slotline or antipodal), not by the taper. Well-made Vivaldis exceed 10:1."
+        }
+      ],
+      "validity": [
+        "low-frequency edge is set by aperture width; a longer taper does NOT lower it",
+        "high-frequency edge is set by the feed transition, which is not modelled here",
+        "gain expression is an approximate endfire scaling, roughly 2 dB accurate, and is frequency dependent since L/lambda varies across the band",
+        "substrate thickness must stay well below lambda/4 at the top of the band or surface-wave loss dominates"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "Lax": 0.3,
+            "R_open": 10.0
+          },
+          "expect": {
+            "W_ap_m": 0.14989623,
+            "aperture_width_over_lambda_low": 0.5,
+            "length_over_lambda_low": 1.000692
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture = lambda/2 at 1 GHz = 149.9 mm; a 0.3 m axial length is almost exactly one wavelength. Gibson, The Vivaldi Aerial, 9th European Microwave Conf., 1979"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "Lax": 0.6,
+            "R_open": 10.0
+          },
+          "expect": {
+            "gain_dbi": 13.0139
+          },
+          "tol_pct": 2.0,
+          "source": "Doubling the axial length to 2 lambda gives roughly 3 dB more by the endfire scaling G ~ 10*(L/lambda)."
+        }
+      ],
+      "references": [
+        "Gibson, The Vivaldi Aerial, 9th European Microwave Conf., 1979",
+        "Schantz, The Art and Science of Ultra-Wideband Antennas, Artech House"
+      ],
+      "confidence": "low"
+    }
+  ]
+}
