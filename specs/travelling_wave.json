@@ -1,0 +1,773 @@
+{
+  "family": "travelling_wave",
+  "archetypes": [
+    {
+      "key": "axial_mode_helix",
+      "name": "Axial-mode helix",
+      "family": "travelling_wave",
+      "summary": "End-fire helix radiating circular polarisation along its axis.",
+      "freq_range_hz": [
+        100000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "C_over_lambda",
+          "name": "circumference",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "N",
+          "name": "number of turns",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "10"
+        },
+        {
+          "symbol": "pitch_deg",
+          "name": "pitch angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "13"
+        },
+        {
+          "symbol": "C",
+          "name": "circumference",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "D_helix",
+          "name": "helix diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "S",
+          "name": "turn spacing",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "axial_length",
+          "name": "axial length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "D_gnd",
+          "name": "ground plane diameter",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "C",
+          "expr": "C_over_lambda*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "D_helix",
+          "expr": "C_over_lambda*c/f0/pi",
+          "units_out": "m",
+          "depends_on": [
+            "C_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "S",
+          "expr": "C_over_lambda*(c/f0)*np.tan(rad(pitch_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "C_over_lambda",
+            "f0",
+            "pitch_deg"
+          ],
+          "notes": "S = C*tan(pitch)"
+        },
+        {
+          "output": "axial_length",
+          "expr": "N*C_over_lambda*(c/f0)*np.tan(rad(pitch_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "N",
+            "C_over_lambda",
+            "f0",
+            "pitch_deg"
+          ]
+        },
+        {
+          "output": "D_gnd",
+          "expr": "0.75*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "a ground plane of at least 0.75 lambda diameter; smaller plates raise the back lobe"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "S_over_lambda",
+          "expr": "C_over_lambda*np.tan(rad(pitch_deg))",
+          "units_out": "-",
+          "depends_on": [
+            "C_over_lambda",
+            "pitch_deg"
+          ]
+        },
+        {
+          "metric": "gain_kraus_dbi",
+          "expr": "11.8 + db10(C_over_lambda**2 * N * C_over_lambda*np.tan(rad(pitch_deg)))",
+          "units_out": "dBi",
+          "depends_on": [
+            "C_over_lambda",
+            "N",
+            "pitch_deg"
+          ],
+          "notes": "The classic Kraus formula. It is WELL DOCUMENTED to overestimate: measurements diverge progressively above about N = 10 and the error reaches several dB for long helices. Use gain_corrected_dbi for design and verify in a solver."
+        },
+        {
+          "metric": "gain_corrected_dbi",
+          "expr": "8.3 + db10(C_over_lambda**2 * N * C_over_lambda*np.tan(rad(pitch_deg))) + 2*db10(1 + N/10)",
+          "units_out": "dBi",
+          "depends_on": [
+            "C_over_lambda",
+            "N",
+            "pitch_deg"
+          ],
+          "notes": "King & Wong / Emerson style correction: a lower constant with a sub-linear term in N, which tracks measured helices far better than Kraus for N > 10. Marked approximate; the literature offers several competing corrections that disagree by 1-2 dB."
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "52/(C_over_lambda*np.sqrt(N*C_over_lambda*np.tan(rad(pitch_deg))))",
+          "units_out": "deg",
+          "depends_on": [
+            "C_over_lambda",
+            "N",
+            "pitch_deg"
+          ],
+          "notes": "HPBW = 52/(C/lambda * sqrt(N*S/lambda)) deg"
+        },
+        {
+          "metric": "axial_ratio",
+          "expr": "(2*N+1)/(2*N)",
+          "units_out": "-",
+          "depends_on": [
+            "N"
+          ],
+          "notes": "AR = (2N+1)/(2N) for the increased-directivity condition; tends to 1 (perfect circular polarisation) as N grows"
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "140*C_over_lambda",
+          "units_out": "ohm",
+          "depends_on": [
+            "C_over_lambda"
+          ],
+          "notes": "Kraus: Rin ~ 140*(C/lambda), nearly real. Needs a matching section to reach 50 ohm."
+        },
+        {
+          "metric": "pitch_check_deg",
+          "expr": "pitch_deg",
+          "units_out": "deg",
+          "depends_on": [
+            "pitch_deg"
+          ]
+        }
+      ],
+      "validity": [
+        "axial mode requires 0.75 < C/lambda < 1.33; outside this the helix reverts to normal mode or breaks into higher-order radiation",
+        "pitch angle between 12 and 14 degrees",
+        "N >= 3 for a well-formed end-fire beam",
+        "gain formulas are empirical: Kraus overestimates for large N and the published corrections disagree by 1-2 dB. Treat any helix gain figure as provisional.",
+        "assumes an adequate ground plane and a matched feed"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 1.0,
+            "N": 10,
+            "pitch_deg": 13.283
+          },
+          "expect": {
+            "S_over_lambda": 0.236,
+            "gain_kraus_dbi": 15.529,
+            "hpbw_deg": 33.85,
+            "axial_ratio": 1.05,
+            "input_resistance_ohm": 140.0
+          },
+          "tol_pct": 1.0,
+          "source": "Canonical Kraus helix: C = lambda, 10 turns, 13.3 deg pitch gives S = 0.236 lambda, G = 11.8 + 10*log10(1*10*0.236) = 15.53 dBi, HPBW = 52/sqrt(2.36) = 33.85 deg, AR = 21/20, Rin = 140 ohm. Kraus, Antennas 2nd ed., Ch. 7"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 1.0,
+            "N": 10,
+            "pitch_deg": 13.283
+          },
+          "expect": {
+            "D_helix_m": 0.0954365,
+            "C_m": 0.2997925
+          },
+          "tol_pct": 0.5,
+          "source": "C = lambda = 299.79 mm at 1 GHz, so D = C/pi = 95.44 mm. Kraus, Antennas 2nd ed., Ch. 7"
+        }
+      ],
+      "references": [
+        "Kraus, Antennas 2nd ed., Ch. 7",
+        "Balanis, Antenna Theory 4th ed., Ch. 10 (10.3)",
+        "King & Wong, Characteristics of 1 to 8 wavelength uniform helical antennas, IEEE Trans. AP-28, 1980"
+      ],
+      "confidence": "normal"
+    },
+    {
+      "key": "normal_mode_helix",
+      "name": "Normal-mode helix",
+      "family": "travelling_wave",
+      "summary": "Electrically small helix radiating broadside to its axis; the rubber-duck antenna.",
+      "freq_range_hz": [
+        10000000.0,
+        10000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D_helix",
+          "name": "helix diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.01"
+        },
+        {
+          "symbol": "S",
+          "name": "turn spacing",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.002"
+        },
+        {
+          "symbol": "N",
+          "name": "number of turns",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "20"
+        },
+        {
+          "symbol": "C",
+          "name": "circumference",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "C",
+          "expr": "pi*D_helix",
+          "units_out": "m",
+          "depends_on": [
+            "D_helix"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "axial_ratio",
+          "expr": "2*S*(c/f0)/(pi*D_helix)**2",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0",
+            "D_helix"
+          ],
+          "notes": "AR = 2*S*lambda/C^2. AR = 1 (circular polarisation) requires C^2 = 2*S*lambda; AR >> 1 means the helix behaves as a short dipole, AR << 1 as a small loop."
+        },
+        {
+          "metric": "circular_polarisation_spacing_m",
+          "expr": "(pi*D_helix)**2/(2*(c/f0))",
+          "units_out": "m",
+          "depends_on": [
+            "D_helix",
+            "f0"
+          ],
+          "notes": "the turn spacing that would give AR = 1 for this diameter"
+        },
+        {
+          "metric": "axial_length_m",
+          "expr": "N*S",
+          "units_out": "m",
+          "depends_on": [
+            "N",
+            "S"
+          ]
+        },
+        {
+          "metric": "C_over_lambda",
+          "expr": "pi*D_helix*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "D_helix",
+            "f0"
+          ],
+          "notes": "must stay well below 0.75 to remain in normal mode"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.5)",
+          "units_out": "dBi",
+          "notes": "the pattern is that of a short dipole or small loop, so D = 1.5 (1.76 dBi)"
+        }
+      ],
+      "validity": [
+        "normal mode requires the whole helix to be electrically small: N*S << lambda and C << lambda",
+        "efficiency is usually poor and dominated by conductor loss, which is not modelled",
+        "a real rubber-duck is detuned substantially by the hand and body holding it"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "D_helix": 0.01,
+            "S": 0.002,
+            "N": 20
+          },
+          "expect": {
+            "axial_ratio": 1.215013,
+            "C_over_lambda": 0.104777
+          },
+          "tol_pct": 1.0,
+          "source": "D = 10 mm, S = 2 mm at 1 GHz: C = 31.42 mm, AR = 2*S*lambda/C^2 = 1.215. Above unity, so this helix is mildly dipole-dominant; AR = 1 would need S = 1.646 mm. Equivalently AR = S/(C^2/(2*lambda)) = 2.0/1.646. Kraus, Antennas 2nd ed., Ch. 7"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "D_helix": 0.01,
+            "S": 0.002,
+            "N": 20
+          },
+          "expect": {
+            "circular_polarisation_spacing_m": 0.00164626
+          },
+          "tol_pct": 1.0,
+          "source": "C^2/(2*lambda) = 1.646 mm would give AR = 1 at this diameter. Kraus, Antennas 2nd ed., Ch. 7"
+        }
+      ],
+      "references": [
+        "Kraus, Antennas 2nd ed., Ch. 7",
+        "Balanis, Antenna Theory 4th ed., Ch. 10 (10.3.1)"
+      ]
+    },
+    {
+      "key": "lpda",
+      "name": "Log-periodic dipole array",
+      "family": "travelling_wave",
+      "summary": "Frequency-independent array of scaled dipoles; constant gain over a decade or more.",
+      "freq_range_hz": [
+        1000000.0,
+        10000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lowest frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "f_high",
+          "name": "highest frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "tau",
+          "name": "scale factor",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.9"
+        },
+        {
+          "symbol": "sigma",
+          "name": "relative spacing",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "alpha_deg",
+          "name": "apex half angle",
+          "unit": "deg",
+          "role": "derived"
+        },
+        {
+          "symbol": "L_max",
+          "name": "longest element",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "N_elements",
+          "name": "element count",
+          "unit": "-",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "sigma",
+          "expr": "0.243*tau - 0.051",
+          "units_out": "-",
+          "depends_on": [
+            "tau"
+          ],
+          "notes": "Carrel's optimum relative spacing for a given tau"
+        },
+        {
+          "output": "alpha_deg",
+          "expr": "deg(np.arctan((1-tau)/(4*(0.243*tau - 0.051))))",
+          "units_out": "deg",
+          "depends_on": [
+            "tau"
+          ],
+          "notes": "Inverts sigma = (1-tau)/(4*tan(alpha)), which is the defining LPDA geometry relation"
+        },
+        {
+          "output": "L_max",
+          "expr": "0.5*c/f_low",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ],
+          "notes": "longest element is a half wave at the lowest frequency"
+        },
+        {
+          "output": "N_elements",
+          "expr": "1 + np.ceil(np.log(1.3*f_high/f_low)/np.log(1/tau))",
+          "units_out": "-",
+          "depends_on": [
+            "f_high",
+            "f_low",
+            "tau"
+          ],
+          "notes": "The 1.3 factor extends the structure past the top of the band so the active region is fully formed there (the bandwidth of the active region, Bar). Without it the gain droops badly at the high end."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "f_high/f_low",
+          "units_out": "-",
+          "depends_on": [
+            "f_high",
+            "f_low"
+          ]
+        },
+        {
+          "metric": "design_bandwidth",
+          "expr": "1.3*f_high/f_low",
+          "units_out": "-",
+          "depends_on": [
+            "f_high",
+            "f_low"
+          ],
+          "notes": "Bs = B * Bar, the structure bandwidth actually built"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "7.5 + 20*(tau - 0.8)",
+          "units_out": "dBi",
+          "depends_on": [
+            "tau"
+          ],
+          "notes": "APPROXIMATE linear reading of the Carrel directivity chart over 0.8 < tau < 0.95, where D runs from about 7.5 to 10.5 dBi. The real chart is two-dimensional in (tau, sigma); this collapses it along the optimum-sigma line. Expect 1 dB error."
+        },
+        {
+          "metric": "shortest_element_m",
+          "expr": "0.5*c/(1.3*f_high)",
+          "units_out": "m",
+          "depends_on": [
+            "f_high"
+          ]
+        },
+        {
+          "metric": "boom_length_m",
+          "expr": "(0.5*c/f_low - 0.5*c/(1.3*f_high))/(2*np.tan(np.arctan((1-tau)/(4*(0.243*tau - 0.051)))))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "f_high",
+            "tau"
+          ],
+          "notes": "from the apex geometry: the boom spans the two extreme element half-lengths"
+        }
+      ],
+      "validity": [
+        "0.8 < tau < 0.95; below 0.8 the gain collapses, above 0.95 the array grows impractically long for marginal gain",
+        "assumes optimum sigma; a design off that line has lower directivity than the chart value",
+        "directivity expression is a 1-D reading of a 2-D chart - expect about 1 dB error",
+        "requires a proper feeder transposition between adjacent elements; without the 180 degree phase reversal the array fires backwards"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "f_high": 1000000000.0,
+            "tau": 0.9
+          },
+          "expect": {
+            "sigma": 0.1677,
+            "alpha_deg": 8.4785,
+            "L_max_m": 1.49896,
+            "bandwidth_ratio": 10.0
+          },
+          "tol_pct": 1.0,
+          "source": "tau = 0.9: sigma_opt = 0.243*0.9 - 0.051 = 0.1677, alpha = arctan(0.1/(4*0.1677)) = 8.48 deg. Longest element = lambda/2 at 100 MHz = 1.499 m. Carrel, The Design of Log-Periodic Dipole Antennas, IRE Int. Conv. Rec., 1961"
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "f_high": 1000000000.0,
+            "tau": 0.9
+          },
+          "expect": {
+            "N_elements": 26.0,
+            "design_bandwidth": 13.0
+          },
+          "tol_pct": 2.0,
+          "source": "A decade of bandwidth with the 1.3 active-region allowance needs 1 + ceil(ln(13)/ln(1/0.9)) = 26 elements."
+        }
+      ],
+      "references": [
+        "Carrel, The Design of Log-Periodic Dipole Antennas, IRE Int. Conv. Rec., 1961",
+        "Balanis, Antenna Theory 4th ed., Ch. 10 (11.5)"
+      ],
+      "confidence": "normal"
+    },
+    {
+      "key": "yagi_uda",
+      "name": "Yagi-Uda array",
+      "family": "travelling_wave",
+      "summary": "Driven dipole with one reflector and several parasitic directors; the classic TV antenna.",
+      "freq_range_hz": [
+        10000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "boom_over_lambda",
+          "name": "boom length",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "1.2"
+        },
+        {
+          "symbol": "boom_length",
+          "name": "boom length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "reflector_length",
+          "name": "reflector length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "driven_length",
+          "name": "driven element length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "boom_length",
+          "expr": "boom_over_lambda*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "boom_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "reflector_length",
+          "expr": "0.482*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "NBS optimised designs place the reflector at about 0.482 lambda"
+        },
+        {
+          "output": "driven_length",
+          "expr": "0.470*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "driven element runs 0.45-0.49 lambda depending on the matching arrangement; a folded dipole is usual, to lift the 20-30 ohm parasitic-loaded impedance toward 300 ohm"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "gain_dbi",
+          "expr": "6.98798*log10(boom_over_lambda) + 9.82944",
+          "units_out": "dBi",
+          "depends_on": [
+            "boom_over_lambda"
+          ],
+          "notes": "Least-squares fit to the six optimised NBS/Viezbicke designs (boom 0.4 to 4.2 lambda, gain 7.1 to 14.2 dBi). Max residual 0.18 dB across the tabulated points. Valid ONLY for optimised designs on that curve - an arbitrary Yagi does far worse."
+        },
+        {
+          "metric": "front_to_back_db",
+          "expr": "-20.0",
+          "units_out": "dB",
+          "notes": "Indicative: optimised NBS designs achieve roughly 20 dB F/B. Not derived."
+        },
+        {
+          "metric": "hpbw_e_deg",
+          "expr": "55.0/np.sqrt(boom_over_lambda)",
+          "units_out": "deg",
+          "depends_on": [
+            "boom_over_lambda"
+          ],
+          "notes": "Indicative scaling for an end-fire array; accuracy roughly 15%"
+        },
+        {
+          "metric": "boom_length_m",
+          "expr": "boom_length",
+          "units_out": "m",
+          "depends_on": [
+            "boom_length"
+          ]
+        },
+        {
+          "metric": "director_count_nbs",
+          "expr": "np.round(boom_over_lambda*3.0)",
+          "units_out": "-",
+          "depends_on": [
+            "boom_over_lambda"
+          ],
+          "notes": "Indicative director count for the NBS designs, which space directors at roughly 0.3 lambda. Use the tables for an actual build."
+        }
+      ],
+      "validity": [
+        "gain fit is valid only along the NBS optimised curve, for boom 0.4 to 4.2 lambda",
+        "element lengths and spacings must come from the NBS tables (see the tables field); the fit gives the achievable gain, not a recipe",
+        "gain saturates: doubling the boom past about 4 lambda buys under 1 dB",
+        "input impedance is low (20-30 ohm) and strongly dependent on director spacing; not modelled here",
+        "F/B and beamwidth entries are indicative, not derived"
+      ],
+      "tables": {
+        "nbs_optimised": {
+          "columns": [
+            "boom_over_lambda",
+            "gain_dbi",
+            "n_directors"
+          ],
+          "rows": [
+            [
+              0.4,
+              7.1,
+              3
+            ],
+            [
+              0.8,
+              9.2,
+              5
+            ],
+            [
+              1.2,
+              10.2,
+              7
+            ],
+            [
+              2.2,
+              12.25,
+              12
+            ],
+            [
+              3.2,
+              13.4,
+              16
+            ],
+            [
+              4.2,
+              14.2,
+              21
+            ]
+          ],
+          "source": "Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976",
+          "note": "Viezbicke's optimised designs. Director spacings and lengths vary along the boom; consult the source for the per-element dimensions."
+        }
+      },
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 1.2
+          },
+          "expect": {
+            "gain_dbi": 10.3835,
+            "boom_length_m": 1.19917,
+            "reflector_length_m": 0.481666
+          },
+          "tol_pct": 2.0,
+          "source": "NBS tabulated gain for a 1.2 lambda boom is 10.2 dBi; the fit gives 10.38 dBi (0.18 dB high, the fit's worst point). Boom = 1.2 lambda = 1.199 m at 300 MHz. Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 4.2
+          },
+          "expect": {
+            "gain_dbi": 14.1847
+          },
+          "tol_pct": 1.5,
+          "source": "NBS tabulated gain for a 4.2 lambda boom is 14.2 dBi; the fit gives 14.185 dBi. Viezbicke, NBS Technical Note 688, 1976"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 0.4
+          },
+          "expect": {
+            "gain_dbi": 7.04858
+          },
+          "tol_pct": 1.5,
+          "source": "NBS tabulated gain for a 0.4 lambda boom is 7.1 dBi. Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976"
+        }
+      ],
+      "references": [
+        "Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976",
+        "Balanis, Antenna Theory 4th ed., Ch. 10 (10.3.3)"
+      ]
+    }
+  ]
+}
