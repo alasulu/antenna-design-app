@@ -80,10 +80,12 @@ class Archetype:
     def _seed(self, requirements: Mapping[str, Any]) -> dict[str, Any]:
         """Requirements plus the universally-derived frequency quantities."""
         known: dict[str, Any] = dict(requirements)
-        # Material properties have defensible defaults (copper, mu_r = 1); a
-        # design requirement does not, so it is never silently invented.
+        # Material properties have defensible defaults (copper, mu_r = 1), as
+        # do parameters explicitly declared an "assumption" (a thin-wire
+        # radius, say). A design *requirement* has no defensible default, so
+        # it is never silently invented - that would change the antenna.
         for p in self.spec.parameters:
-            if p.role != "material" or p.symbol in known:
+            if p.role not in ("material", "assumption") or p.symbol in known:
                 continue
             try:
                 known[p.symbol] = float(p.typical)
@@ -250,17 +252,17 @@ class Archetype:
                     results.append({
                         "archetype": self.spec.key, "quantity": name,
                         "expected": want, "actual": None, "error_pct": None,
-                        "tol_pct": case.tol_pct, "passed": False,
+                        "tol_pct": case.tol_pct, "tol_abs": case.tol_abs, "passed": False,
                         "source": case.source, "detail": f"{type(exc).__name__}: {exc}",
                     })
                 continue
             for name, want in case.expect.items():
                 got = _lookup(design, name)
-                passed, err = _compare(got, want, case.tol_pct)
+                passed, err = _compare(got, want, case.tol_pct, case.tol_abs)
                 results.append({
                     "archetype": self.spec.key, "quantity": name,
                     "expected": want, "actual": got, "error_pct": err,
-                    "tol_pct": case.tol_pct, "passed": passed,
+                    "tol_pct": case.tol_pct, "tol_abs": case.tol_abs, "passed": passed,
                     "source": case.source,
                     "detail": "" if got is not None else "quantity not produced",
                 })
@@ -304,21 +306,31 @@ def _lookup(design: DesignResult, name: str) -> Any:
     return None
 
 
-def _compare(got: Any, want: Any, tol_pct: float) -> tuple[bool, float | None]:
-    """Relative comparison that also handles complex impedances sanely."""
+def _compare(got: Any, want: Any, tol_pct: float,
+             tol_abs: float | None = None) -> tuple[bool, float | None]:
+    """Compare a computed value against an expectation.
+
+    Uses absolute tolerance when the spec supplies one, which is the only
+    meaningful test against an expected zero: relative error has no definition
+    there, and a 3 ohm residual reactance where zero was wanted is a good
+    result, not a 300% failure.
+    """
     if got is None:
         return False, None
     try:
         if isinstance(got, complex) or isinstance(want, complex):
             g, w = complex(got), complex(want)
+            delta = abs(g - w)
             denom = abs(w) if abs(w) > 0 else 1.0
-            err = abs(g - w) / denom * 100.0
         else:
             g, w = float(got), float(want)
             if not (math.isfinite(g) and math.isfinite(w)):
                 return g == w, None
+            delta = abs(g - w)
             denom = abs(w) if abs(w) > 1e-15 else 1.0
-            err = abs(g - w) / denom * 100.0
+        err = delta / denom * 100.0
     except (TypeError, ValueError):
         return got == want, None
+    if tol_abs is not None:
+        return delta <= tol_abs, err
     return err <= tol_pct, err

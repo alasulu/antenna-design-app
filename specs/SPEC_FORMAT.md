@@ -43,6 +43,7 @@ The implementation is generated against it, so unit discipline is not optional.
 - `expr` is a Python expression over the parameter symbols plus: `c` (2.99792458e8), `pi`, `eps0`, `mu0`, `eta0` (376.730313412), and numpy as `np`. No statements, no imports.
 - `depends_on` lists the symbols the expression reads. It must be accurate — the engine topologically sorts on it.
 - Every archetype needs >=1 `known_cases` entry with a real numeric expectation. These become pytest cases. An archetype with no verifiable known case is worthless to us.
+- Parameter `role` is one of: `requirement` (no default, ever), `geometry`, `material` or `assumption` (both auto-default from a numeric `typical`), `derived`.
 - `freq_range_hz` is the honest validity band, not the band someone could force it into.
 - Prefer closed-form engineering formulas with stated accuracy over hand-waving. If a quantity genuinely needs a numerical solve, say so in `notes` and give the defining equation.
 - If you are unsure of a coefficient, mark the archetype `"confidence": "low"` and say why in `notes`. Do NOT invent precision.

@@ -13,8 +13,22 @@ import math
 from typing import Any, Mapping
 
 import numpy as np
+from scipy import special as _sp
 
 from .constants import C0, EPS0, ETA0, MU0
+
+#: Euler-Mascheroni constant, which appears throughout wire-antenna theory.
+EULER_GAMMA = 0.5772156649015329
+
+
+def _si(x):
+    """Sine integral Si(x) = int_0^x sin(t)/t dt."""
+    return _sp.sici(x)[0]
+
+
+def _ci(x):
+    """Cosine integral Ci(x) = -int_x^inf cos(t)/t dt."""
+    return _sp.sici(x)[1]
 
 # Node types the evaluator will walk. Anything else raises.
 _ALLOWED_NODES: tuple[type[ast.AST], ...] = (
@@ -48,6 +62,13 @@ BASE_NAMESPACE: dict[str, Any] = {
     "abs": np.abs, "sign": np.sign, "floor": np.floor, "ceil": np.ceil,
     "deg": np.rad2deg, "rad": np.deg2rad,
     "min": min, "max": max, "round": round,
+    # Special functions that closed-form antenna theory genuinely requires:
+    # the exact dipole radiation resistance is written in Si/Ci, and circular
+    # apertures and loops in Bessel functions. Without these a spec has to
+    # fall back on fitted approximations.
+    "Si": _si, "Ci": _ci, "gamma_e": EULER_GAMMA, "euler_gamma": EULER_GAMMA,
+    "j0": _sp.j0, "j1": _sp.j1, "jv": _sp.jv, "jn": _sp.jv,
+    "struve": _sp.struve, "ellipk": _sp.ellipk, "ellipe": _sp.ellipe,
     "db10": lambda x: 10.0 * np.log10(x),
     "db20": lambda x: 20.0 * np.log10(x),
     "undb10": lambda x: 10.0 ** (np.asarray(x) / 10.0),

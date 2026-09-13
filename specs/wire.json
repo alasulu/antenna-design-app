@@ -1,0 +1,780 @@
+{
+  "family": "wire",
+  "archetypes": [
+    {
+      "key": "short_dipole",
+      "name": "Short (Hertzian) dipole",
+      "family": "wire",
+      "summary": "Electrically short centre-fed dipole with an assumed triangular current distribution.",
+      "freq_range_hz": [
+        1000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "electrical length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.01",
+          "description": "total length as a fraction of the free-space wavelength"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ],
+          "notes": "tip-to-tip length"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "20 * pi**2 * L_over_lambda**2",
+          "units_out": "ohm",
+          "notes": "Rr = 20*pi^2*(L/lambda)^2 for a uniform-current short dipole (Balanis 4-19). A real short dipole carries a triangular distribution, which divides Rr by 4 unless the current is forced uniform by top loading.",
+          "depends_on": [
+            "L_over_lambda"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_triangular_ohm",
+          "expr": "5 * pi**2 * L_over_lambda**2",
+          "units_out": "ohm",
+          "notes": "The practical value for an unloaded short dipole: one quarter of the uniform-current result, because Rr scales with the square of the effective length.",
+          "depends_on": [
+            "L_over_lambda"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "1.5",
+          "units_out": "-",
+          "notes": "exact for sin^2 theta"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.5)",
+          "units_out": "dBi"
+        },
+        {
+          "metric": "effective_length_m",
+          "expr": "L/2",
+          "units_out": "m",
+          "notes": "triangular current distribution",
+          "depends_on": [
+            "L"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "90.0",
+          "units_out": "deg",
+          "notes": "exact for the sin^2 pattern"
+        }
+      ],
+      "validity": [
+        "L < 0.1*lambda, beyond which the current is no longer approximately linear",
+        "thin wire, radius << L",
+        "Rr excludes ohmic and ground loss; a short dipole's efficiency is usually loss-dominated"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.01
+          },
+          "expect": {
+            "L_m": 0.0099931,
+            "radiation_resistance_ohm": 0.0197392,
+            "radiation_resistance_triangular_ohm": 0.0049348,
+            "directivity_dbi": 1.7609126
+          },
+          "tol_pct": 0.5,
+          "source": "Rr = 20*pi^2*(0.01)^2 = 0.019739 ohm; D = 1.5 = 1.761 dBi. Balanis, Antenna Theory 4th ed., Ch. 4"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "L_over_lambda": 0.05
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.4934802,
+            "L_m": 0.01498962
+          },
+          "tol_pct": 0.5,
+          "source": "quadratic scaling check: 25x the 0.01 case. Balanis, Antenna Theory 4th ed., Ch. 4"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 (eqs. 4-19, 4-26)"
+      ]
+    },
+    {
+      "key": "half_wave_dipole",
+      "name": "Half-wave dipole",
+      "family": "wire",
+      "summary": "The canonical centre-fed dipole of exactly half a wavelength; the reference antenna for dBd.",
+      "freq_range_hz": [
+        100000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4",
+          "description": "conductor radius; only the reactance depends on it"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "0.5 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "exactly lambda/2; see resonant_dipole for the length that actually resonates"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "notes": "exact Balanis 4-70; 73.08 ohm with eta0 = 376.73 (textbooks quoting 73.13 use 120*pi)",
+          "depends_on": [
+            "k0",
+            "L"
+          ]
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
+          "units_out": "ohm",
+          "notes": "exact Balanis 4-79; +42.5 ohm at exactly lambda/2, which is why real dipoles are cut short",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "radiation_resistance_ohm + 1j*input_reactance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "input_reactance_ohm"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "1.6409",
+          "units_out": "-",
+          "notes": "numerically integrated; see otahub.core.pattern.finite_dipole(0.5)"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409)",
+          "units_out": "dBi"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "78.08",
+          "units_out": "deg",
+          "notes": "numerically integrated"
+        },
+        {
+          "metric": "effective_length_m",
+          "expr": "L/pi*2",
+          "units_out": "m",
+          "notes": "l_e = lambda/pi for a half-wave dipole",
+          "depends_on": [
+            "L"
+          ]
+        }
+      ],
+      "validity": [
+        "free space, no ground plane or nearby structure",
+        "thin wire: the reactance formula assumes aw << L",
+        "at exactly lambda/2 the antenna is NOT resonant (X = +42.5 ohm)"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 1e-05
+          },
+          "expect": {
+            "L_m": 0.49965,
+            "radiation_resistance_ohm": 73.079,
+            "input_reactance_ohm": 42.515,
+            "directivity_dbi": 2.1514
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis: Rr = 73.13 ohm, X = +42.5 ohm, D = 1.643 (2.15 dBi) at L = lambda/2"
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "aw": 0.0005
+          },
+          "expect": {
+            "L_m": 0.06244
+          },
+          "tol_pct": 0.5,
+          "source": "lambda/2 at 2.4 GHz = 62.44 mm"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 (eqs. 4-70, 4-79)"
+      ]
+    },
+    {
+      "key": "resonant_dipole",
+      "name": "Resonant dipole (thickness corrected)",
+      "family": "wire",
+      "summary": "A dipole shortened from lambda/2 so that its input reactance is zero at f0.",
+      "freq_range_hz": [
+        100000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "t",
+          "name": "thickness parameter",
+          "unit": "-",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "t",
+          "expr": "log10(c/f0/aw)",
+          "depends_on": [
+            "f0",
+            "aw"
+          ],
+          "notes": "t = log10(lambda/aw)"
+        },
+        {
+          "output": "L",
+          "expr": "(-0.0040566*t**2 + 0.0378414*t + 0.3994411) * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "t",
+            "f0"
+          ],
+          "notes": "Quadratic fit to the exact zero of Balanis 4-79, computed over a/lambda = 1e-5..1e-2 (L/d = 50 to 50000). Max error 0.42% of a wavelength across that range. Outside it, solve X(L) = 0 directly."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "length_over_lambda",
+          "expr": "L*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "L",
+            "f0"
+          ]
+        },
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "notes": "55-68 ohm across practical thicknesses, always below the 73 ohm lambda/2 value",
+          "depends_on": [
+            "k0",
+            "L"
+          ]
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
+          "units_out": "ohm",
+          "notes": "zero by construction, to within the fit error",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ]
+        },
+        {
+          "metric": "vswr_in_50_ohm",
+          "expr": "(max(radiation_resistance_ohm,50.0)/min(radiation_resistance_ohm,50.0))",
+          "units_out": "-",
+          "notes": "resistive-only estimate, valid because X ~ 0 at resonance",
+          "depends_on": [
+            "radiation_resistance_ohm"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409)",
+          "units_out": "dBi",
+          "notes": "the 1-2% shortening barely changes the pattern"
+        }
+      ],
+      "validity": [
+        "1e-5 < aw/lambda < 1e-2; outside this the length fit is untested",
+        "thin-wire theory: no insulation, no end capacitance from hardware",
+        "free space; height above ground shifts resonance by more than this correction"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 0.0001
+          },
+          "expect": {
+            "length_over_lambda": 0.48463,
+            "input_reactance_ohm": 0.0
+          },
+          "tol_pct": 1.0,
+          "source": "exact zero of Balanis 4-79 at a/lambda = 1e-4 is L = 0.48463 lambda Reactance is checked with an absolute tolerance of 6 ohm: the length fit carries 0.42% error, which maps to a few ohm of residual reactance against a 66 ohm radiation resistance (VSWR < 1.1).",
+          "tol_abs": 6.0
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 0.001
+          },
+          "expect": {
+            "length_over_lambda": 0.47751
+          },
+          "tol_pct": 1.0,
+          "source": "exact zero at a/lambda = 1e-3 is L = 0.47751 lambda"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 0.01
+          },
+          "expect": {
+            "length_over_lambda": 0.45738,
+            "radiation_resistance_ohm": 55.74
+          },
+          "tol_pct": 1.5,
+          "source": "exact zero at a/lambda = 1e-2 is L = 0.45738 lambda, Rr = 55.74 ohm"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 (eq. 4-79)",
+        "resonant lengths computed from the exact reactance by root-finding"
+      ]
+    },
+    {
+      "key": "quarter_wave_monopole",
+      "name": "Quarter-wave monopole over a ground plane",
+      "family": "wire",
+      "summary": "Half a dipole over an infinite perfect ground plane; image theory doubles the directivity.",
+      "freq_range_hz": [
+        10000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "h",
+          "name": "monopole height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L",
+          "name": "equivalent dipole length",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "h",
+          "expr": "0.25 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "2*h",
+          "units_out": "m",
+          "depends_on": [
+            "h"
+          ],
+          "notes": "the equivalent dipole formed with the image"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "0.5*((eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L))))",
+          "units_out": "ohm",
+          "notes": "half the dipole value: same radiated power into half the space. 36.54 ohm.",
+          "depends_on": [
+            "k0",
+            "L"
+          ]
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "0.5*((eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L))))",
+          "units_out": "ohm",
+          "notes": "+21.26 ohm at exactly lambda/4",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ]
+        },
+        {
+          "metric": "input_impedance_ohm",
+          "expr": "radiation_resistance_ohm + 1j*input_reactance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "input_reactance_ohm"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "2*1.6409",
+          "units_out": "-",
+          "notes": "twice the dipole: radiation confined to the upper hemisphere"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2*1.6409)",
+          "units_out": "dBi",
+          "notes": "5.16 dBi"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "39.04",
+          "units_out": "deg",
+          "notes": "elevation half-power beamwidth measured from the horizon upward"
+        }
+      ],
+      "validity": [
+        "infinite, perfectly conducting ground plane",
+        "a finite ground plane raises Rin and tilts the pattern upward; below about 0.25*lambda radius the effect is severe",
+        "real earth is lossy: ground loss often exceeds radiation resistance at HF"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 1e-05
+          },
+          "expect": {
+            "h_m": 0.2498,
+            "radiation_resistance_ohm": 36.54,
+            "input_reactance_ohm": 21.26,
+            "directivity_dbi": 5.1514
+          },
+          "tol_pct": 0.5,
+          "source": "Half the half-wave dipole impedance: 36.5 + j21.25 ohm; D = 5.15 dBi. Balanis, Antenna Theory 4th ed., Ch. 4"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 4.7 (image theory)"
+      ]
+    },
+    {
+      "key": "folded_dipole",
+      "name": "Folded dipole",
+      "family": "wire",
+      "summary": "Two parallel half-wave conductors joined at the ends; steps the impedance up by N^2.",
+      "freq_range_hz": [
+        100000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "N",
+          "name": "conductor count",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "2"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "d_sep",
+          "name": "conductor spacing",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "0.48 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "slightly short of lambda/2, as for any real dipole"
+        },
+        {
+          "output": "d_sep",
+          "expr": "0.02 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "typical practical spacing, 0.01-0.05 lambda; must stay << lambda for the transmission-line mode to be non-radiating"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "impedance_step_ratio",
+          "expr": "N**2",
+          "units_out": "-",
+          "notes": "equal-diameter conductors carry equal currents, so the feed sees N^2 times the single-dipole impedance",
+          "depends_on": [
+            "N"
+          ]
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "N**2 * 73.079",
+          "units_out": "ohm",
+          "notes": "292.3 ohm for the standard two-conductor case, the classic 300 ohm twin-lead match",
+          "depends_on": [
+            "N"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409)",
+          "units_out": "dBi",
+          "notes": "pattern is indistinguishable from a plain dipole"
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "0.10",
+          "units_out": "-",
+          "notes": "roughly twice a plain thin dipole's, from the lower effective Q of the two-conductor structure. Indicative: the true figure depends on d_sep/aw."
+        }
+      ],
+      "validity": [
+        "d_sep << lambda so the transmission-line mode does not radiate",
+        "equal conductor diameters; unequal diameters give a step ratio between 1 and N^2",
+        "bandwidth figure is indicative, not a closed-form result"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 2
+          },
+          "expect": {
+            "input_resistance_ohm": 292.316,
+            "impedance_step_ratio": 4.0
+          },
+          "tol_pct": 1.0,
+          "source": "4 x 73.08 = 292.3 ohm, the standard folded-dipole result. Balanis, Antenna Theory 4th ed., Ch. 4"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 3
+          },
+          "expect": {
+            "input_resistance_ohm": 657.711,
+            "impedance_step_ratio": 9.0
+          },
+          "tol_pct": 1.0,
+          "source": "N^2 scaling: three-wire folded dipole is 9 x 73.08. Balanis, Antenna Theory 4th ed., Ch. 4"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 9.5"
+      ]
+    },
+    {
+      "key": "biconical",
+      "name": "Biconical antenna",
+      "family": "wire",
+      "summary": "Two opposed cones; a travelling-wave structure whose impedance is set by the cone angle.",
+      "freq_range_hz": [
+        1000000.0,
+        40000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "lowest design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "theta_h",
+          "name": "cone half angle",
+          "unit": "rad",
+          "role": "assumption",
+          "typical": "0.5236",
+          "description": "half angle measured from the axis; 30 deg = 0.5236 rad"
+        },
+        {
+          "symbol": "Lc",
+          "name": "cone slant length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "Lc",
+          "expr": "0.25 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "slant length of about lambda/4 at the lowest frequency sets the low-end cutoff"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "characteristic_impedance_ohm",
+          "expr": "eta0/pi * log(1/tan(theta_h/4))",
+          "units_out": "ohm",
+          "notes": "Zc = (eta0/pi)*ln(cot(theta_h/4)), exact for the INFINITE biconical (Balanis 10-20). A finite cone departs from this near the low-frequency end.",
+          "depends_on": [
+            "theta_h"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409)",
+          "units_out": "dBi",
+          "notes": "close to a dipole for narrow cones; widens as theta_h grows. Indicative only.",
+          "depends_on": []
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "Indicative: practical finite biconicals reach roughly a decade of usable VSWR bandwidth. Not a closed-form result."
+        }
+      ],
+      "validity": [
+        "characteristic impedance is exact only for an infinite structure",
+        "theta_h between about 1 and 60 degrees",
+        "directivity and bandwidth entries are indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.5235988
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 243.14,
+            "Lc_m": 0.0749481
+          },
+          "tol_pct": 1.0,
+          "source": "theta_h = 30 deg: Zc = (eta0/pi)*ln(cot(7.5 deg)) = 243.2 ohm. Balanis, Antenna Theory 4th ed., Ch. 4"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.1745329
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 375.5
+          },
+          "tol_pct": 1.0,
+          "source": "theta_h = 10 deg: theta_h/4 = 2.5 deg, cot = 22.9038, Zc = (eta0/pi)*ln(22.9038) = 375.50 ohm. Balanis, Antenna Theory 4th ed., Ch. 10.3"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 10.3 (eq. 10-20)"
+      ],
+      "confidence": "normal"
+    }
+  ]
+}

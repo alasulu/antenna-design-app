@@ -93,3 +93,30 @@ def test_expectation_lookup_tolerates_unit_tagged_keys():
     assert _lookup(d, "L_m") == pytest.approx(d.parameters["L"])
     assert _lookup(d, "L") == pytest.approx(d.parameters["L"])
     assert _lookup(d, "nonexistent_quantity_xyz") is None
+
+
+def test_absolute_tolerance_is_used_for_expectations_of_zero():
+    """Relative error is undefined against zero; tol_abs is the only sane test.
+
+    A resonant dipole left with 3 ohm of residual reactance against an
+    expected 0 is an excellent result, but relative comparison scores it as a
+    300% failure.
+    """
+    from otahub.core.archetype import _compare
+    assert _compare(3.0, 0.0, tol_pct=1.0) == (False, 300.0)
+    passed, _ = _compare(3.0, 0.0, tol_pct=1.0, tol_abs=6.0)
+    assert passed
+    passed, _ = _compare(9.0, 0.0, tol_pct=1.0, tol_abs=6.0)
+    assert not passed
+
+
+def test_absolute_tolerance_overrides_a_tight_relative_one():
+    from otahub.core.archetype import _compare
+    assert _compare(101.0, 100.0, tol_pct=0.1)[0] is False
+    assert _compare(101.0, 100.0, tol_pct=0.1, tol_abs=2.0)[0] is True
+
+
+def test_complex_impedance_uses_magnitude_of_the_difference():
+    from otahub.core.archetype import _compare
+    passed, err = _compare(complex(73.0, 42.0), complex(73.1, 42.5), tol_pct=2.0)
+    assert passed and err < 2.0

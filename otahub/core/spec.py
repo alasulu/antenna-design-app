@@ -19,7 +19,7 @@ class ParameterSpec:
     symbol: str
     name: str = ""
     unit: str = ""
-    role: str = "geometry"          # geometry | requirement | material | derived
+    role: str = "geometry"   # geometry | requirement | material | assumption | derived
     description: str = ""
     typical: str = ""
 
@@ -76,14 +76,20 @@ class KnownCase:
     expect: dict[str, float]
     tol_pct: float = 5.0
     source: str = ""
+    #: Absolute tolerance, used INSTEAD of tol_pct when supplied. Required for
+    #: any expectation of zero, where relative error is undefined - a resonant
+    #: reactance of 3 ohm against an expected 0 is excellent, not a 300% miss.
+    tol_abs: float | None = None
 
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> "KnownCase":
+        tol_abs = d.get("tol_abs")
         return cls(
             given=dict(d.get("given", {})),
             expect=dict(d.get("expect", {})),
             tol_pct=float(d.get("tol_pct", 5.0)),
             source=d.get("source", ""),
+            tol_abs=None if tol_abs is None else float(tol_abs),
         )
 
 
