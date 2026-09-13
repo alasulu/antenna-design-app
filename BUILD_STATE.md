@@ -20,7 +20,7 @@ worked. **Do not delegate spec authoring to subagents.**
 | S1 | Core engine, registry, 40 archetypes, CLI, tests | **DONE** (2026-09-13 22:30) |
 | S2 | Waveguides module + arrays (layouts, tapers, array factor) | **DONE** (2026-09-14) |
 | S3 | PySide6 GUI shell: catalogue browser, param panel, plots | **DONE** (2026-09-14) |
-| S4 | Exporters (CST VBA, HFSS script), matching/network utils | PENDING |
+| S4 | Exporters (CST VBA, HFSS script), matching/network utils | **DONE** (2026-09-14) |
 
 The user typed `Continue` before the 01:12 run fired, and S2 was done in that
 session. The 01:12 run, if it still fires, should pick up **S3 (GUI)**. S4
@@ -105,8 +105,26 @@ session. The 01:12 run, if it still fires, should pick up **S3 (GUI)**. S4
 - Polar plots left the lower half blank; patterns here are azimuthally symmetric, so
   a blank half reads as a one-sided pattern. Now mirrored.
 
-## Next action
-S4 (last): CST Studio VBA and Ansys HFSS script exporters, plus impedance-matching
-and network-parameter utilities. The exporters should read a DesignResult and emit a
-parameterised model; note that most archetypes carry only primary dimensions, so the
-exporter must state plainly what it does and does not place.
+## Completed in S4
+- `otahub/utils/`: network parameters (S/Z/Y/ABCD, cascading, line transforms) and
+  matching (L-section, quarter-wave, single-stub). Pozar 5.1 and 5.2 reproduced exactly.
+- `otahub/export/`: neutral geometry IR with two backends (CST VBA, HFSS IronPython).
+  Builders for 7 archetypes; everything else exports parameters only and says so.
+- CLI gained `export` and `match`.
+
+## Bugs found in S4
+- L-section used sqrt(Z0/RL) where Pozar 5.3a has sqrt(RL/Z0) -> matched to 181 ohm.
+- I then flipped a sign in the other branch that was already correct; deriving it
+  directly showed X and B take the SAME sign there.
+- Parameter export guessed lengths from magnitude, writing 319 ohm as 319105 mm.
+  Now driven by each spec's declared unit.
+- DesignResult.get() could not see requirements; the engine did not record units for
+  the lambda0 and k0 it derives itself. Both fixed.
+
+## BUILD COMPLETE
+
+All four sessions done. 40 archetypes, 8 families, 400 tests, 241/241 known cases.
+See `docs/HANDOVER.md` for what is verified, what is not, and recommended next steps.
+
+The largest untested surface: neither exporter has been run against a real CST or
+HFSS installation. Structurally validated only.
