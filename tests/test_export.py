@@ -1,0 +1,191 @@
+"""Exporter tests.
+
+The point of these is not that the scripts look plausible - it is that they
+are structurally complete, that units are right, and that an archetype we
+cannot build says so instead of emitting a half-model.
+"""
+import re
+
+import pytest
+
+from otahub.export import build
+from otahub.export import cst, hfss
+from otahub.export.base import BUILDERS, Brick, Cylinder, DiscretePort
+
+CASES = {
+    "half_wave_dipole": {"f0": 300e6, "aw": 1e-3},
+    "short_dipole": {"f0": 300e6, "L_over_lambda": 0.01},
+    "resonant_dipole": {"f0": 300e6, "aw": 1e-3},
+    "quarter_wave_monopole": {"f0": 1e9, "aw": 1e-3},
+    "rectangular_patch": {"f0": 2.4e9, "eps_r": 4.4, "h": 1.6e-3},
+    "rectangular_patch_inset": {"f0": 2.4e9, "eps_r": 4.4, "h": 1.6e-3, "Z_target": 50.0},
+    "circular_patch": {"f0": 10e9, "eps_r": 2.2, "h": 1.588e-3},
+    "open_ended_waveguide": {"f0": 10e9, "a_wg": 0.02286, "b_wg": 0.01016},
+}
+
+
+@pytest.fixture(params=sorted(CASES))
+def model(request, registry):
+    key = request.param
+    return build(registry[key].synthesize(**CASES[key]))
+
+
+# -------------------------------------------------------------- geometry IR
+
+def test_every_registered_builder_is_exercised_by_a_test_case():
+    assert set(BUILDERS) <= set(CASES), f"untested builders: {set(BUILDERS) - set(CASES)}"
+
+
+def test_builders_produce_solids(model):
+    assert model.built_geometry
+    assert model.solids
+
+
+def test_builders_carry_units_for_every_parameter(model):
+    missing = [n for n in model.parameters if n not in model.units]
+    assert not missing, f"no declared unit for {missing}"
+
+
+def test_dipole_arms_are_symmetric_about_the_feed(registry):
+    m = build(registry["half_wave_dipole"].synthesize(f0=300e6, aw=1e-3))
+    upper = next(s for s in m.solids if s.name == "arm_upper")
+    lower = next(s for s in m.solids if s.name == "arm_lower")
+    assert upper.span[1] == pytest.approx(-lower.span[0])
+    assert upper.span[0] == pytest.approx(-lower.span[1])
+
+
+def test_dipole_total_length_matches_the_synthesised_value(registry):
+    design = registry["half_wave_dipole"].synthesize(f0=300e6, aw=1e-3)
+    m = build(design)
+    upper = next(s for s in m.solids if s.name == "arm_upper")
+    lower = next(s for s in m.solids if s.name == "arm_lower")
+    tip_to_tip = upper.span[1] - lower.span[0]
+    assert tip_to_tip == pytest.approx(design.get("L"), rel=1e-9)
+
+
+def test_patch_ground_sits_under_the_substrate(registry):
+    m = build(registry["rectangular_patch"].synthesize(f0=2.4e9, eps_r=4.4, h=1.6e-3))
+    ground = next(s for s in m.solids if s.name == "ground")
+    patch = next(s for s in m.solids if s.name == "patch")
+    assert ground.z == (0.0, 0.0)
+    assert patch.z[0] == pytest.approx(1.6e-3)
+
+
+def test_unbuildable_archetype_reports_instead_of_faking(registry):
+    """The honesty guarantee: no half-model that looks complete."""
+    m = build(registry["pyramidal_horn"].synthesize(f0=10e9, G_target=20.0))
+    assert not m.built_geometry
+    assert not m.solids
+    assert m.parameters                       # parameters still exported
+    assert any("NO SOLID GEOMETRY" in n for n in m.notes)
+
+
+def test_every_archetype_exports_without_raising(registry):
+    """Whatever we cannot build must still degrade to a parameters-only model."""
+    import math
+    for archetype in registry:
+        lo, hi = archetype.spec.freq_range_hz
+        f0 = math.sqrt(max(lo, 1e5) * min(hi if math.isfinite(hi) else 1e11, 1e11))
+        reqs = {"f0": f0}
+        for p in archetype.spec.parameters:
+            if p.role in ("requirement", "assumption", "material") and p.symbol != "f0":
+                try:
+                    reqs[p.symbol] = float(p.typical)
+                except (TypeError, ValueError):
+                    continue
+        m = build(archetype.synthesize(**reqs))
+        assert cst.render(m)
+        assert hfss.render(m)
+
+
+# ------------------------------------------------------------------ backends
+
+def test_cst_macro_is_structurally_complete(model):
+    text = cst.render(model)
+    assert text.count("Sub Main") == 1
+    assert text.count("End Sub") == 1
+    assert text.index("Sub Main") < text.index("End Sub")
+    assert text.count("With ") == text.count("End With")
+
+
+def test_cst_creates_every_solid(model):
+    text = cst.render(model)
+    for solid in model.solids:
+        assert f'.Name "{solid.name}"' in text
+
+
+def test_cst_declares_a_discrete_port_when_one_exists(model):
+    text = cst.render(model)
+    if model.ports:
+        assert "With DiscretePort" in text
+        assert ".Create" in text
+
+
+def test_hfss_script_is_structurally_complete(model):
+    text = hfss.render(model)
+    assert "ScriptEnv.Initialize" in text
+    assert "oEditor = oDesign.SetActiveEditor" in text
+    assert text.count("(") == text.count(")")
+    assert text.count("[") == text.count("]")
+
+
+def test_hfss_script_is_valid_python_syntax(model):
+    """It is IronPython, but the syntax must still parse."""
+    import ast
+    body = hfss.render(model)
+    body = body.replace("import ScriptEnv", "ScriptEnv = None")
+    ast.parse(body)
+
+
+def test_hfss_creates_every_solid(model):
+    text = hfss.render(model)
+    for solid in model.solids:
+        assert f'"Name:=", "{solid.name}"' in text
+
+
+# ---------------------------------------------------------------------- units
+
+NON_LENGTH_UNITS = {"ohm", "S", "-", "", "Hz", "F", "H", "rad/m", "dBi", "dB"}
+
+
+def test_no_non_length_parameter_is_written_as_a_length(model):
+    """Guards the bug where a 319 ohm resistance exported as '319105 mm'."""
+    text = cst.render(model)
+    for name, unit in model.units.items():
+        if name not in model.parameters or unit == "m":
+            continue
+        assert f'"{name}_mm"' not in text, f"{name} [{unit}] exported as a length"
+
+
+def test_lengths_are_converted_to_millimetres(registry):
+    design = registry["half_wave_dipole"].synthesize(f0=300e6, aw=1e-3)
+    m = build(design)
+    text = cst.render(m)
+    match = re.search(r'StoreParameter "L_mm", ([0-9.]+)', text)
+    assert match
+    assert float(match.group(1)) == pytest.approx(design.get("L") * 1e3, rel=1e-6)
+
+
+def test_frequency_is_exported_in_ghz(registry):
+    m = build(registry["half_wave_dipole"].synthesize(f0=2.4e9, aw=1e-3))
+    text = cst.render(m)
+    assert re.search(r'StoreParameter "f0_GHz", 2\.4', text)
+    for backend_text in (text, hfss.render(m)):
+        assert "2400000000" not in backend_text
+
+
+def test_impedance_keeps_its_own_magnitude(registry):
+    design = registry["rectangular_patch_inset"].synthesize(
+        f0=2.4e9, eps_r=4.4, h=1.6e-3, Z_target=50.0)
+    text = cst.render(build(design))
+    match = re.search(r'StoreParameter "Rin0", ([0-9.]+)', text)
+    assert match
+    assert float(match.group(1)) == pytest.approx(design.get("Rin0"), rel=1e-6)
+
+
+def test_notes_are_carried_into_both_backends(model):
+    assert all(any(w in cst.render(model) for w in note.split()[:3])
+               for note in model.notes[:1]) or not model.notes
+    if model.notes:
+        assert "NOTE:" in cst.render(model)
+        assert "NOTE:" in hfss.render(model)

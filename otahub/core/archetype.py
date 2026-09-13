@@ -39,9 +39,18 @@ class DesignResult:
         return sorted(seen - set(self.parameters) - set(self.requirements))
 
     def get(self, name: str, default: Any = None) -> Any:
+        """Look up any value this design involved.
+
+        Searches derived parameters, then computed metrics, then the
+        requirements the caller supplied. A consumer asking for the substrate
+        thickness should not have to know whether it was an input or an
+        output - only that the design used it.
+        """
         if name in self.parameters:
             return self.parameters[name]
-        return self.metrics.get(name, default)
+        if name in self.metrics:
+            return self.metrics[name]
+        return self.requirements.get(name, default)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -118,6 +127,11 @@ class Archetype:
 
         pending = list(self.spec.synthesis)
         units: dict[str, str] = {p.symbol: p.unit for p in self.spec.parameters}
+        # The engine derives these two itself, so nothing in the spec declares
+        # their units. Consumers that reason about units (the exporters decide
+        # what is a length from them) need them recorded.
+        units.setdefault("lambda0", "m")
+        units.setdefault("k0", "rad/m")
 
         progressed = True
         while pending and progressed:

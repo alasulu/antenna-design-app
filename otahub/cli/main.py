@@ -8,6 +8,8 @@ import re
 import sys
 from typing import Any
 
+from pathlib import Path
+
 from ..core.registry import Registry, default_registry
 from ..core.units import engineering, to_si
 
@@ -215,6 +217,78 @@ def cmd_check(args: argparse.Namespace, reg: Registry) -> int:
     return 1 if failed else 0
 
 
+def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
+    from ..export import build
+    from ..export import cst as cst_backend
+    from ..export import hfss as hfss_backend
+
+    a = reg[args.key]
+    reqs = _kv(args.set)
+    if args.f0 is not None:
+        reqs["f0"] = args.f0
+    if not reqs:
+        print("give at least --f0 (e.g. --f0 2.4GHz)", file=sys.stderr)
+        return 2
+    try:
+        design = a.synthesize(**reqs)
+    except Exception as exc:  # noqa: BLE001
+        print(f"synthesis failed: {exc}", file=sys.stderr)
+        return 1
+
+    model = build(design)
+    backend = {"cst": cst_backend, "hfss": hfss_backend}[args.format]
+    text = backend.render(model)
+
+    if args.output:
+        path = Path(args.output)
+        path.write_text(text)
+        print(f"wrote {path}  ({len(text.splitlines())} lines)")
+    else:
+        print(text)
+
+    if not model.built_geometry:
+        print(f"\nNOTE: no solid geometry was generated for {a.key!r}; the file "
+              f"defines parameters only.", file=sys.stderr)
+    return 0
+
+
+def cmd_match(args: argparse.Namespace, reg: Registry) -> int:
+    from ..utils import matching as M
+    from ..utils.network import match_quality
+
+    z_load = complex(args.r, args.x)
+    before = match_quality(z_load, args.z0)
+    print(f"load {z_load.real:.4g}{z_load.imag:+.4g}j ohm into {args.z0:.4g} ohm")
+    print(f"  unmatched: {before}")
+
+    sections = M.l_section(z_load, args.z0, args.f0 or 1e9)
+    if sections:
+        print(f"\nL-section solutions at {engineering(args.f0 or 1e9, 'Hz')}:")
+        for i, s in enumerate(sections, 1):
+            print(f"  [{i}] {s.topology}")
+            print(f"      series: {s.series}")
+            print(f"      shunt : {s.shunt}")
+            print(f"      achieved Zin = {s.achieved.real:.6g}{s.achieved.imag:+.6g}j ohm")
+    else:
+        print("\nno L-section solution exists for this load")
+
+    for kind in ("short", "open"):
+        stubs = M.single_stub(z_load, args.z0, kind)
+        if stubs:
+            print(f"\nshunt {kind}-circuit stub tuners:")
+            for s in stubs:
+                print(f"  {s}")
+
+    try:
+        z1 = M.quarter_wave(z_load, args.z0)
+        bw = M.quarter_wave_bandwidth(z_load.real, args.z0)
+        print(f"\nquarter-wave transformer: Z1 = {z1:.4g} ohm, "
+              f"fractional bandwidth (VSWR<2) = {bw:.3f}")
+    except ValueError as exc:
+        print(f"\nquarter-wave transformer: not applicable - {exc}")
+    return 0
+
+
 def cmd_gui(args: argparse.Namespace, reg: Registry) -> int:
     try:
         from ..gui.app import main as gui_main
@@ -391,6 +465,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     pd = sub.add_parser("doctor", help="report structural faults in the specs")
     pd.set_defaults(func=cmd_doctor)
+
+    pe = sub.add_parser("export", help="export a design to CST or HFSS")
+    pe.add_argument("key")
+    pe.add_argument("--format", choices=["cst", "hfss"], default="cst")
+    pe.add_argument("--f0", type=parse_quantity, help="design frequency")
+    pe.add_argument("--set", action="append", metavar="NAME=VALUE")
+    pe.add_argument("-o", "--output", help="write to a file instead of stdout")
+    pe.set_defaults(func=cmd_export)
+
+    pm = sub.add_parser("match", help="impedance matching networks for a load")
+    pm.add_argument("--r", type=float, required=True, help="load resistance [ohm]")
+    pm.add_argument("--x", type=float, default=0.0, help="load reactance [ohm]")
+    pm.add_argument("--z0", type=float, default=50.0, help="reference impedance")
+    pm.add_argument("--f0", type=parse_quantity, help="frequency for component values")
+    pm.set_defaults(func=cmd_match)
 
     pui = sub.add_parser("gui", help="launch the graphical interface")
     pui.set_defaults(func=cmd_gui)
