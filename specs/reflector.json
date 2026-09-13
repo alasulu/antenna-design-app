@@ -1,0 +1,749 @@
+{
+  "family": "reflector",
+  "archetypes": [
+    {
+      "key": "prime_focus_parabolic",
+      "name": "Prime-focus parabolic reflector",
+      "family": "reflector",
+      "summary": "Axisymmetric paraboloid with the feed at the focus; the workhorse high-gain antenna.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D",
+          "name": "reflector diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "f_over_D",
+          "name": "focal ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.4"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.82"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.85"
+        },
+        {
+          "symbol": "eta_xpol",
+          "name": "cross-polarisation efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.98"
+        },
+        {
+          "symbol": "eta_match",
+          "name": "feed mismatch efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.98"
+        },
+        {
+          "symbol": "eps_rms",
+          "name": "rms surface error",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0002"
+        },
+        {
+          "symbol": "d_blockage",
+          "name": "feed/strut blockage diameter",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.1"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "focal_length_m",
+          "expr": "f_over_D*D",
+          "units_out": "m",
+          "depends_on": [
+            "f_over_D",
+            "D"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "feed_half_angle_deg",
+          "expr": "deg(2*np.arctan(1/(4*f_over_D)))",
+          "units_out": "deg",
+          "depends_on": [
+            "f_over_D"
+          ],
+          "notes": "theta0 = 2*arctan(1/(4*(f/D))). Checks: f/D = 0.25 gives exactly 90 deg (focus in the aperture plane), f/D = 0.5 gives 53.13 deg."
+        },
+        {
+          "metric": "eta_blockage",
+          "expr": "(1 - (d_blockage/D)**2)**2",
+          "units_out": "-",
+          "depends_on": [
+            "d_blockage",
+            "D"
+          ],
+          "notes": "aperture blockage removes area twice over - once from the incident field and once from the scattered field - hence the square"
+        },
+        {
+          "metric": "eta_ruze",
+          "expr": "np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ],
+          "notes": "Ruze 1966: G/G0 = exp(-(4*pi*eps_rms/lambda)^2). Exact, and the reason surface tolerance dominates at millimetre wavelengths."
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*eta_spill*eta_xpol*eta_match*(1-(d_blockage/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "eta_xpol",
+            "eta_match",
+            "d_blockage",
+            "D",
+            "eps_rms",
+            "f0"
+          ],
+          "notes": "The budget is itemised rather than lumped: each term is separately arguable, and lumping them hides which one is costing you the gain."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(eta_ill*eta_spill*eta_xpol*eta_match*(1-(d_blockage/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "eta_xpol",
+            "eta_match",
+            "d_blockage",
+            "D",
+            "eps_rms",
+            "f0"
+          ],
+          "notes": "G = eta_ap*(pi*D/lambda)^2"
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10((pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "D",
+            "f0"
+          ],
+          "notes": "the 100%-efficient ceiling, for reference"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D"
+          ],
+          "notes": "70*lambda/D is the figure for a roughly -11 dB edge taper. Uniform illumination gives 58*lambda/D, heavy taper up to 80; the coefficient is not universal."
+        },
+        {
+          "metric": "first_sidelobe_db",
+          "expr": "-24.0",
+          "units_out": "dB",
+          "notes": "Indicative for a -11 dB edge taper. Uniform illumination would give -17.6 dB for a circular aperture; heavier taper pushes past -30 dB."
+        },
+        {
+          "metric": "focal_length_m",
+          "expr": "f_over_D*D",
+          "units_out": "m",
+          "depends_on": [
+            "f_over_D",
+            "D"
+          ]
+        },
+        {
+          "metric": "gain_loss_to_surface_db",
+          "expr": "-db10(np.exp(-(4*pi*eps_rms*f0/c)**2))",
+          "units_out": "dB",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ]
+        }
+      ],
+      "validity": [
+        "D > 10*lambda for physical-optics aperture theory to hold",
+        "the -11 dB edge taper optimum assumes the feed pattern actually achieves it; illumination and spillover efficiency trade directly against each other and only their product is meaningful",
+        "efficiency terms are defaults for a competent design, not measurements",
+        "sidelobe figure is indicative, not derived from the illumination function"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.25,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "feed_half_angle_deg": 90.0
+          },
+          "tol_pct": 0.5,
+          "source": "f/D = 0.25 puts the focus exactly in the aperture plane, so the feed subtends 90 deg. Geometric identity. Balanis, Antenna Theory 4th ed., Ch. 15"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.5,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "feed_half_angle_deg": 53.1301
+          },
+          "tol_pct": 0.5,
+          "source": "theta0 = 2*arctan(0.5) = 53.13 deg at f/D = 0.5. Balanis, Antenna Theory 4th ed., Ch. 15"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "gain_ideal_dbi": 40.4176,
+            "hpbw_deg": 2.09855
+          },
+          "tol_pct": 0.5,
+          "source": "1 m dish at 10 GHz: (pi*D/lambda)^2 = 40.42 dBi at 100% efficiency, HPBW = 70*lambda/D = 2.10 deg. Balanis, Antenna Theory 4th ed., Ch. 15"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "eps_rms": 0.0003,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "eta_ruze": 0.98432,
+            "gain_loss_to_surface_db": 0.06864
+          },
+          "tol_pct": 1.0,
+          "source": "Ruze: 0.3 mm rms at 10 GHz (lambda/100) costs 0.069 dB. Ruze, Antenna Tolerance Theory, Proc. IEEE 54(4), 1966"
+        },
+        {
+          "given": {
+            "f0": 100000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "eps_rms": 0.0003,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "eta_ruze": 0.205703
+          },
+          "tol_pct": 1.0,
+          "source": "The same 0.3 mm surface at 100 GHz (lambda = 2.9979 mm) retains only 0.2057 of the gain - a 6.87 dB loss. Ruze loss scales with (eps_rms/lambda)^2, which is why millimetre-wave dishes need precision surfaces. Ruze, Proc. IEEE 54(4), 1966"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "eps_rms": 0.0,
+            "d_blockage": 0.1
+          },
+          "expect": {
+            "eta_blockage": 0.9801
+          },
+          "tol_pct": 0.5,
+          "source": "A 10% blockage diameter costs (1-0.01)^2 = 0.9801, i.e. 0.087 dB. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 15 (15.4)",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 8",
+        "Ruze, Antenna Tolerance Theory, Proc. IEEE 54(4), 1966"
+      ]
+    },
+    {
+      "key": "cassegrain",
+      "name": "Cassegrain dual reflector",
+      "family": "reflector",
+      "summary": "Paraboloid with a hyperboloidal subreflector, folding the feed back to the vertex.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D",
+          "name": "main reflector diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "3.0"
+        },
+        {
+          "symbol": "Ds",
+          "name": "subreflector diameter",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "f_over_D",
+          "name": "main focal ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.35"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.85"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.90"
+        },
+        {
+          "symbol": "eps_rms",
+          "name": "rms surface error",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0002"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "magnification",
+          "expr": "1.0",
+          "units_out": "-",
+          "notes": "placeholder; the true magnification follows from the eccentricity of the hyperboloid and the chosen equivalent focal length"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "eta_blockage",
+          "expr": "(1 - (Ds/D)**2)**2",
+          "units_out": "-",
+          "depends_on": [
+            "Ds",
+            "D"
+          ],
+          "notes": "Subreflector blockage is the defining cost of a Cassegrain. The classic minimum-blockage rule sets Ds so that subreflector and feed blockage are equal."
+        },
+        {
+          "metric": "eta_ruze",
+          "expr": "np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*eta_spill*(1-(Ds/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "Ds",
+            "D",
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(eta_ill*eta_spill*(1-(Ds/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "Ds",
+            "D",
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D"
+          ]
+        },
+        {
+          "metric": "subreflector_fraction",
+          "expr": "Ds/D",
+          "units_out": "-",
+          "depends_on": [
+            "Ds",
+            "D"
+          ],
+          "notes": "Ds/D below about 0.1 makes subreflector diffraction severe; above 0.15 blockage dominates. Most designs sit between."
+        }
+      ],
+      "validity": [
+        "Ds must be at least several wavelengths or diffraction invalidates ray optics",
+        "the feed sees the subreflector, so feed taper is set by the subreflector subtended angle, not the main reflector's",
+        "advantage over prime focus is short feed runs and low spillover onto warm ground (lower noise temperature), not raw gain"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_blockage": 0.9801,
+            "subreflector_fraction": 0.1
+          },
+          "tol_pct": 0.5,
+          "source": "Ds/D = 0.1 gives (1-0.01)^2 = 0.9801 blockage efficiency. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 15 (15.5)",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+      ],
+      "confidence": "low"
+    },
+    {
+      "key": "corner_reflector_90",
+      "name": "90-degree corner reflector",
+      "family": "reflector",
+      "summary": "Driven dipole between two flat plates meeting at 90 degrees; three images set the pattern.",
+      "freq_range_hz": [
+        30000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "S",
+          "name": "dipole-to-vertex spacing",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.15"
+        },
+        {
+          "symbol": "Lside",
+          "name": "plate side length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "Lside",
+          "expr": "2*S",
+          "units_out": "m",
+          "depends_on": [
+            "S"
+          ],
+          "notes": "plates of about twice the vertex spacing; beyond that the gain gain is marginal"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "s_over_lambda",
+          "expr": "S*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0"
+          ]
+        },
+        {
+          "metric": "array_factor_boresight",
+          "expr": "4*np.sin(2*pi*S*f0/c)**2",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0"
+          ],
+          "notes": "For the 90 deg corner the image set is: two negative images at (+-S, 0) and one positive image at the mirror point, giving AF = 2*[cos(k*S) - cos(k*S)] style cancellation along the axes. At boresight this reduces to 2*[1 - cos(2*k*S)] = 4*sin^2(k*S). It vanishes as S -> 0, which is why the dipole cannot sit at the vertex."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409*4*np.sin(2*pi*S*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "S",
+            "f0"
+          ],
+          "notes": "dipole directivity times the boresight array factor, ignoring the finite-plate correction. Peaks near S = 0.5 lambda at about 12-13 dBi."
+        },
+        {
+          "metric": "plate_side_m",
+          "expr": "Lside",
+          "units_out": "m",
+          "depends_on": [
+            "Lside"
+          ]
+        }
+      ],
+      "validity": [
+        "infinite perfectly conducting plates; real finite plates lose 1-2 dB",
+        "image theory is exact only for corner angles 180/n degrees, n integer",
+        "S between 0.25 and 0.7 lambda; outside this the pattern breaks up",
+        "does not model the strong mutual coupling that drives the dipole's input impedance"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S": 0.4995
+          },
+          "expect": {
+            "s_over_lambda": 0.5,
+            "array_factor_boresight": 0.0
+          },
+          "tol_abs": 0.02,
+          "source": "At S = lambda/2 the images cancel at boresight (sin(2*pi*0.5) = 0) - the classic null that makes 0.5 lambda the wrong spacing despite intuition. Balanis, Antenna Theory 4th ed., Ch. 15"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S": 0.24983
+          },
+          "expect": {
+            "s_over_lambda": 0.25,
+            "array_factor_boresight": 4.0,
+            "directivity_dbi": 8.1614
+          },
+          "tol_pct": 1.0,
+          "source": "S = lambda/4 maximises the boresight array factor at 4 (6 dB over the bare dipole), giving 8.16 dBi before finite-plate losses. Balanis, Antenna Theory 4th ed., Ch. 15"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 15 (15.3)"
+      ]
+    },
+    {
+      "key": "cylindrical_dra",
+      "name": "Cylindrical dielectric resonator antenna (HE11)",
+      "family": "reflector",
+      "summary": "Low-loss dielectric puck on a ground plane, radiating in the broadside HE11 mode.",
+      "freq_range_hz": [
+        500000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "relative permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "10"
+        },
+        {
+          "symbol": "aspect",
+          "name": "radius/height ratio a/h",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "a",
+          "name": "puck radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h",
+          "name": "puck height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "k0a",
+          "name": "normalised frequency",
+          "unit": "-",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "k0a",
+          "expr": "(6.324/np.sqrt(eps_r+2))*(0.27 + 0.36*(aspect/2) + 0.02*(aspect/2)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "Mongia & Bhartia curve fit for the HE11 mode of a cylindrical DRA on a ground plane, in terms of a/(2h). Stated accuracy about 2% over 0.4 < a/h < 6 and 8 < eps_r < 50."
+        },
+        {
+          "output": "a",
+          "expr": "k0a*c/(2*pi*f0)",
+          "units_out": "m",
+          "depends_on": [
+            "k0a",
+            "f0"
+          ]
+        },
+        {
+          "output": "h",
+          "expr": "(k0a*c/(2*pi*f0))/aspect",
+          "units_out": "m",
+          "depends_on": [
+            "k0a",
+            "f0",
+            "aspect"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "k0a*c/(2*pi*a)",
+          "units_out": "Hz",
+          "depends_on": [
+            "k0a",
+            "a"
+          ],
+          "notes": "forward check: must return f0"
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "Mongia & Bhartia radiation-Q fit. Q rises steeply with eps_r, which is the central trade: high permittivity shrinks the puck and narrows the bandwidth."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))*np.sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "BW = (S-1)/(Q*sqrt(S)) with S = 2"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "Indicative: the HE11 mode radiates like a short horizontal magnetic dipole over ground, giving roughly 5 dBi in practice. Treat as a placeholder."
+        },
+        {
+          "metric": "volume_mm3",
+          "expr": "pi*a**2*h*1e9",
+          "units_out": "mm^3",
+          "depends_on": [
+            "a",
+            "h"
+          ]
+        }
+      ],
+      "validity": [
+        "8 < eps_r < 50 and 0.4 < a/h < 6, the range the fits were derived over",
+        "infinite ground plane assumed",
+        "no conductor loss and no dielectric loss: real bandwidth is wider and efficiency lower than these figures suggest",
+        "feed coupling (probe, slot or microstrip) perturbs the resonance by a few percent and is not modelled"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "Self-consistency between the synthesis fit and the forward resonance relation. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "k0a": 0.83066
+          },
+          "tol_pct": 2.0,
+          "source": "eps_r = 10, a/h = 1: k0*a = (6.324/sqrt(12))*(0.27+0.18+0.005) = 0.8307. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 20.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "radiation_q": 18.7062
+          },
+          "tol_pct": 2.0,
+          "source": "eps_r = 20, a/h = 1: Q = 18.71, against 7.60 at eps_r = 10. Q scales as eps_r^1.3, so doubling permittivity raises Q by 2.46x and narrows the bandwidth correspondingly. Mongia & Bhartia, IJMWCAE 4(3), 1994"
+        }
+      ],
+      "references": [
+        "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
+        "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007"
+      ]
+    }
+  ]
+}

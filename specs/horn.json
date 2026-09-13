@@ -1,0 +1,751 @@
+{
+  "family": "horn",
+  "archetypes": [
+    {
+      "key": "pyramidal_horn",
+      "name": "Pyramidal horn (optimum gain)",
+      "family": "horn",
+      "summary": "Rectangular waveguide flared in both planes, proportioned for maximum gain at a given length.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "G_target",
+          "name": "target gain",
+          "unit": "dBi",
+          "role": "requirement",
+          "typical": "20"
+        },
+        {
+          "symbol": "G0",
+          "name": "target gain, linear",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "a1",
+          "name": "aperture width (H-plane)",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "b1",
+          "name": "aperture height (E-plane)",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "rho",
+          "name": "flare length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "lambda0",
+          "name": "free-space wavelength",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "G0",
+          "expr": "undb10(G_target)",
+          "units_out": "-",
+          "depends_on": [
+            "G_target"
+          ]
+        },
+        {
+          "output": "rho",
+          "expr": "G0*(c/f0)/(0.51*4*pi*np.sqrt(6))",
+          "units_out": "m",
+          "depends_on": [
+            "G0",
+            "f0"
+          ],
+          "notes": "Equal-slant approximation rho_e = rho_h = rho. Substituting the optimum-gain conditions into G = 0.51*4*pi*a1*b1/lambda^2 gives G0 = 15.6984*rho/lambda exactly."
+        },
+        {
+          "output": "a1",
+          "expr": "np.sqrt(3*(c/f0)*rho)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "rho"
+          ],
+          "notes": "optimum-gain H-plane condition a1 = sqrt(3*lambda*rho_h)"
+        },
+        {
+          "output": "b1",
+          "expr": "np.sqrt(2*(c/f0)*rho)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "rho"
+          ],
+          "notes": "optimum-gain E-plane condition b1 = sqrt(2*lambda*rho_e)"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "aperture_area_m2",
+          "expr": "a1*b1",
+          "units_out": "m^2",
+          "depends_on": [
+            "a1",
+            "b1"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.51*4*pi*a1*b1*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "a1",
+            "b1",
+            "f0"
+          ],
+          "notes": "Forward check against the synthesised aperture; must return G_target. 0.51 is the standard optimum-pyramidal aperture efficiency, which already embeds the quadratic phase-error loss over the flared aperture."
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.51",
+          "units_out": "-"
+        },
+        {
+          "metric": "hpbw_e_deg",
+          "expr": "54.1/(b1*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "b1",
+            "f0"
+          ],
+          "notes": "E-plane HPBW = 54.1*lambda/b1 for an optimum horn"
+        },
+        {
+          "metric": "hpbw_h_deg",
+          "expr": "78.1/(a1*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "a1",
+            "f0"
+          ],
+          "notes": "H-plane HPBW = 78.1*lambda/a1 for an optimum horn"
+        },
+        {
+          "metric": "directivity_from_beamwidths_dbi",
+          "expr": "db10(26000/((54.1/(b1*f0/c))*(78.1/(a1*f0/c))))",
+          "units_out": "dBi",
+          "depends_on": [
+            "a1",
+            "b1",
+            "f0"
+          ],
+          "notes": "Independent cross-check via D ~ 26000/(theta_E*theta_H). Agrees with the aperture formula to about 0.18 dB, which is the honest accuracy of both."
+        },
+        {
+          "metric": "phase_error_e_plane",
+          "expr": "b1**2/(8*(c/f0)*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "b1",
+            "f0",
+            "rho"
+          ],
+          "notes": "s = b1^2/(8*lambda*rho_e); the optimum design fixes this at 0.25"
+        },
+        {
+          "metric": "phase_error_h_plane",
+          "expr": "a1**2/(8*(c/f0)*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "a1",
+            "f0",
+            "rho"
+          ],
+          "notes": "t = a1^2/(8*lambda*rho_h); the optimum design fixes this at 0.375"
+        },
+        {
+          "metric": "axial_length_m",
+          "expr": "rho",
+          "units_out": "m",
+          "depends_on": [
+            "rho"
+          ]
+        }
+      ],
+      "validity": [
+        "optimum-gain proportions only; a horn of arbitrary a1/b1/rho needs the full Fresnel-integral gain expression (Balanis 13-19), not this closed form",
+        "the equal-slant simplification rho_e = rho_h is exact for the standard design but a physically realisable pyramidal horn also requires the two flare sections to meet at the waveguide, which constrains rho_e and rho_h separately",
+        "G_target above about 30 dBi gives a horn long enough that a reflector is usually the better answer",
+        "does not model the waveguide-to-horn junction mismatch"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "G_target": 20.0
+          },
+          "expect": {
+            "gain_dbi": 20.0,
+            "phase_error_e_plane": 0.25,
+            "phase_error_h_plane": 0.375
+          },
+          "tol_pct": 1.0,
+          "source": "Self-consistency across independent routes: the optimum-gain dimensions must reproduce the requested gain through G = 0.51*4*pi*a1*b1/lambda^2, and must land on the canonical phase errors s = 1/4 and t = 3/8. Balanis, Antenna Theory 4th ed., Ch. 13"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "G_target": 20.0
+          },
+          "expect": {
+            "a1_m": 0.131094,
+            "b1_m": 0.107031,
+            "hpbw_e_deg": 15.156,
+            "hpbw_h_deg": 17.866
+          },
+          "tol_pct": 1.0,
+          "source": "20 dBi at 10 GHz: a1 = 4.3715 lambda, b1 = 3.5693 lambda; HPBW 15.16 deg (E) and 17.87 deg (H). Balanis, Antenna Theory 4th ed., Ch. 13"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "G_target": 20.0
+          },
+          "expect": {
+            "directivity_from_beamwidths_dbi": 20.0
+          },
+          "tol_abs": 0.25,
+          "source": "Cross-check: D ~ 26000/(theta_E*theta_H) must agree with the aperture-area gain to within the ~0.2 dB accuracy of the beamwidth approximation. Milligan, Modern Antenna Design 2nd ed., Ch. 7"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.4.3, optimum pyramidal horn design)",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 7"
+      ]
+    },
+    {
+      "key": "e_plane_sectoral_horn",
+      "name": "E-plane sectoral horn (optimum)",
+      "family": "horn",
+      "summary": "Rectangular waveguide flared in the E-plane only; the H-plane keeps the waveguide's cosine distribution.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_wg",
+          "name": "unflared waveguide dimension",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "rho",
+          "name": "flare slant length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "b1",
+          "name": "flared aperture dimension",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "b1",
+          "expr": "np.sqrt(2*(c/f0)*rho)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "rho"
+          ],
+          "notes": "optimum condition b1 = sqrt(2*lambda*rho)"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.65*4*pi*b1*a_wg*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "b1",
+            "a_wg",
+            "f0"
+          ],
+          "notes": "aperture efficiency 0.65 for the optimum E-plane horn"
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.65",
+          "units_out": "-"
+        },
+        {
+          "metric": "aperture_area_m2",
+          "expr": "b1*a_wg",
+          "units_out": "m^2",
+          "depends_on": [
+            "b1",
+            "a_wg"
+          ]
+        }
+      ],
+      "validity": [
+        "optimum flare only",
+        "the exact gain needs Fresnel integrals (Balanis 13-19/13-41); this closed form is the standard optimum-design shortcut",
+        "aperture efficiency figure is the textbook value for the optimum case and does not track departures from it"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3
+          },
+          "expect": {
+            "b1": 0.13411766281888451
+          },
+          "tol_pct": 1.5,
+          "source": "b1 = sqrt(2*lambda*rho) at 10 GHz with rho = 0.3 m. Balanis, Antenna Theory 4th ed., Ch. 13"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.2, 13.3)"
+      ]
+    },
+    {
+      "key": "h_plane_sectoral_horn",
+      "name": "H-plane sectoral horn (optimum)",
+      "family": "horn",
+      "summary": "Rectangular waveguide flared in the H-plane only; the E-plane keeps the waveguide's uniform distribution.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "b_wg",
+          "name": "unflared waveguide dimension",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "rho",
+          "name": "flare slant length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "a1",
+          "name": "flared aperture dimension",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "a1",
+          "expr": "np.sqrt(3*(c/f0)*rho)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "rho"
+          ],
+          "notes": "optimum condition a1 = sqrt(3*lambda*rho)"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.64*4*pi*a1*b_wg*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "a1",
+            "b_wg",
+            "f0"
+          ],
+          "notes": "aperture efficiency 0.64 for the optimum H-plane horn"
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.64",
+          "units_out": "-"
+        },
+        {
+          "metric": "aperture_area_m2",
+          "expr": "a1*b_wg",
+          "units_out": "m^2",
+          "depends_on": [
+            "a1",
+            "b_wg"
+          ]
+        }
+      ],
+      "validity": [
+        "optimum flare only",
+        "the exact gain needs Fresnel integrals (Balanis 13-19/13-41); this closed form is the standard optimum-design shortcut",
+        "aperture efficiency figure is the textbook value for the optimum case and does not track departures from it"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.02286,
+            "rho": 0.3
+          },
+          "expect": {
+            "a1": 0.16425991970045523
+          },
+          "tol_pct": 1.5,
+          "source": "a1 = sqrt(3*lambda*rho) at 10 GHz with rho = 0.3 m. Balanis, Antenna Theory 4th ed., Ch. 13"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.2, 13.3)"
+      ]
+    },
+    {
+      "key": "conical_horn",
+      "name": "Conical horn (optimum gain)",
+      "family": "horn",
+      "summary": "Circular waveguide flared into a cone; the standard reflector feed.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L",
+          "name": "axial flare length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "dm",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "dm",
+          "expr": "np.sqrt(3*(c/f0)*L)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "L"
+          ],
+          "notes": "optimum-gain condition d_m = sqrt(3*lambda*L)"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.51*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "dm",
+            "f0"
+          ],
+          "notes": "aperture efficiency 0.51, as for the pyramidal horn"
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.51",
+          "units_out": "-"
+        },
+        {
+          "metric": "hpbw_e_deg",
+          "expr": "60.0/(dm*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "dm",
+            "f0"
+          ],
+          "notes": "approximately 60*lambda/d_m; the conical horn's E- and H-plane beamwidths differ by roughly 10%, which is why cross-polarisation is poor"
+        },
+        {
+          "metric": "hpbw_h_deg",
+          "expr": "70.0/(dm*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "dm",
+            "f0"
+          ]
+        }
+      ],
+      "validity": [
+        "optimum flare only",
+        "TE11 dominant mode",
+        "asymmetric pattern and high cross-polarisation; use a corrugated horn where pattern symmetry matters"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3
+          },
+          "expect": {
+            "dm_m": 0.1642,
+            "gain_dbi": 21.55
+          },
+          "tol_pct": 1.5,
+          "source": "d_m = sqrt(3*lambda*L) = 164.2 mm at 10 GHz, L = 0.3 m; G = 0.51*4*pi*A/lambda^2. Balanis, Antenna Theory 4th ed., Ch. 13"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.5)"
+      ]
+    },
+    {
+      "key": "corrugated_conical_horn",
+      "name": "Corrugated (scalar) conical horn",
+      "family": "horn",
+      "summary": "Conical horn with lambda/4 corrugations, giving a symmetric HE11 balanced-hybrid pattern.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L",
+          "name": "axial flare length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "dm",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "slot_depth",
+          "name": "corrugation depth",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "dm",
+          "expr": "np.sqrt(3*(c/f0)*L)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "L"
+          ]
+        },
+        {
+          "output": "slot_depth",
+          "expr": "0.25*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "lambda/4 slots present a high surface impedance, which is what enforces the balanced-hybrid HE11 condition. Depth must hold across the band, so wideband designs taper it from lambda/2 at the throat to lambda/4 at the aperture."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.69*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "dm",
+            "f0"
+          ],
+          "notes": "aperture efficiency 0.69, materially better than the 0.51 of a smooth-wall horn"
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.69",
+          "units_out": "-"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "66.0/(dm*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "dm",
+            "f0"
+          ],
+          "notes": "the same in both planes, which is the whole point of the corrugations"
+        },
+        {
+          "metric": "cross_pol_db",
+          "expr": "-30.0",
+          "units_out": "dB",
+          "notes": "Indicative: well-made corrugated horns reach -30 dB or better across the design band"
+        },
+        {
+          "metric": "gain_advantage_over_smooth_db",
+          "expr": "db10(0.69/0.51)",
+          "units_out": "dB"
+        }
+      ],
+      "validity": [
+        "at least 5 corrugations per wavelength; below that the surface-impedance model fails",
+        "balanced-hybrid condition holds over roughly an octave; wider needs a tapered slot depth",
+        "cross-polarisation figure is indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3
+          },
+          "expect": {
+            "dm_m": 0.1642,
+            "slot_depth_m": 0.0074948,
+            "gain_advantage_over_smooth_db": 1.3155
+          },
+          "tol_pct": 1.5,
+          "source": "Same aperture as the smooth conical horn, lambda/4 = 7.49 mm slots, and 10*log10(0.69/0.51) = 1.32 dB of aperture-efficiency advantage. Clarricoats & Olver, Corrugated Horns for Microwave Antennas"
+        }
+      ],
+      "references": [
+        "Clarricoats & Olver, Corrugated Horns for Microwave Antennas",
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.6)"
+      ]
+    },
+    {
+      "key": "open_ended_waveguide",
+      "name": "Open-ended rectangular waveguide",
+      "family": "horn",
+      "summary": "Unflared waveguide aperture; the low-gain limit of the horn family.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_wg",
+          "name": "broad wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "b_wg",
+          "name": "narrow wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.01016"
+        }
+      ],
+      "synthesis": [],
+      "analysis": [
+        {
+          "metric": "aperture_efficiency",
+          "expr": "8/pi**2",
+          "units_out": "-",
+          "notes": "exactly 8/pi^2 = 0.8106 for the TE10 cosine distribution across a, uniform across b"
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10((8/pi**2)*4*pi*a_wg*b_wg*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "a_wg",
+            "b_wg",
+            "f0"
+          ],
+          "notes": "ignores the aperture mismatch, which is significant for an unflared guide"
+        },
+        {
+          "metric": "cutoff_te10_hz",
+          "expr": "c/(2*a_wg)",
+          "units_out": "Hz",
+          "depends_on": [
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "guide_wavelength_m",
+          "expr": "(c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ],
+          "notes": "TE10 guide wavelength; diverges at cutoff"
+        }
+      ],
+      "validity": [
+        "single-mode TE10 operation: f0 between the TE10 and TE20 cutoffs",
+        "aperture reflection is neglected, so the gain figure is optimistic by a few tenths of a dB",
+        "an infinite ground plane is assumed; a bare guide end radiates backward as well"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016
+          },
+          "expect": {
+            "cutoff_te10_hz": 6555900000.0,
+            "aperture_efficiency": 0.81057,
+            "gain_dbi": 4.2033
+          },
+          "tol_pct": 1.0,
+          "source": "WR-90 (22.86 x 10.16 mm) at 10 GHz: TE10 cutoff = c/(2a) = 6.556 GHz; aperture is only 0.76 x 0.34 lambda, so G = (8/pi^2)*4*pi*A/lambda^2 = 4.20 dBi. Published ~6 dBi figures for open-ended guide usually include a flange. Balanis, Antenna Theory 4th ed., Ch. 13"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.1)",
+        "Pozar, Microwave Engineering 4th ed., Ch. 3"
+      ]
+    }
+  ]
+}
