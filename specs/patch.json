@@ -1,0 +1,716 @@
+{
+  "family": "patch",
+  "archetypes": [
+    {
+      "key": "rectangular_patch",
+      "name": "Rectangular microstrip patch",
+      "family": "patch",
+      "summary": "The standard half-wave rectangular patch on a grounded dielectric substrate.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "4.4"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate thickness",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "W",
+          "name": "patch width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L",
+          "name": "patch length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "eps_reff",
+          "name": "effective permittivity",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dL",
+          "name": "fringing length extension",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "tan_d",
+          "name": "loss tangent",
+          "unit": "-",
+          "role": "material",
+          "typical": "0.02"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductor conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "typical": "5.8e7"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "W",
+          "expr": "(c/(2*f0))*np.sqrt(2/(eps_r+1))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ],
+          "notes": "Balanis 14-6: the width that gives good radiation efficiency without higher modes"
+        },
+        {
+          "output": "eps_reff",
+          "expr": "(eps_r+1)/2 + ((eps_r-1)/2)*(1 + 12*h/W)**(-0.5)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "W"
+          ],
+          "notes": "Balanis 14-1, valid for W/h > 1"
+        },
+        {
+          "output": "dL",
+          "expr": "0.412*h*((eps_reff+0.3)*(W/h+0.264))/((eps_reff-0.258)*(W/h+0.8))",
+          "units_out": "m",
+          "depends_on": [
+            "eps_reff",
+            "W",
+            "h"
+          ],
+          "notes": "Balanis 14-2: the electrical length each radiating edge gains from fringing"
+        },
+        {
+          "output": "L",
+          "expr": "c/(2*f0*np.sqrt(eps_reff)) - 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ],
+          "notes": "Balanis 14-3"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "L_eff_m",
+          "expr": "L + 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "dL"
+          ]
+        },
+        {
+          "metric": "W_over_h",
+          "expr": "W/h",
+          "units_out": "-",
+          "depends_on": [
+            "W",
+            "h"
+          ]
+        },
+        {
+          "metric": "h_over_lambda0",
+          "expr": "h*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "f0"
+          ],
+          "notes": "surface-wave loss becomes significant above about 0.02 on high-permittivity substrates"
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "6.6",
+          "units_out": "-",
+          "notes": "Balanis: a single patch runs 5-7 (7-8 dBi); 6.6 is the standard thin-substrate figure"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(6.6)",
+          "units_out": "dBi"
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)*(W/L)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0",
+            "W",
+            "L"
+          ],
+          "notes": "Standard closed form for a thin substrate; accurate to roughly 20% for h/lambda0 < 0.02. Bandwidth is set by h and eps_r, not by patch area."
+        },
+        {
+          "metric": "quality_factor_dielectric",
+          "expr": "1/tan_d",
+          "units_out": "-",
+          "depends_on": [
+            "tan_d"
+          ]
+        },
+        {
+          "metric": "conductor_surface_resistance_ohm",
+          "expr": "np.sqrt(pi*f0*mu0/sigma)",
+          "units_out": "ohm",
+          "depends_on": [
+            "f0",
+            "sigma"
+          ]
+        }
+      ],
+      "validity": [
+        "W/h > 1 for the eps_reff expression",
+        "h < 0.05*lambda0; thicker substrates need a probe-inductance correction",
+        "transmission-line model ignores surface waves and mutual edge coupling; expect 1-3% error in f0 and more on high-permittivity substrates",
+        "single-layer, isotropic, non-magnetic substrate"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "W_m": 0.011859,
+            "L_m": 0.009058,
+            "eps_reff": 1.972
+          },
+          "tol_pct": 1.0,
+          "source": "Balanis Example 14.1: f0 = 10 GHz, eps_r = 2.2, h = 0.1588 cm gives W = 1.186 cm, L = 0.906 cm"
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "W_m": 0.038048,
+            "L_m": 0.029234
+          },
+          "tol_pct": 2.0,
+          "source": "Standard FR-4 2.4 GHz patch: W = 38.0 mm, L = 29.2 mm. Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-1, 14-2, 14-3, 14-6)",
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+      ]
+    },
+    {
+      "key": "rectangular_patch_inset",
+      "name": "Inset-fed rectangular patch",
+      "family": "patch",
+      "summary": "Rectangular patch with a microstrip inset feed cut to reach a target input resistance.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "4.4"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate thickness",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "Z_target",
+          "name": "target input resistance",
+          "unit": "ohm",
+          "role": "assumption",
+          "typical": "50"
+        },
+        {
+          "symbol": "W",
+          "name": "patch width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L",
+          "name": "patch length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "y0",
+          "name": "inset depth",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "eps_reff",
+          "name": "effective permittivity",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dL",
+          "name": "fringing extension",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "G1",
+          "name": "single-slot conductance",
+          "unit": "S",
+          "role": "derived"
+        },
+        {
+          "symbol": "Rin0",
+          "name": "edge input resistance",
+          "unit": "ohm",
+          "role": "derived"
+        },
+        {
+          "symbol": "k0",
+          "name": "free-space wavenumber",
+          "unit": "rad/m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "W",
+          "expr": "(c/(2*f0))*np.sqrt(2/(eps_r+1))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ]
+        },
+        {
+          "output": "eps_reff",
+          "expr": "(eps_r+1)/2 + ((eps_r-1)/2)*(1 + 12*h/W)**(-0.5)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "W"
+          ]
+        },
+        {
+          "output": "dL",
+          "expr": "0.412*h*((eps_reff+0.3)*(W/h+0.264))/((eps_reff-0.258)*(W/h+0.8))",
+          "units_out": "m",
+          "depends_on": [
+            "eps_reff",
+            "W",
+            "h"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "c/(2*f0*np.sqrt(eps_reff)) - 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ]
+        },
+        {
+          "output": "G1",
+          "expr": "(1/90)*(W*f0/c)**2",
+          "units_out": "S",
+          "depends_on": [
+            "W",
+            "f0"
+          ],
+          "notes": "Balanis 14-12, the W/lambda0 < 1 branch of the slot conductance"
+        },
+        {
+          "output": "Rin0",
+          "expr": "1/(2*G1*(1 + j0(k0*L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "G1",
+            "k0",
+            "L"
+          ],
+          "notes": "Balanis 14-17 including the mutual conductance between the two radiating slots, with G12 approximated as G1*J0(k0*L). Neglecting G12 entirely overestimates Rin by 26% (288 vs 228 ohm on the Example 14.1 patch), so it cannot be ignored. DISCREPANCY WORTH KNOWING: this J0 form lands within 1.7% of the 228.35 ohm Balanis quotes in Example 14.2, but numerically integrating eq. 14-18a directly gives 212.5 ohm (6.9% below the quoted value). The two disagree; treat any inset depth from this model as a starting point to verify in a full-wave solver."
+        },
+        {
+          "output": "y0",
+          "expr": "(L/pi)*np.arccos(np.sqrt(Z_target/Rin0))",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "Z_target",
+            "Rin0"
+          ],
+          "notes": "Inverts Rin(y0) = Rin0*cos^2(pi*y0/L) (Balanis 14-20). The cos^2 law degrades for deep insets and wide notches; verify in a solver."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "edge_resistance_ohm",
+          "expr": "Rin0",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rin0"
+          ]
+        },
+        {
+          "metric": "inset_resistance_ohm",
+          "expr": "Rin0*np.cos(pi*y0/L)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rin0",
+            "y0",
+            "L"
+          ],
+          "notes": "should return Z_target by construction"
+        },
+        {
+          "metric": "inset_fraction",
+          "expr": "y0/L",
+          "units_out": "-",
+          "depends_on": [
+            "y0",
+            "L"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(6.6)",
+          "units_out": "dBi"
+        }
+      ],
+      "validity": [
+        "cos^2 inset law is an approximation; error grows past y0/L ~ 0.35",
+        "mutual conductance between the two radiating slots is neglected in Rin0",
+        "W/h > 1, h < 0.05*lambda0",
+        "mutual slot conductance is approximated as G1*J0(k0*L); the exact integral of eq. 14-18a disagrees with the published example by 6.9%, so inset depths carry real uncertainty"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 50.0
+          },
+          "expect": {
+            "inset_resistance_ohm": 50.0
+          },
+          "tol_pct": 1.0,
+          "source": "Self-consistency: the synthesised inset depth must reproduce the target resistance through the independent forward cos^2 relation. Balanis 4th ed. eq. 14-20."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 50.0
+          },
+          "expect": {
+            "edge_resistance_ohm": 228.35
+          },
+          "tol_pct": 3.0,
+          "source": "Balanis Example 14.2: Rin = 228.35 ohm at the radiating edge of the Example 14.1 patch, with mutual slot conductance included. The G1*J0(k0*L) model reproduces this to 1.7%."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 224.0
+          },
+          "expect": {
+            "inset_fraction": 0.0
+          },
+          "tol_abs": 0.05,
+          "source": "Targeting a resistance at the edge value must place the inset at the edge (y0/L -> 0), confirming the cos^2 inversion is self-consistent."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-12, 14-17, 14-20)",
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+      ]
+    },
+    {
+      "key": "circular_patch",
+      "name": "Circular microstrip patch",
+      "family": "patch",
+      "summary": "Circular patch resonating in the dominant TM11 mode.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.2"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate thickness",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "a",
+          "name": "physical radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "F",
+          "name": "radius scale factor",
+          "unit": "-",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "F",
+          "expr": "8.791e9/(f0*np.sqrt(eps_r))",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ],
+          "notes": "Balanis 14-65; the 8.791e9 constant carries the unit conversion, so F is dimensionless only in the cgs-derived form the reference uses"
+        },
+        {
+          "output": "a",
+          "expr": "F/np.sqrt(1 + (2*h*100/(pi*eps_r*F))*(np.log(pi*F/(2*h*100)) + 1.7726))/100",
+          "units_out": "m",
+          "depends_on": [
+            "F",
+            "h",
+            "eps_r"
+          ],
+          "notes": "Balanis 14-64. Written in cm internally (hence the 100 factors) to match the reference constants, then converted back to metres."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "effective_radius_m",
+          "expr": "a*np.sqrt(1 + (2*h/(pi*a*eps_r))*(np.log(pi*a/(2*h)) + 1.7726))",
+          "units_out": "m",
+          "depends_on": [
+            "a",
+            "h",
+            "eps_r"
+          ],
+          "notes": "Balanis 14-66, the fringing-corrected radius"
+        },
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "1.8412*c/(2*pi*(a*np.sqrt(1 + (2*h/(pi*a*eps_r))*(np.log(pi*a/(2*h)) + 1.7726)))*np.sqrt(eps_r))",
+          "units_out": "Hz",
+          "depends_on": [
+            "a",
+            "h",
+            "eps_r"
+          ],
+          "notes": "Forward check: TM11 resonance from the effective radius. 1.8412 is the first zero of J1'. Must return f0."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(6.3)",
+          "units_out": "dBi",
+          "notes": "marginally below a rectangular patch of the same resonance"
+        }
+      ],
+      "validity": [
+        "h << lambda0 and h/a small; the fringing model degrades for thick substrates",
+        "TM11 only; TM21 appears at about 1.66*f0",
+        "cgs-derived constants: the synthesis expression converts explicitly"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "a_m": 0.00525,
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 2.0,
+          "source": "Balanis Example 14.4: f0 = 10 GHz, eps_r = 2.2, h = 0.1588 cm gives a = 0.525 cm"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-64, 14-65, 14-66)"
+      ]
+    },
+    {
+      "key": "pifa",
+      "name": "Planar inverted-F antenna (PIFA)",
+      "family": "patch",
+      "summary": "Shorted quarter-wave patch; the standard internal antenna in handsets.",
+      "freq_range_hz": [
+        300000000.0,
+        10000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "h",
+          "name": "height above ground",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.006"
+        },
+        {
+          "symbol": "W",
+          "name": "plate width",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.02"
+        },
+        {
+          "symbol": "Ws",
+          "name": "shorting strip width",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.02"
+        },
+        {
+          "symbol": "L",
+          "name": "plate length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "c/(4*f0) - h",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "h"
+          ],
+          "notes": "Full-width short (Ws = W): L + h = lambda/4. The general case interpolates toward L + W + h = lambda/4 as Ws/W falls, per Hirasawa & Haneishi."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_length_full_short_m",
+          "expr": "c/(4*f0) - h",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "h"
+          ]
+        },
+        {
+          "metric": "resonant_length_narrow_short_m",
+          "expr": "c/(4*f0) - h - W",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "h",
+            "W"
+          ],
+          "notes": "limiting case as the shorting strip narrows to a pin"
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.5*h*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "f0"
+          ],
+          "notes": "Indicative: PIFA bandwidth scales with height above ground. Roughly 30% accurate; real handset PIFAs are dominated by the ground-plane resonance."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2.5)",
+          "units_out": "dBi",
+          "notes": "Indicative. A PIFA's pattern is largely set by the ground plane it sits on, not by the plate; treat this as a placeholder until simulated."
+        }
+      ],
+      "validity": [
+        "h << lambda0",
+        "assumes a ground plane large compared with the plate; handset ground planes are not, and the ground plane usually radiates more than the PIFA does",
+        "bandwidth and directivity entries are indicative, not derived"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1800000000.0,
+            "h": 0.006,
+            "W": 0.02
+          },
+          "expect": {
+            "L_m": 0.035643,
+            "resonant_length_narrow_short_m": 0.015643
+          },
+          "tol_pct": 2.0,
+          "source": "lambda/4 at 1.8 GHz = 41.64 mm; full-width short gives L = 41.64 - 6 = 35.64 mm. Hirasawa & Haneishi, Analysis, Design and Measurement of Small and Low-Profile Antennas"
+        }
+      ],
+      "references": [
+        "Hirasawa & Haneishi, Analysis, Design and Measurement of Small and Low-Profile Antennas",
+        "Balanis, Antenna Theory 4th ed., Ch. 14 Ch. 14"
+      ],
+      "confidence": "low"
+    }
+  ]
+}
