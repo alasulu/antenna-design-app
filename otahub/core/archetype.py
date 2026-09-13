@@ -31,6 +31,13 @@ class DesignResult:
         if self.unresolved is None:
             self.unresolved = {}
 
+    def missing_requirements(self) -> list[str]:
+        """Every symbol that, if supplied, would unlock something unresolved."""
+        seen: set[str] = set()
+        for needs in (self.unresolved or {}).values():
+            seen.update(needs)
+        return sorted(seen - set(self.parameters) - set(self.requirements))
+
     def get(self, name: str, default: Any = None) -> Any:
         if name in self.parameters:
             return self.parameters[name]
@@ -146,7 +153,7 @@ class Archetype:
             raise SynthesisError(f"{self.spec.key}: incomplete design — {detail}")
 
         params = {k: v for k, v in known.items() if k not in requirements}
-        metrics, mwarn = self._analyse_into(known, units)
+        metrics, mwarn = self._analyse_into(known, units, unresolved)
         warnings.extend(mwarn)
         warnings.extend(self._validity_warnings(known))
 
@@ -164,7 +171,8 @@ class Archetype:
     # -------------------------------------------------------------- analysis
 
     def _analyse_into(
-        self, known: Mapping[str, Any], units: dict[str, str]
+        self, known: Mapping[str, Any], units: dict[str, str],
+        unresolved: dict[str, list[str]] | None = None,
     ) -> tuple[dict[str, Any], list[str]]:
         metrics: dict[str, Any] = {}
         warnings: list[str] = []
@@ -201,6 +209,8 @@ class Archetype:
         for rule in pending:
             missing = sorted(referenced_symbols(rule.expr, syms) - set(scope))
             warnings.append(f"analysis {rule.metric!r} unavailable, needs {missing}")
+            if unresolved is not None:
+                unresolved[rule.metric] = missing
         return metrics, warnings
 
     def analyze(self, **params: Any) -> dict[str, Any]:

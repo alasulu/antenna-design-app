@@ -46,6 +46,15 @@ def _kv(pairs: list[str]) -> dict[str, float]:
     return out
 
 
+def _looks_numeric(text: str) -> bool:
+    """True when a spec's `typical` is a single number we can paste into a flag."""
+    try:
+        float(text)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def _fmt(value: Any, unit: str = "") -> str:
     if isinstance(value, complex):
         sign = "+" if value.imag >= 0 else "-"
@@ -162,6 +171,21 @@ def cmd_synth(args: argparse.Namespace, reg: Registry) -> int:
         print("\nwarnings:")
         for w in design.warnings:
             print(f"  ! {w}")
+
+    missing = design.missing_requirements()
+    if missing:
+        typicals = {p.symbol: p.typical for p in a.spec.parameters}
+        print("\nto complete this design, supply:")
+        for sym in missing:
+            hint = typicals.get(sym, "")
+            print(f"  {sym:<20} {('typical ' + hint) if hint else ''}")
+        suggestion = " ".join(
+            f"--set {s}={typicals[s]}" for s in missing
+            if _looks_numeric(typicals.get(s, ""))
+        )
+        if suggestion:
+            freq = f"--f0 {reqs['f0']:.6g}" if "f0" in reqs else ""
+            print(f"\n  python OTA_Hub_AntennaToolkit.py synth {a.key} {freq} {suggestion}".rstrip())
     if design.notes:
         print("\nvalid only under:")
         for n in design.notes:
