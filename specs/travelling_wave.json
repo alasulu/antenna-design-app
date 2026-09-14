@@ -768,6 +768,674 @@
         "Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976",
         "Balanis, Antenna Theory 4th ed., Ch. 10 (10.3.3)"
       ]
+    },
+    {
+      "key": "long_wire_travelling",
+      "name": "Terminated travelling-wave long wire",
+      "family": "travelling_wave",
+      "summary": "Straight wire carrying a single travelling wave into a matched termination; radiates in a cone tilted toward the termination.",
+      "freq_range_hz": [
+        100000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "wire length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4.0"
+        },
+        {
+          "symbol": "L",
+          "name": "wire length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "bracket_term",
+          "expr": "gamma_e + log(2*k0*L) - Ci(2*k0*L) - 1 + sin(2*k0*L)/(2*k0*L)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L"
+          ],
+          "notes": "the integral gamma + ln(2kl) - Ci(2kl) - 1 + sin(2kl)/(2kl), which carries all the length dependence"
+        },
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "(eta0/(2*pi))*bracket_term",
+          "units_out": "ohm",
+          "depends_on": [
+            "bracket_term"
+          ],
+          "notes": "Rr = 60*[...] to three figures, since eta0/(2*pi) = 59.96. Derived by integrating the travelling-wave pattern and confirmed against quadrature at 0.01, 0.5, 1, 2, 4 and 8 lambda; the l -> 0 limit reproduces the uniform-current dipole's 80*pi^2*(l/lambda)^2 exactly."
+        },
+        {
+          "metric": "theta_max_rad",
+          "expr": "acos(max(0.0, 1 - 0.371*lambda0/L))",
+          "units_out": "rad",
+          "depends_on": [
+            "lambda0",
+            "L"
+          ],
+          "notes": "Balanis 10-8. The arccos argument is clamped at 0, so a wire shorter than 0.371 lambda returns a broadside maximum - which is the correct short-wire limit, and makes the directivity formula return 1.5 there."
+        },
+        {
+          "metric": "theta_max_deg",
+          "expr": "deg(theta_max_rad)",
+          "units_out": "deg",
+          "depends_on": [
+            "theta_max_rad"
+          ],
+          "notes": "Cone half-angle measured from the wire, toward the terminated end. Accurate to 0.3 deg at 4 lambda and 0.8 deg at 2 lambda; at 1 lambda it is 2.7 deg optimistic."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "2*sin(theta_max_rad)**2*sin(k0*L*(1 - cos(theta_max_rad))/2)**2/((1 - cos(theta_max_rad))**2*bracket_term)",
+          "units_out": "-",
+          "depends_on": [
+            "theta_max_rad",
+            "k0",
+            "L",
+            "bracket_term"
+          ],
+          "notes": "D = 4*pi*U(theta_max)/Prad in closed form. Using the approximate beam angle instead of the true one costs under 0.1% for l >= 2 lambda."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "termination_resistance_ohm",
+          "expr": "radiation_resistance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_resistance_ohm"
+          ],
+          "notes": "Indicative only. The termination must match the wire's characteristic impedance against ground (typically 400-600 ohm for a wire well above earth), not the radiation resistance. Half the input power is dissipated there in the ideal travelling-wave case."
+        }
+      ],
+      "validity": [
+        "l >= 2 lambda for the 0.371 beam-angle approximation to hold within a degree",
+        "single pure travelling wave: the termination must actually absorb, or a reflected wave restores the standing-wave pattern and the beam splits",
+        "free space. A real long wire runs above earth, which adds an image and tilts the beam upward",
+        "the conical beam means the pattern has no single main lobe in a plane, a fact the rhombic and V exist to fix"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 4.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 209.5507,
+            "theta_max_deg": 24.87,
+            "directivity_linear": 9.938
+          },
+          "tol_pct": 1.0,
+          "source": "Independently reproduced by numerical quadrature of the exact travelling-wave pattern: Rr = 209.551 ohm, true beam maximum at 24.60 deg (the 0.371 fit gives 24.87), D = 9.944 at the true angle and 9.938 at the fitted one."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 8.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 251.093,
+            "theta_max_deg": 17.52,
+            "directivity_dbi": 12.3
+          },
+          "tol_pct": 1.0,
+          "source": "Quadrature gives Rr = 251.093 ohm and D = 16.994 (12.30 dBi), true beam maximum 17.42 deg against the fitted 17.52."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.01
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.0788711,
+            "directivity_linear": 1.5001
+          },
+          "tol_pct": 0.5,
+          "source": "Limit check, not a design point. A wire far shorter than a wavelength carries an essentially uniform current, so the closed form must approach the infinitesimal dipole: Rr -> 80*pi^2*(l/lambda)^2 = 0.0789568 ohm and D -> 1.5. At 0.01 lambda it gives 0.0788711 ohm (0.11% below the asymptote, as expected of a limit) and 1.5001."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 10.1-10.2 (eqs. 10-3, 10-8)",
+        "Radiation resistance derived here by direct integration and checked against quadrature"
+      ]
+    },
+    {
+      "key": "v_antenna_travelling",
+      "name": "Travelling-wave V antenna",
+      "family": "travelling_wave",
+      "summary": "Two terminated travelling-wave legs flared from a common feed, angled so their conical beams combine along the axis.",
+      "freq_range_hz": [
+        100000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "leg length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4.0"
+        },
+        {
+          "symbol": "L",
+          "name": "leg length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "half_angle_deg",
+          "name": "leg angle to the axis",
+          "unit": "deg",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "half_angle_deg",
+          "expr": "deg(acos(max(0.0, 1 - 0.371/L_over_lambda)))",
+          "units_out": "deg",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "Alignment design: each leg makes its own beam-cone angle with the axis, so the two cones meet on the axis. Within a degree of the numerically optimal angle, and worth under 0.3 dB. Clamped at 90 deg for legs shorter than 0.371 lambda."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "included_angle_deg",
+          "expr": "2*half_angle_deg",
+          "units_out": "deg",
+          "depends_on": [
+            "half_angle_deg"
+          ],
+          "notes": "apex angle between the legs"
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "6.4983*L_over_lambda**0.8837",
+          "units_out": "-",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "Power-law fit to the axial directivity computed from the exact two-leg travelling-wave model at the alignment angle, over 1.5 to 12 lambda. Maximum error 1.3%."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "gain_over_single_leg_db",
+          "expr": "db10(directivity_linear) - db10(2*sin(acos(max(0.0, 1 - 0.371/L_over_lambda)))**2*sin(pi*0.371)**2/((0.371/L_over_lambda)**2*(gamma_e + log(4*pi*L_over_lambda) - Ci(4*pi*L_over_lambda) - 1 + sin(4*pi*L_over_lambda)/(4*pi*L_over_lambda))))",
+          "units_out": "dB",
+          "depends_on": [
+            "directivity_linear",
+            "L_over_lambda"
+          ],
+          "notes": "What flaring the line into a V buys over one leg on its own: about 3.5 dB at 4 lambda, because the axial lobe replaces a cone"
+        },
+        {
+          "metric": "termination_resistance_each_leg_ohm",
+          "expr": "600.0",
+          "units_out": "ohm",
+          "notes": "Indicative. The legs must be terminated in the structure's characteristic impedance to ground; 400-800 ohm is the usual range and it is not derived here."
+        }
+      ],
+      "validity": [
+        "1.5 <= l/lambda <= 12, the range the directivity fit was computed over",
+        "free space; over ground the pattern tilts and the gain rises by up to 6 dB",
+        "both legs terminated, so half the input power goes into the terminations",
+        "the fit is for the ALIGNMENT angle; the true optimum is a few degrees tighter and worth about 0.3 dB"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 4.0
+          },
+          "expect": {
+            "half_angle_deg": 24.87,
+            "directivity_linear": 22.341,
+            "directivity_dbi": 13.49
+          },
+          "tol_pct": 2.0,
+          "source": "Axial directivity from direct spherical integration of the two-leg travelling-wave model: 22.341 (13.49 dBi) at the 24.87 deg alignment angle; the numerically best angle, 23.63 deg, gives 22.591."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 2.0
+          },
+          "expect": {
+            "half_angle_deg": 35.46,
+            "directivity_dbi": 10.84
+          },
+          "tol_pct": 2.0,
+          "source": "Same model at 2 lambda: 12.128 (10.84 dBi). The axial lobe is confirmed to be the global pattern maximum at the alignment angle for every leg length tested."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 10.3.1",
+        "Directivity computed here from the exact travelling-wave leg model and fitted over 1.5-12 lambda"
+      ]
+    },
+    {
+      "key": "rhombic",
+      "name": "Rhombic antenna",
+      "family": "travelling_wave",
+      "summary": "Four travelling-wave legs in a diamond, terminated at the far apex: a V antenna with its mirror image, for roughly 2.4 dB more.",
+      "freq_range_hz": [
+        100000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "leg length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4.0"
+        },
+        {
+          "symbol": "L",
+          "name": "leg length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "half_angle_deg",
+          "name": "leg angle to the axis",
+          "unit": "deg",
+          "role": "geometry"
+        },
+        {
+          "symbol": "length_m",
+          "name": "overall length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "width_m",
+          "name": "overall width",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "half_angle_deg",
+          "expr": "deg(acos(max(0.0, 1 - 0.371/L_over_lambda)))",
+          "units_out": "deg",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "same alignment rule as the V; the numerical optimum is a few degrees WIDER for the rhombic and worth about 0.3 dB Clamped at 90 deg for legs shorter than 0.371 lambda."
+        },
+        {
+          "output": "length_m",
+          "expr": "2*L*cos(rad(half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "half_angle_deg"
+          ],
+          "notes": "feed apex to termination apex"
+        },
+        {
+          "output": "width_m",
+          "expr": "2*L*sin(rad(half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "half_angle_deg"
+          ],
+          "notes": "across the side apexes"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "included_angle_deg",
+          "expr": "2*half_angle_deg",
+          "units_out": "deg",
+          "depends_on": [
+            "half_angle_deg"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "9.2038*L_over_lambda**1.0404",
+          "units_out": "-",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "Power-law fit to the axial directivity of the exact four-leg model at the alignment angle, 1.5 to 12 lambda, maximum error 1.3%. The exponent being essentially 1 says the rhombic's directivity is very nearly proportional to leg length."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "gain_over_v_antenna_db",
+          "expr": "db10(9.2038*L_over_lambda**1.0404) - db10(6.4983*L_over_lambda**0.8837)",
+          "units_out": "dB",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "About 2.4 dB at 4 lambda: doubling a V into a rhombic is worth rather less than the 3 dB doubling the aperture might suggest"
+        },
+        {
+          "metric": "site_area_m2",
+          "expr": "0.5*length_m*width_m",
+          "units_out": "m^2",
+          "depends_on": [
+            "length_m",
+            "width_m"
+          ],
+          "notes": "diamond area - rhombics are large, which is why they were an HF point-to-point antenna and little else"
+        },
+        {
+          "metric": "termination_resistance_ohm",
+          "expr": "600.0",
+          "units_out": "ohm",
+          "notes": "Indicative. 600-800 ohm is usual; it must absorb roughly half the transmitter power, so it is a real dissipative component, not a token resistor."
+        }
+      ],
+      "validity": [
+        "1.5 <= l/lambda <= 12, the range of the directivity fit",
+        "free space; a real rhombic is horizontal above earth, which adds up to 6 dB and sets the elevation angle",
+        "terminated, so about half the input power is dissipated and the GAIN is some 3 dB below the directivity",
+        "planar rhombic; the alignment angle assumes all four legs are coplanar"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 4.0
+          },
+          "expect": {
+            "half_angle_deg": 24.87,
+            "directivity_linear": 39.21,
+            "directivity_dbi": 15.93
+          },
+          "tol_pct": 2.0,
+          "source": "Axial directivity from spherical integration of the exact four-leg model: 39.210 (15.93 dBi). The axial lobe is the global maximum, which is the whole point of the alignment angle."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 6.0
+          },
+          "expect": {
+            "directivity_dbi": 17.75,
+            "gain_over_v_antenna_db": 2.72
+          },
+          "tol_pct": 2.0,
+          "source": "6 lambda legs give 59.619 (17.75 dBi) against the V's 31.853 (15.03 dBi), a 2.72 dB advantage - both from the same integration"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 10.3.2",
+        "Bruce, Beck & Lowry, Horizontal rhombic antennas, Proc. IRE 23(1), 1935",
+        "Directivity computed here from the exact four-leg travelling-wave model"
+      ]
+    },
+    {
+      "key": "leaky_wave_line_source",
+      "name": "Uniform leaky-wave line source",
+      "family": "travelling_wave",
+      "summary": "Slitted waveguide radiating a fast wave: the beam angle is set by the guide dispersion, so the antenna scans with frequency.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a",
+          "name": "guide broad wall",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.02286",
+          "description": "WR-90 by default"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "aperture length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "10.0"
+        },
+        {
+          "symbol": "alpha_norm",
+          "name": "normalised leakage",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.018",
+          "description": "alpha/k0; set by how far the slit is opened"
+        },
+        {
+          "symbol": "L",
+          "name": "aperture length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "cutoff_te10_hz",
+          "expr": "c/(2*a)",
+          "units_out": "Hz",
+          "depends_on": [
+            "a"
+          ]
+        },
+        {
+          "metric": "beta_over_k0",
+          "expr": "sqrt(1 - (c/(2*a*f0))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "a",
+            "f0"
+          ],
+          "notes": "TE10 dispersion. Always below 1, so the guided wave is FAST and therefore radiates once the guide is opened - this is the whole mechanism."
+        },
+        {
+          "metric": "guide_wavelength_m",
+          "expr": "lambda0/beta_over_k0",
+          "units_out": "m",
+          "depends_on": [
+            "lambda0",
+            "beta_over_k0"
+          ]
+        },
+        {
+          "metric": "beam_from_broadside_deg",
+          "expr": "deg(asin(beta_over_k0))",
+          "units_out": "deg",
+          "depends_on": [
+            "beta_over_k0"
+          ],
+          "notes": "sin(theta) = beta/k0, measured from broadside. Approaches endfire well above cutoff and swings toward broadside as the guide nears cutoff - but never reaches it, which is the classic leaky-wave broadside blind spot."
+        },
+        {
+          "metric": "beam_from_axis_deg",
+          "expr": "90.0 - deg(asin(beta_over_k0))",
+          "units_out": "deg",
+          "depends_on": [
+            "beta_over_k0"
+          ],
+          "notes": "the same beam measured from the guide axis"
+        },
+        {
+          "metric": "beamwidth_deg",
+          "expr": "deg(0.88*lambda0/(L*cos(asin(beta_over_k0))))",
+          "units_out": "deg",
+          "depends_on": [
+            "lambda0",
+            "L",
+            "beta_over_k0"
+          ],
+          "notes": "Uniform-aperture beamwidth widened by 1/cos(theta) as the beam scans off broadside - a scanned aperture looks shorter"
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "1 - exp(-2*alpha_norm*k0*L)",
+          "units_out": "-",
+          "depends_on": [
+            "alpha_norm",
+            "k0",
+            "L"
+          ],
+          "notes": "Power actually radiated before the wave reaches the load. alpha*L = 1.15 gives 90%, the usual design target; the remainder is burnt in the termination."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2*(L/lambda0)*cos(asin(beta_over_k0))*(1 - exp(-2*alpha_norm*k0*L)))",
+          "units_out": "dBi",
+          "depends_on": [
+            "L",
+            "lambda0",
+            "beta_over_k0",
+            "alpha_norm",
+            "k0"
+          ],
+          "notes": "Line-source directivity 2L/lambda, foreshortened by cos(theta) and reduced by the power lost to the termination"
+        }
+      ],
+      "validity": [
+        "uniform (non-periodic) leakage, so only the forward quadrant is scanned; a periodic structure scans through broadside using the n = -1 harmonic",
+        "beam angle assumes the leakage is weak enough not to perturb beta, true for alpha/k0 below about 0.05",
+        "no beam squint correction for the slit's own reactance",
+        "the guide must be above cutoff: below it the wave is evanescent and nothing radiates"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 10.0
+          },
+          "expect": {
+            "cutoff_te10_hz": 6557000000.0,
+            "beam_from_broadside_deg": 49.03,
+            "guide_wavelength_m": 0.039707
+          },
+          "tol_pct": 0.5,
+          "source": "WR-90 at 10 GHz: cutoff 6.557 GHz, guide wavelength 39.71 mm against a free-space 29.98 mm, so sin(theta) = 0.7549 and the beam sits 49.0 deg from broadside. Cross-checked against this toolkit's own rectangular-waveguide module."
+        },
+        {
+          "given": {
+            "f0": 8200000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 10.0
+          },
+          "expect": {
+            "beam_from_broadside_deg": 36.9
+          },
+          "tol_pct": 0.5,
+          "source": "Same guide at the bottom of the X band: the beam has swung 12 deg toward broadside. Across 8.2-12.4 GHz the beam scans 36.9 to 58.1 deg - frequency scanning, with no phase shifters."
+        },
+        {
+          "given": {
+            "f0": 12400000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 10.0
+          },
+          "expect": {
+            "beam_from_broadside_deg": 58.08
+          },
+          "tol_pct": 0.5,
+          "source": "Top of the X band, completing the scan range"
+        }
+      ],
+      "references": [
+        "Oliner & Jackson, Leaky-wave antennas, in Antenna Engineering Handbook 4th ed., Ch. 11",
+        "Balanis, Antenna Theory 4th ed., Ch. 10.4"
+      ]
     }
   ]
 }

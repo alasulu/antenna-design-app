@@ -349,16 +349,17 @@
           "unit": "m",
           "role": "assumption",
           "typical": "0.0002"
-        }
-      ],
-      "synthesis": [
+        },
         {
-          "output": "magnification",
-          "expr": "1.0",
-          "units_out": "-",
-          "notes": "placeholder; the true magnification follows from the eccentricity of the hyperboloid and the chosen equivalent focal length"
+          "symbol": "magnification",
+          "name": "magnification",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4.0",
+          "description": "equivalent focal length divided by the main reflector's"
         }
       ],
+      "synthesis": [],
       "analysis": [
         {
           "metric": "eta_blockage",
@@ -423,12 +424,50 @@
             "D"
           ],
           "notes": "Ds/D below about 0.1 makes subreflector diffraction severe; above 0.15 blockage dominates. Most designs sit between."
+        },
+        {
+          "metric": "equivalent_focal_length_m",
+          "expr": "magnification*f_over_D*D",
+          "units_out": "m",
+          "depends_on": [
+            "magnification",
+            "f_over_D",
+            "D"
+          ]
+        },
+        {
+          "metric": "equivalent_f_over_D",
+          "expr": "magnification*f_over_D",
+          "units_out": "-",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "metric": "subreflector_eccentricity",
+          "expr": "(magnification + 1)/(magnification - 1)",
+          "units_out": "-",
+          "depends_on": [
+            "magnification"
+          ],
+          "notes": "HYPERBOLA, so e > 1, from M = (e+1)/(e-1). The Gregorian's ellipse inverts this."
+        },
+        {
+          "metric": "feed_half_angle_deg",
+          "expr": "deg(2*atan(1/(4*magnification*f_over_D)))",
+          "units_out": "deg",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
         }
       ],
       "validity": [
         "Ds must be at least several wavelengths or diffraction invalidates ray optics",
         "the feed sees the subreflector, so feed taper is set by the subreflector subtended angle, not the main reflector's",
-        "advantage over prime focus is short feed runs and low spillover onto warm ground (lower noise temperature), not raw gain"
+        "advantage over prime focus is short feed runs and low spillover onto warm ground (lower noise temperature), not raw gain",
+        "magnification is a design input here, not derived from the subreflector position; it previously sat in this spec as a hard-coded 1.0, which was a placeholder rather than a result"
       ],
       "known_cases": [
         {
@@ -444,6 +483,22 @@
           },
           "tol_pct": 0.5,
           "source": "Ds/D = 0.1 gives (1-0.01)^2 = 0.9801 blockage efficiency. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "magnification": 4.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "equivalent_f_over_D": 1.4,
+            "subreflector_eccentricity": 1.6666667,
+            "feed_half_angle_deg": 20.2493
+          },
+          "tol_pct": 0.3,
+          "source": "M = 4 gives e = (4+1)/(4-1) = 1.667 for the hyperboloid and an equivalent f/D of 1.4, so the feed illuminates only 20.25 deg. Hannan, IRE T-AP 9(2), 1961"
         }
       ],
       "references": [
@@ -456,7 +511,7 @@
       "key": "corner_reflector_90",
       "name": "90-degree corner reflector",
       "family": "reflector",
-      "summary": "Driven dipole between two flat plates meeting at 90 degrees; three images set the pattern.",
+      "summary": "Dipole on the bisector of two 90-degree plates, solved as a four-element image array including the mutual coupling that sets the feed resistance.",
       "freq_range_hz": [
         30000000.0,
         30000000000.0
@@ -469,11 +524,23 @@
           "role": "requirement"
         },
         {
+          "symbol": "S_over_lambda",
+          "name": "dipole-to-vertex spacing",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.5"
+        },
+        {
           "symbol": "S",
           "name": "dipole-to-vertex spacing",
           "unit": "m",
-          "role": "assumption",
-          "typical": "0.15"
+          "role": "geometry"
+        },
+        {
+          "symbol": "Ld",
+          "name": "dipole length",
+          "unit": "m",
+          "role": "geometry"
         },
         {
           "symbol": "Lside",
@@ -484,13 +551,31 @@
       ],
       "synthesis": [
         {
+          "output": "S",
+          "expr": "S_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "S_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "Ld",
+          "expr": "0.5 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "half-wave driven element"
+        },
+        {
           "output": "Lside",
           "expr": "2*S",
           "units_out": "m",
           "depends_on": [
             "S"
           ],
-          "notes": "plates of about twice the vertex spacing; beyond that the gain gain is marginal"
+          "notes": "plates of about twice the vertex spacing; beyond that the extra gain is marginal"
         }
       ],
       "analysis": [
@@ -504,24 +589,74 @@
           ]
         },
         {
-          "metric": "array_factor_boresight",
-          "expr": "4*np.sin(2*pi*S*f0/c)**2",
+          "metric": "array_factor_field",
+          "expr": "abs(2*(1 - cos(k0*S)))",
           "units_out": "-",
           "depends_on": [
-            "S",
-            "f0"
+            "k0",
+            "S"
           ],
-          "notes": "For the 90 deg corner the image set is: two negative images at (+-S, 0) and one positive image at the mirror point, giving AF = 2*[cos(k*S) - cos(k*S)] style cancellation along the axes. At boresight this reduces to 2*[1 - cos(2*k*S)] = 4*sin^2(k*S). It vanishes as S -> 0, which is why the dipole cannot sit at the vertex."
+          "notes": "FIELD factor at boresight. Images: two negative at +-90 deg and one positive at 180 deg, all at radius S, giving 2*cos(kS) - 2. Maximum 4.0 at S = lambda/2; the null is at S = lambda, not lambda/2."
+        },
+        {
+          "metric": "self_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*Ld) - Ci(k0*Ld) + 0.5*sin(k0*Ld)*(Si(2*k0*Ld) - 2*Si(k0*Ld)) + 0.5*cos(k0*Ld)*(gamma_e + log(k0*Ld/2) + Ci(2*k0*Ld) - 2*Ci(k0*Ld)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "Ld"
+          ]
+        },
+        {
+          "metric": "mutual_resistance_adjacent_ohm",
+          "expr": "(eta0/(4*pi))*(2*Ci(k0*sqrt(2)*S) - Ci(k0*(sqrt((sqrt(2)*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((sqrt(2)*S)**2 + Ld**2) - Ld)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "S",
+            "Ld"
+          ],
+          "notes": "to each of the two negative images, at spacing sqrt(2)*S"
+        },
+        {
+          "metric": "mutual_resistance_opposite_ohm",
+          "expr": "(eta0/(4*pi))*(2*Ci(k0*2*S) - Ci(k0*(sqrt((2*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((2*S)**2 + Ld**2) - Ld)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "S",
+            "Ld"
+          ],
+          "notes": "to the positive double-reflection image, at spacing 2*S"
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "self_resistance_ohm - 2*mutual_resistance_adjacent_ohm + mutual_resistance_opposite_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "self_resistance_ohm",
+            "mutual_resistance_adjacent_ohm",
+            "mutual_resistance_opposite_ohm"
+          ],
+          "notes": "Signs follow the image currents. This is the figure that actually limits how close to the vertex the dipole can go: at S = 0.25 lambda it is 27 ohm, at 0.1 lambda under 1 ohm."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "array_factor_field**2 * 1.64092 * 73.0790/input_resistance_ohm",
+          "units_out": "-",
+          "depends_on": [
+            "array_factor_field",
+            "input_resistance_ohm"
+          ],
+          "notes": "D = |AF|^2 * D_dipole * R_isolated/R_in. The mutual-coupling term is what brings the answer to the measured ~12 dBi; omitting it overstates the gain by 2 dB at S = lambda/2."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(1.6409*4*np.sin(2*pi*S*f0/c)**2)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
           "depends_on": [
-            "S",
-            "f0"
-          ],
-          "notes": "dipole directivity times the boresight array factor, ignoring the finite-plate correction. Peaks near S = 0.5 lambda at about 12-13 dBi."
+            "directivity_linear"
+          ]
         },
         {
           "metric": "plate_side_m",
@@ -533,40 +668,53 @@
         }
       ],
       "validity": [
-        "infinite perfectly conducting plates; real finite plates lose 1-2 dB",
-        "image theory is exact only for corner angles 180/n degrees, n integer",
-        "S between 0.25 and 0.7 lambda; outside this the pattern breaks up",
-        "does not model the strong mutual coupling that drives the dipole's input impedance"
+        "plates assumed INFINITE and perfectly conducting. Real plates of about 2S truncate the images, and that - not the array factor - is what makes very small spacings perform poorly",
+        "with infinite plates the directivity is nearly flat from S = 0.05 to 0.5 lambda (12.6 down to 11.8 dBi); the feed resistance, not the pattern, chooses the spacing",
+        "S = lambda is a true boresight null, where all four images cancel",
+        "half-wave driven element assumed by the mutual-impedance formula"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 300000000.0,
-            "S": 0.4995
+            "S_over_lambda": 0.5
           },
           "expect": {
-            "s_over_lambda": 0.5,
-            "array_factor_boresight": 0.0
+            "array_factor_field": 4.0,
+            "input_resistance_ohm": 126.337,
+            "directivity_dbi": 11.81
           },
-          "tol_abs": 0.02,
-          "source": "At S = lambda/2 the images cancel at boresight (sin(2*pi*0.5) = 0) - the classic null that makes 0.5 lambda the wrong spacing despite intuition. Balanis, Antenna Theory 4th ed., Ch. 15"
+          "tol_pct": 1.0,
+          "source": "S = lambda/2 maximises the boresight array factor at 4.0 (NOT a null). With the mutual terms the feed sees 126 ohm and the directivity is 15.19 (11.81 dBi), the textbook ~12 dBi for a 90-degree corner. Image sum verified to leave 1e-15 of tangential E on the plates."
         },
         {
           "given": {
             "f0": 300000000.0,
-            "S": 0.24983
+            "S_over_lambda": 0.9999
           },
           "expect": {
-            "s_over_lambda": 0.25,
-            "array_factor_boresight": 4.0,
-            "directivity_dbi": 8.1614
+            "array_factor_field": 0.0
+          },
+          "tol_abs": 0.02,
+          "source": "At S = lambda the four images cancel exactly at boresight. This is the real null; the previous version of this spec placed it at lambda/2, which is where the optimum actually is."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S_over_lambda": 0.25
+          },
+          "expect": {
+            "array_factor_field": 2.0,
+            "input_resistance_ohm": 27.222,
+            "directivity_dbi": 12.46
           },
           "tol_pct": 1.0,
-          "source": "S = lambda/4 maximises the boresight array factor at 4 (6 dB over the bare dipole), giving 8.16 dBi before finite-plate losses. Balanis, Antenna Theory 4th ed., Ch. 15"
+          "source": "Quarter-wave spacing: |AF| = 2*(1-cos(pi/2)) = 2. The feed resistance has fallen to 27 ohm, which is the practical reason not to go closer."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 15 (15.3)"
+        "Balanis, Antenna Theory 4th ed., Ch. 15.3 (corner reflectors) and eq. 8-72 (mutual impedance)",
+        "Image set and array factor verified here numerically against the plate boundary condition"
       ]
     },
     {
@@ -743,6 +891,901 @@
       "references": [
         "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
         "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007"
+      ]
+    },
+    {
+      "key": "corner_reflector_60",
+      "name": "60-degree corner reflector",
+      "family": "reflector",
+      "summary": "Narrower corner, six image sources instead of four, and about 2.5 dB more gain than the 90-degree version.",
+      "freq_range_hz": [
+        30000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "S_over_lambda",
+          "name": "dipole-to-vertex spacing",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.7"
+        },
+        {
+          "symbol": "S",
+          "name": "dipole-to-vertex spacing",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "Ld",
+          "name": "dipole length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "Lside",
+          "name": "plate side length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "S",
+          "expr": "S_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "S_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "Ld",
+          "expr": "0.5 * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "Lside",
+          "expr": "2*S",
+          "units_out": "m",
+          "depends_on": [
+            "S"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "s_over_lambda",
+          "expr": "S*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0"
+          ]
+        },
+        {
+          "metric": "array_factor_field",
+          "expr": "abs(2*(sin(k0*S) - 2*sin(k0*S/2)))",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "S"
+          ],
+          "notes": "Six sources at 60-degree steps with alternating sign sum to 2j*[sin(kS) - 2*sin(kS/2)] on boresight. Peaks near S = 0.7 lambda at 5.14, against the 90-degree corner's best of 4.0."
+        },
+        {
+          "metric": "self_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*Ld) - Ci(k0*Ld) + 0.5*sin(k0*Ld)*(Si(2*k0*Ld) - 2*Si(k0*Ld)) + 0.5*cos(k0*Ld)*(gamma_e + log(k0*Ld/2) + Ci(2*k0*Ld) - 2*Ci(k0*Ld)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "Ld"
+          ]
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "self_resistance_ohm - 2*(eta0/(4*pi))*(2*Ci(k0*S) - Ci(k0*(sqrt((S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((S)**2 + Ld**2) - Ld))) + 2*(eta0/(4*pi))*(2*Ci(k0*sqrt(3)*S) - Ci(k0*(sqrt((sqrt(3)*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((sqrt(3)*S)**2 + Ld**2) - Ld))) - (eta0/(4*pi))*(2*Ci(k0*2*S) - Ci(k0*(sqrt((2*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((2*S)**2 + Ld**2) - Ld)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "self_resistance_ohm",
+            "k0",
+            "S",
+            "Ld"
+          ],
+          "notes": "Images sit at 60-degree steps on a circle of radius S, so the spacings to the driven element are S, sqrt(3)*S and 2*S, with signs -, + and - following the image currents."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "array_factor_field**2 * 1.64092 * 73.0790/input_resistance_ohm",
+          "units_out": "-",
+          "depends_on": [
+            "array_factor_field",
+            "input_resistance_ohm"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "gain_over_90_degree_db",
+          "expr": "db10(directivity_linear) - db10(4.0**2*1.64092*73.0790/126.337)",
+          "units_out": "dB",
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "against the best 90-degree corner, S = lambda/2 at 11.81 dBi"
+        },
+        {
+          "metric": "plate_side_m",
+          "expr": "Lside",
+          "units_out": "m",
+          "depends_on": [
+            "Lside"
+          ]
+        }
+      ],
+      "validity": [
+        "infinite perfectly conducting plates, as for the 90-degree case",
+        "the corner angle must divide 180 exactly for the image construction to close; 60, 45 and 36 degrees do, 70 does not",
+        "S = lambda is again a boresight null",
+        "narrower corners need physically longer plates for the same truncation error, which is why 90 degrees remains the common choice"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S_over_lambda": 0.7
+          },
+          "expect": {
+            "array_factor_field": 5.1382,
+            "input_resistance_ohm": 147.197,
+            "directivity_dbi": 13.33
+          },
+          "tol_pct": 1.0,
+          "source": "Numerical sum over the six image sources gives |AF| = 5.1382 at S = 0.7 lambda, and the image set leaves 2e-15 of tangential E on the plates. With mutual coupling the directivity is 21.51 (13.33 dBi)."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S_over_lambda": 0.5
+          },
+          "expect": {
+            "array_factor_field": 4.0,
+            "directivity_dbi": 14.31
+          },
+          "tol_pct": 1.0,
+          "source": "At half-wave spacing the 60-degree corner already matches the 90-degree corner's best array factor while its feed resistance is only 71 ohm, so the directivity is 2.5 dB higher"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "S_over_lambda": 0.9999
+          },
+          "expect": {
+            "array_factor_field": 0.0
+          },
+          "tol_abs": 0.02,
+          "source": "sin(2*pi) - 2*sin(pi) = 0: the same S = lambda null as the 90-degree corner"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 15.3",
+        "Kraus, Antennas 2nd ed., Ch. 12 (corner reflectors)",
+        "Image construction verified numerically against the plate boundary condition"
+      ]
+    },
+    {
+      "key": "offset_parabolic",
+      "name": "Offset-fed parabolic reflector",
+      "family": "reflector",
+      "summary": "A slice of a paraboloid taken off the axis, so the feed and its struts sit outside the aperture and block nothing.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "1.0",
+          "description": "projected circular aperture"
+        },
+        {
+          "symbol": "f_over_D_parent",
+          "name": "parent focal ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.5",
+          "description": "focal length of the parent paraboloid divided by the aperture diameter"
+        },
+        {
+          "symbol": "h0_over_D",
+          "name": "offset height ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.6",
+          "description": "height of the aperture centre above the parent axis, over D. Must exceed 0.5 for clearance."
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.82"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.85"
+        },
+        {
+          "symbol": "eps_rms",
+          "name": "rms surface error",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0002"
+        },
+        {
+          "symbol": "F",
+          "name": "parent focal length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h0",
+          "name": "offset height",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "F",
+          "expr": "f_over_D_parent*D",
+          "units_out": "m",
+          "depends_on": [
+            "f_over_D_parent",
+            "D"
+          ]
+        },
+        {
+          "output": "h0",
+          "expr": "h0_over_D*D",
+          "units_out": "m",
+          "depends_on": [
+            "h0_over_D",
+            "D"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "clearance_m",
+          "expr": "h0 - D/2",
+          "units_out": "m",
+          "depends_on": [
+            "h0",
+            "D"
+          ],
+          "notes": "gap between the lower rim and the parent axis. Zero or negative means the feed is back in the beam and the offset has bought nothing."
+        },
+        {
+          "metric": "upper_rim_angle_deg",
+          "expr": "deg(2*atan((h0 + D/2)/(2*F)))",
+          "units_out": "deg",
+          "depends_on": [
+            "h0",
+            "D",
+            "F"
+          ],
+          "notes": "Angle from the focal axis to the upper rim. On a paraboloid a point at radius r subtends 2*atan(r/2F) from the focus - exact, not an approximation."
+        },
+        {
+          "metric": "lower_rim_angle_deg",
+          "expr": "deg(2*atan((h0 - D/2)/(2*F)))",
+          "units_out": "deg",
+          "depends_on": [
+            "h0",
+            "D",
+            "F"
+          ]
+        },
+        {
+          "metric": "offset_angle_deg",
+          "expr": "0.5*(upper_rim_angle_deg + lower_rim_angle_deg)",
+          "units_out": "deg",
+          "depends_on": [
+            "upper_rim_angle_deg",
+            "lower_rim_angle_deg"
+          ],
+          "notes": "tilt of the feed axis from the parent axis - the bisector of the two rim angles"
+        },
+        {
+          "metric": "subtended_half_angle_deg",
+          "expr": "0.5*(upper_rim_angle_deg - lower_rim_angle_deg)",
+          "units_out": "deg",
+          "depends_on": [
+            "upper_rim_angle_deg",
+            "lower_rim_angle_deg"
+          ],
+          "notes": "half-angle the aperture subtends at the feed; this is what sets the required feed taper"
+        },
+        {
+          "metric": "eta_blockage",
+          "expr": "1.0",
+          "units_out": "-",
+          "notes": "Exactly one, by construction. This is the entire reason for the offset geometry, and it also removes the blockage-scattered sidelobes."
+        },
+        {
+          "metric": "eta_ruze",
+          "expr": "exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*eta_spill*eta_ruze",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "eta_ruze"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*(pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10((pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D"
+          ]
+        },
+        {
+          "metric": "gain_advantage_over_prime_focus_db",
+          "expr": "db10(1/(1 - (0.1)**2)**2)",
+          "units_out": "dB",
+          "notes": "What removing a typical 0.1*D blockage is worth: about 0.09 dB of aperture efficiency. The real prize is sidelobe and noise performance, not gain."
+        }
+      ],
+      "validity": [
+        "h0 > D/2, or there is no clearance and the geometry is not actually offset",
+        "a linearly polarised feed on an offset reflector generates two cross-polar lobes in the plane of asymmetry; this spec does not quantify them. A circularly polarised feed avoids the cross-pol but squints the beam instead",
+        "efficiencies are inputs, not predictions - illumination and spillover trade against each other through the feed taper",
+        "ray optics: D must be many wavelengths"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.5,
+            "h0_over_D": 0.6,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "clearance_m": 0.1,
+            "upper_rim_angle_deg": 95.4521,
+            "lower_rim_angle_deg": 11.4212,
+            "offset_angle_deg": 53.4367,
+            "subtended_half_angle_deg": 42.0155
+          },
+          "tol_pct": 0.2,
+          "source": "Exact paraboloid geometry: a rim point at radius r subtends 2*atan(r/2F). With F = 0.5 m, the rims at 1.1 m and 0.1 m give 95.452 and 11.421 deg, so the feed tilts 53.44 deg and sees a 42.02 deg half-angle."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.5,
+            "h0_over_D": 0.6,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_blockage": 1.0,
+            "gain_dbi": 40.4225
+          },
+          "tol_pct": 0.5,
+          "source": "1 m at 12 GHz (lambda = 24.983 mm), 0.697 aperture efficiency: G = 0.697*(pi*1/0.024983)^2 = 11022 = 40.42 dBi. Blockage efficiency is exactly 1 by construction."
+        }
+      ],
+      "references": [
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 8.5 (offset reflectors)",
+        "Rusch & Potter, Analysis of Reflector Antennas, Academic Press 1970",
+        "Chu & Turrin, Depolarization properties of offset reflector antennas, IEEE T-AP 21(3), 1973"
+      ]
+    },
+    {
+      "key": "gregorian_dual_reflector",
+      "name": "Gregorian dual reflector",
+      "family": "reflector",
+      "summary": "Concave ellipsoidal subreflector beyond the prime focus: a real focus between the mirrors, and the offset geometry that cancels cross-polarisation.",
+      "freq_range_hz": [
+        300000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D",
+          "name": "main reflector diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "3.0"
+        },
+        {
+          "symbol": "Ds",
+          "name": "subreflector diameter",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "f_over_D",
+          "name": "main focal ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.35"
+        },
+        {
+          "symbol": "magnification",
+          "name": "magnification",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4.0",
+          "description": "equivalent focal length divided by the main reflector's"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.85"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.90"
+        },
+        {
+          "symbol": "eps_rms",
+          "name": "rms surface error",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0002"
+        },
+        {
+          "symbol": "F",
+          "name": "main focal length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "F",
+          "expr": "f_over_D*D",
+          "units_out": "m",
+          "depends_on": [
+            "f_over_D",
+            "D"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "equivalent_focal_length_m",
+          "expr": "magnification*F",
+          "units_out": "m",
+          "depends_on": [
+            "magnification",
+            "F"
+          ],
+          "notes": "A dual reflector behaves as a single paraboloid of this longer focal length, which is what makes the feed's job easy"
+        },
+        {
+          "metric": "equivalent_f_over_D",
+          "expr": "magnification*f_over_D",
+          "units_out": "-",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "metric": "subreflector_eccentricity",
+          "expr": "(magnification - 1)/(magnification + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "magnification"
+          ],
+          "notes": "ELLIPSE, so e < 1, from M = (1+e)/(1-e). The Cassegrain's hyperbola takes e = (M+1)/(M-1) > 1 instead - the same relation read the other way."
+        },
+        {
+          "metric": "feed_half_angle_deg",
+          "expr": "deg(2*atan(1/(4*magnification*f_over_D)))",
+          "units_out": "deg",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ],
+          "notes": "Half-angle the feed must illuminate, set by the EQUIVALENT focal ratio. A high magnification means a narrow feed beam and a physically larger feed."
+        },
+        {
+          "metric": "main_reflector_half_angle_deg",
+          "expr": "deg(2*atan(1/(4*f_over_D)))",
+          "units_out": "deg",
+          "depends_on": [
+            "f_over_D"
+          ],
+          "notes": "what the main dish subtends from the prime focus"
+        },
+        {
+          "metric": "eta_blockage",
+          "expr": "(1 - (Ds/D)**2)**2",
+          "units_out": "-",
+          "depends_on": [
+            "Ds",
+            "D"
+          ]
+        },
+        {
+          "metric": "eta_ruze",
+          "expr": "exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*eta_spill*eta_blockage*eta_ruze",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "eta_blockage",
+            "eta_ruze"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*(pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D"
+          ]
+        },
+        {
+          "metric": "subreflector_fraction",
+          "expr": "Ds/D",
+          "units_out": "-",
+          "depends_on": [
+            "Ds",
+            "D"
+          ]
+        }
+      ],
+      "validity": [
+        "Ds must be many wavelengths or ray optics fails and the subreflector diffracts rather than reflects",
+        "the ellipsoid sits BEYOND the prime focus, so a Gregorian is physically longer than the equivalent Cassegrain - the trade is an accessible real focus between the mirrors",
+        "magnification is a design input here, not derived from the subreflector position",
+        "in offset form the Mizuguchi-Dragone condition can null the cross-polarisation exactly; that condition is not evaluated here"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "magnification": 4.0,
+            "f_over_D": 0.35,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "equivalent_focal_length_m": 4.2,
+            "equivalent_f_over_D": 1.4,
+            "subreflector_eccentricity": 0.6
+          },
+          "tol_pct": 0.2,
+          "source": "M = 4 on a 1.05 m focal length gives 4.2 m equivalent, f/D 1.4, and e = (4-1)/(4+1) = 0.6 for the ellipsoid"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "magnification": 4.0,
+            "f_over_D": 0.35,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "feed_half_angle_deg": 20.2493,
+            "main_reflector_half_angle_deg": 71.0754,
+            "eta_blockage": 0.9801
+          },
+          "tol_pct": 0.3,
+          "source": "The feed sees 20.25 deg against the main dish's 71.1 deg from the prime focus - the magnification trade that lets a small feed do the job. Blockage (1-0.01)^2 = 0.9801."
+        }
+      ],
+      "references": [
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 8.3-8.4",
+        "Hannan, Microwave antennas derived from the Cassegrain telescope, IRE T-AP 9(2), 1961",
+        "Mizuguchi et al., Offset dual reflector antenna, IEEE AP-S 1976"
+      ]
+    },
+    {
+      "key": "cylindrical_parabolic",
+      "name": "Parabolic cylinder with a line feed",
+      "family": "reflector",
+      "summary": "Parabola in one plane only, fed by a line source: a fan beam, and a reflector that can be rolled from flat sheet.",
+      "freq_range_hz": [
+        100000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "W",
+          "name": "aperture width",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "1.0",
+          "description": "across the curved (focusing) plane"
+        },
+        {
+          "symbol": "Lc",
+          "name": "aperture length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "3.0",
+          "description": "along the cylinder axis, set by the line feed"
+        },
+        {
+          "symbol": "f_over_W",
+          "name": "focal ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.4"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.81"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.88"
+        },
+        {
+          "symbol": "eps_rms",
+          "name": "rms surface error",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.0002"
+        },
+        {
+          "symbol": "F",
+          "name": "focal length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "F",
+          "expr": "f_over_W*W",
+          "units_out": "m",
+          "depends_on": [
+            "f_over_W",
+            "W"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "aperture_area_m2",
+          "expr": "W*Lc",
+          "units_out": "m^2",
+          "depends_on": [
+            "W",
+            "Lc"
+          ],
+          "notes": "rectangular, not circular - the gain formula differs from a dish by the pi/4 factor"
+        },
+        {
+          "metric": "feed_half_angle_deg",
+          "expr": "deg(2*atan(1/(4*f_over_W)))",
+          "units_out": "deg",
+          "depends_on": [
+            "f_over_W"
+          ],
+          "notes": "in the focusing plane only; along the axis the line feed illuminates directly"
+        },
+        {
+          "metric": "eta_ruze",
+          "expr": "exp(-(4*pi*eps_rms*f0/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_rms",
+            "f0"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*eta_spill*eta_ruze",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "eta_spill",
+            "eta_ruze"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*aperture_area_m2*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "aperture_area_m2",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10(4*pi*aperture_area_m2*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_area_m2",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_focusing_plane_deg",
+          "expr": "70.0*(c/f0)/W",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "W"
+          ],
+          "notes": "tapered illumination, as for a dish"
+        },
+        {
+          "metric": "hpbw_axial_plane_deg",
+          "expr": "50.8*(c/f0)/Lc",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "Lc"
+          ],
+          "notes": "A uniformly excited line feed gives the narrower 50.8*lambda/L beamwidth - and the -13.26 dB sidelobes that go with uniform illumination"
+        },
+        {
+          "metric": "fan_beam_ratio",
+          "expr": "hpbw_focusing_plane_deg/hpbw_axial_plane_deg",
+          "units_out": "-",
+          "depends_on": [
+            "hpbw_focusing_plane_deg",
+            "hpbw_axial_plane_deg"
+          ],
+          "notes": "how elongated the beam is; the point of the geometry"
+        }
+      ],
+      "validity": [
+        "line feed assumed uniformly excited along the axis; tapering it widens the axial beam and lowers those sidelobes",
+        "the feed line itself blocks the aperture, and that blockage is not modelled here",
+        "single curvature, so there is no focus in the axial plane - the antenna forms a fan beam, never a pencil beam",
+        "ray optics: both dimensions must be many wavelengths"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "W": 1.0,
+            "Lc": 3.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "aperture_area_m2": 3.0,
+            "gain_ideal_dbi": 35.7403
+          },
+          "tol_pct": 0.3,
+          "source": "3 m^2 at 3 GHz (lambda = 99.93 mm): G_ideal = 4*pi*3/0.0099861 = 3775 = 35.74 dBi"
+        },
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "W": 1.0,
+            "Lc": 3.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "hpbw_focusing_plane_deg": 6.9953,
+            "hpbw_axial_plane_deg": 1.6921,
+            "fan_beam_ratio": 4.1339
+          },
+          "tol_pct": 0.5,
+          "source": "70*lambda/W against 50.8*lambda/L: a 4.1:1 fan beam. The 50.8 factor is the uniform line source's, confirmed independently by this toolkit's own pattern module."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 15.4",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 8"
       ]
     }
   ]

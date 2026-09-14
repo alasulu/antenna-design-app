@@ -49,16 +49,16 @@
           "metric": "radiation_resistance_ohm",
           "expr": "20 * pi**2 * L_over_lambda**2",
           "units_out": "ohm",
-          "notes": "Rr = 20*pi^2*(L/lambda)^2 for a uniform-current short dipole (Balanis 4-19). A real short dipole carries a triangular distribution, which divides Rr by 4 unless the current is forced uniform by top loading.",
+          "notes": "Rr = 20*pi^2*(L/lambda)^2 for the triangular current distribution a real short dipole carries (Balanis 4-37). This is the practical value.",
           "depends_on": [
             "L_over_lambda"
           ]
         },
         {
-          "metric": "radiation_resistance_triangular_ohm",
-          "expr": "5 * pi**2 * L_over_lambda**2",
+          "metric": "radiation_resistance_uniform_ohm",
+          "expr": "80 * pi**2 * L_over_lambda**2",
           "units_out": "ohm",
-          "notes": "The practical value for an unloaded short dipole: one quarter of the uniform-current result, because Rr scales with the square of the effective length.",
+          "notes": "Rr = 80*pi^2*(L/lambda)^2, the uniform-current infinitesimal dipole (Balanis 4-19). Four times the triangular value, because Rr scales with the square of the effective length (L/2 triangular, L uniform). Reached in practice only by capacitive top loading - see top_loaded_monopole.",
           "depends_on": [
             "L_over_lambda"
           ]
@@ -78,7 +78,7 @@
           "metric": "effective_length_m",
           "expr": "L/2",
           "units_out": "m",
-          "notes": "triangular current distribution",
+          "notes": "L/2 for the triangular distribution; L for a uniform current",
           "depends_on": [
             "L"
           ]
@@ -104,11 +104,11 @@
           "expect": {
             "L_m": 0.0099931,
             "radiation_resistance_ohm": 0.0197392,
-            "radiation_resistance_triangular_ohm": 0.0049348,
-            "directivity_dbi": 1.7609126
+            "directivity_dbi": 1.7609126,
+            "radiation_resistance_uniform_ohm": 0.0789568
           },
           "tol_pct": 0.5,
-          "source": "Rr = 20*pi^2*(0.01)^2 = 0.019739 ohm; D = 1.5 = 1.761 dBi. Balanis, Antenna Theory 4th ed., Ch. 4"
+          "source": "Rr = 20*pi^2*(0.01)^2 = 0.019739 ohm triangular, 80*pi^2*(0.01)^2 = 0.078957 ohm uniform; D = 1.5 = 1.761 dBi. Balanis, Antenna Theory 4th ed., eqs. 4-19 and 4-37"
         },
         {
           "given": {
@@ -775,6 +775,1148 @@
         "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 10.3 (eq. 10-20)"
       ],
       "confidence": "normal"
+    },
+    {
+      "key": "dipole_arbitrary_length",
+      "name": "Centre-fed dipole of arbitrary length",
+      "family": "wire",
+      "summary": "Sinusoidal-current dipole from 0.05 to 1.2 lambda, solved exactly in Si/Ci rather than by interpolation.",
+      "freq_range_hz": [
+        100000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "electrical length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.5",
+          "description": "tip-to-tip length as a fraction of the free-space wavelength"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ],
+          "notes": "tip-to-tip"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_current_max_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L"
+          ],
+          "notes": "Balanis 4-70, referred to the current maximum. Verified against direct numerical integration of the pattern at 0.1, 0.5, 0.75, 1.0 and 1.25 lambda."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "radiation_resistance_current_max_ohm / sin(k0*L/2)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_resistance_current_max_ohm",
+            "k0",
+            "L"
+          ],
+          "notes": "Referred to the FEED current, which for L != lambda/2 differs from the current maximum by sin(kL/2). The two coincide only at the half-wave point. Diverges as L approaches lambda, where the idealised sinusoid puts a current null at the feed; a real full-wave dipole shows a few kilohms, not infinity."
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ],
+          "notes": "Balanis 4-79; the only place wire radius enters"
+        },
+        {
+          "metric": "pattern_factor_broadside",
+          "expr": "1 - cos(k0*L/2)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L"
+          ],
+          "notes": "|F| at theta = 90 deg. Broadside remains the pattern maximum up to about 1.2 lambda, confirmed by scanning |F(theta)| on a 200k-point grid."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "eta0*pattern_factor_broadside**2/(pi*radiation_resistance_current_max_ohm)",
+          "units_out": "-",
+          "depends_on": [
+            "pattern_factor_broadside",
+            "radiation_resistance_current_max_ohm"
+          ],
+          "notes": "D = eta*|F|^2/(pi*Rm), exact for L <= 1.2 lambda. Reproduces 1.5010 at 0.1 lambda, 1.6409 at 0.5 and 2.4110 at 1.0 - the textbook full-wave dipole value."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "gain_over_half_wave_db",
+          "expr": "db10(directivity_linear/1.64092)",
+          "units_out": "dB",
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "dBd: how much this length buys over a half-wave dipole"
+        },
+        {
+          "metric": "length_over_lambda",
+          "expr": "L*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "L",
+            "f0"
+          ]
+        }
+      ],
+      "validity": [
+        "0.05 < L/lambda < 1.2; above ~1.25 lambda the main beam splits and broadside is no longer the maximum",
+        "assumed sinusoidal current, which is the standard thin-wire idealisation",
+        "input resistance is unusable within a few percent of L = lambda, where the model puts a current null at the feed",
+        "no ground plane, no loss"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "radiation_resistance_current_max_ohm": 73.079,
+            "directivity_linear": 1.64092,
+            "directivity_dbi": 2.1509
+          },
+          "tol_pct": 0.2,
+          "source": "The half-wave dipole: 73.08 ohm and D = 1.641. Balanis, Antenna Theory 4th ed., Ch. 4.6"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 1.0
+          },
+          "expect": {
+            "radiation_resistance_current_max_ohm": 198.95,
+            "directivity_linear": 2.411
+          },
+          "tol_pct": 0.3,
+          "source": "Full-wave dipole: Rr = 199 ohm referred to the current maximum, D = 2.41. Balanis, Antenna Theory 4th ed., Table 4.1 / Fig. 4.13"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.25
+          },
+          "expect": {
+            "radiation_resistance_current_max_ohm": 6.7156,
+            "input_resistance_ohm": 13.43119,
+            "directivity_linear": 1.53184
+          },
+          "tol_pct": 0.3,
+          "source": "Quarter-wave dipole, independently reproduced by numerical integration of the sinusoidal-current pattern. The factor-of-two gap between the two resistances is the sin^2(kL/2) referral."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4.5-4.6 (eqs. 4-70, 4-79)",
+        "Numerically cross-checked against quadrature of the exact pattern integral"
+      ]
+    },
+    {
+      "key": "dipole_over_ground",
+      "name": "Horizontal dipole over a ground plane",
+      "family": "wire",
+      "summary": "Horizontal half-wave dipole at height h above a perfect conductor, solved by image theory with exact mutual impedance.",
+      "freq_range_hz": [
+        100000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "h_over_lambda",
+          "name": "height above ground",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.25",
+          "description": "height as a fraction of the free-space wavelength"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "electrical length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.5"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "L",
+          "name": "total length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h",
+          "name": "height above ground",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "d_image",
+          "name": "spacing to image",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "h",
+          "expr": "h_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "h_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "d_image",
+          "expr": "2*h",
+          "units_out": "m",
+          "depends_on": [
+            "h"
+          ],
+          "notes": "the image sits as far below the plane as the dipole sits above it, with reversed current"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "self_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L"
+          ],
+          "notes": "isolated-dipole value, Balanis 4-70"
+        },
+        {
+          "metric": "mutual_resistance_ohm",
+          "expr": "(eta0/(4*pi))*(2*Ci(k0*d_image) - Ci(k0*(sqrt(d_image**2 + L**2) + L)) - Ci(k0*(sqrt(d_image**2 + L**2) - L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "d_image",
+            "L"
+          ],
+          "notes": "Balanis 8-72a for parallel side-by-side half-wave dipoles. Reproduces the textbook -12.5 ohm at d = lambda/2."
+        },
+        {
+          "metric": "mutual_reactance_ohm",
+          "expr": "-(eta0/(4*pi))*(2*Si(k0*d_image) - Si(k0*(sqrt(d_image**2 + L**2) + L)) - Si(k0*(sqrt(d_image**2 + L**2) - L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "d_image",
+            "L"
+          ],
+          "notes": "Balanis 8-72b. Reproduces -29.9 ohm at d = lambda/2."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "self_resistance_ohm - mutual_resistance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "self_resistance_ohm",
+            "mutual_resistance_ohm"
+          ],
+          "notes": "MINUS, because the image current is reversed. This is why a low horizontal dipole feeds at 30 ohm rather than 73."
+        },
+        {
+          "metric": "array_factor_zenith",
+          "expr": "abs(2*sin(k0*h))",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "h"
+          ],
+          "notes": "field ratio relative to the same current in free space; 2.0 at h = lambda/4"
+        },
+        {
+          "metric": "zenith_directivity_linear",
+          "expr": "array_factor_zenith**2 * eta0*(1 - cos(k0*L/2))**2/(pi*input_resistance_ohm)",
+          "units_out": "-",
+          "depends_on": [
+            "array_factor_zenith",
+            "k0",
+            "L",
+            "input_resistance_ohm"
+          ],
+          "notes": "Directivity straight up. Reproduced to five digits by direct numerical integration over the upper hemisphere."
+        },
+        {
+          "metric": "zenith_directivity_dbi",
+          "expr": "db10(zenith_directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "zenith_directivity_linear"
+          ]
+        },
+        {
+          "metric": "first_lobe_elevation_deg",
+          "expr": "90.0 - deg(acos(min(1.0, lambda0/(4*h))))",
+          "units_out": "deg",
+          "depends_on": [
+            "lambda0",
+            "h"
+          ],
+          "notes": "Elevation of the lowest array-factor maximum, where k*h*cos(theta) = pi/2. Pinned at 90 deg (zenith) for h <= lambda/4; 30 deg at h = lambda/2."
+        },
+        {
+          "metric": "free_space_directivity_dbi",
+          "expr": "db10(1.64092)",
+          "units_out": "dBi",
+          "notes": "the same dipole with no ground present, for comparison"
+        }
+      ],
+      "validity": [
+        "perfectly conducting, infinite ground plane; real earth is lossier and tilts the low-angle lobe",
+        "zenith is the pattern peak only for h <= lambda/4 and at h = lambda/4 + n*lambda/2; elsewhere read first_lobe_elevation_deg",
+        "mutual impedance formula is the half-wave side-by-side result, so it is exact only near L = lambda/2",
+        "no conductor loss: at h = lambda/8 the feed resistance falls to 32 ohm and loss matters more than these figures suggest"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.25,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "mutual_resistance_ohm": -12.523,
+            "mutual_reactance_ohm": -29.908,
+            "input_resistance_ohm": 85.602,
+            "zenith_directivity_dbi": 7.4846
+          },
+          "tol_pct": 0.5,
+          "source": "Mutual impedance of parallel half-wave dipoles at d = 0.5 lambda is -12.5 - j29.9 ohm (Balanis 4th ed. Fig. 8.21). Peak directivity independently confirmed at 5.6034 (7.485 dBi) by hemisphere integration."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.125,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "input_resistance_ohm": 32.321,
+            "zenith_directivity_dbi": 8.7043
+          },
+          "tol_pct": 0.5,
+          "source": "A dipole one eighth of a wavelength up has HIGHER zenith directivity than one at a quarter wave (8.70 vs 7.48 dBi), because the image adds in phase and the feed resistance collapses to 32 ohm. Confirmed by hemisphere integration."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.5,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "first_lobe_elevation_deg": 30.0
+          },
+          "tol_pct": 0.5,
+          "source": "cos(theta) = lambda/(4h) = 0.5 puts the lobe at 60 deg from zenith, i.e. 30 deg elevation - the standard half-wave-high dipole result"
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4.7 (image theory) and Ch. 8.6 (eqs. 8-72)",
+        "Numerically cross-checked by integrating the full pattern over the upper hemisphere"
+      ]
+    },
+    {
+      "key": "top_loaded_monopole",
+      "name": "Capacitively top-loaded short monopole",
+      "family": "wire",
+      "summary": "Electrically short vertical with a top hat that flattens the current taper, raising radiation resistance by up to four times.",
+      "freq_range_hz": [
+        10000.0,
+        3000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "h_over_lambda",
+          "name": "electrical height",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.05"
+        },
+        {
+          "symbol": "beta_top",
+          "name": "top/base current ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.6",
+          "description": "0 = bare whip (triangular current), 1 = ideal hat (uniform current). 0.5-0.8 is typical for a real hat."
+        },
+        {
+          "symbol": "hat_radius_over_lambda",
+          "name": "hat radius",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.01"
+        },
+        {
+          "symbol": "aw",
+          "name": "rod radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-3"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "h",
+          "name": "rod height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "a_hat",
+          "name": "top hat radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h_eff",
+          "name": "effective height",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "h",
+          "expr": "h_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "h_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "a_hat",
+          "expr": "hat_radius_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "hat_radius_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "h_eff",
+          "expr": "h*(1 + beta_top)/2",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "beta_top"
+          ],
+          "notes": "exact for a linear current taper: the area under the taper divided by the base current"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "160*pi**2*(h_eff/lambda0)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "h_eff",
+            "lambda0"
+          ],
+          "notes": "Rr = 160*pi^2*(h_eff/lambda)^2 for a monopole over a perfect ground plane - half the uniform-current dipole of length 2*h_eff. Collapses to the classic 40*pi^2*(h/lambda)^2 when beta_top = 0."
+        },
+        {
+          "metric": "radiation_resistance_bare_whip_ohm",
+          "expr": "40*pi**2*(h/lambda0)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "h",
+            "lambda0"
+          ],
+          "notes": "the same rod with no hat, for comparison"
+        },
+        {
+          "metric": "top_loading_gain_db",
+          "expr": "db10(radiation_resistance_ohm/radiation_resistance_bare_whip_ohm)",
+          "units_out": "dB",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "radiation_resistance_bare_whip_ohm"
+          ],
+          "notes": "up to 6.02 dB at beta_top = 1, where the current is fully uniform"
+        },
+        {
+          "metric": "surface_resistance_ohm",
+          "expr": "sqrt(pi*f0*mu0/sigma)",
+          "units_out": "ohm",
+          "depends_on": [
+            "f0",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "loss_resistance_ohm",
+          "expr": "surface_resistance_ohm*h*(1 + beta_top + beta_top**2)/(3*2*pi*aw)",
+          "units_out": "ohm",
+          "depends_on": [
+            "surface_resistance_ohm",
+            "h",
+            "beta_top",
+            "aw"
+          ],
+          "notes": "Exact for the linear taper: integral of |I/I0|^2 along the rod is h*(1+beta+beta^2)/3, which is h/3 for a bare whip and h when fully loaded. Hat and ground-system loss are NOT included and usually dominate at HF."
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "radiation_resistance_ohm/(radiation_resistance_ohm + loss_resistance_ohm)",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "loss_resistance_ohm"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "exactly 3.0 for any short vertical over an infinite perfect ground plane - twice the free-space dipole's 1.5"
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(3.0*radiation_efficiency)",
+          "units_out": "dBi",
+          "depends_on": [
+            "radiation_efficiency"
+          ]
+        },
+        {
+          "metric": "hat_capacitance_F",
+          "expr": "8*eps0*a_hat",
+          "units_out": "F",
+          "depends_on": [
+            "a_hat"
+          ],
+          "notes": "Isolated thin disc, C = 8*eps0*a. A hat close to ground reads higher. Sizing aid only: this spec does not derive beta_top from the hat size."
+        },
+        {
+          "metric": "chu_limit_q",
+          "expr": "1/(k0*h)**3 + 1/(k0*h)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "h"
+          ],
+          "notes": "Chu/McLean lower bound for a linearly polarised antenna inside a sphere of radius h. No amount of top loading beats this."
+        }
+      ],
+      "validity": [
+        "h < 0.1*lambda, where the linear current taper is a good description",
+        "perfect infinite ground plane; a real radial ground system adds loss resistance that often exceeds Rr",
+        "beta_top is an input, not a prediction - relating hat size to beta_top needs a numerical solve this spec does not attempt",
+        "hat and ground loss excluded, so radiation_efficiency is an upper bound"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.98696
+          },
+          "tol_pct": 0.2,
+          "source": "With no hat the model must return the textbook short-monopole value 40*pi^2*(h/lambda)^2 = 0.987 ohm. Balanis, Antenna Theory 4th ed., Ch. 4.8"
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.0
+          },
+          "expect": {
+            "top_loading_gain_db": 0.0
+          },
+          "tol_pct": 0.2,
+          "tol_abs": 1e-09,
+          "source": "beta_top = 0 is the bare whip, so the loading gain must be exactly 0 dB. Expectations of zero need tol_abs."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 1.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 3.94784,
+            "top_loading_gain_db": 6.0206
+          },
+          "tol_pct": 0.2,
+          "source": "A fully uniform current quadruples Rr, exactly 6.02 dB. Balanis, Antenna Theory 4th ed., eqs. 4-19 and 4-37"
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.6
+          },
+          "expect": {
+            "radiation_resistance_ohm": 2.52662,
+            "directivity_dbi": 4.7712
+          },
+          "tol_pct": 0.2,
+          "source": "beta = 0.6 gives h_eff/h = 0.8, so Rr = 160*pi^2*0.04^2 = 2.527 ohm. Directivity of any short vertical over perfect ground is 3.0 = 4.771 dBi."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4.8 (monopoles) and eqs. 4-19, 4-37",
+        "McLean, A re-examination of the fundamental limits on the radiation Q, IEEE T-AP 44(5), 1996"
+      ]
+    },
+    {
+      "key": "inductively_loaded_monopole",
+      "name": "Inductively loaded short monopole",
+      "family": "wire",
+      "summary": "Short whip resonated by a series loading coil, with the efficiency penalty the coil brings.",
+      "freq_range_hz": [
+        100000.0,
+        3000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "h_over_lambda",
+          "name": "electrical height",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.05"
+        },
+        {
+          "symbol": "beta_top",
+          "name": "top/base current ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.0",
+          "description": "0 for a base-loaded bare whip; centre loading or a hat raises it"
+        },
+        {
+          "symbol": "coil_q",
+          "name": "loading coil Q",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "200",
+          "description": "150-300 for a well-made air-core coil; under 100 for a compact loading inductor"
+        },
+        {
+          "symbol": "aw",
+          "name": "rod radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-3"
+        },
+        {
+          "symbol": "sigma",
+          "name": "conductivity",
+          "unit": "S/m",
+          "role": "material",
+          "typical": "5.8e7"
+        },
+        {
+          "symbol": "r_ground",
+          "name": "ground system resistance",
+          "unit": "ohm",
+          "role": "assumption",
+          "typical": "5.0",
+          "description": "loss of the radial or vehicle-body ground; 0 for an ideal plane"
+        },
+        {
+          "symbol": "h",
+          "name": "rod height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L",
+          "name": "equivalent dipole length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "h_eff",
+          "name": "effective height",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "h",
+          "expr": "h_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "h_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "2*h",
+          "units_out": "m",
+          "depends_on": [
+            "h"
+          ],
+          "notes": "the image makes the monopole behave as a dipole of length 2h, at half the impedance"
+        },
+        {
+          "output": "h_eff",
+          "expr": "h*(1 + beta_top)/2",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "beta_top"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "160*pi**2*(h_eff/lambda0)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "h_eff",
+            "lambda0"
+          ]
+        },
+        {
+          "metric": "input_reactance_unloaded_ohm",
+          "expr": "0.5*(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ],
+          "notes": "Half the exact Balanis 4-79 dipole reactance, because the monopole sees half the dipole's impedance. Strongly capacitive: a 1.5 m whip at 10 MHz shows about -j111 ohm."
+        },
+        {
+          "metric": "loading_inductance_H",
+          "expr": "abs(input_reactance_unloaded_ohm)/(2*pi*f0)",
+          "units_out": "H",
+          "depends_on": [
+            "input_reactance_unloaded_ohm",
+            "f0"
+          ],
+          "notes": "series inductance that cancels the antenna reactance at f0"
+        },
+        {
+          "metric": "coil_loss_resistance_ohm",
+          "expr": "abs(input_reactance_unloaded_ohm)/coil_q",
+          "units_out": "ohm",
+          "depends_on": [
+            "input_reactance_unloaded_ohm",
+            "coil_q"
+          ],
+          "notes": "R = |X|/Q. This is the dominant loss in most loaded whips, and it grows as the antenna shortens - exactly where Rr is collapsing."
+        },
+        {
+          "metric": "surface_resistance_ohm",
+          "expr": "sqrt(pi*f0*mu0/sigma)",
+          "units_out": "ohm",
+          "depends_on": [
+            "f0",
+            "sigma"
+          ]
+        },
+        {
+          "metric": "rod_loss_resistance_ohm",
+          "expr": "surface_resistance_ohm*h*(1 + beta_top + beta_top**2)/(3*2*pi*aw)",
+          "units_out": "ohm",
+          "depends_on": [
+            "surface_resistance_ohm",
+            "h",
+            "beta_top",
+            "aw"
+          ]
+        },
+        {
+          "metric": "total_loss_resistance_ohm",
+          "expr": "coil_loss_resistance_ohm + rod_loss_resistance_ohm + r_ground",
+          "units_out": "ohm",
+          "depends_on": [
+            "coil_loss_resistance_ohm",
+            "rod_loss_resistance_ohm",
+            "r_ground"
+          ]
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "radiation_resistance_ohm + total_loss_resistance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "total_loss_resistance_ohm"
+          ],
+          "notes": "what the transmitter sees at resonance. A convenient 50 ohm here is usually bad news: it means loss, not radiation."
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "radiation_resistance_ohm/input_resistance_ohm",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_resistance_ohm",
+            "input_resistance_ohm"
+          ]
+        },
+        {
+          "metric": "efficiency_db",
+          "expr": "db10(radiation_efficiency)",
+          "units_out": "dB",
+          "depends_on": [
+            "radiation_efficiency"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(3.0*radiation_efficiency)",
+          "units_out": "dBi",
+          "depends_on": [
+            "radiation_efficiency"
+          ]
+        },
+        {
+          "metric": "chu_limit_q",
+          "expr": "1/(k0*h)**3 + 1/(k0*h)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "h"
+          ]
+        }
+      ],
+      "validity": [
+        "h < 0.1*lambda",
+        "single lumped coil, assumed lossless apart from its Q; distributed loading behaves better",
+        "coil placement is captured only through beta_top, not modelled directly",
+        "ground loss is an input, and at HF it commonly exceeds every other term"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.0,
+            "coil_q": 200,
+            "aw": 0.001,
+            "r_ground": 0.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.98696,
+            "input_reactance_unloaded_ohm": -111.03
+          },
+          "tol_pct": 1.0,
+          "source": "A 1.5 m whip at 10 MHz: Rr = 0.987 ohm from the short-monopole formula, and -j111 ohm from the exact Balanis 4-79 reactance halved. The two formulas are independent, and the exact input resistance 0.9994 ohm confirms the 0.987 approximation to 1.3%."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.0,
+            "coil_q": 200,
+            "aw": 0.001,
+            "r_ground": 0.0
+          },
+          "expect": {
+            "loading_inductance_H": 1.767e-06,
+            "coil_loss_resistance_ohm": 0.5551
+          },
+          "tol_pct": 1.0,
+          "source": "L = |X|/omega = 111.03/(2*pi*10e6) = 1.77 uH; R_coil = |X|/Q = 0.555 ohm, over half the radiation resistance. This is why short loaded whips are inefficient."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 4.5-4.8 (eq. 4-79)",
+        "ARRL Antenna Book, mobile and shortened-vertical chapters, for the coil-Q and ground-loss ranges"
+      ]
+    },
+    {
+      "key": "turnstile_dipole",
+      "name": "Turnstile (crossed dipoles in quadrature)",
+      "family": "wire",
+      "summary": "Two crossed half-wave dipoles fed 90 degrees apart: circular polarisation on axis, near-omnidirectional in the plane of the elements.",
+      "freq_range_hz": [
+        1000000.0,
+        30000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L_over_lambda",
+          "name": "element electrical length",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.4788"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-4"
+        },
+        {
+          "symbol": "L",
+          "name": "element length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "phase_delay_line_m",
+          "name": "quadrature line length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "L_over_lambda * c / f0",
+          "units_out": "m",
+          "depends_on": [
+            "L_over_lambda",
+            "f0"
+          ],
+          "notes": "tip-to-tip, each element"
+        },
+        {
+          "output": "phase_delay_line_m",
+          "expr": "0.25*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "A quarter-wave of line in one feed is the classic way to get the 90 degrees. It is narrowband - the axial ratio degrades either side of f0 - and the line's electrical length must account for its own velocity factor."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "element_radiation_resistance_ohm",
+          "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L"
+          ],
+          "notes": "one element in isolation; the crossed elements barely couple"
+        },
+        {
+          "metric": "pattern_factor_broadside",
+          "expr": "1 - cos(k0*L/2)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L"
+          ]
+        },
+        {
+          "metric": "axial_directivity_linear",
+          "expr": "eta0*pattern_factor_broadside**2/(pi*element_radiation_resistance_ohm)",
+          "units_out": "-",
+          "depends_on": [
+            "pattern_factor_broadside",
+            "element_radiation_resistance_ohm"
+          ],
+          "notes": "Equal to a SINGLE dipole's directivity. Splitting the power two ways is exactly offset by the two orthogonal polarisations adding on axis - confirmed by numerical integration."
+        },
+        {
+          "metric": "axial_directivity_dbi",
+          "expr": "db10(axial_directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "axial_directivity_linear"
+          ]
+        },
+        {
+          "metric": "element_plane_directivity_dbi",
+          "expr": "db10(axial_directivity_linear/2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "axial_directivity_linear"
+          ],
+          "notes": "Along either element axis, where only the other dipole radiates: exactly 3 dB below the axial value, about -0.86 dBi for half-wave elements."
+        },
+        {
+          "metric": "element_plane_min_directivity_dbi",
+          "expr": "db10(axial_directivity_linear*(((cos(k0*L/2*cos(pi/4)) - cos(k0*L/2))/sin(pi/4))**2 + ((cos(k0*L/2*sin(pi/4)) - cos(k0*L/2))/cos(pi/4))**2)/(2*pattern_factor_broadside**2))",
+          "units_out": "dBi",
+          "depends_on": [
+            "axial_directivity_linear",
+            "k0",
+            "L",
+            "pattern_factor_broadside"
+          ],
+          "notes": "The 45-degree azimuth, where the pattern dips. Powers add because the two polarisations are orthogonal, so there is no interference term."
+        },
+        {
+          "metric": "azimuth_ripple_db",
+          "expr": "db10(axial_directivity_linear/2) - element_plane_min_directivity_dbi",
+          "units_out": "dB",
+          "depends_on": [
+            "axial_directivity_linear",
+            "element_plane_min_directivity_dbi"
+          ],
+          "notes": "About 1.03 dB for exactly half-wave elements - the turnstile is near-omnidirectional but not perfectly so"
+        },
+        {
+          "metric": "axial_ratio_on_axis_db",
+          "expr": "0.0",
+          "units_out": "dB",
+          "notes": "perfect circular polarisation on axis, by symmetry, when the feed is exactly in quadrature"
+        },
+        {
+          "metric": "feed_impedance_each_element_ohm",
+          "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))*1j + (eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "k0",
+            "L",
+            "aw"
+          ],
+          "notes": "each element behaves essentially as an isolated dipole"
+        }
+      ],
+      "validity": [
+        "mutual coupling between the crossed elements is neglected; it is genuinely small because each sits in the other's null",
+        "exact quadrature assumed - the quarter-wave line achieves it at one frequency only",
+        "free space, no reflector; a turnstile over a ground plane or with a crossed reflector behaves quite differently",
+        "circular polarisation holds only on the axis normal to both elements; the element plane is linearly polarised"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "axial_directivity_linear": 1.64092,
+            "axial_directivity_dbi": 2.1509,
+            "element_plane_directivity_dbi": -0.8594
+          },
+          "tol_pct": 0.3,
+          "source": "Numerical integration over the full sphere of U = |Fx|^2 + |Fy|^2 gives D = 1.64092 on axis and 0.82046 along an element - identical to a single dipole on axis, exactly 3 dB down in the element plane."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "element_plane_min_directivity_dbi": -1.8909,
+            "azimuth_ripple_db": 1.0314
+          },
+          "tol_pct": 0.5,
+          "source": "The 45-degree azimuth minimum is 0.64702 (-1.891 dBi), giving 1.03 dB of ripple. Independently reproduced on a 1201 x 2402 angular grid."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.5
+          },
+          "expect": {
+            "axial_ratio_on_axis_db": 0.0
+          },
+          "tol_pct": 1.0,
+          "tol_abs": 1e-09,
+          "source": "symmetry: equal-amplitude orthogonal fields in exact quadrature are circular by construction"
+        }
+      ],
+      "references": [
+        "Brown, The turnstile antenna, Electronics 9, 1936",
+        "Balanis, Antenna Theory 4th ed., Ch. 4.6 for the element, Ch. 6 for polarisation",
+        "Numerically cross-checked by spherical integration of the summed-power pattern"
+      ]
     }
   ]
 }

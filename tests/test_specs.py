@@ -112,24 +112,31 @@ def test_synthesis_runs_at_a_frequency_inside_the_stated_band(key):
 # swamped by coil loss (~16 ohm). That is correct physics, not a bug - such
 # antennas are only ever used for receiving, where external noise dominates.
 # The UPPER bound is the one that catches unit-scale errors.
+# The dBi floor is deliberately far below anything a real antenna shows. A
+# pattern NULL is a legitimate answer - a dipole half a wavelength over ground
+# has an exact zenith null, and the ideal image model reports it as -310 dBi -
+# so a very negative number is not evidence of a fault. Scale errors make
+# quantities too LARGE, and the upper bound is what catches them.
 _PLAUSIBLE = {
-    "dbi": (-150.0, 80.0),
-    "db": (-120.0, 120.0),
+    "dbi": (-400.0, 80.0),
+    "db": (-400.0, 120.0),
     "efficiency": (0.0, 1.0),
     "deg": (0.0, 360.0),
 }
 
 
 def _bounds_for(metric: str, unit: str) -> tuple[float, float] | None:
+    """Classify by SUFFIX before substring: `efficiency_db` is a decibel
+    quantity that is legitimately negative, not an efficiency bounded by 1."""
     name, unit = metric.lower(), (unit or "").lower()
     if name.endswith("_dbi") or unit == "dbi":
         return _PLAUSIBLE["dbi"]
-    if "efficiency" in name:
-        return _PLAUSIBLE["efficiency"]
-    if name.endswith("_deg") or unit == "deg":
-        return _PLAUSIBLE["deg"]
     if name.endswith("_db") or unit == "db":
         return _PLAUSIBLE["db"]
+    if name.endswith("_deg") or unit == "deg":
+        return _PLAUSIBLE["deg"]
+    if "efficiency" in name:
+        return _PLAUSIBLE["efficiency"]
     return None
 
 
