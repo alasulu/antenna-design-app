@@ -1,0 +1,914 @@
+{
+  "family": "lens",
+  "archetypes": [
+    {
+      "key": "hyperbolic_dielectric_lens",
+      "name": "Plano-hyperbolic dielectric lens",
+      "family": "lens",
+      "summary": "Solid dielectric with a hyperbolic feed-side surface that turns a point source into a plane wave.",
+      "freq_range_hz": [
+        1000000000.0,
+        1000000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "lens permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.53",
+          "description": "2.53 for Rexolite, 2.1 for PTFE, 11.7 for silicon"
+        },
+        {
+          "symbol": "F",
+          "name": "focal length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.05",
+          "description": "focus to lens vertex, on axis"
+        },
+        {
+          "symbol": "theta_rim_deg",
+          "name": "rim angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "40.0",
+          "description": "half-angle the lens subtends at the feed"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.80"
+        },
+        {
+          "symbol": "n_index",
+          "name": "refractive index",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "r_rim",
+          "name": "focus-to-rim distance",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "D_ap",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "n_index",
+          "expr": "sqrt(eps_r)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r"
+          ]
+        },
+        {
+          "output": "r_rim",
+          "expr": "(n_index - 1)*F/(n_index*cos(rad(theta_rim_deg)) - 1)",
+          "units_out": "m",
+          "depends_on": [
+            "n_index",
+            "F",
+            "theta_rim_deg"
+          ],
+          "notes": "The hyperbolic surface in polar form from the focus: r(theta) = (n-1)F/(n*cos(theta)-1). Derived from equal optical path r + n*(z0 - r*cos(theta)) = F + n*(z0 - F), not quoted."
+        },
+        {
+          "output": "D_ap",
+          "expr": "2*r_rim*sin(rad(theta_rim_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "r_rim",
+            "theta_rim_deg"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "eccentricity",
+          "expr": "n_index",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "The surface is a hyperbola whose eccentricity equals the refractive index exactly - the geometric statement of Snell's law for this problem."
+        },
+        {
+          "metric": "max_rim_angle_deg",
+          "expr": "deg(acos(1/n_index))",
+          "units_out": "deg",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "Beyond this the denominator n*cos(theta)-1 changes sign and the surface runs to infinity: rays at that angle cannot be collimated by this lens at all. A low-index lens is therefore forced to a long focal length."
+        },
+        {
+          "metric": "surface_reflection_fraction",
+          "expr": "((n_index - 1)/(n_index + 1))**2",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "Fresnel reflection at normal incidence, per surface. Silicon at n = 3.42 loses 30% per face, which is why high-index lenses need matching layers."
+        },
+        {
+          "metric": "two_surface_transmission",
+          "expr": "(1 - ((n_index - 1)/(n_index + 1))**2)**2",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "entry and exit, ignoring multiple internal reflections"
+        },
+        {
+          "metric": "reflection_loss_db",
+          "expr": "-db10((1 - ((n_index - 1)/(n_index + 1))**2)**2)",
+          "units_out": "dB",
+          "depends_on": [
+            "n_index"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill*(1 - ((n_index - 1)/(n_index + 1))**2)**2",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill",
+            "n_index"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*(pi*D_ap*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "D_ap",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D_ap",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D_ap"
+          ]
+        },
+        {
+          "metric": "f_over_d",
+          "expr": "F/D_ap",
+          "units_out": "-",
+          "depends_on": [
+            "F",
+            "D_ap"
+          ]
+        },
+        {
+          "metric": "aperture_over_lambda",
+          "expr": "D_ap*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "D_ap",
+            "f0"
+          ]
+        }
+      ],
+      "validity": [
+        "ray optics: the aperture must be many wavelengths across",
+        "theta_rim below max_rim_angle_deg, or the surface does not close",
+        "reflection loss assumes normal incidence at both faces; it is worse toward the rim, and multiple internal reflections are ignored",
+        "no dielectric absorption term - real lens materials add loss that grows with thickness and frequency",
+        "the flat face is untreated, so a real lens usually needs a matching layer or grooves"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 100000000000.0,
+            "eps_r": 2.53,
+            "F": 0.05,
+            "theta_rim_deg": 40.0
+          },
+          "expect": {
+            "n_index": 1.5905974,
+            "r_rim": 0.13516776,
+            "D_ap": 0.17376833,
+            "max_rim_angle_deg": 51.04612
+          },
+          "tol_pct": 0.2,
+          "source": "Rexolite, n = 1.590597. The polar hyperbola r = (n-1)F/(n*cos(theta)-1) gives 135.168 mm at a 40 degree rim, so the aperture is 173.768 mm. Rays beyond 51.05 degrees cannot be collimated, since that is where n*cos(theta) = 1."
+        },
+        {
+          "given": {
+            "f0": 100000000000.0,
+            "eps_r": 2.53,
+            "F": 0.05,
+            "theta_rim_deg": 40.0
+          },
+          "expect": {
+            "surface_reflection_fraction": 0.05197365,
+            "two_surface_transmission": 0.89875397,
+            "reflection_loss_db": 0.463592
+          },
+          "tol_pct": 0.5,
+          "source": "Fresnel at normal incidence: ((n-1)/(n+1))^2 = 0.0520 per face, so 0.8988 gets through both, costing 0.464 dB."
+        },
+        {
+          "given": {
+            "f0": 100000000000.0,
+            "eps_r": 11.7,
+            "F": 0.05,
+            "theta_rim_deg": 40.0
+          },
+          "expect": {
+            "surface_reflection_fraction": 0.29982763
+          },
+          "tol_pct": 0.5,
+          "source": "Silicon, n = 3.4205: 30.0% reflected at every face. Two faces cost 3.10 dB, which is why millimetre-wave silicon lenses are always matched."
+        }
+      ],
+      "references": [
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 9 (lens antennas)",
+        "Silver, Microwave Antenna Theory and Design, MIT Rad Lab vol. 12, Ch. 11",
+        "Surface equation derived here from the equal-optical-path condition"
+      ]
+    },
+    {
+      "key": "luneburg_lens",
+      "name": "Luneburg lens",
+      "family": "lens",
+      "summary": "Sphere with a graded index that focuses a plane wave onto the opposite surface: any number of independent beams, no moving parts.",
+      "freq_range_hz": [
+        1000000000.0,
+        1000000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "D",
+          "name": "lens diameter",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "aperture efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.65",
+          "description": "set by the feed's illumination of the sphere"
+        },
+        {
+          "symbol": "r_over_R",
+          "name": "normalised radius",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.5",
+          "description": "where in the lens to report the index"
+        },
+        {
+          "symbol": "R",
+          "name": "lens radius",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "R",
+          "expr": "D/2",
+          "units_out": "m",
+          "depends_on": [
+            "D"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "index_at_centre",
+          "expr": "sqrt(2.0)",
+          "units_out": "-",
+          "notes": "n(r) = sqrt(2 - (r/R)^2), so the core index is exactly sqrt(2) = 1.41421. That is the whole prescription: no free parameters, no design frequency."
+        },
+        {
+          "metric": "index_at_surface",
+          "expr": "1.0",
+          "units_out": "-",
+          "notes": "Exactly 1 at the rim, which is why a Luneburg lens needs no matching layer - it is already matched to free space."
+        },
+        {
+          "metric": "index_at_r",
+          "expr": "sqrt(2 - r_over_R**2)",
+          "units_out": "-",
+          "depends_on": [
+            "r_over_R"
+          ]
+        },
+        {
+          "metric": "permittivity_at_centre",
+          "expr": "2.0",
+          "units_out": "-",
+          "notes": "eps_r = n^2 = 2 at the core, falling to 1 at the surface"
+        },
+        {
+          "metric": "permittivity_at_r",
+          "expr": "2 - r_over_R**2",
+          "units_out": "-",
+          "depends_on": [
+            "r_over_R"
+          ],
+          "notes": "Exactly linear in r^2, which is convenient: stepped Luneburg lenses are built from concentric shells of constant permittivity spaced equally in r^2"
+        },
+        {
+          "metric": "aperture_area_m2",
+          "expr": "pi*(D/2)**2",
+          "units_out": "m^2",
+          "depends_on": [
+            "D"
+          ],
+          "notes": "the projected circle, not the sphere's surface"
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(eta_ill*(pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "eta_ill",
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10((pi*D*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D"
+          ]
+        },
+        {
+          "metric": "diameter_over_lambda",
+          "expr": "D*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "D",
+            "f0"
+          ]
+        },
+        {
+          "metric": "scan_loss_db",
+          "expr": "0.0",
+          "units_out": "dB",
+          "notes": "Exactly zero, by spherical symmetry: every feed position on the surface sees an identical lens, so beams scan to any angle with no degradation. No phased array can say that."
+        }
+      ],
+      "validity": [
+        "ray optics: the diameter must be many wavelengths",
+        "the ideal lens is a continuous gradient; real ones are stepped shells, and the steps scatter - typically a few tenths of a dB and raised sidelobes",
+        "aperture efficiency is an input, set by how well the feed illuminates the sphere; a single feed rarely beats about 0.7",
+        "the lens is heavy and, in the stepped form, expensive to make - the reason it stays a niche solution despite its properties"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "D": 0.3,
+            "r_over_R": 0.0
+          },
+          "expect": {
+            "index_at_centre": 1.4142136,
+            "index_at_r": 1.4142136,
+            "permittivity_at_centre": 2.0
+          },
+          "tol_pct": 0.1,
+          "source": "n(0) = sqrt(2 - 0) = 1.414214 exactly. The Luneburg prescription n(r) = sqrt(2 - (r/R)^2) has no adjustable constants."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "D": 0.3,
+            "r_over_R": 1.0
+          },
+          "expect": {
+            "index_at_r": 1.0,
+            "permittivity_at_r": 1.0
+          },
+          "tol_pct": 0.1,
+          "source": "n(R) = 1 exactly: the lens meets free space with no discontinuity, so there is nothing to reflect"
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "D": 0.3,
+            "eta_ill": 0.65
+          },
+          "expect": {
+            "gain_dbi": 37.6146,
+            "diameter_over_lambda": 30.02077
+          },
+          "tol_pct": 0.5,
+          "source": "A 300 mm lens at 30 GHz is 30.02 wavelengths across; at 0.65 aperture efficiency the gain is 37.61 dBi."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "D": 0.3
+          },
+          "expect": {
+            "scan_loss_db": 0.0
+          },
+          "tol_abs": 1e-12,
+          "source": "Spherical symmetry makes every scan angle identical. Expectation of zero, so an absolute tolerance."
+        }
+      ],
+      "references": [
+        "Luneburg, Mathematical Theory of Optics, Brown University 1944",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 9.7"
+      ]
+    },
+    {
+      "key": "fresnel_zone_plate",
+      "name": "Fresnel zone plate",
+      "family": "lens",
+      "summary": "Flat plate of concentric zones that focuses by diffraction rather than refraction: cheap, thin, and inefficient.",
+      "freq_range_hz": [
+        1000000000.0,
+        1000000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "F",
+          "name": "focal length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.15"
+        },
+        {
+          "symbol": "M",
+          "name": "number of zones",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "4"
+        },
+        {
+          "symbol": "phase_levels",
+          "name": "phase quantisation levels",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1",
+          "description": "1 = opaque (Soret) amplitude plate, 2 = half-wave phase reversal, 4 = quarter-wave stepped"
+        },
+        {
+          "symbol": "r_outer",
+          "name": "outer zone radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "r_first",
+          "name": "first zone radius",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "r_first",
+          "expr": "sqrt(1*(c/f0)*F + (1*(c/f0)/2)**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "F"
+          ],
+          "notes": "Exact zone radius r_m = sqrt(m*lambda*F + (m*lambda/2)^2), from the condition that the path to the focus differs by m*lambda/2 between zone edges. The second term matters when F is only a few wavelengths."
+        },
+        {
+          "output": "r_outer",
+          "expr": "sqrt(M*(c/f0)*F + (M*(c/f0)/2)**2)",
+          "units_out": "m",
+          "depends_on": [
+            "M",
+            "f0",
+            "F"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "aperture_diameter_m",
+          "expr": "2*r_outer",
+          "units_out": "m",
+          "depends_on": [
+            "r_outer"
+          ]
+        },
+        {
+          "metric": "f_over_d",
+          "expr": "F/(2*r_outer)",
+          "units_out": "-",
+          "depends_on": [
+            "F",
+            "r_outer"
+          ]
+        },
+        {
+          "metric": "focusing_efficiency",
+          "expr": "1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2)",
+          "units_out": "-",
+          "depends_on": [
+            "phase_levels"
+          ],
+          "notes": "First-order diffraction efficiency. An opaque Soret plate blocks half the aperture and scatters most of the rest: 1/pi^2 = 10.1%. Reversing the phase instead of blocking it gives 4/pi^2 = 40.5%, and a four-level stepped plate 8/pi^2 = 81.1%. These are the standard binary and multilevel grating efficiencies."
+        },
+        {
+          "metric": "focusing_efficiency_db",
+          "expr": "db10(1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2))",
+          "units_out": "dB",
+          "depends_on": [
+            "phase_levels"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10((1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2))*(pi*2*r_outer*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "phase_levels",
+            "r_outer",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10((pi*2*r_outer*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "r_outer",
+            "f0"
+          ],
+          "notes": "the same aperture, perfectly illuminated"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/(2*r_outer)",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "r_outer"
+          ],
+          "notes": "the beamwidth is set by the aperture, and is unaffected by the poor efficiency"
+        },
+        {
+          "metric": "outer_zone_width_m",
+          "expr": "sqrt(M*(c/f0)*F + (M*(c/f0)/2)**2) - sqrt((M-1)*(c/f0)*F + ((M-1)*(c/f0)/2)**2)",
+          "units_out": "m",
+          "depends_on": [
+            "M",
+            "f0",
+            "F"
+          ],
+          "notes": "The narrowest feature, and what sets the manufacturing tolerance. Zones get tighter outward, so a large plate is limited by the finest ring, not the biggest."
+        },
+        {
+          "metric": "fractional_bandwidth_estimate",
+          "expr": "1.0/M",
+          "units_out": "-",
+          "notes": "INDICATIVE. The zone radii are only correct at one frequency, and the focus blurs roughly as 1/M either side. A zone plate is a narrowband device."
+        }
+      ],
+      "validity": [
+        "diffractive, so the design is correct at one frequency and degrades either side",
+        "efficiency figures are the standard first-order grating results, not full-wave computed - they ignore the finite thickness of a real phase plate and its shadowing at angle",
+        "higher diffraction orders carry the remaining power into spurious foci, and those are real stray-signal paths",
+        "the outermost zone width sets manufacturability and must stay comfortably above the etching or machining tolerance"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 1
+          },
+          "expect": {
+            "r_first": 0.03905125,
+            "r_outer": 0.08
+          },
+          "tol_pct": 0.2,
+          "source": "At 30 GHz (lambda = 9.993 mm) with F = 150 mm: r1 = sqrt(lambda*F + (lambda/2)^2) = 39.051 mm and r4 = 80.000 mm."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 1
+          },
+          "expect": {
+            "focusing_efficiency": 0.10132118,
+            "focusing_efficiency_db": -9.943
+          },
+          "tol_pct": 0.5,
+          "source": "An opaque Soret plate reaches 1/pi^2 = 0.1013, a 9.94 dB penalty against a filled aperture."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 2
+          },
+          "expect": {
+            "focusing_efficiency": 0.40528473
+          },
+          "tol_pct": 0.5,
+          "source": "Reversing the phase of alternate zones rather than blocking them gives 4/pi^2 = 0.4053 - four times the Soret plate, for the same outline."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 4
+          },
+          "expect": {
+            "focusing_efficiency": 0.81056947
+          },
+          "tol_pct": 0.5,
+          "source": "Four phase levels reach 8/pi^2 = 0.8106, approaching a refractive lens"
+        }
+      ],
+      "references": [
+        "Hristov, Fresnel Zones in Wireless Links, Zone Plate Lenses and Antennas, Artech 2000",
+        "Born & Wolf, Principles of Optics, Ch. 8 (zone construction)",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 9.6"
+      ]
+    },
+    {
+      "key": "metal_plate_lens",
+      "name": "Metal-plate (constrained) lens",
+      "family": "lens",
+      "summary": "Stacked parallel plates whose guide index is below one, so the collimating surface is concave instead of convex.",
+      "freq_range_hz": [
+        1000000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "plate_spacing_over_lambda",
+          "name": "plate spacing",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.6",
+          "description": "must exceed 0.5 for the TE10 parallel-plate mode to propagate"
+        },
+        {
+          "symbol": "F",
+          "name": "focal length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "theta_rim_deg",
+          "name": "rim angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "30.0"
+        },
+        {
+          "symbol": "eta_ill",
+          "name": "illumination efficiency",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.75"
+        },
+        {
+          "symbol": "plate_spacing",
+          "name": "plate spacing",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "n_index",
+          "name": "guide index",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "r_rim",
+          "name": "focus-to-rim distance",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "D_ap",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "plate_spacing",
+          "expr": "plate_spacing_over_lambda*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "plate_spacing_over_lambda",
+            "f0"
+          ]
+        },
+        {
+          "output": "n_index",
+          "expr": "sqrt(1 - (1/(2*plate_spacing_over_lambda))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "plate_spacing_over_lambda"
+          ],
+          "notes": "n = sqrt(1 - (lambda/2a)^2), the TE10 parallel-plate phase index. It is BELOW one, because the guided phase velocity exceeds c - the defining oddity of this lens."
+        },
+        {
+          "output": "r_rim",
+          "expr": "(1 - n_index)*F/(1 - n_index*cos(rad(theta_rim_deg)))",
+          "units_out": "m",
+          "depends_on": [
+            "n_index",
+            "F",
+            "theta_rim_deg"
+          ],
+          "notes": "Same equal-path construction as the dielectric lens, but with n < 1 the conic becomes an ELLIPSE rather than a hyperbola, and the lens is concave toward the feed."
+        },
+        {
+          "output": "D_ap",
+          "expr": "2*r_rim*sin(rad(theta_rim_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "r_rim",
+            "theta_rim_deg"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "eccentricity",
+          "expr": "n_index",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "below 1, so the surface is an ellipse"
+        },
+        {
+          "metric": "cutoff_frequency_hz",
+          "expr": "c/(2*plate_spacing)",
+          "units_out": "Hz",
+          "depends_on": [
+            "plate_spacing"
+          ],
+          "notes": "the parallel-plate TE10 cutoff; below it nothing propagates between the plates"
+        },
+        {
+          "metric": "zoning_step_m",
+          "expr": "(c/f0)/(1 - n_index)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "n_index"
+          ],
+          "notes": "Thickness that adds one wavelength of differential path, so the lens can be stepped back by this much without changing the phase front. Zoning is what keeps a metal-plate lens thin, and it is also what makes it narrowband."
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "eta_ill",
+          "units_out": "-",
+          "depends_on": [
+            "eta_ill"
+          ],
+          "notes": "No dielectric reflection term: the plates are matched by flaring or by a matching section, not by Fresnel transmission"
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(eta_ill*(pi*D_ap*f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "eta_ill",
+            "D_ap",
+            "f0"
+          ]
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "70.0*(c/f0)/D_ap",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "D_ap"
+          ]
+        },
+        {
+          "metric": "index_sensitivity_per_percent_freq",
+          "expr": "((1/(2*plate_spacing_over_lambda))**2/n_index)*0.01",
+          "units_out": "-",
+          "depends_on": [
+            "plate_spacing_over_lambda",
+            "n_index"
+          ],
+          "notes": "dn per 1% frequency change. The index is strongly dispersive near cutoff, which is the metal-plate lens's real weakness: a few percent of bandwidth unless the plates are spaced well above cutoff, and that drives n toward 1 and the lens toward being flat and useless."
+        },
+        {
+          "metric": "f_over_d",
+          "expr": "F/D_ap",
+          "units_out": "-",
+          "depends_on": [
+            "F",
+            "D_ap"
+          ]
+        }
+      ],
+      "validity": [
+        "plate spacing above lambda/2, strictly, or the guide is cut off",
+        "spacing below lambda keeps the next mode out",
+        "strongly dispersive: usable bandwidth is a few percent unquoted, and zoning makes it worse",
+        "ray optics, and the plate edges diffract - the model ignores both edge effects and the flare needed to match the plates to free space"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "plate_spacing_over_lambda": 0.6,
+            "F": 0.3,
+            "theta_rim_deg": 30.0
+          },
+          "expect": {
+            "n_index": 0.5527708,
+            "plate_spacing": 0.01798755,
+            "cutoff_frequency_hz": 8333333333.33
+          },
+          "tol_pct": 0.2,
+          "source": "Plates 0.6 wavelengths apart at 10 GHz: 17.99 mm, cutoff 8.333 GHz, and n = sqrt(1 - (1/1.2)^2) = 0.552771 - well below unity."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "plate_spacing_over_lambda": 0.6,
+            "F": 0.3,
+            "theta_rim_deg": 30.0
+          },
+          "expect": {
+            "eccentricity": 0.5527708
+          },
+          "tol_pct": 0.2,
+          "source": "The surface is an ellipse of eccentricity n = 0.5528, the mirror of the dielectric lens's hyperbola of eccentricity n > 1"
+        }
+      ],
+      "references": [
+        "Kock, Metal-lens antennas, Proc. IRE 34(11), 1946",
+        "Silver, Microwave Antenna Theory and Design, MIT Rad Lab vol. 12, Ch. 11",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 9.4"
+      ]
+    }
+  ]
+}

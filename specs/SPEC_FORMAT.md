@@ -46,4 +46,14 @@ The implementation is generated against it, so unit discipline is not optional.
 - Parameter `role` is one of: `requirement` (no default, ever), `geometry`, `material` or `assumption` (both auto-default from a numeric `typical`), `derived`.
 - `freq_range_hz` is the honest validity band, not the band someone could force it into.
 - Prefer closed-form engineering formulas with stated accuracy over hand-waving. If a quantity genuinely needs a numerical solve, say so in `notes` and give the defining equation.
+- `tol_abs` applies to EVERY expectation in its case, not just the zero one. Put a
+  zero expectation in its own `known_cases` entry, or it will drag a perfectly good
+  non-zero expectation into a 1e-9 comparison and fail it.
+- Prefer expressions that stay correct in their limits. Clamping an `acos` argument at
+  0 rather than -1 made the travelling-wave directivity return 1.5 for a short wire —
+  the exact uniform-current dipole value — instead of zero. A formula that degrades
+  gracefully outside its band is worth more than one that needs a guard.
+- Compute the numbers for `known_cases` with a short independent script, not by hand.
+  Hand arithmetic was the single largest source of false failures while this catalogue
+  was being written; the formulas were nearly always right and the expectations were not.
 - If you are unsure of a coefficient, mark the archetype `"confidence": "low"` and say why in `notes`. Do NOT invent precision.

@@ -4,8 +4,8 @@ An open reimplementation of the Antenna Magus workflow: state electrical
 requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
-Built across four sessions on 2026-09-13/14. **40 archetypes, 8 families,
-5,977 lines of Python, 7,948 lines of spec data, 644 tests, 241/241 citable
+Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
+6,031 lines of Python, 14,835 lines of spec data, 925 tests, 423/423 citable
 known cases passing.**
 
 ---
@@ -15,7 +15,7 @@ known cases passing.**
 | Area | Module | Contents |
 |---|---|---|
 | Engine | `otahub/core/` | Spec model, whitelisted AST evaluator, partial synthesis solver, registry, first-principles pattern maths |
-| Catalogue | `specs/*.json` | 40 archetypes across wire, loop, patch, horn, reflector, travelling-wave, UWB, slot |
+| Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
 | Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; array factor, steering, grating-lobe limits |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching |
@@ -77,12 +77,43 @@ exactly N. Binomial arrays have no sidelobes at all.
 
 ---
 
+### Results derived here rather than quoted
+
+Session 5 added archetypes whose key numbers are not in any table I could cite,
+so they were computed and then checked against an independent model before
+being written into a spec.
+
+| Archetype | Result | Independent check |
+|---|---|---|
+| `long_wire_travelling` | Rr = (η/2π)[γ + ln(2kl) − Ci(2kl) − 1 + sin(2kl)/(2kl)], integrated from the pattern | Matches quadrature at every length tested; reduces to 80π²(l/λ)² as l → 0 |
+| `dipole_over_ground` | Zenith directivity from image theory with exact mutual impedance | Hemisphere integration agrees to five digits; mutual Z reproduces −12.5 −j29.9 Ω at d = λ/2 |
+| `turnstile_dipole` | On-axis D equals a single dipole's; element plane exactly 3 dB down | Spherical integration of the summed-power pattern |
+| `v_antenna_travelling`, `rhombic` | Axial directivity fitted to a four-leg travelling-wave model | 1.3% max fit error over 1.5–12 λ; axial lobe confirmed to be the global peak at the design angle |
+| `corner_reflector_90`, `corner_reflector_60` | Image array factors | Summed field leaves ~1e-15 tangential E on the plates |
+| `diagonal_horn` | Aperture efficiency 8/π² = 0.8106 | Aperture integration on a 2001² grid: 0.8110 |
+| `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
+| `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
+
+**These fits are only as good as the model behind them.** Each is a
+closed-form or ray-optics idealisation, not a full-wave result, and the
+validity block on each archetype says where it stops.
+
+---
+
 ## 4. What is NOT verified — read this before trusting a number
 
-### Seven archetypes are marked low confidence
+### Nine archetypes are marked low confidence
 
-`ferrite_rod_loop`, `halo_loop`, `pifa`, `cassegrain`,
-`waveguide_longitudinal_slot`, `planar_monopole_circular`, `vivaldi_tsa`.
+`cassegrain`, `conical_horn_dual_mode`, `ferrite_rod_loop`, `halo_loop`,
+`pifa`, `planar_monopole_circular`, `stacked_patch`, `vivaldi_tsa`,
+`waveguide_longitudinal_slot`.
+
+Two of those are new in session 5 and both are honest about why:
+`stacked_patch`'s bandwidth multiplier is an expectation drawn from published
+designs rather than a computed result, and `conical_horn_dual_mode`'s
+efficiency, cross-polar level and beamwidth constant are placed by analogy
+with its neighbouring horns. In the Potter horn only the two mode cutoff
+diameters are exact — they are Bessel zeros.
 
 They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
@@ -104,6 +135,19 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   optimum-σ line; expect ~1 dB error.
 - **Taylor taper** realises its design sidelobe level to about 1 dB for small
   arrays (−28.9 dB measured for a 20-element −30 dB design).
+- **`rectangular_dra`'s radiation Q is borrowed**, not derived: it is the
+  hemispherical DRA's exact result reused. Shape matters less than permittivity
+  here — the cylindrical archetype's independent fit sits within 6% of the
+  hemisphere's at εr = 10 — but aspect ratio moves a rectangular DRA's Q by
+  considerably more than that.
+- **`rectangular_dra`'s resonance uses an all-magnetic-wall model**, whose
+  algebra is exact and whose physical assumption is not: it predicts f₀ high by
+  roughly 10–20%. The spec says so in a dedicated note.
+- **`discone` and `conical_monopole` rest on engineering conventions** — the
+  quarter-wavelength slant and the decade bandwidth figure — not on derivations.
+- **Fresnel zone plate efficiencies** (1/π², 4/π², 8/π²) are the standard
+  first-order grating results. They ignore a real phase plate's finite thickness
+  and its shadowing at angle.
 
 ### Metrics labelled "indicative"
 
@@ -146,13 +190,35 @@ Spec errors the harness caught include a loop loss resistance out by **30.9×**,
 another by 3.3×, and several of my own arithmetic slips (WR-90 open-ended gain,
 Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
 
+### Errors found in already-shipped specs during session 5
+
+These had been passing their own tests since session 1, which is the point: a
+known case only checks what it asserts.
+
+| Spec | Error |
+|---|---|
+| `corner_reflector_90` | Array factor `4·sin²(kS)` put a **null at S = λ/2, where the optimum actually is**. Image theory gives `2[1−cos(kS)]`; the null is at S = λ. It also used a field factor as a power factor and ignored the mutual coupling that sets the feed resistance. Rebuilt as a four-element image array; it now returns the textbook ~12 dBi |
+| `short_dipole` | `20π²(L/λ)²` was labelled the uniform-current value. It is the triangular one. The second metric then quartered an already-triangular value, **under-reporting a real short dipole by 4×** |
+| `cassegrain` | `magnification` was a hard-coded `1.0` placeholder |
+
+### Test-guard and CLI bugs found in session 5
+
+| Bug | Consequence |
+|---|---|
+| `_bounds_for` matched substring before suffix | `efficiency_db` was bounded to [0,1], failing any negative decibel value |
+| dBi floor rejected genuine nulls | A dipole λ/2 over ground has an exact zenith null and reported −310 dBi |
+| Degree bound assumed unsigned angles | A beam angle measured from broadside is negative when it scans the other way |
+| `array --sll 30` raised | The commoner spelling of "30 dB sidelobes" hit an unhandled `ValueError`; either sign is now accepted |
+
 ---
 
 ## 6. Recommended next steps
 
 1. **Execution-test the exporters** against real CST and HFSS installations.
-   This is the biggest gap. Start with `half_wave_dipole` (simplest geometry,
-   strongest analytical reference: 73.08 + j42.52 Ω at λ/2).
+   This is the biggest gap, and session 5 did not touch it — the catalogue grew
+   by 32 archetypes while the exporter still builds geometry for 7. Start with
+   `half_wave_dipole` (simplest geometry, strongest analytical reference:
+   73.08 + j42.52 Ω at λ/2).
 2. **Close the inset-patch discrepancy** — decide whether the 228.35 Ω
    published figure or the 212.5 Ω direct integration is right.
 3. **Add geometry builders** for horns and Yagi-Uda; both have unambiguous
@@ -164,6 +230,14 @@ Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
    already supports them.
 6. **Touchstone import** so measured or simulated S-parameters can be read
    back and compared against predictions.
+7. **Re-audit the session 1–4 specs the way session 5 audited three of them.**
+   Every archetype passes the cases it declares; that is not the same as being
+   right. `corner_reflector_90` had a null where its optimum is and said so
+   confidently for four sessions. The archetypes carrying a single known case
+   are the place to start.
+8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve, and its
+   magnetic-wall resonance with the dielectric-waveguide transcendental. The
+   machinery used for the hemispherical DRA transfers directly.
 
 ---
 
@@ -177,5 +251,15 @@ Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
   never do**, because inventing a design target changes the antenna.
 - Every archetype needs at least one citable `known_case`, or nothing about it
   is verifiable.
-- Expectations of zero must use `tol_abs`.
+- Expectations of zero must use `tol_abs`, **in their own known case** — the
+  tolerance applies to every expectation in the case, and will otherwise drag a
+  good non-zero value into a 1e-9 comparison.
 - Anything indicative rather than derived must say so in its `notes`.
+- Compute `known_cases` expectations with a short independent script, never by
+  hand. Across session 5 the formulas were nearly always right and my hand
+  arithmetic was wrong about a dozen times; the one family whose expectations
+  were computed programmatically landed with zero failures on the first run.
+- Prefer expressions that stay correct in their limits over expressions that
+  need a guard. Clamping an `acos` argument at 0 rather than −1 made the
+  travelling-wave directivity return 1.5 for a short wire — the exact
+  uniform-current dipole value — instead of zero.

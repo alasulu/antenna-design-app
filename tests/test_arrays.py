@@ -174,3 +174,31 @@ def test_summarise_reports_a_consistent_picture():
     assert s["sidelobe_db"] == pytest.approx(-25.0, abs=0.05)
     assert not s["grating_lobe"]
     assert s["directivity_dbi"] < 10 * math.log10(16)   # taper costs directivity
+
+
+# --------------------------------------------------------------------- CLI
+# `--sll 30` is how almost everyone says "30 dB sidelobes", and it used to hit
+# an unhandled ValueError from the taper. A sidelobe above the main beam is not
+# a thing, so either sign is accepted.
+
+def _run_cli(argv):
+    from otahub.cli.main import main
+    return main(argv)
+
+
+@pytest.mark.parametrize("sll", ["30", "-30", "45", "-45"])
+def test_array_command_accepts_either_sidelobe_sign(sll, capsys):
+    assert _run_cli(["array", "-n", "8", "--taper", "chebyshev", "--sll", sll]) == 0
+    out = capsys.readouterr().out
+    want = -abs(float(sll))
+    assert f"{want:.1f} dB design" in out
+    # and the synthesised pattern really does hit the design level
+    assert f"first sidelobe     {want:.2f} dB" in out
+
+
+def test_array_command_reports_impossible_taper_cleanly(capsys):
+    """A taper that cannot be synthesised must not raise a traceback."""
+    rc = _run_cli(["array", "-n", "1", "--taper", "chebyshev", "--sll", "30"])
+    assert rc in (0, 1)
+    if rc == 1:
+        assert "cannot synthesise" in capsys.readouterr().err

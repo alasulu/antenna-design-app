@@ -19,6 +19,24 @@ python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
 ```
 
+## The catalogue
+
+72 archetypes across 10 families, every one carrying citable `known_cases` that
+run as tests:
+
+| Family | n | Contents |
+|---|---|---|
+| `wire` | 11 | dipoles (including arbitrary-length and over-ground, solved exactly in Si/Ci), monopoles, loaded and top-loaded verticals, folded dipole, biconical, turnstile |
+| `patch` | 9 | rectangular, inset-fed, circular, triangular, annular ring, quarter-wave shorted, truncated-corner CP, PIFA, stacked |
+| `loop` | 8 | small circular and square, multi-turn, ferrite rod, resonant loop, quad, halo, Alford |
+| `horn` | 8 | pyramidal, E- and H-plane sectoral, conical, corrugated, diagonal, dual-mode (Potter), open-ended guide |
+| `travelling_wave` | 8 | Yagi-Uda, LPDA, axial and normal-mode helix, terminated long wire, V, rhombic, leaky-wave line source |
+| `uwb` | 8 | bowtie, planar monopoles, Archimedean and equiangular spirals, Vivaldi, discone, conical monopole |
+| `reflector` | 7 | prime-focus and offset parabolic, Cassegrain, Gregorian, parabolic cylinder, 90- and 60-degree corner |
+| `slot` | 6 | half-wave, cavity-backed, folded, waveguide longitudinal, resonant and travelling-wave slot arrays |
+| `lens` | 4 | plano-hyperbolic dielectric, Luneburg, Fresnel zone plate, metal-plate |
+| `dielectric` | 3 | cylindrical, hemispherical and rectangular resonator antennas |
+
 ## The central design decision: archetypes are data, not code
 
 An antenna archetype is a JSON document under [`specs/`](specs/) — its
@@ -94,8 +112,7 @@ python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 
 ## Requirements
 
-Python 3.10+, numpy, scipy, matplotlib. `pytest` for the suite; `PySide6` for
-the GUI once it lands.
+Python 3.10+, numpy, scipy, matplotlib. `pytest` for the suite; `PySide6` for the GUI.
 
 ## Export to simulators
 
@@ -116,7 +133,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 644 tests
+python -m pytest tests/ -q                # 925 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
@@ -126,3 +143,23 @@ resistance), 14.4 (circular patch radius); Pozar 5.1 (L-section) and 5.2
 (single-stub tuner); Kraus helix; Viezbicke NBS Yagi gains; WR-90 datasheet
 cutoff, attenuation and power. Dolph-Chebyshev sidelobes match their design
 level to 0.000 dB.
+
+Several archetypes carry results derived here rather than quoted, each checked
+against an independent numerical model before being written into a spec:
+
+| Result | How it was obtained | Check |
+|---|---|---|
+| Travelling-wave wire radiation resistance | Integrated the pattern analytically | Reduces to 80π²(l/λ)² as l → 0 |
+| Dipole over ground | Image theory with exact mutual impedance | Hemisphere integration, to 5 digits |
+| Turnstile directivity | Summed-power spherical integration | 1.64092 on axis, exactly a single dipole |
+| V and rhombic directivity | Four-leg travelling-wave model, fitted | 1.3% max fit error over 1.5–12 λ |
+| Corner reflector image sets | Boundary condition on the plates | 1e-15 residual tangential E |
+| Diagonal horn aperture efficiency | Aperture integration | 8/π² = 0.8106 analytic vs 0.8110 numeric |
+| Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
+| Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
+
+Cross-checks between independently written specs are the useful kind, and
+several hold to machine precision: the slot array's guide conductance equals
+`waveguide_longitudinal_slot`'s; `conical_monopole`'s impedance is exactly half
+`biconical`'s at the same flare angle; the Potter horn's mode cutoff diameters
+agree with the circular waveguide module's Bessel zeros.

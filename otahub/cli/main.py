@@ -368,15 +368,24 @@ def cmd_array(args: argparse.Namespace, reg: Registry) -> int:
     if taper not in TAPERS:
         print(f"unknown taper {taper!r}; choose from {', '.join(TAPERS)}", file=sys.stderr)
         return 1
+    # "30 dB sidelobes" and "-30 dB sidelobes" mean the same thing to everyone
+    # who says it out loud, and a sidelobe ABOVE the main beam is not a thing,
+    # so accept either sign rather than raising on the commoner spelling.
+    sll = -abs(args.sll)
     if taper in ("chebyshev", "taylor"):
-        weights = TAPERS[taper](args.n, args.sll)
+        try:
+            weights = TAPERS[taper](args.n, sll)
+        except ValueError as exc:
+            print(f"cannot synthesise that taper: {exc}", file=sys.stderr)
+            return 1
     elif taper == "cosine":
         weights = TAPERS[taper](args.n, args.pedestal)
     else:
         weights = TAPERS[taper](args.n)
 
     s = summarise(weights, args.d, args.scan)
-    print(f"{args.n}-element linear array, {taper} taper, d = {args.d:.3f} lambda, "
+    design = f", {sll:.1f} dB design" if taper in ("chebyshev", "taylor") else ""
+    print(f"{args.n}-element linear array, {taper} taper{design}, d = {args.d:.3f} lambda, "
           f"scan {args.scan:.1f} deg")
     print(f"\n  directivity        {s['directivity_dbi']:.2f} dBi")
     print(f"  half-power beam    {s['hpbw_deg']:.3f} deg")
@@ -494,7 +503,9 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("-n", type=int, default=16, help="element count")
     pa.add_argument("--taper", default="chebyshev",
                     help="uniform | binomial | chebyshev | taylor | cosine")
-    pa.add_argument("--sll", type=float, default=-30.0, help="design sidelobe level in dB")
+    pa.add_argument("--sll", type=float, default=-30.0,
+                    help="design sidelobe level in dB below the main beam; "
+                         "either sign accepted, so 30 and -30 both mean 30 dB down")
     pa.add_argument("--d", type=float, default=0.5, help="spacing in wavelengths")
     pa.add_argument("--scan", type=float, default=90.0,
                     help="beam direction from the array axis, 90 = broadside")

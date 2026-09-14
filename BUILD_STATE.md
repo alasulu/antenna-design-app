@@ -121,10 +121,69 @@ session. The 01:12 run, if it still fires, should pick up **S3 (GUI)**. S4
 - DesignResult.get() could not see requirements; the engine did not record units for
   the lambda0 and k0 it derives itself. Both fixed.
 
-## BUILD COMPLETE
+## Completed in S5 (catalogue breadth)
 
-All four sessions done. 40 archetypes, 8 families, 400 tests, 241/241 known cases.
-See `docs/HANDOVER.md` for what is verified, what is not, and recommended next steps.
+Ran on the user's `Continue` after the three scheduled runs. Scope followed the
+original build-order choice: breadth of archetypes first.
 
-The largest untested surface: neither exporter has been run against a real CST or
-HFSS installation. Structurally validated only.
+- 40 -> 72 archetypes, 8 -> 10 families. 925 tests, 423/423 known cases.
+- New families: `lens` (plano-hyperbolic dielectric, Luneburg, Fresnel zone plate,
+  metal-plate) and `dielectric` (hemispherical and rectangular DRAs, plus
+  `cylindrical_dra` moved out of `reflector` where it never belonged).
+- Extended: wire +5, travelling_wave +4, reflector +4, patch +5, slot +3, uwb +3,
+  horn +2.
+- Evaluator gained Bessel functions of the second kind, needed for the annular
+  ring's exact resonance condition.
+
+## Errors found in SHIPPED specs during S5
+
+- `corner_reflector_90` had AF = 4*sin^2(kS), putting a null at S = lambda/2 where
+  the optimum actually is. Image theory gives 2*[1-cos(kS)]; the null is at
+  S = lambda. It also used a field factor as a power factor and ignored the mutual
+  coupling that sets the feed resistance. Rebuilt; now returns the textbook ~12 dBi.
+- `short_dipole` labelled 20*pi^2*(L/lambda)^2 as the uniform-current value. It is
+  the triangular one. The second metric then quartered an already-triangular value,
+  under-reporting a real short dipole by 4x.
+- `cassegrain` carried `magnification = 1.0` as a hard-coded placeholder.
+
+## Test-guard bugs found in S5
+
+- `_bounds_for` classified by substring before suffix, so `efficiency_db` was
+  bounded to [0,1] and any negative decibel value failed.
+- The dBi floor rejected genuine pattern nulls; a dipole lambda/2 over ground has
+  an exact zenith null and reported -310 dBi.
+- The degree bound assumed angles are unsigned. A beam angle measured from
+  broadside is negative when the beam scans the other way.
+
+## CLI bug found in S5
+
+- `array --sll 30`, which is how everyone says "30 dB sidelobes", hit an unhandled
+  ValueError. Either sign is now accepted, and an unsynthesisable taper reports
+  cleanly instead of raising.
+
+## Lessons that generalise (S5)
+
+- **Hand arithmetic was the single biggest source of false failures.** The formulas
+  were nearly always right; my expected values were not. Roughly a dozen known
+  cases failed on my arithmetic alone. Compute expectations with a short
+  independent script instead - once I did that for the lens family, it landed with
+  zero failures on the first run.
+- **String-interpolating expressions needs parentheses.** Splicing the guide
+  wavelength in unparenthesised made `(c/f0)/LAMG` parse as `1/sqrt(...)`,
+  inverting lambda0/lambda_g and inflating a conductance by 76%.
+- **Check which branch a root-finder landed on.** The hemispherical DRA took three
+  attempts: the first two converged on higher-order modes and produced a Q that
+  fell with permittivity, which is physically backwards. Scanning for the FIRST
+  peak of the Mie coefficient fixed it, and the result then independently
+  reproduced the published eps_r^1.3 scaling.
+- **Physical sanity checks catch what algebra does not.** A V antenna modelled with
+  both legs carrying outward current has an exact null on its axis. It is a flared
+  transmission line: the return conductor's current runs against propagation.
+
+## BUILD STATE
+
+S1-S5 done. 72 archetypes, 10 families, 925 tests, 423/423 known cases.
+See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
+
+The largest untested surface is unchanged: neither exporter has been run against a
+real CST or HFSS installation. Structurally validated only.

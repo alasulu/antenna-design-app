@@ -1,0 +1,604 @@
+{
+  "family": "dielectric",
+  "archetypes": [
+    {
+      "key": "cylindrical_dra",
+      "name": "Cylindrical dielectric resonator antenna (HE11)",
+      "family": "dielectric",
+      "summary": "Low-loss dielectric puck on a ground plane, radiating in the broadside HE11 mode.",
+      "freq_range_hz": [
+        500000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "relative permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "10"
+        },
+        {
+          "symbol": "aspect",
+          "name": "radius/height ratio a/h",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "a",
+          "name": "puck radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h",
+          "name": "puck height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "k0a",
+          "name": "normalised frequency",
+          "unit": "-",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "k0a",
+          "expr": "(6.324/np.sqrt(eps_r+2))*(0.27 + 0.36*(aspect/2) + 0.02*(aspect/2)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "Mongia & Bhartia curve fit for the HE11 mode of a cylindrical DRA on a ground plane, in terms of a/(2h). Stated accuracy about 2% over 0.4 < a/h < 6 and 8 < eps_r < 50."
+        },
+        {
+          "output": "a",
+          "expr": "k0a*c/(2*pi*f0)",
+          "units_out": "m",
+          "depends_on": [
+            "k0a",
+            "f0"
+          ]
+        },
+        {
+          "output": "h",
+          "expr": "(k0a*c/(2*pi*f0))/aspect",
+          "units_out": "m",
+          "depends_on": [
+            "k0a",
+            "f0",
+            "aspect"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "k0a*c/(2*pi*a)",
+          "units_out": "Hz",
+          "depends_on": [
+            "k0a",
+            "a"
+          ],
+          "notes": "forward check: must return f0"
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "Mongia & Bhartia radiation-Q fit. Q rises steeply with eps_r, which is the central trade: high permittivity shrinks the puck and narrows the bandwidth."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))*np.sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "aspect"
+          ],
+          "notes": "BW = (S-1)/(Q*sqrt(S)) with S = 2"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "Derived, not a placeholder: the HE11 mode radiates as a horizontal MAGNETIC dipole, whose image in a perfect ground plane is co-directed rather than reversed. That doubles the free-space 1.5 to exactly 3.0 in the upper half space. Measured DRAs land near 5 dBi, close to this 4.77, with the shortfall from finite ground planes."
+        },
+        {
+          "metric": "volume_mm3",
+          "expr": "pi*a**2*h*1e9",
+          "units_out": "mm^3",
+          "depends_on": [
+            "a",
+            "h"
+          ]
+        }
+      ],
+      "validity": [
+        "8 < eps_r < 50 and 0.4 < a/h < 6, the range the fits were derived over",
+        "infinite ground plane assumed",
+        "no conductor loss and no dielectric loss: real bandwidth is wider and efficiency lower than these figures suggest",
+        "feed coupling (probe, slot or microstrip) perturbs the resonance by a few percent and is not modelled"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "Self-consistency between the synthesis fit and the forward resonance relation. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "k0a": 0.83066
+          },
+          "tol_pct": 2.0,
+          "source": "eps_r = 10, a/h = 1: k0*a = (6.324/sqrt(12))*(0.27+0.18+0.005) = 0.8307. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 20.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "radiation_q": 18.7062
+          },
+          "tol_pct": 2.0,
+          "source": "eps_r = 20, a/h = 1: Q = 18.71, against 7.60 at eps_r = 10. Q scales as eps_r^1.3, so doubling permittivity raises Q by 2.46x and narrows the bandwidth correspondingly. Mongia & Bhartia, IJMWCAE 4(3), 1994"
+        }
+      ],
+      "references": [
+        "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
+        "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007",
+        "Directivity of 3.0 derived from magnetic-dipole image theory; cross-checked against the exact hemispherical solution in this family, which gives the same 3.0"
+      ]
+    },
+    {
+      "key": "hemispherical_dra",
+      "name": "Hemispherical dielectric resonator antenna",
+      "family": "dielectric",
+      "summary": "Dielectric hemisphere on a ground plane: the one DRA shape with an exact solution, and the reference the others are judged against.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "relative permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "10"
+        },
+        {
+          "symbol": "a",
+          "name": "hemisphere radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "k0a",
+          "name": "normalised frequency",
+          "unit": "-",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "k0a",
+          "expr": "2.89997*eps_r**(-0.48394)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r"
+          ],
+          "notes": "Fitted to EXACT TE111 resonances of the equivalent dielectric sphere, found by locating the first peak of the Mie magnetic-dipole coefficient b1. Maximum error 0.30% over 8 <= eps_r <= 50. The fitted exponent is almost exactly -1/2, which is the physical statement that the sphere holds about half an internal wavelength: sqrt(eps_r)*k0*a comes out near pi for every permittivity tested."
+        },
+        {
+          "output": "a",
+          "expr": "k0a*c/(2*pi*f0)",
+          "units_out": "m",
+          "depends_on": [
+            "k0a",
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "k0a*c/(2*pi*a)",
+          "units_out": "Hz",
+          "depends_on": [
+            "k0a",
+            "a"
+          ],
+          "notes": "forward check: must return f0"
+        },
+        {
+          "metric": "internal_half_wavelengths",
+          "expr": "k0a*sqrt(eps_r)/pi",
+          "units_out": "-",
+          "depends_on": [
+            "k0a",
+            "eps_r"
+          ],
+          "notes": "sqrt(eps_r)*k0*a / pi, which the exact solve puts between 0.957 and 0.983 across the whole range - the resonance really is 'one internal half wavelength across the diameter'"
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "0.38014*eps_r**1.32122",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r"
+          ],
+          "notes": "Fitted to the exact solve's Q = Re(x)/(2*|Im(x)|), taken from the half-power width of the Mie resonance. Maximum error 4.09% over 8 <= eps_r <= 50. The exponent 1.32 independently reproduces the eps_r^1.3 scaling this family's cylindrical archetype inherits from published curve fits - two unrelated routes to the same law."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r"
+          ],
+          "notes": "BW = (S-1)/(Q*sqrt(S)) at S = 2"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "Exactly 3.0, derived: the TE111 mode is a horizontal magnetic dipole, and a magnetic dipole's image in a perfect ground plane is co-directed, so the free-space 1.5 doubles into the upper half space."
+        },
+        {
+          "metric": "volume_mm3",
+          "expr": "(2/3)*pi*a**3*1e9",
+          "units_out": "mm^3",
+          "depends_on": [
+            "a"
+          ],
+          "notes": "hemisphere, so two thirds of the sphere"
+        },
+        {
+          "metric": "radius_over_lambda0",
+          "expr": "k0a/(2*pi)",
+          "units_out": "-",
+          "depends_on": [
+            "k0a"
+          ],
+          "notes": "0.151 at eps_r = 10, falling to 0.070 at eps_r = 50 - the size-versus-bandwidth trade, in one number"
+        },
+        {
+          "metric": "size_bandwidth_product",
+          "expr": "(k0a/(2*pi))*(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "k0a",
+            "eps_r"
+          ],
+          "notes": "Radius in wavelengths times fractional bandwidth. It falls steadily with permittivity, which is the honest summary: high permittivity buys size at a worse-than-linear cost in bandwidth."
+        }
+      ],
+      "validity": [
+        "8 <= eps_r <= 50 for the quoted fit accuracies; the fits were computed over 6 to 100 and degrade below 8",
+        "infinite perfectly conducting ground plane, which image theory requires",
+        "isolated resonator: a probe, slot or microstrip feed perturbs the resonance by a few percent and this spec does not model the feed",
+        "lossless dielectric. A real material's tan_d adds an unloaded Q in parallel, widening the bandwidth and lowering the efficiency",
+        "TE111 only; higher modes exist and are not tracked"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0
+          },
+          "expect": {
+            "k0a": 0.95112,
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "Exact TE111 resonance of the equivalent sphere, from the first peak of the Mie b1 coefficient: k0*a = 0.95112 at eps_r = 10. The fitted formula gives 0.95160, 0.05% away."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0
+          },
+          "expect": {
+            "radiation_q": 8.0385
+          },
+          "tol_pct": 5.0,
+          "source": "Exact Q from the half-power width of the same resonance: 8.0385. This toolkit's cylindrical DRA, which takes its Q from published Mongia fits rather than from Mie theory, gives 7.60 at the same permittivity - two independent routes agreeing within 6%."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 20.0
+          },
+          "expect": {
+            "k0a": 0.67989,
+            "radiation_q": 20.0143
+          },
+          "tol_pct": 5.0,
+          "source": "At eps_r = 20 the exact values are k0*a = 0.67989 and Q = 20.014. Doubling the permittivity from 10 shrinks the radius by 28% and raises Q by 2.49 times - the eps_r^1.3 law, reproduced here from first principles rather than assumed."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 40.0
+          },
+          "expect": {
+            "k0a": 0.48687,
+            "radiation_q": 49.3689
+          },
+          "tol_pct": 5.0,
+          "source": "eps_r = 40: k0*a = 0.48687, Q = 49.37, so the bandwidth has fallen to 1.4%. The high-permittivity end of the trade."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0
+          },
+          "expect": {
+            "internal_half_wavelengths": 0.9575
+          },
+          "tol_pct": 2.0,
+          "source": "sqrt(10)*0.95112/pi = 0.9575: the diameter really does hold close to one internal half wavelength, which is why the k0a exponent comes out at -0.484 rather than exactly -0.5"
+        }
+      ],
+      "references": [
+        "Leung, Luk, Lai & Lin, Theory and experiment of a coaxial probe fed hemispherical DRA, IEEE T-AP 41(10), 1993",
+        "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
+        "Bohren & Huffman, Absorption and Scattering of Light by Small Particles, Ch. 4 (Mie coefficients)",
+        "Resonances and Q computed here from the exact Mie solution and fitted over 6 <= eps_r <= 100"
+      ]
+    },
+    {
+      "key": "rectangular_dra",
+      "name": "Rectangular dielectric resonator antenna",
+      "family": "dielectric",
+      "summary": "Dielectric brick on a ground plane: two independent aspect ratios, so size and bandwidth can be traded without changing material.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "relative permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "10"
+        },
+        {
+          "symbol": "aspect_wd",
+          "name": "width/height ratio w/d",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "2.0"
+        },
+        {
+          "symbol": "aspect_Ld",
+          "name": "length/height ratio L/d",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "2.0"
+        },
+        {
+          "symbol": "d",
+          "name": "height above ground",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "w",
+          "name": "width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "Lr",
+          "name": "length",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "d",
+          "expr": "(pi/(2*pi*f0*sqrt(eps_r)/c))*sqrt(1/aspect_wd**2 + 1/aspect_Ld**2 + 0.25)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r",
+            "aspect_wd",
+            "aspect_Ld"
+          ],
+          "notes": "Inverted from the magnetic-wall condition eps_r*k0^2 = (pi/w)^2 + (pi/L)^2 + (pi/2d)^2 for TE111. The 2d in the last term is the ground plane: the brick behaves as half a resonator twice as tall."
+        },
+        {
+          "output": "w",
+          "expr": "aspect_wd*d",
+          "units_out": "m",
+          "depends_on": [
+            "aspect_wd",
+            "d"
+          ]
+        },
+        {
+          "output": "Lr",
+          "expr": "aspect_Ld*d",
+          "units_out": "m",
+          "depends_on": [
+            "aspect_Ld",
+            "d"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "(c/(2*pi*sqrt(eps_r)))*sqrt((pi/w)**2 + (pi/Lr)**2 + (pi/(2*d))**2)",
+          "units_out": "Hz",
+          "depends_on": [
+            "eps_r",
+            "w",
+            "Lr",
+            "d"
+          ],
+          "notes": "forward check: must return f0"
+        },
+        {
+          "metric": "k0_w",
+          "expr": "2*pi*f0*w/c",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "w"
+          ]
+        },
+        {
+          "metric": "volume_mm3",
+          "expr": "w*Lr*d*1e9",
+          "units_out": "mm^3",
+          "depends_on": [
+            "w",
+            "Lr",
+            "d"
+          ]
+        },
+        {
+          "metric": "equivalent_sphere_radius_m",
+          "expr": "(3*w*Lr*d/(4*pi))**(1.0/3.0)",
+          "units_out": "m",
+          "depends_on": [
+            "w",
+            "Lr",
+            "d"
+          ],
+          "notes": "radius of a sphere of the same volume, for comparing against the hemispherical archetype"
+        },
+        {
+          "metric": "radiation_q_indicative",
+          "expr": "0.38014*eps_r**1.32122",
+          "units_out": "-",
+          "notes": "BORROWED, not derived for this shape: it is the exact hemispherical DRA result from this family. Shape matters less than permittivity here - the cylindrical archetype's independent fit gives 7.60 at eps_r = 10 against the hemisphere's 8.04, under 6% apart - but aspect ratio moves a rectangular DRA's Q by considerably more than that. Treat as an order of magnitude.",
+          "depends_on": [
+            "eps_r"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_indicative",
+          "expr": "(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r"
+          ],
+          "notes": "from the borrowed Q, and no better than it"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "Exactly 3.0 for the same reason as the hemisphere: a horizontal magnetic dipole whose ground-plane image is co-directed."
+        },
+        {
+          "metric": "model_bias_note",
+          "expr": "1.0",
+          "units_out": "-",
+          "notes": "The all-magnetic-wall model is known to predict the resonant frequency HIGH, typically by 10 to 20 percent, because it assumes total internal confinement. Build slightly larger than this spec says, or solve the dielectric-waveguide transcendental for the transverse wavenumber."
+        }
+      ],
+      "validity": [
+        "MAGNETIC-WALL MODEL: it assumes perfect confinement on all faces and so overestimates f0 by roughly 10-20%. The algebra is exact; the physical assumption is not",
+        "the more accurate dielectric-waveguide model replaces one wavenumber with the root of ky*tan(ky*L/2) = sqrt((eps_r-1)*k0^2 - ky^2), which has no closed form and is not attempted here",
+        "infinite perfect ground plane",
+        "radiation Q is borrowed from the hemispherical solution and is indicative only",
+        "TE111 only"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "d": 0.00410508,
+            "w": 0.00821015,
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "Magnetic-wall algebra at eps_r = 10 with w = L = 2d: d = (pi/(k0*sqrt(eps_r)))*sqrt(1/4 + 1/4 + 1/4) = 4.1051 mm, so the brick is 8.2102 mm square. The forward check closing on 10 GHz confirms the inversion."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "k0_w": 1.720721
+          },
+          "tol_pct": 0.5,
+          "source": "k0*w = 1.72072. The hemispherical DRA at the same permittivity needs k0*a = 0.95112, so its DIAMETER is k0*2a = 1.902 - within 10% of this brick's width. Two different shapes at the same permittivity come out much the same size, which is the useful cross-check."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 3.0,
+            "aspect_Ld": 1.5
+          },
+          "expect": {
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "An asymmetric brick must still close on the design frequency - the check that the inversion handles unequal aspect ratios"
+        }
+      ],
+      "references": [
+        "Mongia & Ittipiboon, Theoretical and experimental investigations on rectangular DRAs, IEEE T-AP 45(9), 1997",
+        "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007, Ch. 3",
+        "Van Bladel, On the resonances of a dielectric resonator of very high permittivity, IEEE T-MTT 23(2), 1975"
+      ]
+    }
+  ]
+}
