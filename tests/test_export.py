@@ -21,6 +21,16 @@ CASES = {
     "rectangular_patch_inset": {"f0": 2.4e9, "eps_r": 4.4, "h": 1.6e-3, "Z_target": 50.0},
     "circular_patch": {"f0": 10e9, "eps_r": 2.2, "h": 1.588e-3},
     "open_ended_waveguide": {"f0": 10e9, "a_wg": 0.02286, "b_wg": 0.01016},
+    "folded_dipole": {"f0": 300e6, "N": 2, "aw": 1e-3},
+    "dipole_over_ground": {"f0": 300e6, "h_over_lambda": 0.25, "aw": 1e-3},
+    "turnstile_dipole": {"f0": 300e6, "aw": 1e-3},
+    "quarter_wave_shorted_patch": {"f0": 2.4e9, "eps_r": 4.4, "h": 1.6e-3},
+    "rectangular_dra": {"f0": 10e9, "eps_r": 10.0},
+    "cylindrical_dra": {"f0": 10e9, "eps_r": 10.0},
+    "hemispherical_dra": {"f0": 10e9, "eps_r": 10.0},
+    "conical_monopole": {"f_low": 1e9, "cone_half_angle_deg": 47.0},
+    "biconical": {"f0": 1e9},
+    "discone": {"f_low": 100e6},
 }
 
 
@@ -189,3 +199,87 @@ def test_notes_are_carried_into_both_backends(model):
     if model.notes:
         assert "NOTE:" in cst.render(model)
         assert "NOTE:" in hfss.render(model)
+
+
+# ------------------------------------------------- cones, spheres, booleans
+
+def test_boolean_operations_only_reference_solids_that_exist(model):
+    """A subtract naming a solid that was never created fails silently in both
+    tools: CST reports a missing object and HFSS raises inside the script."""
+    from otahub.export.base import Subtract
+
+    names = {s.name for s in model.solids}
+    for op in model.operations:
+        if isinstance(op, Subtract):
+            assert op.target in names, f"subtract target {op.target!r} is not a solid"
+            for tool in op.tools:
+                assert tool in names, f"subtract tool {tool!r} is not a solid"
+
+
+def test_boolean_operations_are_emitted_after_every_solid(model):
+    """Order matters: both backends operate on named objects, so a subtract
+    emitted before its operands is a runtime error in the simulator."""
+    from otahub.export.base import Subtract
+
+    subs = [op for op in model.operations if isinstance(op, Subtract)]
+    if not subs:
+        pytest.skip("no boolean operations in this model")
+    for text, marker in ((cst.render(model), "Solid.Subtract"),
+                         (hfss.render(model), "oEditor.Subtract")):
+        first_op = text.index(marker)
+        for solid in model.solids:
+            assert text.index(solid.name) < first_op, (
+                f"{solid.name} is created after the boolean that uses it")
+
+
+def test_cone_radii_reach_both_backends(registry):
+    from otahub.export.base import Cone
+
+    model = build(registry["discone"].synthesize(f_low=100e6))
+    cones = [s for s in model.solids if isinstance(s, Cone)]
+    assert cones, "the discone must contain a cone"
+    cone = cones[0]
+    assert cone.radius_start > 0 and cone.radius_end == 0, "apex should be a point"
+    vba, py = cst.render(model), hfss.render(model)
+    assert "With Cone" in vba and "Bottomradius" in vba and "Topradius" in vba
+    assert "CreateCone" in py and "BottomRadius:=" in py and "TopRadius:=" in py
+
+
+def test_sphere_radius_reaches_both_backends(registry):
+    from otahub.export.base import Sphere
+
+    model = build(registry["hemispherical_dra"].synthesize(f0=10e9, eps_r=10.0))
+    spheres = [s for s in model.solids if isinstance(s, Sphere)]
+    assert spheres, "the hemispherical DRA must contain a sphere"
+    radius_mm = spheres[0].radius * 1e3
+    assert f"{radius_mm:.6f}" in cst.render(model)
+    assert "CreateSphere" in hfss.render(model)
+
+
+def test_biconical_cones_are_mirror_images(registry):
+    from otahub.export.base import Cone
+
+    model = build(registry["biconical"].synthesize(f0=1e9))
+    upper, lower = [s for s in model.solids if isinstance(s, Cone)]
+    assert upper.radius_end == pytest.approx(lower.radius_start)
+    assert upper.span[1] - upper.span[0] == pytest.approx(lower.span[1] - lower.span[0])
+    assert upper.span[0] == pytest.approx(-lower.span[1])
+
+
+def test_turnstile_exports_two_ports(registry):
+    model = build(registry["turnstile_dipole"].synthesize(f0=300e6, aw=1e-3))
+    assert len(model.ports) == 2, "a turnstile needs both dipoles driven"
+    py = hfss.render(model)
+    assert py.count("AssignLumpedPort") == 2
+
+
+def test_dra_resonator_sits_on_the_ground_plane(registry):
+    """The DRA family all assume a ground plane at z = 0; a resonator floating
+    above it or buried below models a different antenna."""
+    for key, given in (("rectangular_dra", {"f0": 10e9, "eps_r": 10.0}),
+                       ("cylindrical_dra", {"f0": 10e9, "eps_r": 10.0})):
+        model = build(registry[key].synthesize(**given))
+        res = [s for s in model.solids if s.name == "resonator"][0]
+        span = res.z if hasattr(res, "z") else res.span
+        assert span[0] == pytest.approx(0.0), f"{key} resonator starts at {span[0]}"
+        assert span[1] > 0

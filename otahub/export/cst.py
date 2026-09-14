@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 
-from .base import Brick, Cylinder, DiscretePort, Model
+from .base import Brick, Cone, Cylinder, DiscretePort, Model, Sphere, Subtract
 
 _MM = 1e3          # the macro works in millimetres
 
@@ -97,6 +97,12 @@ def render(model: Model) -> str:
         add(_render_solid(solid))
     add("")
 
+    if model.operations:
+        add("    ' ---- boolean operations ------------------------------------------")
+        for op in model.operations:
+            add(_render_operation(op))
+        add("")
+
     if model.ports:
         add("    ' ---- ports -------------------------------------------------------")
         for port in model.ports:
@@ -158,7 +164,53 @@ def _render_solid(solid) -> str:
             "        .Create",
             "    End With",
         ])
+    if isinstance(solid, Cone):
+        axis = solid.axis.lower()
+        other = {"x": ("y", "z"), "y": ("x", "z"), "z": ("x", "y")}[axis]
+        return "\n".join([
+            "    With Cone",
+            "        .Reset",
+            f'        .Name "{solid.name}"',
+            '        .Component "component1"',
+            f'        .Material "{material}"',
+            f'        .Axis "{axis}"',
+            f'        .Bottomradius "{_expr(solid.radius_start)}"',
+            f'        .Topradius "{_expr(solid.radius_end)}"',
+            f'        .{axis.upper()}range "{_expr(solid.span[0])}", "{_expr(solid.span[1])}"',
+            f'        .{other[0].upper()}center "{_expr(solid.centre[0])}"',
+            f'        .{other[1].upper()}center "{_expr(solid.centre[1])}"',
+            '        .Segments "0"',
+            "        .Create",
+            "    End With",
+        ])
+    if isinstance(solid, Sphere):
+        return "\n".join([
+            "    With Sphere",
+            "        .Reset",
+            f'        .Name "{solid.name}"',
+            '        .Component "component1"',
+            f'        .Material "{material}"',
+            '        .Axis "z"',
+            f'        .CenterRadius "{_expr(solid.radius)}"',
+            '        .TopRadius "0"',
+            '        .BottomRadius "0"',
+            f'        .Center "{_expr(solid.centre[0])}", "{_expr(solid.centre[1])}", '
+            f'"{_expr(solid.centre[2])}"',
+            '        .Segments "0"',
+            "        .Create",
+            "    End With",
+        ])
     return f"    ' unsupported solid type {type(solid).__name__}"
+
+
+def _render_operation(op) -> str:
+    if isinstance(op, Subtract):
+        lines = ["    ' boolean: remove the tool solids from the target"]
+        for tool in op.tools:
+            lines.append(
+                f'    Solid.Subtract "component1:{op.target}", "component1:{tool}"')
+        return "\n".join(lines)
+    return f"    ' unsupported operation {type(op).__name__}"
 
 
 def _render_port(port: DiscretePort) -> str:

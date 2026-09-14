@@ -123,10 +123,19 @@ become named variables in millimetres, frequencies in GHz, and everything else
 keeps its own units — driven by each spec's declared unit rather than guessed
 from magnitude.
 
-Geometry is built only for archetypes whose construction is unambiguous from
-their primary dimensions: dipoles, monopoles, rectangular and circular patches,
-and open-ended waveguide. **Everything else exports its parameters and states
-plainly that no solid geometry was generated.** A half-built model that looks
+Geometry is built for **18 of the 72 archetypes** — those whose construction is
+unambiguous from their primary dimensions:
+
+| Group | Archetypes |
+|---|---|
+| Wire | half-wave, resonant and short dipoles; quarter-wave monopole; folded dipole; dipole over ground; turnstile |
+| Patch | rectangular, inset-fed, circular, quarter-wave shorted |
+| Dielectric resonator | rectangular, cylindrical, hemispherical |
+| Wideband | biconical, conical monopole, discone |
+| Aperture | open-ended waveguide |
+
+**Everything else exports its parameters and states plainly that no solid
+geometry was generated.** A half-built model that looks
 finished is worse than none, so the exporter refuses to guess — and where it
 does make a choice the spec cannot supply (a feed gap, an inset notch width, a
 finite ground plane standing in for an infinite one) it says so in the file
@@ -135,7 +144,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1103 tests
+python -m pytest tests/ -q                # 1227 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```

@@ -6,7 +6,7 @@ Dimensions become design variables so the model stays parametric.
 """
 from __future__ import annotations
 
-from .base import Brick, Cylinder, DiscretePort, Model
+from .base import Brick, Cone, Cylinder, DiscretePort, Model, Sphere, Subtract
 from .cst import classify
 
 _MM = 1e3
@@ -87,6 +87,12 @@ def render(model: Model) -> str:
     add("# ---- geometry ------------------------------------------------------")
     for solid in model.solids:
         add(_render_solid(solid))
+        add("")
+
+    if model.operations:
+        add("# ---- boolean operations ---------------------------------------------")
+        for op in model.operations:
+            add(_render_operation(op))
         add("")
 
     if model.ports:
@@ -176,7 +182,48 @@ def _render_solid(solid) -> str:
             f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
             f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
         ])
+    if isinstance(solid, Cone):
+        axis = solid.axis.upper()
+        pos = {"Z": (solid.centre[0], solid.centre[1], solid.span[0]),
+               "X": (solid.span[0], solid.centre[0], solid.centre[1]),
+               "Y": (solid.centre[0], solid.span[0], solid.centre[1])}[axis]
+        height = solid.span[1] - solid.span[0]
+        return "\n".join([
+            "oEditor.CreateCone([",
+            '    "NAME:ConeParameters",',
+            f'    "XCenter:=", "{_mm(pos[0])}", "YCenter:=", "{_mm(pos[1])}",',
+            f'    "ZCenter:=", "{_mm(pos[2])}",',
+            f'    "BottomRadius:=", "{_mm(solid.radius_start)}",',
+            f'    "TopRadius:=", "{_mm(solid.radius_end)}",',
+            f'    "Height:=", "{_mm(height)}", "WhichAxis:=", "{axis}"],',
+            f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
+            f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
+        ])
+    if isinstance(solid, Sphere):
+        return "\n".join([
+            "oEditor.CreateSphere([",
+            '    "NAME:SphereParameters",',
+            f'    "XCenter:=", "{_mm(solid.centre[0])}", '
+            f'"YCenter:=", "{_mm(solid.centre[1])}",',
+            f'    "ZCenter:=", "{_mm(solid.centre[2])}",',
+            f'    "Radius:=", "{_mm(solid.radius)}"],',
+            f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
+            f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
+        ])
     return f"# unsupported solid type {type(solid).__name__}"
+
+
+def _render_operation(op) -> str:
+    if isinstance(op, Subtract):
+        tools = ",".join(op.tools)
+        return "\n".join([
+            "# boolean: remove the tool solids from the target",
+            "oEditor.Subtract([",
+            '    "NAME:Selections",',
+            f'    "Blank Parts:=", "{op.target}", "Tool Parts:=", "{tools}"],',
+            '    ["NAME:SubtractParameters", "KeepOriginals:=", False])',
+        ])
+    return f"# unsupported operation {type(op).__name__}"
 
 
 def _render_port(port: DiscretePort, index: int) -> str:

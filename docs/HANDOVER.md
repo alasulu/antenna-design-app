@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1103 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1227 tests, 423/423 citable
 known cases passing.**
 
 ---
@@ -187,10 +187,12 @@ are engineering rules of thumb rather than derived results. Every one says so
 in its `notes`. They exist so a design sheet is complete, not because they are
 predictions.
 
-### Exporters build geometry for only 7 archetypes
+### Exporters build geometry for 18 of 72 archetypes
 
-Dipoles (3), monopole, rectangular patch (2 variants), circular patch, and
-open-ended waveguide. **Everything else exports parameters only and says so.**
+Dipoles (3), monopole, folded dipole, dipole over ground, turnstile, four
+patch variants, three dielectric resonators, biconical, conical monopole,
+discone, and open-ended waveguide. **The other 54 export parameters only and
+say so.**
 Where a builder must choose something the spec cannot supply — feed gap, inset
 notch width, a finite ground plane standing in for an infinite one — the
 choice is stated in the exported file's header.
@@ -252,8 +254,12 @@ known case only checks what it asserts.
    73.08 + j42.52 Ω at λ/2).
 2. **Close the inset-patch discrepancy** — decide whether the 228.35 Ω
    published figure or the 212.5 Ω direct integration is right.
-3. **Add geometry builders** for horns and Yagi-Uda; both have unambiguous
-   constructions and are common export targets.
+3. **Add geometry builders** for horns, which need a loft or truncated-pyramid
+   primitive neither backend abstraction has yet, and for the loop family,
+   which needs a torus. Yagi-Uda remains blocked for a different reason: the
+   spec gives boom length, reflector and driven lengths and a director count,
+   but not individual director lengths, so its geometry is genuinely
+   underdetermined and building it would mean inventing dimensions.
 4. **Validate a low-confidence archetype** end to end and either promote it or
    record why it cannot be.
 5. ~~**Planar arrays**~~ — done. Rectangular and triangular lattices, separable

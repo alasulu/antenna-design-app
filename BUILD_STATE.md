@@ -227,9 +227,34 @@ Three bugs in my own new code, all caught by writing the checks first:
 The last one is the same failure mode as the S1 sidelobe bug: a second main
 beam mistaken for a sidelobe.
 
+## Export builders extended in S5
+
+7 archetypes had geometry builders against a catalogue of 40; the catalogue
+then grew to 72 and the gap widened. Now 18 of 72.
+
+Three primitives added to the neutral IR and rendered in both backends: Cone
+(truncated, so one radius may be zero), Sphere, and Subtract as a boolean
+operation applied after the solids exist.
+
+New builders: folded_dipole, dipole_over_ground, turnstile_dipole (two ports),
+quarter_wave_shorted_patch, rectangular_dra, cylindrical_dra,
+hemispherical_dra (sphere minus a half-space, since neither tool has a
+hemisphere primitive), conical_monopole, biconical, discone.
+
+Two tests worth keeping: booleans must only name solids that exist, and they
+must be emitted after every solid they operate on. Both are silent failures in
+the simulator otherwise - a subtract on a missing object is a runtime error
+inside the script, not something the exporter would notice.
+
+Still parameters-only: horns (need a loft or truncated pyramid), loops (need a
+torus), and Yagi-Uda - that last one for a different reason. The spec gives
+boom length, reflector and driven lengths and a director count, but not the
+individual director lengths, so the geometry is genuinely underdetermined and
+building it would mean inventing dimensions.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1103 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1227 tests, 423/423 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
