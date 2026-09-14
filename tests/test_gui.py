@@ -107,15 +107,38 @@ def test_status_bar_reports_a_clean_catalogue(window, registry):
 
 def test_every_archetype_can_be_driven_through_the_form(window, registry):
     """The form is generated from each spec, so this is the test that catches a
-    spec whose declared parameters cannot actually produce a design."""
+    spec whose declared parameters cannot actually produce a design.
+
+    GEOMETRY specifically, not geometry-or-metrics. Summing the two let a whole
+    family pass on nothing but its constant metrics - bandwidth_ratio, a fixed
+    directivity - while every dimension came out blank, which is precisely the
+    "looks broken" failure the form defaults exist to prevent.
+    """
     tab = window.catalogue
     empty = []
     for archetype in registry:
+        if not archetype.spec.synthesis:
+            continue          # nothing to synthesise: the spec declares no rules
         tab.select_key(archetype.key)
         tab._synthesise()
-        if tab.geometry_table.rowCount() + tab.metrics_table.rowCount() == 0:
+        if tab.geometry_table.rowCount() == 0:
             empty.append(archetype.key)
-    assert not empty, f"produced nothing from form defaults: {empty}"
+    assert not empty, f"produced no geometry from form defaults: {empty}"
+
+
+def test_a_frequency_requirement_is_prefilled_whatever_it_is_called(window, registry):
+    """Keying the prefill to the name "f0" missed every archetype whose
+    requirement is `f_low`, so the whole wideband family opened blank."""
+    from otahub.gui.models import default_for
+
+    checked = 0
+    for archetype in registry:
+        for param in archetype.spec.parameters:
+            if param.unit == "Hz" and param.role == "requirement":
+                assert default_for(param, archetype), (
+                    f"{archetype.key}.{param.symbol} opens blank")
+                checked += 1
+    assert checked > 60, f"only {checked} frequency requirements found"
 
 
 def test_selecting_an_archetype_populates_its_form(window):

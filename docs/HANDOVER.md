@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1234 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1235 tests, 423/423 citable
 known cases passing.**
 
 ---

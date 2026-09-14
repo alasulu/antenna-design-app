@@ -267,9 +267,24 @@ The polar plot spans the forward hemisphere only, and that empty lower half is
 correct here - unlike the S3 dipole plots, where a blank half meant the
 mirroring was missing.
 
+## GUI bug found in the S5 verification pass
+
+Eight archetypes opened in the GUI with a blank frequency field and produced no
+geometry - the whole wideband family, whose requirement is `f_low` rather than
+`f0`. The S3 fix that prefills a design frequency keyed on the NAME "f0", so it
+never reached them. Now keyed on the declared unit.
+
+It survived because the test summing geometry and metric rows let them pass on
+their constant metrics alone - a fixed bandwidth ratio and directivity - while
+every dimension came out blank. The test now checks geometry specifically.
+
+This is the same failure the S3 notes describe ("form opened with an empty f0,
+so synthesis produced zero geometry and looked broken"), in a place the S3 fix
+did not reach.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1234 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1235 tests, 423/423 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

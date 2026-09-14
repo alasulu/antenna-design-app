@@ -82,7 +82,7 @@ def requirement_fields(archetype) -> list:
     """
     order = {"requirement": 0, "assumption": 1, "material": 2}
     fields = [p for p in archetype.spec.parameters if p.role in order]
-    return sorted(fields, key=lambda p: (order[p.role], p.symbol != "f0", p.symbol))
+    return sorted(fields, key=lambda p: (order[p.role], p.unit != "Hz", p.symbol))
 
 
 def default_frequency(archetype) -> float:
@@ -106,11 +106,17 @@ def default_frequency(archetype) -> float:
 def default_for(param, archetype=None) -> str:
     """Pre-fill text for a parameter's form field.
 
-    Frequency gets special handling: specs rarely declare a `typical` for f0
-    (there is no universal answer), but an empty frequency field means the
-    form opens unable to synthesise anything, which reads as broken.
+    Frequency gets special handling: specs rarely declare a `typical` for a
+    design frequency (there is no universal answer), but an empty frequency
+    field means the form opens unable to synthesise anything, which reads as
+    broken.
+
+    Matched on the declared UNIT, not on the name. Keying it to "f0" alone
+    missed every archetype whose requirement is `f_low` instead - the whole
+    wideband family, which opened blank and produced no geometry.
     """
-    if param.symbol == "f0" and archetype is not None:
+    if (param.unit == "Hz" and param.role == "requirement"
+            and archetype is not None):
         try:
             float(param.typical)
         except (TypeError, ValueError):

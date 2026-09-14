@@ -144,7 +144,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1234 tests
+python -m pytest tests/ -q                # 1235 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
