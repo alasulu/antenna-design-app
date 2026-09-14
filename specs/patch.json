@@ -510,32 +510,32 @@
         },
         {
           "symbol": "F",
-          "name": "radius scale factor",
-          "unit": "-",
+          "name": "uncorrected radius",
+          "unit": "m",
           "role": "derived"
         }
       ],
       "synthesis": [
         {
           "output": "F",
-          "expr": "8.791e9/(f0*np.sqrt(eps_r))",
-          "units_out": "-",
+          "expr": "8.791e7/(f0*np.sqrt(eps_r))",
+          "units_out": "m",
           "depends_on": [
             "f0",
             "eps_r"
           ],
-          "notes": "Balanis 14-65; the 8.791e9 constant carries the unit conversion, so F is dimensionless only in the cgs-derived form the reference uses"
+          "notes": "Balanis 14-65, rewritten in SI. The published constant 8.791e9 yields centimetres; 8.791e7 yields metres, which is what the rest of this toolkit speaks. F is the radius before the fringing correction."
         },
         {
           "output": "a",
-          "expr": "F/np.sqrt(1 + (2*h*100/(pi*eps_r*F))*(np.log(pi*F/(2*h*100)) + 1.7726))/100",
+          "expr": "F/np.sqrt(1 + (2*h/(pi*eps_r*F))*(np.log(pi*F/(2*h)) + 1.7726))",
           "units_out": "m",
           "depends_on": [
             "F",
             "h",
             "eps_r"
           ],
-          "notes": "Balanis 14-64. Written in cm internally (hence the 100 factors) to match the reference constants, then converted back to metres."
+          "notes": "Balanis 14-64. The bracket depends only on the ratio h/F, so the formula is unit-agnostic and works directly in metres - the previous version carried factors of 100 to work in centimetres instead."
         }
       ],
       "analysis": [

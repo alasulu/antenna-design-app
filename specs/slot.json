@@ -101,7 +101,7 @@
         {
           "output": "A_slot",
           "expr": "0.4785*w_over_L*(c/f0)**2*0.4785",
-          "units_out": "m2",
+          "units_out": "m^2",
           "notes": "Physical aperture area L*w. Of no use for directivity (the slot is not an aperture-limited radiator) but needed for mechanical work.",
           "depends_on": [
             "w_over_L",

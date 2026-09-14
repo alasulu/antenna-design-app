@@ -133,7 +133,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 925 tests
+python -m pytest tests/ -q                # 1070 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
@@ -157,6 +157,21 @@ against an independent numerical model before being written into a spec:
 | Diagonal horn aperture efficiency | Aperture integration | 8/π² = 0.8106 analytic vs 0.8110 numeric |
 | Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
+
+### The dimensional audit
+
+`tests/test_scale_invariance.py` checks every archetype against physics rather
+than against a reference. Maxwell's equations have no preferred length: multiply
+every frequency by S, divide every length by S, scale conductivity by S, and the
+antenna's electrical behaviour must be *identical* — same directivity, same
+beamwidths, same impedances, same efficiency — while lengths shrink by S, areas
+by S², and so on.
+
+793 quantities across all 72 archetypes are checked this way. It needs no
+textbook, which is what makes it worth running over formulas whose known cases
+were written by the same hand. It found a patch radius carried in centimetres
+while labelled dimensionless, and a `m2` unit typo, on specs that had been
+passing their own cited cases since the first session.
 
 Cross-checks between independently written specs are the useful kind, and
 several hold to machine precision: the slot array's guide conductance equals

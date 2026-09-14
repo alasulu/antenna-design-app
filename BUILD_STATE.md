@@ -180,9 +180,25 @@ original build-order choice: breadth of archetypes first.
   both legs carrying outward current has an exact null on its axis. It is a flared
   transmission line: the return conductor's current runs against propagation.
 
+## Dimensional audit added in S5
+
+`tests/test_scale_invariance.py`. Scale every frequency by S, every length by
+1/S and conductivity by S: the antenna is electrically identical, so every
+quantity must follow the power of S its declared unit implies. 793 quantities
+across all 72 archetypes, with no reference data at all.
+
+Found two defects in specs that had passed their own cited cases since S1:
+`circular_patch` carried an intermediate radius in centimetres while declaring
+it dimensionless, and `half_wave_slot` had an `m2` unit typo. Verified to fire
+by injecting a fixed 1 mm into a dipole length.
+
+Worth knowing: the first version of the harness had its own bug - lower-casing
+units folded siemens ("S") together with seconds ("s"), giving conductance the
+time scaling rule. Unit strings need case-sensitive matching.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 925 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1070 tests, 423/423 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 925 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1070 tests, 423/423 citable
 known cases passing.**
 
 ---
@@ -74,6 +74,37 @@ uniform line source −13.263 dB sidelobe and 50.8 λ/L beamwidth.
 Dolph-Chebyshev **measured** sidelobes equal their design level to 0.000 dB
 across n = 4…21 and −20/−30/−40 dB. Uniform half-wave array directivity is
 exactly N. Binomial arrays have no sidelobes at all.
+
+---
+
+### The dimensional audit — verification that needs no reference
+
+`tests/test_scale_invariance.py` exploits the fact that Maxwell's equations have
+no preferred length. Scale every frequency by S, every length by 1/S and
+conductivity by S, and the antenna is electrically identical: directivity,
+beamwidths, impedances and efficiency unchanged, lengths down by S, areas by S².
+Every quantity must follow the power of S its declared unit implies.
+
+**793 quantities across all 72 archetypes**, checked without a single reference
+number. This is the counterweight to the `known_cases` harness, which can only
+check what a human chose to assert — and which the same human wrote the formulas
+for. A companion test asserts that every declared unit has a known scaling rule,
+which is how unit typos surface.
+
+It found, on specs that had been passing their own cited cases since session 1:
+
+- `circular_patch` carried its intermediate radius `F` in **centimetres while
+  declaring it dimensionless**, with factors of 100 threaded through the
+  synthesis to compensate. It worked, and it violated the SI-internal rule the
+  spec contract opens with. Rewritten in SI; Balanis Example 14.4 still
+  reproduces exactly.
+- `half_wave_slot` declared a slot area as `m2` rather than `m^2`, so nothing
+  downstream — including the exporter's unit-driven classifier — recognised it
+  as an area.
+
+Injecting a deliberate dimensional error (a fixed 1 mm added to a dipole length)
+confirms the audit fires, and reports the downstream impedance error at 89.6%
+where the known case sees only 1.63% on the length.
 
 ---
 
