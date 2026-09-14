@@ -68,6 +68,11 @@ BASE_NAMESPACE: dict[str, Any] = {
     # fall back on fitted approximations.
     "Si": _si, "Ci": _ci, "gamma_e": EULER_GAMMA, "euler_gamma": EULER_GAMMA,
     "j0": _sp.j0, "j1": _sp.j1, "jv": _sp.jv, "jn": _sp.jv,
+    # Bessel functions of the second kind. Needed wherever a structure has a
+    # hole in it and the origin is therefore excluded: the annular-ring patch's
+    # exact resonance is a J/Y cross-product, and without Y it can only be
+    # approximated.
+    "y0": _sp.y0, "y1": _sp.y1, "yv": _sp.yv, "yn": _sp.yv,
     "struve": _sp.struve, "ellipk": _sp.ellipk, "ellipe": _sp.ellipe,
     "db10": lambda x: 10.0 * np.log10(x),
     "db20": lambda x: 20.0 * np.log10(x),

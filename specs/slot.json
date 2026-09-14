@@ -618,6 +618,674 @@
         "Balanis, Antenna Theory 4th ed., Ch. 12"
       ],
       "confidence": "low"
+    },
+    {
+      "key": "waveguide_slot_array_resonant",
+      "name": "Resonant longitudinal slot array",
+      "family": "slot",
+      "summary": "Standing-wave waveguide array: slots every half guide wavelength, offsets alternating, all in phase at broadside.",
+      "freq_range_hz": [
+        1000000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_wg",
+          "name": "guide broad wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "b_wg",
+          "name": "guide narrow wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.01016"
+        },
+        {
+          "symbol": "N",
+          "name": "slot count",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "12"
+        },
+        {
+          "symbol": "slot_length",
+          "name": "slot length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "spacing",
+          "name": "slot spacing",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "offset",
+          "name": "slot offset from centreline",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slot_length",
+          "expr": "0.48*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "resonant length, slightly short of a half wavelength"
+        },
+        {
+          "output": "spacing",
+          "expr": "0.5*(c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ],
+          "notes": "Half a GUIDE wavelength, which is longer than half a free-space wavelength. The 180 degrees of propagation phase between neighbours is undone by putting them on opposite sides of the centreline."
+        },
+        {
+          "output": "offset",
+          "expr": "(a_wg/pi)*asin(sqrt(1/(N*(2.09*((c/f0)/((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*cos(pi*(c/f0)/(2*((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2))))**2))))",
+          "units_out": "m",
+          "depends_on": [
+            "a_wg",
+            "N",
+            "f0",
+            "b_wg"
+          ],
+          "notes": "Each slot takes 1/N of the guide conductance, from g = g1*sin^2(pi*x/a). Larger offsets couple harder, so a short array needs slots further out."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "cutoff_te10_hz",
+          "expr": "c/(2*a_wg)",
+          "units_out": "Hz",
+          "depends_on": [
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "guide_wavelength_m",
+          "expr": "(c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "g1_normalised",
+          "expr": "2.09*((c/f0)/((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*cos(pi*(c/f0)/(2*((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2))))**2",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "a_wg",
+            "b_wg"
+          ],
+          "notes": "conductance of a slot at the guide wall, before the sin^2 offset factor"
+        },
+        {
+          "metric": "conductance_per_slot",
+          "expr": "1.0/N",
+          "units_out": "-",
+          "depends_on": [
+            "N"
+          ],
+          "notes": "By design: N slots in shunt, each 1/N, sum to a matched unity conductance"
+        },
+        {
+          "metric": "offset_fraction",
+          "expr": "offset/a_wg",
+          "units_out": "-",
+          "depends_on": [
+            "offset",
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "array_length_m",
+          "expr": "(N - 1)*spacing",
+          "units_out": "m",
+          "depends_on": [
+            "N",
+            "spacing"
+          ]
+        },
+        {
+          "metric": "spacing_over_lambda0",
+          "expr": "spacing*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "spacing",
+            "f0"
+          ],
+          "notes": "Always above 0.5 and below 1 for a propagating TE10 guide, so the array is safe from grating lobes but its sidelobes sit higher than a half-wave-spaced array's"
+        },
+        {
+          "metric": "array_factor_directivity_dbi",
+          "expr": "db10(2*N*spacing*f0/c)",
+          "units_out": "dBi",
+          "depends_on": [
+            "N",
+            "spacing",
+            "f0"
+          ],
+          "notes": "Uniform broadside array factor, D = 2*N*d/lambda0. The element pattern and the guide's own width add roughly 2-3 dB on top; this figure is the array factor alone."
+        },
+        {
+          "metric": "first_sidelobe_db",
+          "expr": "-13.26",
+          "units_out": "dB",
+          "notes": "uniform excitation. Tapering the offsets lowers this, at the cost of aperture efficiency - see the arrays module for Chebyshev and Taylor weights."
+        },
+        {
+          "metric": "fractional_bandwidth_estimate",
+          "expr": "1.0/N",
+          "units_out": "-",
+          "notes": "INDICATIVE. A resonant array is a standing-wave structure: all slots go out of phase together as frequency moves, and the usable band narrows roughly as 1/N. This is the price paid for broadside operation."
+        }
+      ],
+      "validity": [
+        "N*g1 must exceed 1, or the required offset has no solution - a long array needs slots too weakly coupled to reach unity total",
+        "resonant (standing-wave) operation: the guide is short-circuited a quarter guide wavelength beyond the last slot, and the whole array is narrowband",
+        "mutual coupling between slots is neglected, and it is not negligible in practice - real designs iterate offsets full-wave",
+        "uniform excitation assumed; the offsets here are all equal"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 12
+          },
+          "expect": {
+            "guide_wavelength_m": 0.039707,
+            "spacing": 0.0198535,
+            "conductance_per_slot": 0.0833333
+          },
+          "tol_pct": 0.5,
+          "source": "WR-90 at 10 GHz: guide wavelength 39.71 mm, so slots sit 19.85 mm apart - a third more than the 15.0 mm free-space half wavelength. Twelve slots each take 1/12 of the conductance."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 12
+          },
+          "expect": {
+            "g1_normalised": 0.49936,
+            "offset": 0.0030624,
+            "offset_fraction": 0.13396
+          },
+          "tol_pct": 1.0,
+          "source": "g1 = 2.09*(lambda0/lambda_g)*(a/b)*cos^2(pi*lambda0/2*lambda_g) = 0.499 for WR-90 at 10 GHz. Solving sin^2(pi*x/a) = 1/(12*g1) puts the slots 3.06 mm off the centreline, 13.4% of the broad wall."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 12
+          },
+          "expect": {
+            "array_length_m": 0.2183885,
+            "array_factor_directivity_dbi": 12.0166
+          },
+          "tol_pct": 0.5,
+          "source": "Eleven gaps of 19.85 mm span 218.4 mm; the uniform array factor gives 2*12*0.6622 = 15.89 = 12.02 dBi"
+        }
+      ],
+      "references": [
+        "Elliott, Antenna Theory and Design, revised ed., Ch. 8 (slot arrays)",
+        "Stevenson, Theory of slots in rectangular waveguides, J. Appl. Phys. 19, 1948",
+        "Balanis, Antenna Theory 4th ed., Ch. 12.7"
+      ]
+    },
+    {
+      "key": "waveguide_slot_array_travelling_wave",
+      "name": "Travelling-wave longitudinal slot array",
+      "family": "slot",
+      "summary": "Slots spaced off half a guide wavelength so the beam squints, ending in a matched load instead of a short.",
+      "freq_range_hz": [
+        1000000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_wg",
+          "name": "guide broad wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.02286"
+        },
+        {
+          "symbol": "b_wg",
+          "name": "guide narrow wall",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.01016"
+        },
+        {
+          "symbol": "N",
+          "name": "slot count",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "20"
+        },
+        {
+          "symbol": "d_over_lambdag",
+          "name": "spacing in guide wavelengths",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.6",
+          "description": "0.5 gives broadside; away from 0.5 the beam squints"
+        },
+        {
+          "symbol": "load_fraction",
+          "name": "power into the load",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.05"
+        },
+        {
+          "symbol": "slot_length",
+          "name": "slot length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "spacing",
+          "name": "slot spacing",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slot_length",
+          "expr": "0.48*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ]
+        },
+        {
+          "output": "spacing",
+          "expr": "d_over_lambdag*(c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "d_over_lambdag",
+            "f0",
+            "a_wg"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "guide_wavelength_m",
+          "expr": "(c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ]
+        },
+        {
+          "metric": "beta_over_k0",
+          "expr": "sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "a_wg",
+            "f0"
+          ]
+        },
+        {
+          "metric": "sin_beam_angle",
+          "expr": "beta_over_k0 - (c/f0)/(2*spacing)",
+          "units_out": "-",
+          "depends_on": [
+            "beta_over_k0",
+            "f0",
+            "spacing"
+          ],
+          "notes": "sin(theta) = beta/k0 - lambda0/(2d). The second term is the 180 degrees the alternating offsets add per element. At d = lambda_g/2 the two cancel exactly and the beam is broadside."
+        },
+        {
+          "metric": "beam_from_broadside_deg",
+          "expr": "deg(asin(sin_beam_angle))",
+          "units_out": "deg",
+          "depends_on": [
+            "sin_beam_angle"
+          ],
+          "notes": "Positive is toward the load. Spacings BELOW lambda_g/2 squint the beam back toward the feed."
+        },
+        {
+          "metric": "array_length_m",
+          "expr": "(N - 1)*spacing",
+          "units_out": "m",
+          "depends_on": [
+            "N",
+            "spacing"
+          ]
+        },
+        {
+          "metric": "beamwidth_deg",
+          "expr": "deg(0.88*(c/f0)/(array_length_m*cos(asin(sin_beam_angle))))",
+          "units_out": "deg",
+          "depends_on": [
+            "f0",
+            "array_length_m",
+            "sin_beam_angle"
+          ],
+          "notes": "uniform aperture, widened by 1/cos(theta) because a scanned aperture presents a shorter projection"
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "1 - load_fraction",
+          "units_out": "-",
+          "depends_on": [
+            "load_fraction"
+          ],
+          "notes": "Whatever is not radiated by the last slot is burnt in the load. Five percent, a common target, costs 0.22 dB."
+        },
+        {
+          "metric": "load_loss_db",
+          "expr": "-db10(1 - load_fraction)",
+          "units_out": "dB",
+          "depends_on": [
+            "load_fraction"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2*array_length_m*(f0/c)*cos(asin(sin_beam_angle))*(1 - load_fraction))",
+          "units_out": "dBi",
+          "depends_on": [
+            "array_length_m",
+            "f0",
+            "sin_beam_angle",
+            "load_fraction"
+          ],
+          "notes": "line-source directivity 2L/lambda, foreshortened by cos(theta) and reduced by the load loss"
+        },
+        {
+          "metric": "broadside_spacing_m",
+          "expr": "0.5*(c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "a_wg"
+          ],
+          "notes": "the spacing that would give broadside - deliberately avoided here, because at broadside every slot reflects in phase and the input match collapses"
+        }
+      ],
+      "validity": [
+        "d must stay clear of lambda_g/2: at exactly broadside the slot reflections add in phase and the array will not match. That is the reason this variant exists",
+        "d/lambda0 below 1 to keep grating lobes out of real space",
+        "uniform slot excitation assumed; a real travelling-wave array tapers the offsets along the guide to hold the aperture distribution as power drains away",
+        "beam angle shifts with frequency - useful for frequency scanning, a nuisance otherwise"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 20,
+            "d_over_lambdag": 0.5,
+            "load_fraction": 0.05
+          },
+          "expect": {
+            "sin_beam_angle": 0.0
+          },
+          "tol_abs": 1e-09,
+          "source": "The defining check: at d = lambda_g/2 the propagation phase and the alternating-offset phase cancel exactly, giving a broadside beam. Expectation of zero, so an absolute tolerance."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 20,
+            "d_over_lambdag": 0.6,
+            "load_fraction": 0.05
+          },
+          "expect": {
+            "beam_from_broadside_deg": 7.2331,
+            "spacing": 0.0238242
+          },
+          "tol_pct": 1.0,
+          "source": "WR-90 at 10 GHz: beta/k0 = 0.75509, d = 23.82 mm, so sin(theta) = 0.75509 - 0.62926 = 0.12583 and the beam sits 7.23 deg off broadside"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 20,
+            "d_over_lambdag": 0.45,
+            "load_fraction": 0.05
+          },
+          "expect": {
+            "beam_from_broadside_deg": -4.814
+          },
+          "tol_pct": 1.0,
+          "source": "Below half a guide wavelength the beam squints the other way, back toward the feed - sin(theta) = 0.75509 - 0.83899 = -0.08390"
+        }
+      ],
+      "references": [
+        "Elliott, Antenna Theory and Design, revised ed., Ch. 8",
+        "Oliner & Jackson, Leaky-wave antennas, in Antenna Engineering Handbook 4th ed."
+      ]
+    },
+    {
+      "key": "folded_slot",
+      "name": "Folded slot",
+      "family": "slot",
+      "summary": "Babinet dual of the folded dipole: folding steps the slot impedance DOWN by N squared, into coplanar-waveguide territory.",
+      "freq_range_hz": [
+        30000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "N",
+          "name": "slot count",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "2"
+        },
+        {
+          "symbol": "w_over_L",
+          "name": "slot width ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.05"
+        },
+        {
+          "symbol": "Rd_res",
+          "name": "dual dipole resonant resistance",
+          "unit": "ohm",
+          "role": "material",
+          "typical": "67.0",
+          "description": "resistance of the complementary dipole at ITS resonance"
+        },
+        {
+          "symbol": "L",
+          "name": "slot length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "w",
+          "name": "slot width",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L",
+          "expr": "0.4785*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "same resonant length as a plain slot; folding changes the impedance, not the resonance"
+        },
+        {
+          "output": "w",
+          "expr": "w_over_L*0.4785*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "w_over_L",
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "single_slot_resistance_ohm",
+          "expr": "eta0**2/(4.0*Rd_res)",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rd_res"
+          ],
+          "notes": "Babinet: Z_slot * Z_dipole = eta0^2/4. A resonant slot in an infinite screen sits near 530 ohm - far too high to feed directly."
+        },
+        {
+          "metric": "impedance_step_ratio",
+          "expr": "1/N**2",
+          "units_out": "-",
+          "depends_on": [
+            "N"
+          ],
+          "notes": "The DUAL of the folded dipole's N^2 step-up. Where folding a dipole raises impedance, folding a slot lowers it - which is the whole point, because slots start too high."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "eta0**2/(4.0*Rd_res*N**2)",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rd_res",
+            "N"
+          ],
+          "notes": "132 ohm for the usual two-slot case, against 530 for a single slot. This is why folded slots and coplanar waveguide go together."
+        },
+        {
+          "metric": "input_resistance_one_sided_ohm",
+          "expr": "eta0**2/(2.0*Rd_res*N**2)",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rd_res",
+            "N"
+          ],
+          "notes": "Doubled, for a slot backed by a cavity or a reflector so it radiates into a half space only"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.6409)",
+          "units_out": "dBi",
+          "notes": "the folded slot radiates as a single slot does - the folding is a feed transformation, not an aperture change"
+        },
+        {
+          "metric": "directivity_one_sided_dbi",
+          "expr": "db10(2*1.6409)",
+          "units_out": "dBi",
+          "notes": "cavity-backed"
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "1.5*w_over_L + 0.055",
+          "units_out": "-",
+          "depends_on": [
+            "w_over_L"
+          ],
+          "notes": "same width-driven estimate as the plain slot; folding does not much change the bandwidth"
+        },
+        {
+          "metric": "polarisation_tilt_deg",
+          "expr": "90.0",
+          "units_out": "deg",
+          "notes": "a slot's electric field lies ACROSS its long axis, at right angles to the equivalent dipole's"
+        }
+      ],
+      "validity": [
+        "infinite, perfectly conducting, zero-thickness screen - the Babinet condition. A real folded slot on a finite substrate reads lower and complex",
+        "the N^2 law assumes equal slot widths and close spacing, exactly as the folded dipole's does",
+        "Rd_res is an input: it is the complementary DIPOLE's resistance at its own resonance, so changing it moves every impedance here",
+        "substrate loading shortens the resonant length, which this free-space form does not model"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 1
+          },
+          "expect": {
+            "single_slot_resistance_ohm": 529.572,
+            "input_resistance_ohm": 529.572,
+            "impedance_step_ratio": 1.0
+          },
+          "tol_pct": 0.5,
+          "source": "N = 1 must reduce to the plain slot: eta0^2/(4*67) = 529.6 ohm, matching this family's half_wave_slot exactly"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 2
+          },
+          "expect": {
+            "input_resistance_ohm": 132.393,
+            "impedance_step_ratio": 0.25
+          },
+          "tol_pct": 0.5,
+          "source": "Two slots quarter the impedance: 529.6/4 = 132.4 ohm. The dual of the folded dipole, which QUADRUPLES 73 ohm to 292 - the same factor, the other way up."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 3
+          },
+          "expect": {
+            "input_resistance_ohm": 58.841
+          },
+          "tol_pct": 0.5,
+          "source": "Three slots give 529.6/9 = 58.8 ohm, close to a direct 50 ohm feed"
+        }
+      ],
+      "references": [
+        "Booker, Slot aerials and their relation to complementary wire aerials, JIEE 93, 1946",
+        "Balanis, Antenna Theory 4th ed., Ch. 12.6 (Babinet's principle)",
+        "Tsai & York, FDTD analysis of CPW-fed folded-slot antennas, IEEE T-AP 44(2), 1996"
+      ]
     }
   ]
 }

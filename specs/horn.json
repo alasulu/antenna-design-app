@@ -746,6 +746,336 @@
         "Balanis, Antenna Theory 4th ed., Ch. 13 (13.1)",
         "Pozar, Microwave Engineering 4th ed., Ch. 3"
       ]
+    },
+    {
+      "key": "diagonal_horn",
+      "name": "Diagonal horn",
+      "family": "horn",
+      "summary": "Square aperture carrying two orthogonal modes in phase, radiating a symmetric beam polarised along the diagonal.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "operating frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "a_ap",
+          "name": "aperture side",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.06"
+        },
+        {
+          "symbol": "R_axial",
+          "name": "axial length",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.2"
+        }
+      ],
+      "synthesis": [],
+      "analysis": [
+        {
+          "metric": "aperture_area_m2",
+          "expr": "a_ap**2",
+          "units_out": "m^2",
+          "depends_on": [
+            "a_ap"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "8/pi**2",
+          "units_out": "-",
+          "notes": "DERIVED, not tabulated: for E = y*cos(pi*x/a) + x*cos(pi*y/a), the co-polar aperture efficiency along the diagonal works out to exactly 8/pi^2 = 0.8106. A separable cos*cos aperture would give only 64/pi^4 = 0.657, so the diagonal horn is genuinely more efficient than a pyramidal one."
+        },
+        {
+          "metric": "gain_ideal_dbi",
+          "expr": "db10((8/pi**2)*4*pi*a_ap**2*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "a_ap",
+            "f0"
+          ],
+          "notes": "uniform phase across the aperture, i.e. an infinitely long horn"
+        },
+        {
+          "metric": "max_phase_error_wavelengths",
+          "expr": "a_ap**2*f0/(8*R_axial*c)",
+          "units_out": "-",
+          "depends_on": [
+            "a_ap",
+            "R_axial",
+            "f0"
+          ],
+          "notes": "Quadratic phase error at the aperture corner, (a/2)^2/(2R) expressed in wavelengths. Keep it under about 1/8 for the ideal gain to be realised."
+        },
+        {
+          "metric": "min_axial_length_for_eighth_wave_m",
+          "expr": "a_ap**2*f0/(c)",
+          "units_out": "m",
+          "depends_on": [
+            "a_ap",
+            "f0"
+          ],
+          "notes": "R >= a^2/lambda holds the corner phase error to an eighth of a wavelength"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "58.0/(a_ap*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "a_ap",
+            "f0"
+          ],
+          "notes": "Indicative and equal in both principal planes, which is the horn's selling point - a pyramidal horn's E and H beamwidths differ by a third"
+        },
+        {
+          "metric": "boresight_cross_pol_db",
+          "expr": "-inf",
+          "units_out": "dB",
+          "notes": "Exactly zero on boresight: the cross-polar aperture integral cancels by symmetry, confirmed numerically to 1e-17. Off boresight four cross-polar lobes appear in the diagonal planes, typically around -19 dB, and those are NOT modelled here."
+        },
+        {
+          "metric": "gain_advantage_over_pyramidal_db",
+          "expr": "db10((8/pi**2)/(64/pi**4))",
+          "units_out": "dB",
+          "notes": "0.91 dB, from 8/pi^2 against the separable aperture's 64/pi^4"
+        }
+      ],
+      "validity": [
+        "the two modes must be equal in amplitude and phase at the aperture, which happens at one frequency band only - the diagonal horn is not broadband",
+        "gain assumes uniform phase; check max_phase_error_wavelengths and lengthen the horn if it exceeds about 0.125",
+        "polarisation is along the DIAGONAL of the square aperture, not along a side",
+        "the diagonal-plane cross-polar lobes are real and significant; only the boresight null is claimed here"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.06,
+            "R_axial": 0.2
+          },
+          "expect": {
+            "aperture_efficiency": 0.8105695,
+            "gain_ideal_dbi": 16.1066
+          },
+          "tol_pct": 0.5,
+          "source": "8/pi^2 = 0.810569, derived by integrating the two-mode aperture field and confirmed on a 2001x2001 grid (0.810974). A 60 mm aperture at 10 GHz is 2 wavelengths square, so 4*pi*A/lambda^2 = 50.34 and the gain is 0.8106*50.34 = 40.80 = 16.11 dBi."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.06,
+            "R_axial": 0.2
+          },
+          "expect": {
+            "max_phase_error_wavelengths": 0.0750625,
+            "min_axial_length_for_eighth_wave_m": 0.1201
+          },
+          "tol_pct": 0.5,
+          "source": "(a/2)^2/(2R) = 0.9 mm = 0.075 wavelengths at 10 GHz, comfortably inside the eighth-wave rule, which would allow a horn as short as 120 mm"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.06,
+            "R_axial": 0.2
+          },
+          "expect": {
+            "gain_advantage_over_pyramidal_db": 0.9136
+          },
+          "tol_pct": 1.0,
+          "source": "10*log10((8/pi^2)/(64/pi^4)) = 10*log10(pi^2/8) = 0.914 dB over a separable cosine aperture"
+        }
+      ],
+      "references": [
+        "Love, The diagonal horn antenna, Microwave Journal 5, 1962",
+        "Balanis, Antenna Theory 4th ed., Ch. 13 for the aperture-integration method",
+        "Aperture efficiency derived and numerically confirmed here"
+      ]
+    },
+    {
+      "key": "conical_horn_dual_mode",
+      "name": "Dual-mode (Potter) conical horn",
+      "family": "horn",
+      "confidence": "low",
+      "summary": "A step in a conical horn launches TM11 alongside TE11, cancelling the aperture's cross-polar field over a narrow band.",
+      "freq_range_hz": [
+        1000000000.0,
+        300000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "design frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "L",
+          "name": "axial length",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.3"
+        },
+        {
+          "symbol": "tm11_fraction",
+          "name": "TM11 amplitude fraction",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.15",
+          "description": "relative to TE11; the classic Potter design sits near 0.15"
+        },
+        {
+          "symbol": "dm",
+          "name": "aperture diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "d_step",
+          "name": "step diameter",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "dm",
+          "expr": "sqrt(3*(c/f0)*L)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "L"
+          ],
+          "notes": "optimum-gain conical relation, the same one the smooth and corrugated horns in this family use"
+        },
+        {
+          "output": "d_step",
+          "expr": "1.3*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "INDICATIVE. The step must sit where TE11 propagates and TM11 is just above cutoff - TM11 cuts off at d = 1.22*lambda in a circular guide, so a diameter a little above that is where the mode is launched. The exact diameter and step height set the TM11 fraction and need a mode-matching solve."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "aperture_area_m2",
+          "expr": "pi*dm**2/4",
+          "units_out": "m^2",
+          "depends_on": [
+            "dm"
+          ]
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "0.62",
+          "units_out": "-",
+          "notes": "INDICATIVE AND NOT DERIVED. Placed between this family's smooth conical horn (0.51) and corrugated horn (0.69), which is where published Potter horns land. The dual-mode horn's purpose is pattern symmetry and cross-polar purity, not gain."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(0.62*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "dm",
+            "f0"
+          ]
+        },
+        {
+          "metric": "gain_advantage_over_smooth_db",
+          "expr": "db10(0.62/0.51)",
+          "units_out": "dB",
+          "notes": "0.85 dB, and that is the smaller part of the benefit"
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "68.0/(dm*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "dm",
+            "f0"
+          ],
+          "notes": "Indicative, and equal in E and H planes - the symmetry the mode mixture buys. A smooth conical horn differs by about 10 degrees between planes."
+        },
+        {
+          "metric": "cross_pol_db",
+          "expr": "-30.0",
+          "units_out": "dB",
+          "notes": "INDICATIVE, at the design frequency only. Good Potter horns reach -30 dB or better at band centre and degrade to -20 dB within a few percent either side, because TE11 and TM11 travel at different phase velocities and drift out of step."
+        },
+        {
+          "metric": "tm11_cutoff_diameter_m",
+          "expr": "1.2197*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "TM11 cuts off where k*a equals the first zero of J1, 3.8317, i.e. d = 1.2197*lambda. Below this diameter the second mode cannot exist and the horn is simply a smooth one."
+        },
+        {
+          "metric": "te11_cutoff_diameter_m",
+          "expr": "0.5861*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "TE11 cuts off at the first zero of J1', 1.8412, giving d = 0.5861*lambda"
+        },
+        {
+          "metric": "fractional_bandwidth_estimate",
+          "expr": "0.06",
+          "units_out": "-",
+          "notes": "INDICATIVE. The cross-polar cancellation is a phase condition between two modes with different dispersion, so it holds over a few percent. Corrugated horns achieve the same symmetry over an octave, which is why they displaced this design for wideband feeds."
+        }
+      ],
+      "validity": [
+        "LOW CONFIDENCE: aperture efficiency, cross-polar level, beamwidth constant and bandwidth are all indicative figures placed by analogy with the neighbouring horn archetypes, not computed",
+        "the step geometry is not solved - setting the TM11 fraction to a target needs mode matching, which this spec does not attempt",
+        "narrowband by construction: the mode phase relationship holds at one frequency",
+        "the two cutoff diameters ARE exact, being Bessel zeros; treat them as the reliable part of this spec"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "tm11_fraction": 0.15
+          },
+          "expect": {
+            "tm11_cutoff_diameter_m": 0.0365653,
+            "te11_cutoff_diameter_m": 0.0175701
+          },
+          "tol_pct": 0.2,
+          "source": "Exact circular-waveguide cutoffs from the Bessel zeros: TM11 at j(1,1) = 3.8317 gives d = 1.2197*lambda, TE11 at j'(1,1) = 1.8412 gives d = 0.5861*lambda. At 10 GHz, 36.57 mm and 17.57 mm. Cross-checked against this toolkit's circular waveguide module."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "tm11_fraction": 0.15
+          },
+          "expect": {
+            "dm": 0.1642599,
+            "gain_advantage_over_smooth_db": 0.8483
+          },
+          "tol_pct": 0.5,
+          "source": "sqrt(3*lambda*L) = 164.26 mm for a 300 mm horn at 10 GHz, identical to the smooth conical horn of the same length. The gain advantage is 10*log10(0.62/0.51) = 0.85 dB - modest, and not the reason to build one."
+        }
+      ],
+      "references": [
+        "Potter, A new horn antenna with suppressed sidelobes and equal beamwidths, Microwave Journal 6, 1963",
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 7",
+        "Balanis, Antenna Theory 4th ed., Ch. 13.4 for the conical horn basis"
+      ]
     }
   ]
 }

@@ -121,7 +121,10 @@ _PLAUSIBLE = {
     "dbi": (-400.0, 80.0),
     "db": (-400.0, 120.0),
     "efficiency": (0.0, 1.0),
-    "deg": (0.0, 360.0),
+    # Signed: an angle measured FROM broadside is negative when the beam
+    # scans the other way. The bound still catches a quantity in radians
+    # being reported as degrees, or a scale error, which is its job.
+    "deg": (-360.0, 360.0),
 }
 
 

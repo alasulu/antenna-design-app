@@ -711,6 +711,1144 @@
         "Balanis, Antenna Theory 4th ed., Ch. 14 Ch. 14"
       ],
       "confidence": "low"
+    },
+    {
+      "key": "quarter_wave_shorted_patch",
+      "name": "Quarter-wave shorted patch",
+      "family": "patch",
+      "summary": "Rectangular patch cut in half at its voltage null and shorted there: half the length, one radiating edge.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "4.4"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate height",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "W",
+          "name": "patch width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "eps_reff",
+          "name": "effective permittivity",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dL",
+          "name": "fringing extension",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "L",
+          "name": "patch length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L_full_patch",
+          "name": "equivalent full patch length",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "W",
+          "expr": "(c/(2*f0))*sqrt(2/(eps_r+1))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ],
+          "notes": "unchanged from the full patch - only the length is halved"
+        },
+        {
+          "output": "eps_reff",
+          "expr": "(eps_r+1)/2 + ((eps_r-1)/2)*(1 + 12*h/W)**(-0.5)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "W"
+          ]
+        },
+        {
+          "output": "dL",
+          "expr": "0.412*h*((eps_reff+0.3)*(W/h+0.264))/((eps_reff-0.258)*(W/h+0.8))",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "eps_reff",
+            "W"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "c/(4*f0*sqrt(eps_reff)) - dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ],
+          "notes": "A QUARTER wavelength, with only ONE fringing extension subtracted - the shorted edge has no fringing field. Since the full patch subtracts two, the shorted length works out to exactly half the full one."
+        },
+        {
+          "output": "L_full_patch",
+          "expr": "c/(2*f0*sqrt(eps_reff)) - 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ],
+          "notes": "what a conventional patch would need, for comparison"
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "length_reduction_ratio",
+          "expr": "L/L_full_patch",
+          "units_out": "-",
+          "depends_on": [
+            "L",
+            "L_full_patch"
+          ],
+          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
+        },
+        {
+          "metric": "area_reduction_ratio",
+          "expr": "L/L_full_patch",
+          "units_out": "-",
+          "depends_on": [
+            "L",
+            "L_full_patch"
+          ],
+          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.3)",
+          "units_out": "dBi",
+          "notes": "Indicative. One radiating slot instead of two costs about 3 dB against the full patch's 6.6, and the pattern tilts toward the open edge. Treat as a placeholder, not a computed value."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "0.5*3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)*(W/L_full_patch)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0",
+            "W",
+            "L_full_patch"
+          ],
+          "notes": "Roughly half the full patch's: the stored energy is nearly unchanged while only one slot radiates, so Q about doubles. Indicative."
+        },
+        {
+          "metric": "shorting_wall_width_m",
+          "expr": "W",
+          "units_out": "m",
+          "depends_on": [
+            "W"
+          ],
+          "notes": "A FULL-width short holds the field distribution closest to the half-patch ideal. Narrowing it toward a single pin turns this into a PIFA, which resonates lower again for the same length."
+        },
+        {
+          "metric": "W_over_h",
+          "expr": "W/h",
+          "units_out": "-",
+          "depends_on": [
+            "W",
+            "h"
+          ]
+        }
+      ],
+      "validity": [
+        "h << lambda0, as for any cavity-model patch",
+        "assumes an ideal full-width shorting wall; real shorting posts or a partial wall shift the resonance downward",
+        "directivity and bandwidth figures are indicative, scaled from the full patch rather than computed",
+        "the pattern is asymmetric - the single radiating edge tilts the beam off broadside, which the full patch's symmetry avoids"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "length_reduction_ratio": 0.5
+          },
+          "tol_pct": 0.5,
+          "source": "Exactly one half, algebraically: L = lambda_g/4 - dL against L_full = lambda_g/2 - 2*dL. The shorted patch is precisely half the full patch in this model, not merely close to it."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "W": 0.0380118,
+            "L": 0.0147106
+          },
+          "tol_pct": 1.0,
+          "source": "2.4 GHz on 1.6 mm FR-4: W = (c/2f)*sqrt(2/5.4) = 38.01 mm, unchanged from a full patch. eps_reff = 4.0858, dL = 0.739 mm, so L = c/(4f*sqrt(eps_reff)) - dL = 14.71 mm. Balanis, Antenna Theory 4th ed., Ch. 14.2 for the underlying cavity model."
+        }
+      ],
+      "references": [
+        "Balanis, Antenna Theory 4th ed., Ch. 14.2 (transmission-line model)",
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9"
+      ]
+    },
+    {
+      "key": "triangular_patch",
+      "name": "Equilateral triangular patch",
+      "family": "patch",
+      "summary": "Equilateral triangle in a cavity: about 40 percent less copper than a rectangular patch at the same frequency.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.2"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate height",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "a_side",
+          "name": "triangle side",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "a_eff",
+          "name": "effective side",
+          "unit": "m",
+          "role": "derived"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "a_side",
+          "expr": "2*c/(3*f0*sqrt(eps_r)) - h/sqrt(eps_r)",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r",
+            "h"
+          ],
+          "notes": "Inverted from f_mn = (2c/(3*a_eff*sqrt(eps_r)))*sqrt(m^2+mn+n^2) for the dominant TM10, with the usual a_eff = a + h/sqrt(eps_r) fringing correction backed out."
+        },
+        {
+          "output": "a_eff",
+          "expr": "a_side + h/sqrt(eps_r)",
+          "units_out": "m",
+          "depends_on": [
+            "a_side",
+            "eps_r",
+            "h"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonant_frequency_check_hz",
+          "expr": "2*c/(3*a_eff*sqrt(eps_r))",
+          "units_out": "Hz",
+          "depends_on": [
+            "a_eff",
+            "eps_r"
+          ],
+          "notes": "forward check: must return f0"
+        },
+        {
+          "metric": "side_over_guided_wavelength",
+          "expr": "a_eff*f0*sqrt(eps_r)/c",
+          "units_out": "-",
+          "depends_on": [
+            "a_eff",
+            "f0",
+            "eps_r"
+          ],
+          "notes": "Exactly 2/3 for the dominant mode, independent of substrate - the triangle's defining proportion"
+        },
+        {
+          "metric": "area_m2",
+          "expr": "sqrt(3)/4*a_side**2",
+          "units_out": "m^2",
+          "depends_on": [
+            "a_side"
+          ]
+        },
+        {
+          "metric": "rectangular_patch_area_m2",
+          "expr": "((c/(2*f0))*sqrt(2/(eps_r+1)))*(c/(2*f0*sqrt(eps_r)))",
+          "units_out": "m^2",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ],
+          "notes": "an equivalent rectangular patch, ignoring its fringing correction, for comparison"
+        },
+        {
+          "metric": "area_ratio_vs_rectangular",
+          "expr": "area_m2/rectangular_patch_area_m2",
+          "units_out": "-",
+          "depends_on": [
+            "area_m2",
+            "rectangular_patch_area_m2"
+          ],
+          "notes": "About 0.60-0.66 depending on permittivity: the compactness that makes the triangle worth the awkward feed geometry"
+        },
+        {
+          "metric": "f_tm11_hz",
+          "expr": "f0*sqrt(3.0)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "sqrt(m^2+mn+n^2) = sqrt(3) for TM11 - the first higher mode, 1.732*f0"
+        },
+        {
+          "metric": "f_tm20_hz",
+          "expr": "f0*2.0",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "TM20 at exactly twice the fundamental"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(5.0)",
+          "units_out": "dBi",
+          "notes": "Indicative. A triangular patch runs roughly 1 dB below a rectangular one because its aperture is smaller. Placeholder, not computed."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "the rectangular-patch estimate with W/L set to 1; indicative for this shape"
+        }
+      ],
+      "validity": [
+        "h << lambda0; the cavity model assumes a single z-directed field with magnetic side walls",
+        "the a_eff = a + h/sqrt(eps_r) correction is the common first-order one and loses accuracy on thick or low-permittivity substrates",
+        "feed placement along a median sets the impedance and is not solved here",
+        "directivity is indicative"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "a_side": 0.133672,
+            "side_over_guided_wavelength": 0.66667,
+            "resonant_frequency_check_hz": 1000000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "f = 2c/(3*a*sqrt(eps_r)) gives a_eff = 134.75 mm at 1 GHz on eps_r = 2.2, less the 1.08 mm fringing correction. The side is exactly two thirds of a guided wavelength for the dominant mode, whatever the substrate."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "area_ratio_vs_rectangular": 0.6421
+          },
+          "tol_pct": 2.0,
+          "source": "77.4 cm^2 against the rectangular patch's 119.8 cm^2 at the same frequency - the triangle needs about 36% less board area"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 10.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "f_tm11_hz": 1732050800.0,
+            "f_tm20_hz": 2000000000.0
+          },
+          "tol_pct": 0.1,
+          "source": "Mode spectrum follows sqrt(m^2+mn+n^2): 1, sqrt(3), 2. Garg et al., Microstrip Antenna Design Handbook, Ch. 7"
+        }
+      ],
+      "references": [
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 7",
+        "Helszajn & James, Planar triangular resonators with magnetic walls, IEEE T-MTT 26(2), 1978"
+      ]
+    },
+    {
+      "key": "annular_ring_patch",
+      "name": "Annular ring patch",
+      "family": "patch",
+      "summary": "Microstrip ring resonating where its mean circumference is a guided wavelength; markedly smaller than a disc at the same frequency.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.2"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate height",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "ratio",
+          "name": "outer/inner radius ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "2.0"
+        },
+        {
+          "symbol": "k_diel",
+          "name": "dielectric wavenumber",
+          "unit": "rad/m",
+          "role": "derived"
+        },
+        {
+          "symbol": "r_mean",
+          "name": "mean radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "a_in",
+          "name": "inner radius",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "b_out",
+          "name": "outer radius",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "k_diel",
+          "expr": "2*pi*f0*sqrt(eps_r)/c",
+          "units_out": "rad/m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ]
+        },
+        {
+          "output": "r_mean",
+          "expr": "(1 + 0.015984*(ratio - 1) - 0.000272*(ratio - 1)**2 - 0.000580*(ratio - 1)**3)/k_diel",
+          "units_out": "m",
+          "depends_on": [
+            "ratio",
+            "k_diel"
+          ],
+          "notes": "Narrow-ring rule k*r_mean = 1 (mean circumference = one guided wavelength), corrected by a cubic fitted to exact roots of the Bessel cross-product. Worst error 0.20% over b/a from 1.05 to 5, against 2.71% for the uncorrected rule."
+        },
+        {
+          "output": "a_in",
+          "expr": "2*r_mean/(1 + ratio)",
+          "units_out": "m",
+          "depends_on": [
+            "r_mean",
+            "ratio"
+          ]
+        },
+        {
+          "output": "b_out",
+          "expr": "ratio*a_in",
+          "units_out": "m",
+          "depends_on": [
+            "ratio",
+            "a_in"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "resonance_residual",
+          "expr": "0.5*(j0(k_diel*a_in) - jv(2,k_diel*a_in))*0.5*(y0(k_diel*b_out) - yv(2,k_diel*b_out)) - 0.5*(j0(k_diel*b_out) - jv(2,k_diel*b_out))*0.5*(y0(k_diel*a_in) - yv(2,k_diel*a_in))",
+          "units_out": "-",
+          "depends_on": [
+            "k_diel",
+            "a_in",
+            "b_out"
+          ],
+          "notes": "The EXACT TM11 condition J1'(ka)Y1'(kb) - J1'(kb)Y1'(ka), which vanishes at resonance. Non-zero here measures how far the fitted design rule sits from the true root, so it is a live check on the synthesis rather than a restatement of it."
+        },
+        {
+          "metric": "outer_diameter_m",
+          "expr": "2*b_out",
+          "units_out": "m",
+          "depends_on": [
+            "b_out"
+          ]
+        },
+        {
+          "metric": "ring_width_m",
+          "expr": "b_out - a_in",
+          "units_out": "m",
+          "depends_on": [
+            "b_out",
+            "a_in"
+          ]
+        },
+        {
+          "metric": "disc_patch_radius_m",
+          "expr": "1.8412/k_diel",
+          "units_out": "m",
+          "depends_on": [
+            "k_diel"
+          ],
+          "notes": "radius a circular patch would need at the same frequency, from the first root of J1'"
+        },
+        {
+          "metric": "radius_ratio_vs_disc",
+          "expr": "b_out/disc_patch_radius_m",
+          "units_out": "-",
+          "depends_on": [
+            "b_out",
+            "disc_patch_radius_m"
+          ],
+          "notes": "About 0.74 at b/a = 2: the ring's outer radius is a quarter smaller than a disc's, and its area roughly halved"
+        },
+        {
+          "metric": "copper_area_m2",
+          "expr": "pi*(b_out**2 - a_in**2)",
+          "units_out": "m^2",
+          "depends_on": [
+            "b_out",
+            "a_in"
+          ]
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(5.0)",
+          "units_out": "dBi",
+          "notes": "Indicative placeholder. The TM11 ring radiates broadside much as a disc does, a little lower for the smaller aperture."
+        },
+        {
+          "metric": "f_tm21_hz",
+          "expr": "f0*2.0",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "Narrow-ring approximation: the TM_n1 modes sit where the circumference is n wavelengths, so TM21 lands near 2*f0. The exact roots drift from this as the ring widens."
+        }
+      ],
+      "validity": [
+        "1.05 < b/a < 5, the range the correction was fitted over",
+        "cavity model with magnetic side walls and no fringing correction on the radii: real rings resonate a few percent low",
+        "the exact resonance is transcendental; resonance_residual reports how far the design rule sits from it",
+        "feeding a ring is awkward - a probe, a coupled microstrip line or an aperture all perturb the mode differently"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "ratio": 1.2
+          },
+          "expect": {
+            "resonance_residual": 0.0
+          },
+          "tol_abs": 0.002,
+          "source": "At b/a = 1.2 the exact root is k*r_mean = 1.0014, and the fitted rule reproduces it closely enough that the exact Bessel cross-product very nearly vanishes. Roots found independently by bisection on the cross-product."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "resonance_residual": 0.0
+          },
+          "tol_abs": 0.01,
+          "source": "b/a = 2: exact k*r_mean = 1.0160, fitted 1.0151. The residual stays small; the uncorrected narrow-ring rule would leave a 1.6% frequency error here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "radius_ratio_vs_disc": 0.7355
+          },
+          "tol_pct": 1.0,
+          "source": "Outer radius 1.3534/k against a disc's 1.8412/k: 26% smaller in radius and 46% smaller in area at the same frequency"
+        }
+      ],
+      "references": [
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 8",
+        "Chew, A broad-band annular-ring microstrip antenna, IEEE T-AP 30(5), 1982",
+        "Exact roots computed here by bisection on the Bessel cross-product; the design rule is a fit to them"
+      ]
+    },
+    {
+      "key": "truncated_corner_cp_patch",
+      "name": "Truncated-corner circularly polarised patch",
+      "family": "patch",
+      "summary": "Square patch with two opposite corners cut away, splitting one feed into two degenerate modes in quadrature.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "resonant frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.2"
+        },
+        {
+          "symbol": "h",
+          "name": "substrate height",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "L0",
+          "name": "first-pass side estimate",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "eps_reff",
+          "name": "effective permittivity",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dL",
+          "name": "fringing extension",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "L",
+          "name": "patch side",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "c_trunc",
+          "name": "truncation leg",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "L0",
+          "expr": "c/(2*f0*sqrt(eps_r))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ],
+          "notes": "first estimate of the side, used only to evaluate eps_reff - a square patch has W = L, so the usual width formula does not apply"
+        },
+        {
+          "output": "eps_reff",
+          "expr": "(eps_r+1)/2 + ((eps_r-1)/2)*(1 + 12*h/L0)**(-0.5)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "L0"
+          ]
+        },
+        {
+          "output": "dL",
+          "expr": "0.412*h*((eps_reff+0.3)*(L0/h+0.264))/((eps_reff-0.258)*(L0/h+0.8))",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "eps_reff",
+            "L0"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "c/(2*f0*sqrt(eps_reff)) - 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ],
+          "notes": "one iteration; a second pass moves it by well under a percent"
+        },
+        {
+          "output": "c_trunc",
+          "expr": "L*sqrt((3.771*(eps_r-1)/(eps_r**2)*(h*f0/c))/sqrt(2))",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "From dS/S = 1/(2Q), with Q taken from the patch bandwidth as Q = 1/(BW*sqrt(2)), so dS/S = BW/sqrt(2). The two cut triangles have combined area c^2, so c/L = sqrt(dS/S)."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "square patch, so W/L = 1"
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "1/(fractional_bandwidth_vswr2*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "fractional_bandwidth_vswr2"
+          ],
+          "notes": "inverted from BW = (S-1)/(Q*sqrt(S)) at S = 2"
+        },
+        {
+          "metric": "truncation_area_ratio",
+          "expr": "1/(2*quality_factor)",
+          "units_out": "-",
+          "depends_on": [
+            "quality_factor"
+          ],
+          "notes": "dS/S, the classic single-feed CP condition. A high-Q patch needs only a tiny cut, which is exactly why single-feed CP is so sensitive to etching tolerance."
+        },
+        {
+          "metric": "truncation_over_side",
+          "expr": "c_trunc/L",
+          "units_out": "-",
+          "depends_on": [
+            "c_trunc",
+            "L"
+          ]
+        },
+        {
+          "metric": "mode_split_hz",
+          "expr": "f0/(2*quality_factor)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "quality_factor"
+          ],
+          "notes": "The two degenerate modes must be separated by f0/(2Q) for 90 degrees of phase difference at f0"
+        },
+        {
+          "metric": "axial_ratio_bandwidth_estimate",
+          "expr": "0.35*fractional_bandwidth_vswr2",
+          "units_out": "-",
+          "depends_on": [
+            "fractional_bandwidth_vswr2"
+          ],
+          "notes": "Indicative: the 3 dB axial-ratio band of a single-feed CP patch is typically about a third of its impedance band. A dual-feed patch with a quadrature hybrid is far wider, at the cost of the hybrid."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(6.6)",
+          "units_out": "dBi",
+          "notes": "as a linear square patch; the truncation is too small to change the aperture"
+        },
+        {
+          "metric": "axial_ratio_on_axis_db",
+          "expr": "0.0",
+          "units_out": "dB",
+          "notes": "by construction at exactly f0, where the mode split gives precisely 90 degrees"
+        }
+      ],
+      "validity": [
+        "the dS/S = 1/(2Q) rule assumes the two modes are otherwise degenerate and equally excited, which requires the feed on a diagonal",
+        "single-feed CP is narrowband in axial ratio - a few tenths of a percent on thin high-permittivity substrates",
+        "sense of rotation is set by WHICH diagonal is cut; this spec does not track handedness",
+        "axial ratio degrades rapidly off boresight and off frequency; only the on-axis, on-frequency value is claimed"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "truncation_area_ratio": 0.0084681,
+            "truncation_over_side": 0.0920223
+          },
+          "tol_pct": 2.0,
+          "source": "1.6 mm on eps_r = 2.2 at 2.4 GHz gives BW = 1.197%, so Q = 59.05 and dS/S = 1/(2Q) = 0.847%. The truncation leg is sqrt(dS/S) = 9.2% of the side. Garg et al., Microstrip Antenna Design Handbook, Ch. 10"
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "axial_ratio_on_axis_db": 0.0
+          },
+          "tol_pct": 1.0,
+          "tol_abs": 1e-09,
+          "source": "perfect circular polarisation at the design frequency is the definition of the condition, not a prediction"
+        }
+      ],
+      "references": [
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 10",
+        "Balanis, Antenna Theory 4th ed., Ch. 14.6"
+      ]
+    },
+    {
+      "key": "stacked_patch",
+      "name": "Stacked (parasitically coupled) patch",
+      "family": "patch",
+      "confidence": "low",
+      "summary": "A second patch suspended above the driven one, giving two coupled resonances and several times the bandwidth.",
+      "freq_range_hz": [
+        300000000.0,
+        100000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f0",
+          "name": "centre frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "eps_r",
+          "name": "lower substrate permittivity",
+          "unit": "-",
+          "role": "requirement",
+          "typical": "2.2"
+        },
+        {
+          "symbol": "h",
+          "name": "lower substrate height",
+          "unit": "m",
+          "role": "requirement",
+          "typical": "0.0016"
+        },
+        {
+          "symbol": "eps_r2",
+          "name": "upper substrate permittivity",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0",
+          "description": "1.0 for an air gap"
+        },
+        {
+          "symbol": "h2_over_lambda",
+          "name": "patch separation",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.03",
+          "description": "gap between patches, in free-space wavelengths"
+        },
+        {
+          "symbol": "size_ratio",
+          "name": "upper/lower patch size",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.95"
+        },
+        {
+          "symbol": "W",
+          "name": "driven patch width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "eps_reff",
+          "name": "effective permittivity",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dL",
+          "name": "fringing extension",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "L",
+          "name": "driven patch length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "L2",
+          "name": "parasitic patch length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "W2",
+          "name": "parasitic patch width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "h2",
+          "name": "patch separation",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "W",
+          "expr": "(c/(2*f0))*sqrt(2/(eps_r+1))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_r"
+          ]
+        },
+        {
+          "output": "eps_reff",
+          "expr": "(eps_r+1)/2 + ((eps_r-1)/2)*(1 + 12*h/W)**(-0.5)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "W"
+          ]
+        },
+        {
+          "output": "dL",
+          "expr": "0.412*h*((eps_reff+0.3)*(W/h+0.264))/((eps_reff-0.258)*(W/h+0.8))",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "eps_reff",
+            "W"
+          ]
+        },
+        {
+          "output": "L",
+          "expr": "c/(2*f0*sqrt(eps_reff)) - 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "eps_reff",
+            "dL"
+          ]
+        },
+        {
+          "output": "L2",
+          "expr": "size_ratio*L",
+          "units_out": "m",
+          "depends_on": [
+            "size_ratio",
+            "L"
+          ],
+          "notes": "The parasitic is deliberately detuned so the two resonances straddle f0. Sitting in a lower-permittivity medium, it is usually made slightly SMALLER than the driven patch for the same resonance."
+        },
+        {
+          "output": "W2",
+          "expr": "size_ratio*W",
+          "units_out": "m",
+          "depends_on": [
+            "size_ratio",
+            "W"
+          ]
+        },
+        {
+          "output": "h2",
+          "expr": "h2_over_lambda*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "h2_over_lambda",
+            "f0"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "single_patch_bandwidth_vswr2",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)*(W/L)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0",
+            "W",
+            "L"
+          ],
+          "notes": "the driven patch on its own"
+        },
+        {
+          "metric": "total_height_m",
+          "expr": "h + h2",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "h2"
+          ],
+          "notes": "The honest cost. Most of the bandwidth comes from the extra height, not from the coupling as such."
+        },
+        {
+          "metric": "total_height_over_lambda",
+          "expr": "(h + h2)*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "h2",
+            "f0"
+          ]
+        },
+        {
+          "metric": "bandwidth_multiplier_estimate",
+          "expr": "2.4",
+          "units_out": "-",
+          "notes": "INDICATIVE AND NOT DERIVED. Published stacked patches report roughly 2 to 3 times a single patch's bandwidth for a well-chosen gap and size ratio. Treat as a rough expectation, not a design figure; the real answer needs a coupled-resonator solve or a full-wave simulation."
+        },
+        {
+          "metric": "estimated_bandwidth_vswr2",
+          "expr": "2.4*3.771*(eps_r-1)/(eps_r**2)*((h + h2)*f0/c)*(W/L)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "h2",
+            "f0",
+            "W",
+            "L"
+          ],
+          "notes": "the single-patch expression evaluated at the TOTAL height and multiplied by the indicative coupling factor - compounding two approximations, so treat the result as an order of magnitude"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(7.5)",
+          "units_out": "dBi",
+          "notes": "Indicative: a little above a single patch, since the stack is electrically taller. Placeholder."
+        }
+      ],
+      "validity": [
+        "LOW CONFIDENCE: the bandwidth multiplier is an expectation drawn from published designs, not a computed result",
+        "the optimum gap and size ratio interact strongly; both are inputs here and neither is optimised",
+        "surface waves grow with total height and are not modelled - they eat efficiency exactly where this design gains bandwidth",
+        "a probe feeding through both substrates adds inductance that often dominates the match on thick stacks"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "eps_r2": 1.0,
+            "h2_over_lambda": 0.03,
+            "size_ratio": 0.95
+          },
+          "expect": {
+            "h2": 0.0037474,
+            "total_height_over_lambda": 0.0428
+          },
+          "tol_pct": 1.0,
+          "source": "Geometry only, which is the part of this archetype that is actually derived: a 0.03-wavelength gap at 2.4 GHz is 3.75 mm, making the stack 0.043 wavelengths tall in all."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "size_ratio": 0.95
+          },
+          "expect": {
+            "L2": 0.0392535
+          },
+          "tol_pct": 1.0,
+          "source": "parasitic at 0.95 of the driven patch's 41.32 mm length"
+        }
+      ],
+      "references": [
+        "Waterhouse, Stacked patches for broadband microstrip antennas, Electronics Letters 35(2), 1999",
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9.3"
+      ]
     }
   ]
 }

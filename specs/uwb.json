@@ -709,6 +709,564 @@
         "Schantz, The Art and Science of Ultra-Wideband Antennas, Artech House"
       ],
       "confidence": "low"
+    },
+    {
+      "key": "discone",
+      "name": "Discone",
+      "family": "uwb",
+      "summary": "Cone against a disc: a bicone with one half replaced by a flat plate, decade bandwidth from a 50 ohm feed.",
+      "freq_range_hz": [
+        1000000.0,
+        40000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lowest usable frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "cone_half_angle_deg",
+          "name": "cone half angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "30.0"
+        },
+        {
+          "symbol": "disc_ratio",
+          "name": "disc/cone-base diameter ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.7"
+        },
+        {
+          "symbol": "slant",
+          "name": "cone slant length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "cone_base_diameter",
+          "name": "cone base diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "disc_diameter",
+          "name": "disc diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "cone_height",
+          "name": "cone height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "feed_gap",
+          "name": "disc-to-apex gap",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slant",
+          "expr": "0.25*c/f_low",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ],
+          "notes": "The cone slant sets the low-frequency limit at about a quarter wavelength. Below that the match degrades quickly; above it the antenna stays usable for a decade or more."
+        },
+        {
+          "output": "cone_base_diameter",
+          "expr": "2*0.25*(c/f_low)*sin(rad(cone_half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "cone_half_angle_deg"
+          ]
+        },
+        {
+          "output": "cone_height",
+          "expr": "0.25*(c/f_low)*cos(rad(cone_half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "cone_half_angle_deg"
+          ]
+        },
+        {
+          "output": "disc_diameter",
+          "expr": "disc_ratio*cone_base_diameter",
+          "units_out": "m",
+          "depends_on": [
+            "disc_ratio",
+            "cone_base_diameter"
+          ],
+          "notes": "About 0.7 of the cone base is the long-standing rule; the disc is the second half of the bicone, flattened"
+        },
+        {
+          "output": "feed_gap",
+          "expr": "0.3*0.25*(c/f_low)*sin(rad(cone_half_angle_deg))/3",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "cone_half_angle_deg"
+          ],
+          "notes": "Small compared with the disc radius. The gap mostly sets the high-frequency limit: once it approaches a quarter wavelength the feed region stops behaving as a simple transmission line."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "biconical_impedance_ohm",
+          "expr": "eta0/pi*log(1/tan(rad(cone_half_angle_deg)/2))",
+          "units_out": "ohm",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ],
+          "notes": "What a full bicone of this half angle would present. The discone is roughly half a bicone, but the flat disc perturbs it toward 50 ohm - which is why the geometry is used at all."
+        },
+        {
+          "metric": "cone_impedance_over_ground_ohm",
+          "expr": "eta0/(2*pi)*log(1/tan(rad(cone_half_angle_deg)/2))",
+          "units_out": "ohm",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ],
+          "notes": "the same cone over an INFINITE ground plane: exactly half the biconical value"
+        },
+        {
+          "metric": "f_low_check_hz",
+          "expr": "0.25*c/slant",
+          "units_out": "Hz",
+          "depends_on": [
+            "slant"
+          ],
+          "notes": "forward check: must return f_low"
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "INDICATIVE. Well-built discones hold VSWR under 2 over roughly a decade; the upper limit is set by the feed gap and disc flatness, neither of which is modelled here."
+        },
+        {
+          "metric": "f_high_estimate_hz",
+          "expr": "10*0.25*c/slant",
+          "units_out": "Hz",
+          "depends_on": [
+            "slant"
+          ],
+          "notes": "from the indicative decade bandwidth"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(2.2)",
+          "units_out": "dBi",
+          "notes": "Indicative. Omnidirectional in azimuth with the beam tilting downward as frequency rises - the elevation pattern is NOT constant across the band, which is the discone's real limitation."
+        },
+        {
+          "metric": "overall_height_m",
+          "expr": "cone_height + feed_gap",
+          "units_out": "m",
+          "depends_on": [
+            "cone_height",
+            "feed_gap"
+          ]
+        },
+        {
+          "metric": "polarisation_tilt_deg",
+          "expr": "0.0",
+          "units_out": "deg",
+          "notes": "vertical, as for any monopole-like radiator"
+        }
+      ],
+      "validity": [
+        "the quarter-wavelength slant rule is an engineering convention, accurate to perhaps 10% on the low-frequency corner",
+        "the decade bandwidth figure is indicative and depends on construction, particularly the feed gap",
+        "elevation pattern tilts progressively downward with frequency; only the azimuth pattern is genuinely broadband",
+        "assumes a solid or densely spoked cone and disc; sparse wire versions perform worse at the top of the band"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 30.0,
+            "disc_ratio": 0.7
+          },
+          "expect": {
+            "slant": 0.7494811,
+            "f_low_check_hz": 100000000.0,
+            "cone_base_diameter": 0.7494811
+          },
+          "tol_pct": 0.5,
+          "source": "At 100 MHz the slant is a quarter wavelength, 749.5 mm. With a 30 degree half angle the base diameter is 2*slant*sin(30) = slant exactly, a useful coincidence of that angle."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 30.0,
+            "disc_ratio": 0.7
+          },
+          "expect": {
+            "biconical_impedance_ohm": 157.928,
+            "cone_impedance_over_ground_ohm": 78.964
+          },
+          "tol_pct": 0.5,
+          "source": "eta0/pi * ln(cot(15 deg)) = 119.92 * 1.3170 = 157.93 ohm, and exactly half that over a ground plane. Cross-checked against this family's biconical spec, which gives 375.50 ohm at a 5 degree half angle by the same formula."
+        }
+      ],
+      "references": [
+        "Kandoian, Three new antenna types and their applications, Proc. IRE 34(2), 1946",
+        "Nail, Designing discone antennas, Electronics 26(8), 1953",
+        "Balanis, Antenna Theory 4th ed., Ch. 9.5 for the biconical basis"
+      ]
+    },
+    {
+      "key": "conical_monopole",
+      "name": "Conical monopole",
+      "family": "uwb",
+      "summary": "A single cone over a ground plane: exactly half a biconical, and the flare angle sets the impedance directly.",
+      "freq_range_hz": [
+        1000000.0,
+        40000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lowest usable frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "cone_half_angle_deg",
+          "name": "cone half angle",
+          "unit": "deg",
+          "role": "assumption",
+          "typical": "47.0",
+          "description": "46.96 degrees gives exactly 50 ohm"
+        },
+        {
+          "symbol": "slant",
+          "name": "cone slant length",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "base_diameter",
+          "name": "base diameter",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "height",
+          "name": "cone height",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "slant",
+          "expr": "0.25*c/f_low",
+          "units_out": "m",
+          "depends_on": [
+            "f_low"
+          ]
+        },
+        {
+          "output": "base_diameter",
+          "expr": "2*0.25*(c/f_low)*sin(rad(cone_half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "cone_half_angle_deg"
+          ]
+        },
+        {
+          "output": "height",
+          "expr": "0.25*(c/f_low)*cos(rad(cone_half_angle_deg))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "cone_half_angle_deg"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "characteristic_impedance_ohm",
+          "expr": "eta0/(2*pi)*log(1/tan(rad(cone_half_angle_deg)/2))",
+          "units_out": "ohm",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ],
+          "notes": "Zc = (eta0/2pi)*ln(cot(theta/2)) - exactly half the biconical, because the ground plane supplies the missing half by imaging. Infinite-cone value: a truncated cone oscillates about it with frequency."
+        },
+        {
+          "metric": "biconical_equivalent_ohm",
+          "expr": "eta0/pi*log(1/tan(rad(cone_half_angle_deg)/2))",
+          "units_out": "ohm",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ]
+        },
+        {
+          "metric": "half_angle_for_50_ohm_deg",
+          "expr": "deg(2*atan(1/exp(50*2*pi/eta0)))",
+          "units_out": "deg",
+          "notes": "Inverted from the impedance formula: 46.96 degrees. Wider cones go below 50 ohm, narrower ones above."
+        },
+        {
+          "metric": "vswr_in_50_ohm",
+          "expr": "max(eta0/(2*pi)*log(1/tan(rad(cone_half_angle_deg)/2)), 50.0)/min(eta0/(2*pi)*log(1/tan(rad(cone_half_angle_deg)/2)), 50.0)",
+          "units_out": "-",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ],
+          "notes": "purely from the characteristic impedance mismatch, ignoring the reactive end effect of truncation"
+        },
+        {
+          "metric": "f_low_check_hz",
+          "expr": "0.25*c/slant",
+          "units_out": "Hz",
+          "depends_on": [
+            "slant"
+          ]
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "Indicative: a decade is routine for a well-proportioned cone over a large ground plane"
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(3.0)",
+          "units_out": "dBi",
+          "notes": "Indicative. At the low end it behaves as a fat monopole over a perfect plane, whose directivity is 3.0; the beam tilts up as the cone becomes electrically large."
+        }
+      ],
+      "validity": [
+        "infinite perfect ground plane assumed; a finite plane tilts the pattern upward and raises the low-frequency VSWR",
+        "the impedance formula is for an INFINITE cone - truncation adds a reactive end effect that oscillates with frequency and is not modelled",
+        "quarter-wavelength slant is the usual low-frequency rule, not an exact result",
+        "directivity is indicative"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "cone_half_angle_deg": 5.0
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 187.752,
+            "biconical_equivalent_ohm": 375.503
+          },
+          "tol_pct": 0.2,
+          "source": "Exactly half this toolkit's biconical spec, which gives 375.50 ohm for the same 5 degree half angle. Two archetypes written independently, agreeing to six figures."
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "cone_half_angle_deg": 46.96
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 50.0,
+            "vswr_in_50_ohm": 1.0
+          },
+          "tol_pct": 0.5,
+          "source": "The 50 ohm flare angle, inverted from Zc = (eta0/2pi)*ln(cot(theta/2)): theta = 2*atan(exp(-50*2*pi/eta0)) = 46.96 degrees"
+        }
+      ],
+      "references": [
+        "Schelkunoff, Theory of antennas of arbitrary size and shape, Proc. IRE 29(9), 1941",
+        "Balanis, Antenna Theory 4th ed., Ch. 9.5"
+      ]
+    },
+    {
+      "key": "planar_monopole_rectangular",
+      "name": "Rectangular planar monopole",
+      "family": "uwb",
+      "summary": "Flat rectangular plate over a ground plane, sized by the equivalent-cylinder rule that also fits the disc monopole.",
+      "freq_range_hz": [
+        300000000.0,
+        20000000000.0
+      ],
+      "parameters": [
+        {
+          "symbol": "f_low",
+          "name": "lower cut-off frequency",
+          "unit": "Hz",
+          "role": "requirement"
+        },
+        {
+          "symbol": "aspect",
+          "name": "width/height ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "p_gap",
+          "name": "feed gap to ground",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.001"
+        },
+        {
+          "symbol": "Lp",
+          "name": "plate height",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "Wp",
+          "name": "plate width",
+          "unit": "m",
+          "role": "geometry"
+        }
+      ],
+      "synthesis": [
+        {
+          "output": "Lp",
+          "expr": "(7.2e7/f_low - p_gap)/(1 + aspect/2)",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "p_gap",
+            "aspect"
+          ],
+          "notes": "Inverted from f_low = 7.2e7/(L + W/2 + p), the equivalent-cylinder rule. The half-width stands in for the equivalent cylinder radius, which is the reading that reproduces this family's disc monopole exactly: a disc of radius r has height 2r and half-width r, giving the same 3r."
+        },
+        {
+          "output": "Wp",
+          "expr": "aspect*(7.2e7/f_low - p_gap)/(1 + aspect/2)",
+          "units_out": "m",
+          "depends_on": [
+            "aspect",
+            "f_low",
+            "p_gap"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "f_low_check_hz",
+          "expr": "7.2e7/(Lp + Wp/2 + p_gap)",
+          "units_out": "Hz",
+          "depends_on": [
+            "Lp",
+            "Wp",
+            "p_gap"
+          ],
+          "notes": "forward check: must return f_low"
+        },
+        {
+          "metric": "equivalent_cylinder_radius_m",
+          "expr": "Wp/2",
+          "units_out": "m",
+          "depends_on": [
+            "Wp"
+          ]
+        },
+        {
+          "metric": "height_over_lambda_low",
+          "expr": "Lp*f_low/c",
+          "units_out": "-",
+          "depends_on": [
+            "Lp",
+            "f_low"
+          ],
+          "notes": "Well under 0.25: a wide plate resonates lower than a thin wire of the same height, which is the whole point of going planar"
+        },
+        {
+          "metric": "plate_area_m2",
+          "expr": "Lp*Wp",
+          "units_out": "m^2",
+          "depends_on": [
+            "Lp",
+            "Wp"
+          ]
+        },
+        {
+          "metric": "bandwidth_ratio",
+          "expr": "10.0",
+          "units_out": "-",
+          "notes": "Indicative, matching the disc monopole in this family. Rectangular plates are usually a little narrower-band than discs or ellipses because their edges scatter more."
+        },
+        {
+          "metric": "directivity_dbi",
+          "expr": "db10(1.8)",
+          "units_out": "dBi",
+          "notes": "Indicative, as for the disc monopole: roughly dipole-like at the bottom of the band, degrading into higher-order patterns above"
+        },
+        {
+          "metric": "f_high_estimate_hz",
+          "expr": "10*7.2e7/(Lp + Wp/2 + p_gap)",
+          "units_out": "Hz",
+          "depends_on": [
+            "Lp",
+            "Wp",
+            "p_gap"
+          ]
+        }
+      ],
+      "validity": [
+        "the 7.2e7/(L + W/2 + p) rule is empirical, good to roughly 10% on the lower corner",
+        "the half-width reading of the equivalent cylinder radius is chosen for consistency with this toolkit's disc monopole; other authors define it differently, so do not mix constants across sources",
+        "large ground plane assumed; small ground planes shift the corner and spoil the pattern",
+        "bandwidth and directivity figures are indicative"
+      ],
+      "known_cases": [
+        {
+          "given": {
+            "f_low": 1500000000.0,
+            "aspect": 1.0,
+            "p_gap": 0.001
+          },
+          "expect": {
+            "Lp": 0.031333,
+            "Wp": 0.031333,
+            "f_low_check_hz": 1500000000.0
+          },
+          "tol_pct": 0.5,
+          "source": "Square plate at 1.5 GHz: L + L/2 + 1 mm = 48 mm gives L = 31.33 mm. The forward check closing on 1.5 GHz confirms the inversion."
+        },
+        {
+          "given": {
+            "f_low": 1500000000.0,
+            "aspect": 1.0,
+            "p_gap": 0.001
+          },
+          "expect": {
+            "height_over_lambda_low": 0.15678
+          },
+          "tol_pct": 1.0,
+          "source": "The plate is only 0.157 wavelengths tall where a thin monopole would need 0.25 - the wide plate lowers the resonance by well over a third"
+        },
+        {
+          "given": {
+            "f_low": 1500000000.0,
+            "aspect": 2.0,
+            "p_gap": 0.001
+          },
+          "expect": {
+            "Lp": 0.0235,
+            "Wp": 0.047
+          },
+          "tol_pct": 0.5,
+          "source": "Doubling the width for the same cut-off shortens the plate to 23.5 mm: L + W/2 = L + L = 2L = 47 mm"
+        }
+      ],
+      "references": [
+        "Ray, Design aspects of printed monopole antennas for UWB applications, Int. J. Antennas Propag., 2008",
+        "Kumar & Ray, Broadband Microstrip Antennas, Artech House 2003, Ch. 8"
+      ]
     }
   ]
 }
