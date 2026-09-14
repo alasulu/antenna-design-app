@@ -12,6 +12,8 @@ python OTA_Hub_AntennaToolkit.py check                      # every citable know
 
 python OTA_Hub_AntennaToolkit.py guide WR-90 --f0 10GHz     # waveguides
 python OTA_Hub_AntennaToolkit.py array -n 16 --taper chebyshev --sll -30
+python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --taper chebyshev --sll 30 --scan 45
+python OTA_Hub_AntennaToolkit.py planar --nx 12 --ny 12 --lattice triangular --d 0.62
 python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 
@@ -101,7 +103,7 @@ python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 | Path | Contents |
 |---|---|
 | `otahub/core/` | Engine: spec model, evaluator, synthesis solver, pattern maths. **GUI-free by invariant** — it must stay importable on a bare numpy/scipy install. |
-| `otahub/arrays/` | Tapers (uniform, binomial, Dolph-Chebyshev, Taylor), array factor, grating-lobe limits |
+| `otahub/arrays/` | Tapers (uniform, binomial, Dolph-Chebyshev, Taylor), array factor, grating-lobe limits; planar rectangular and triangular lattices with steering, scan loss and beam cuts |
 | `otahub/waveguides/` | Rectangular and circular guides, coax, microstrip, stripline, CPW |
 | `otahub/utils/` | Network parameters (S/Z/Y/ABCD) and matching networks |
 | `otahub/export/` | CST Studio VBA and Ansys HFSS script generation |
@@ -133,7 +135,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1070 tests
+python -m pytest tests/ -q                # 1103 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
@@ -157,6 +159,26 @@ against an independent numerical model before being written into a spec:
 | Diagonal horn aperture efficiency | Aperture integration | 8/π² = 0.8106 analytic vs 0.8110 numeric |
 | Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
+
+### Planar arrays
+
+`otahub/arrays/planar.py` covers rectangular and equilateral-triangular
+lattices, separable tapers, beam steering, and directivity for an arbitrary
+element layout.
+
+Directivity is exact rather than integrated: the average of `exp(j k·d)` over
+the sphere is `sin(kd)/(kd)`, so the radiated power is a double sum over
+`sinc(2|rₘ − rₙ|/λ)`. For a single row it reproduces the linear module to
+machine precision, and it agrees with brute-force spherical integration for
+every planar layout tested.
+
+The triangular lattice's advantage falls out of the reciprocal lattice rather
+than being asserted: grating lobes sit at reciprocal-lattice points, the
+shortest such vector is `4π/(√3 s)` against a rectangular lattice's `2π/d`, so
+the triangular unit cell is `2/√3` larger in area — **13.40% fewer elements**
+for the same grating-lobe-free scan volume. A test recomputes that from the
+primitive vectors, and another confirms by brute force that a grating lobe
+appears just past the limit and not before.
 
 ### The dimensional audit
 

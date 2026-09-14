@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1070 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1103 tests, 423/423 citable
 known cases passing.**
 
 ---
@@ -16,7 +16,7 @@ known cases passing.**
 |---|---|---|
 | Engine | `otahub/core/` | Spec model, whitelisted AST evaluator, partial synthesis solver, registry, first-principles pattern maths |
 | Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
-| Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; array factor, steering, grating-lobe limits |
+| Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; linear array factor, steering, grating-lobe limits; planar rectangular and triangular lattices with exact directivity, scan loss and beam-following cuts |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching |
 | Export | `otahub/export/` | Neutral geometry IR rendered to CST VBA and HFSS IronPython |
@@ -256,9 +256,12 @@ known case only checks what it asserts.
    constructions and are common export targets.
 4. **Validate a low-confidence archetype** end to end and either promote it or
    record why it cannot be.
-5. **Planar arrays** — the array module is linear-only; rectangular and
-   triangular lattices are the obvious extension, and the pattern machinery
-   already supports them.
+5. ~~**Planar arrays**~~ — done. Rectangular and triangular lattices, separable
+   tapers, steering and exact directivity are in `otahub/arrays/planar.py`,
+   with a `planar` CLI subcommand. Still missing: circular and thinned
+   layouts, subarray architectures, and element-pattern embedding (the module
+   assumes isotropic elements, so real gains need the element pattern folded
+   in separately).
 6. **Touchstone import** so measured or simulated S-parameters can be read
    back and compared against predictions.
 7. **Re-audit the session 1–4 specs the way session 5 audited three of them.**

@@ -403,6 +403,77 @@ def cmd_array(args: argparse.Namespace, reg: Registry) -> int:
     return 0
 
 
+def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
+    from ..arrays import (TAPERS, dolph_chebyshev, grating_lobe_free_spacing_planar,
+                          lattice_element_saving, planar_summarise,
+                          rectangular_lattice, separable_weights, taylor_nbar,
+                          triangular_lattice, uniform)
+
+    lattice = args.lattice.strip().lower()
+    taper = args.taper.lower()
+    if taper not in TAPERS:
+        print(f"unknown taper {taper!r}; choose from {', '.join(TAPERS)}", file=sys.stderr)
+        return 1
+    sll = -abs(args.sll)
+
+    def line_taper(n):
+        if taper in ("chebyshev", "taylor"):
+            return TAPERS[taper](n, sll)
+        if taper == "cosine":
+            return TAPERS[taper](n, args.pedestal)
+        return TAPERS[taper](n)
+
+    if lattice in ("rect", "rectangular", "square"):
+        positions = rectangular_lattice(args.nx, args.ny, args.d, args.dy or args.d)
+        try:
+            weights = separable_weights(line_taper(args.nx), line_taper(args.ny))
+        except ValueError as exc:
+            print(f"cannot synthesise that taper: {exc}", file=sys.stderr)
+            return 1
+    elif lattice in ("tri", "triangular", "hex", "hexagonal"):
+        positions = triangular_lattice(args.nx, args.ny, args.d)
+        if taper != "uniform":
+            print("note: a triangular lattice is not separable, so the taper is "
+                  "ignored and the array is excited uniformly", file=sys.stderr)
+        weights = [1.0] * len(positions)
+    else:
+        print(f"unknown lattice {args.lattice!r}; use rectangular or triangular",
+              file=sys.stderr)
+        return 1
+
+    s = planar_summarise(positions, weights, args.scan, args.scan_phi,
+                         half_space=args.ground_plane)
+    label = "triangular" if lattice.startswith(("tri", "hex")) else "rectangular"
+    print(f"{s['elements']}-element {label} planar array, {taper} taper, "
+          f"d = {args.d:.3f} lambda")
+    print(f"  aperture           {s['aperture_x_lambda']:.3f} x "
+          f"{s['aperture_y_lambda']:.3f} lambda")
+    print(f"  beam               theta {s['scan_theta_deg']:.1f} deg from the "
+          f"normal, phi {s['scan_phi_deg']:.1f} deg")
+    print(f"\n  directivity        {s['directivity_dbi']:.2f} dBi"
+          + ("  (ground-plane backed)" if args.ground_plane else
+             "  (isotropic elements, so half the power goes into the mirror beam;"
+             " pass --ground-plane for the one-sided figure)"))
+    print(f"  half-power beam    {s['hpbw_scan_plane_deg']:.3f} deg in the scan plane, "
+          f"{s['hpbw_cross_plane_deg']:.3f} deg across it")
+    print(f"  first sidelobe     {s['sidelobe_scan_plane_db']:.2f} dB in the scan plane, "
+          f"{s['sidelobe_cross_plane_db']:.2f} dB across it")
+    print(f"  taper efficiency   {s['taper_efficiency']:.4f}")
+
+    limit = grating_lobe_free_spacing_planar(abs(args.scan), label)
+    print(f"\n  grating-lobe limit {limit:.4f} lambda for scanning to "
+          f"{abs(args.scan):.1f} deg")
+    if args.d >= limit:
+        print(f"  ! SPACING {args.d:.4f} EXCEEDS THAT LIMIT - a grating lobe is in real space")
+    other = "triangular" if label == "rectangular" else "rectangular"
+    other_limit = grating_lobe_free_spacing_planar(abs(args.scan), other)
+    print(f"  a {other} lattice would allow {other_limit:.4f} lambda")
+    if label == "rectangular":
+        print(f"  and cover the same aperture with "
+              f"{lattice_element_saving()*100:.2f}% fewer elements")
+    return 0
+
+
 def cmd_line(args: argparse.Namespace, reg: Registry) -> int:
     from ..waveguides import lines as L
 
@@ -511,6 +582,31 @@ def build_parser() -> argparse.ArgumentParser:
                     help="beam direction from the array axis, 90 = broadside")
     pa.add_argument("--pedestal", type=float, default=0.0, help="cosine taper pedestal")
     pa.set_defaults(func=cmd_array)
+
+    pp = sub.add_parser("planar", help="synthesise a planar array")
+    pp.add_argument("--nx", type=int, default=8, help="elements along x")
+    pp.add_argument("--ny", type=int, default=8, help="elements along y (rows)")
+    pp.add_argument("--d", type=float, default=0.5,
+                    help="element spacing in wavelengths; for a triangular "
+                         "lattice this is the nearest-neighbour spacing")
+    pp.add_argument("--dy", type=float, default=None,
+                    help="y spacing if it differs from --d (rectangular only)")
+    pp.add_argument("--lattice", default="rectangular",
+                    help="rectangular | triangular")
+    pp.add_argument("--taper", default="uniform",
+                    help="uniform | binomial | chebyshev | taylor | cosine, "
+                         "applied separably along each axis")
+    pp.add_argument("--sll", type=float, default=-30.0,
+                    help="design sidelobe level in dB below the main beam; "
+                         "either sign accepted")
+    pp.add_argument("--pedestal", type=float, default=0.0, help="cosine taper pedestal")
+    pp.add_argument("--scan", type=float, default=0.0,
+                    help="beam angle from the array NORMAL in degrees; 0 is broadside")
+    pp.add_argument("--scan-phi", dest="scan_phi", type=float, default=0.0,
+                    help="azimuth of the scan direction in degrees")
+    pp.add_argument("--ground-plane", dest="ground_plane", action="store_true",
+                    help="report the one-sided directivity of a backed array")
+    pp.set_defaults(func=cmd_planar)
 
     pn = sub.add_parser("line", help="synthesise a transmission line")
     pn.add_argument("kind", help="microstrip | coax")

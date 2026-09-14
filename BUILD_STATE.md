@@ -196,9 +196,40 @@ Worth knowing: the first version of the harness had its own bug - lower-casing
 units folded siemens ("S") together with seconds ("s"), giving conductance the
 time scaling rule. Unit strings need case-sensitive matching.
 
+## Planar arrays added in S5
+
+`otahub/arrays/planar.py` plus a `planar` CLI subcommand. Rectangular and
+equilateral-triangular lattices, separable tapers, steering, scan loss, and
+directivity for an arbitrary element layout.
+
+Directivity is exact, not integrated: the sphere average of exp(j k.d) is
+sin(kd)/(kd), so radiated power is a double sum over sinc(2|r_m - r_n|/lambda).
+It reproduces the linear module to machine precision for a single row.
+
+The triangular lattice's 13.40% element saving is derived from the reciprocal
+lattice (shortest vector 4*pi/(sqrt3*s) against 2*pi/d), not asserted, and a
+test recomputes it from the primitive vectors.
+
+Three bugs in my own new code, all caught by writing the checks first:
+
+- The steered directivity summed the STEERED weights for the peak. The peak is
+  at the scan angle, where the steering phase cancels, so it must be the bare
+  weights - the wrong version reported a 45-degree scan as -4.7 dBi instead of
+  18.2.
+- The pattern cut put broadside at theta = 0, the grid edge, so the beamwidth
+  finder returned NaN and the sidelobe finder 0 dB. Broadside belongs in the
+  middle of the cut where both flanks are visible.
+- The scan-plane cut swept a great circle outward from the beam, which runs
+  past the array plane into the MIRROR beam - full amplitude for isotropic
+  elements - and pinned the sidelobe reading to 0 dB at every spacing. It now
+  sweeps the signed angle from the normal and stays in the forward hemisphere.
+
+The last one is the same failure mode as the S1 sidelobe bug: a second main
+beam mistaken for a sidelobe.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1070 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1103 tests, 423/423 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
