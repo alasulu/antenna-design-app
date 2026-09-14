@@ -252,9 +252,24 @@ boom length, reflector and driven lengths and a director count, but not the
 individual director lengths, so the geometry is genuinely underdetermined and
 building it would mean inventing dimensions.
 
+## GUI planar tab added in S5
+
+A fourth tab, and the linear one renamed so the two are distinguishable.
+Controls for lattice, spacing, taper, steering in both angles, and a
+ground-plane switch; a layout scatter sized by excitation amplitude; and the
+two cuts through the beam on one polar plot.
+
+The tab says what it cannot do rather than hiding it: a triangular lattice is
+not separable, so the taper control disables itself and a note explains why.
+Ignoring the taper silently would have been the easy option and the wrong one.
+
+The polar plot spans the forward hemisphere only, and that empty lower half is
+correct here - unlike the S3 dipole plots, where a blank half meant the
+mirroring was missing.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1227 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1234 tests, 423/423 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

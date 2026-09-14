@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1227 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1234 tests, 423/423 citable
 known cases passing.**
 
 ---
@@ -20,7 +20,7 @@ known cases passing.**
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching |
 | Export | `otahub/export/` | Neutral geometry IR rendered to CST VBA and HFSS IronPython |
-| Interfaces | `otahub/cli/`, `otahub/gui/` | 11 CLI subcommands; PySide6 GUI with catalogue, array and waveguide tabs |
+| Interfaces | `otahub/cli/`, `otahub/gui/` | 12 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
 
 ```bash
 python OTA_Hub_AntennaToolkit.py gui

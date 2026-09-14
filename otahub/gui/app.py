@@ -1,7 +1,7 @@
 """OTA Hub main window.
 
-Three tabs mirroring the toolkit: the archetype catalogue, the array
-synthesiser and the waveguide calculator. The catalogue form is generated from
+Four tabs mirroring the toolkit: the archetype catalogue, the linear array
+synthesiser, the planar array designer and the waveguide calculator. The catalogue form is generated from
 each spec's declared parameters, so a new archetype in ``specs/`` gets a
 working UI with no code change here.
 """
@@ -21,13 +21,17 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
                                QTableWidget, QTableWidgetItem, QTabWidget,
                                QTreeView, QVBoxLayout, QWidget)
 
-from ..arrays import TAPERS, summarise
+from ..arrays import (TAPERS, grating_lobe_free_spacing_planar,
+                      lattice_element_saving, planar_beam_cut,
+                      planar_summarise, rectangular_lattice,
+                      separable_weights, summarise, triangular_lattice)
 from ..core import pattern as pat
 from ..core.registry import Registry, default_registry
 from ..core.units import engineering
 from ..waveguides.rectangular import WR_SERIES, recommended_band, standard
 from .models import KEY_ROLE, CatalogueFilter, build_catalogue_model, default_for, requirement_fields
-from .plots import Canvas, plot_polar, plot_sweep
+from .plots import (Canvas, plot_element_layout, plot_hemisphere_cuts,
+                    plot_polar, plot_sweep)
 
 #: Archetypes whose far-field pattern we can compute from first principles.
 #: Anything absent gets an honest message rather than a fabricated plot.
@@ -414,6 +418,169 @@ class ArrayTab(QWidget):
         self.weights_canvas.draw_idle()
 
 
+class PlanarArrayTab(QWidget):
+    """Planar lattice designer: layout, steering, and the cuts through the beam."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.nx = QSpinBox(minimum=1, maximum=64, value=12)
+        self.ny = QSpinBox(minimum=1, maximum=64, value=12)
+        self.lattice = QComboBox()
+        self.lattice.addItems(["rectangular", "triangular"])
+        self.taper = QComboBox()
+        self.taper.addItems(sorted(TAPERS))
+        self.taper.setCurrentText("chebyshev")
+        self.sll = QDoubleSpinBox(minimum=-80.0, maximum=-5.0, value=-30.0, singleStep=5.0)
+        self.sll.setSuffix(" dB")
+        self.spacing = QDoubleSpinBox(minimum=0.05, maximum=3.0, value=0.5, singleStep=0.05)
+        self.spacing.setSuffix(" λ")
+        self.scan = QDoubleSpinBox(minimum=0.0, maximum=85.0, value=0.0, singleStep=5.0)
+        self.scan.setSuffix("° from normal")
+        self.scan_phi = QDoubleSpinBox(minimum=0.0, maximum=360.0, value=0.0, singleStep=15.0)
+        self.scan_phi.setSuffix("° azimuth")
+        self.ground = QCheckBox("ground-plane backed (one-sided)")
+        self.ground.setChecked(True)
+
+        controls = QFormLayout()
+        controls.addRow("elements along x", self.nx)
+        controls.addRow("rows along y", self.ny)
+        controls.addRow("lattice", self.lattice)
+        controls.addRow("spacing", self.spacing)
+        controls.addRow("taper", self.taper)
+        controls.addRow("sidelobe level", self.sll)
+        controls.addRow("scan angle", self.scan)
+        controls.addRow("scan azimuth", self.scan_phi)
+        controls.addRow("", self.ground)
+        box = QGroupBox("planar array")
+        box.setLayout(controls)
+
+        self.summary_table = _table()
+        self.warning = QLabel("")
+        self.warning.setWordWrap(True)
+        self.warning.setStyleSheet("color: #b00020;")
+        self.canvas = Canvas(polar=True)
+        self.layout_canvas = Canvas()
+
+        left = QVBoxLayout()
+        left.addWidget(box)
+        left.addWidget(self.summary_table)
+        left.addWidget(self.warning)
+        left.addStretch(1)
+        left_widget = QWidget()
+        left_widget.setLayout(left)
+
+        right = QTabWidget()
+        right.addTab(self.canvas, "Pattern")
+        right.addTab(self.layout_canvas, "Layout")
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right)
+        splitter.setSizes([340, 700])
+        QHBoxLayout(self).addWidget(splitter)
+
+        for widget in (self.nx, self.ny, self.sll, self.spacing, self.scan,
+                       self.scan_phi):
+            widget.valueChanged.connect(self.refresh)
+        for widget in (self.taper, self.lattice):
+            widget.currentTextChanged.connect(self.refresh)
+        self.ground.toggled.connect(self.refresh)
+        self.refresh()
+
+    # -- geometry and excitation --------------------------------------------
+
+    def _line_taper(self, n: int):
+        name = self.taper.currentText()
+        if name in ("chebyshev", "taylor"):
+            return TAPERS[name](n, self.sll.value())
+        return TAPERS[name](n)
+
+    def build(self):
+        """Positions and weights for the current settings.
+
+        A triangular lattice is not separable, so a taper cannot be applied to
+        it the way it can to a rectangular grid. Saying so is better than
+        quietly excising the control or, worse, applying a taper that does not
+        mean what the label says.
+        """
+        nx, ny, d = self.nx.value(), self.ny.value(), self.spacing.value()
+        if self.lattice.currentText() == "triangular":
+            positions = triangular_lattice(nx, ny, d)
+            return positions, np.ones(len(positions)), True
+        positions = rectangular_lattice(nx, ny, d)
+        return positions, separable_weights(self._line_taper(nx),
+                                            self._line_taper(ny)), False
+
+    # -- refresh -------------------------------------------------------------
+
+    def refresh(self) -> None:
+        lattice = self.lattice.currentText()
+        tapered = lattice == "rectangular"
+        self.taper.setEnabled(tapered)
+        self.sll.setEnabled(tapered and self.taper.currentText() in ("chebyshev", "taylor"))
+        try:
+            positions, weights, uniform_forced = self.build()
+            s = planar_summarise(positions, weights, self.scan.value(),
+                                 self.scan_phi.value(),
+                                 half_space=self.ground.isChecked())
+        except Exception as exc:  # noqa: BLE001
+            self.canvas.message(f"could not synthesise: {exc}")
+            return
+
+        limit = grating_lobe_free_spacing_planar(self.scan.value(), lattice)
+        rows = [
+            ("elements", str(s["elements"])),
+            ("aperture",
+             f"{s['aperture_x_lambda']:.2f} × {s['aperture_y_lambda']:.2f} λ"),
+            ("directivity", f"{s['directivity_dbi']:.2f} dBi"),
+            ("beamwidth, scan plane", f"{s['hpbw_scan_plane_deg']:.3f}°"),
+            ("beamwidth, cross plane", f"{s['hpbw_cross_plane_deg']:.3f}°"),
+            ("sidelobe, scan plane", f"{s['sidelobe_scan_plane_db']:.2f} dB"),
+            ("sidelobe, cross plane", f"{s['sidelobe_cross_plane_db']:.2f} dB"),
+            ("taper efficiency", f"{s['taper_efficiency']:.4f}"),
+            ("max spacing, no grating lobe", f"{limit:.4f} λ"),
+        ]
+        _fill(self.summary_table, rows)
+
+        notes = []
+        if self.spacing.value() >= limit:
+            notes.append(
+                f"Spacing {self.spacing.value():.3f} λ exceeds the "
+                f"{limit:.4f} λ grating-lobe limit for scanning to "
+                f"{self.scan.value():.0f}°, so a grating lobe is in real space.")
+        if uniform_forced and self.taper.currentText() != "uniform":
+            notes.append(
+                "A triangular lattice is not separable, so the taper does not "
+                "apply and the array is excited uniformly.")
+        if lattice == "rectangular":
+            notes.append(
+                f"A triangular lattice would allow "
+                f"{grating_lobe_free_spacing_planar(self.scan.value(), 'triangular'):.4f} λ "
+                f"and cover the same aperture with "
+                f"{lattice_element_saving() * 100:.1f}% fewer elements.")
+        if not self.ground.isChecked():
+            notes.append(
+                "Isotropic elements radiate both ways, so half the power is in "
+                "the mirror beam. Tick the ground-plane box for the one-sided "
+                "figure.")
+        self.warning.setText("  ".join(notes))
+
+        cuts = []
+        for label, plane in (("scan plane", "scan"), ("cross plane", "cross")):
+            cut = planar_beam_cut(positions, weights, plane, self.scan.value(),
+                                  self.scan_phi.value())
+            cuts.append((label, cut.theta - math.pi / 2, cut.cut(0.0)))
+        plot_hemisphere_cuts(
+            self.canvas, cuts,
+            f"{s['elements']} elements, {lattice}, "
+            f"{'uniform' if uniform_forced else self.taper.currentText()} taper\n"
+            f"D {s['directivity_dbi']:.1f} dBi, beam at {self.scan.value():.0f}° "
+            f"from the normal")
+        plot_element_layout(
+            self.layout_canvas, positions, weights,
+            f"{lattice} lattice, {self.spacing.value():.3f} λ")
+
+
 # --------------------------------------------------------------- waveguides
 
 class WaveguideTab(QWidget):
@@ -518,9 +685,11 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.catalogue = CatalogueTab(registry)
         self.arrays = ArrayTab()
+        self.planar = PlanarArrayTab()
         self.waveguides = WaveguideTab()
         self.tabs.addTab(self.catalogue, "Catalogue")
-        self.tabs.addTab(self.arrays, "Arrays")
+        self.tabs.addTab(self.arrays, "Linear arrays")
+        self.tabs.addTab(self.planar, "Planar arrays")
         self.tabs.addTab(self.waveguides, "Waveguides")
         self.setCentralWidget(self.tabs)
         problems = registry.problems()

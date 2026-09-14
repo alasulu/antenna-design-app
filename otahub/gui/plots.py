@@ -80,3 +80,68 @@ def plot_polar(canvas: Canvas, theta_rad, u_linear, title: str = "",
     if title:
         ax.set_title(title, fontsize=10)
     canvas.draw_idle()
+
+
+def plot_hemisphere_cuts(canvas: Canvas, cuts, title: str = "",
+                         floor_db: float = -40.0) -> None:
+    """Pattern cuts of a planar array, plotted over the forward hemisphere only.
+
+    `cuts` is a sequence of (label, psi_rad, u_linear) where psi is the SIGNED
+    angle from the array normal, so the trace spans -90 to +90 degrees and the
+    normal points up.
+
+    The lower half of the polar plot stays empty on purpose. A planar array
+    with a ground plane radiates into one hemisphere, and there is nothing to
+    draw below it — unlike a dipole cut, where a blank half really did mean the
+    mirroring was missing.
+    """
+    canvas.clear()
+    ax = canvas.axes
+    ax.set_axis_on()
+    peak = max(float(np.asarray(u).max()) for _, _, u in cuts)
+    if peak <= 0:
+        canvas.message("pattern radiates no power")
+        return
+    for label, psi, u in cuts:
+        db = 10.0 * np.log10(np.maximum(np.asarray(u, dtype=float) / peak,
+                                        10 ** (floor_db / 10.0)))
+        ax.plot(np.asarray(psi, dtype=float), db, lw=1.5, label=label)
+    ax.set_ylim(floor_db, 0)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_thetamin(-90)
+    ax.set_thetamax(90)
+    ax.grid(True, alpha=0.35)
+    ax.legend(loc="lower center", fontsize=8, ncol=len(cuts), frameon=False,
+              bbox_to_anchor=(0.5, -0.18))
+    if title:
+        ax.set_title(title, fontsize=10)
+    canvas.draw_idle()
+
+
+def plot_element_layout(canvas: Canvas, positions, weights=None,
+                        title: str = "") -> None:
+    """Element positions in wavelengths, sized by excitation amplitude."""
+    canvas.clear()
+    ax = canvas.axes
+    ax.set_axis_on()
+    pos = np.asarray(positions, dtype=float)
+    if weights is None:
+        sizes = np.full(len(pos), 28.0)
+        colours = None
+    else:
+        w = np.abs(np.asarray(weights, dtype=float))
+        w = w / (w.max() or 1.0)
+        sizes = 8.0 + 42.0 * w
+        colours = w
+    sc = ax.scatter(pos[:, 0], pos[:, 1], s=sizes, c=colours, cmap="viridis",
+                    edgecolors="none")
+    if colours is not None:
+        canvas.figure.colorbar(sc, ax=ax, label="normalised amplitude")
+    ax.set_xlabel("x (wavelengths)")
+    ax.set_ylabel("y (wavelengths)")
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.grid(True, alpha=0.3)
+    if title:
+        ax.set_title(title, fontsize=10)
+    canvas.draw_idle()

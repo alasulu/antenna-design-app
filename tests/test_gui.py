@@ -96,9 +96,9 @@ def test_frequency_field_is_prefilled_even_without_a_declared_typical(registry):
 
 # ------------------------------------------------------------------ window
 
-def test_window_builds_with_three_tabs(window):
+def test_window_builds_with_the_expected_tabs(window):
     assert [window.tabs.tabText(i) for i in range(window.tabs.count())] == \
-           ["Catalogue", "Arrays", "Waveguides"]
+           ["Catalogue", "Linear arrays", "Planar arrays", "Waveguides"]
 
 
 def test_status_bar_reports_a_clean_catalogue(window, registry):
@@ -213,3 +213,89 @@ def test_waveguide_tab_reports_evanescence_below_cutoff(window):
     assert "CUTOFF" in rows["at this frequency"]
     tab.freq.setValue(10.0)
     tab.refresh()
+
+
+# ------------------------------------------------------------ planar arrays
+
+def _rows(table) -> dict:
+    return {table.item(i, 0).text(): table.item(i, 1).text()
+            for i in range(table.rowCount())}
+
+
+def test_planar_tab_is_present(window):
+    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
+    assert "Planar arrays" in labels
+    assert "Linear arrays" in labels, "the linear tab should say which it is"
+
+
+def test_planar_tab_reports_the_design_sidelobe_level(window):
+    tab = window.planar
+    tab.lattice.setCurrentText("rectangular")
+    tab.taper.setCurrentText("chebyshev")
+    for level in (-25.0, -35.0):
+        tab.sll.setValue(level)
+        rows = _rows(tab.summary_table)
+        for key in ("sidelobe, scan plane", "sidelobe, cross plane"):
+            assert abs(float(rows[key].split()[0]) - level) < 0.1, (
+                f"{key} read {rows[key]} for a {level} dB design")
+
+
+def test_planar_tab_warns_about_grating_lobes(window):
+    tab = window.planar
+    tab.lattice.setCurrentText("rectangular")
+    tab.scan.setValue(45.0)
+    tab.spacing.setValue(0.5)
+    assert "grating-lobe limit" not in tab.warning.text()
+    tab.spacing.setValue(0.9)
+    assert "grating lobe is in real space" in tab.warning.text()
+    tab.spacing.setValue(0.5)
+
+
+def test_planar_tab_says_a_triangular_lattice_cannot_be_tapered(window):
+    """Silently ignoring the taper would be worse than saying so."""
+    tab = window.planar
+    tab.taper.setCurrentText("chebyshev")
+    tab.lattice.setCurrentText("triangular")
+    assert not tab.taper.isEnabled()
+    assert "not separable" in tab.warning.text()
+    rows = _rows(tab.summary_table)
+    assert float(rows["taper efficiency"]) == pytest.approx(1.0, abs=1e-6)
+    tab.lattice.setCurrentText("rectangular")
+
+
+def test_planar_tab_scan_broadens_only_the_scan_plane(window):
+    tab = window.planar
+    tab.lattice.setCurrentText("rectangular")
+    tab.taper.setCurrentText("uniform")
+    tab.spacing.setValue(0.5)
+    tab.scan.setValue(0.0)
+    base = _rows(tab.summary_table)
+    tab.scan.setValue(45.0)
+    scanned = _rows(tab.summary_table)
+    def deg(rows, key):
+        return float(rows[key].rstrip("°"))
+    assert deg(scanned, "beamwidth, scan plane") > deg(base, "beamwidth, scan plane") * 1.3
+    assert deg(scanned, "beamwidth, cross plane") == pytest.approx(
+        deg(base, "beamwidth, cross plane"), rel=2e-3)
+    tab.scan.setValue(0.0)
+
+
+def test_planar_tab_ground_plane_box_doubles_the_directivity(window):
+    tab = window.planar
+    tab.ground.setChecked(False)
+    open_space = float(_rows(tab.summary_table)["directivity"].split()[0])
+    assert "mirror beam" in tab.warning.text()
+    tab.ground.setChecked(True)
+    backed = float(_rows(tab.summary_table)["directivity"].split()[0])
+    assert backed - open_space == pytest.approx(3.0103, abs=0.01)
+
+
+def test_planar_tab_survives_a_one_element_array(window):
+    """Degenerate settings must not raise; the tab has to keep working."""
+    tab = window.planar
+    tab.nx.setValue(1)
+    tab.ny.setValue(1)
+    rows = _rows(tab.summary_table)
+    assert rows["elements"] == "1"
+    tab.nx.setValue(12)
+    tab.ny.setValue(12)
