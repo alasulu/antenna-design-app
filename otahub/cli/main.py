@@ -516,6 +516,66 @@ def cmd_line(args: argparse.Namespace, reg: Registry) -> int:
 
 # --------------------------------------------------------------------- entry
 
+def cmd_touchstone(args: argparse.Namespace, reg: Registry) -> int:
+    from ..utils.touchstone import compare_to_prediction, read_touchstone
+
+    try:
+        net = read_touchstone(Path(args.path), n_ports=args.ports)
+    except (OSError, ValueError) as exc:
+        print(f"could not read {args.path}: {exc}", file=sys.stderr)
+        return 1
+
+    lo, hi = net.frequency_hz[0], net.frequency_hz[-1]
+    print(f"{args.path}: {net.n_ports}-port, {len(net.frequency_hz)} points, "
+          f"{lo/1e9:.4g} to {hi/1e9:.4g} GHz, reference {net.z0:g} ohm")
+    for note in net.comments[:4]:
+        print(f"  ! {note}")
+
+    port = args.port
+    db = net.s_db(port)
+    best = int(db.argmin())
+    print(f"\n  best match at port {port + 1}: {db[best]:.2f} dB at "
+          f"{net.frequency_hz[best]/1e9:.6g} GHz")
+    print(f"  impedance there      {net.impedance_at_port(port)[best]:.4g} ohm")
+    print(f"  VSWR there           {net.vswr(port)[best]:.4f}")
+    dips = net.resonances(port, args.threshold)
+    if dips:
+        print(f"  resonances below {args.threshold:.0f} dB: "
+              + ", ".join(f"{d/1e9:.6g} GHz" for d in dips))
+    else:
+        print(f"  no resonance dips below {args.threshold:.0f} dB")
+
+    if args.compare:
+        key = args.compare
+        if key not in reg:
+            print(f"unknown archetype {key!r}", file=sys.stderr)
+            return 1
+        overrides = dict(pair.split("=", 1) for pair in (args.set or []))
+        given = {k: parse_quantity(v) for k, v in overrides.items()}
+        f_cmp = args.at if args.at else net.frequency_hz[best]
+        given.setdefault("f0", f_cmp)
+        try:
+            design = reg[key].synthesize(**given)
+        except Exception as exc:  # noqa: BLE001
+            print(f"could not synthesise {key}: {exc}", file=sys.stderr)
+            return 1
+        r = design.get("input_resistance_ohm") or design.get("radiation_resistance_ohm")
+        x = design.get("input_reactance_ohm") or 0.0
+        if r is None:
+            print(f"{key} predicts no input resistance to compare against",
+                  file=sys.stderr)
+            return 1
+        out = compare_to_prediction(net, complex(float(r), float(x)), f_cmp, port)
+        print(f"\n  against {key} at {f_cmp/1e9:.6g} GHz:")
+        print(f"    predicted  {out['predicted_impedance_ohm']:.4g} ohm, "
+              f"S11 {out['predicted_s11_db']:.2f} dB, VSWR {out['predicted_vswr']:.3f}")
+        print(f"    measured   {out['measured_impedance_ohm']:.4g} ohm, "
+              f"S11 {out['measured_s11_db']:.2f} dB, VSWR {out['measured_vswr']:.3f}")
+        print(f"    resistance off by {out['resistance_error_pct']:+.2f}%, "
+              f"reactance by {out['reactance_error_ohm']:+.3g} ohm")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="otahub", description="OTA Hub Antenna Toolkit — synthesise and analyse antennas.")
@@ -607,6 +667,23 @@ def build_parser() -> argparse.ArgumentParser:
     pp.add_argument("--ground-plane", dest="ground_plane", action="store_true",
                     help="report the one-sided directivity of a backed array")
     pp.set_defaults(func=cmd_planar)
+
+    pt = sub.add_parser("touchstone",
+                        help="read measured or simulated S-parameters")
+    pt.add_argument("path", help="a .sNp file")
+    pt.add_argument("--ports", type=int, default=None,
+                    help="port count, if the filename does not say")
+    pt.add_argument("--port", type=int, default=0,
+                    help="which port to report, 0-based")
+    pt.add_argument("--threshold", type=float, default=-10.0,
+                    help="return-loss threshold for calling something a resonance")
+    pt.add_argument("--compare", default=None,
+                    help="archetype key to compare the measurement against")
+    pt.add_argument("--at", type=parse_quantity, default=None,
+                    help="frequency for the comparison; defaults to the best match")
+    pt.add_argument("--set", action="append", metavar="NAME=VALUE",
+                    help="requirement for the compared archetype")
+    pt.set_defaults(func=cmd_touchstone)
 
     pn = sub.add_parser("line", help="synthesise a transmission line")
     pn.add_argument("kind", help="microstrip | coax")

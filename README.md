@@ -16,6 +16,7 @@ python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --taper chebyshev --sll 
 python OTA_Hub_AntennaToolkit.py planar --nx 12 --ny 12 --lattice triangular --d 0.62
 python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
+python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
 
 python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
@@ -78,6 +79,30 @@ The engine is built to refuse rather than guess:
 - **Low-confidence specs announce themselves** in `list`, `show` and in every
   design they produce.
 
+## Reading measurements back
+
+`export` sends a model out to a solver. `touchstone` is the way back: read the
+S-parameters a solver or a VNA produced and put them beside what the archetype
+predicted.
+
+```bash
+python OTA_Hub_AntennaToolkit.py touchstone patch.s1p --compare rectangular_patch_inset \
+    --set eps_r=4.4 --set h=1.6e-3
+```
+
+It finds the resonances, reports impedance and VSWR there, and states the
+prediction and the measurement in the same terms.
+
+Two details in the Touchstone format are silent failures if you get them wrong,
+and both are tested here. **Two-port files store their matrix column-major**
+(`freq S11 S21 S12 S22`) while three ports and up are row-major — reading a
+2-port row-major transposes it, swapping forward gain with reverse isolation.
+And **a frequency point may wrap across any number of lines**, so the reader
+works on a flat stream of values rather than line by line. A nine-value first
+line is genuinely ambiguous between a 2-port and a 4-port; the reader resolves
+it from the total value count where it can and says so plainly where it cannot,
+rather than guessing.
+
 ## Verification
 
 `otahub/core/pattern.py` is deliberately independent of the spec files —
@@ -105,7 +130,7 @@ python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 | `otahub/core/` | Engine: spec model, evaluator, synthesis solver, pattern maths. **GUI-free by invariant** — it must stay importable on a bare numpy/scipy install. |
 | `otahub/arrays/` | Tapers (uniform, binomial, Dolph-Chebyshev, Taylor), array factor, grating-lobe limits; planar rectangular and triangular lattices with steering, scan loss and beam cuts |
 | `otahub/waveguides/` | Rectangular and circular guides, coax, microstrip, stripline, CPW |
-| `otahub/utils/` | Network parameters (S/Z/Y/ABCD) and matching networks |
+| `otahub/utils/` | Network parameters (S/Z/Y/ABCD), matching networks, Touchstone import/export |
 | `otahub/export/` | CST Studio VBA and Ansys HFSS script generation |
 | `otahub/cli/` | Command line front end |
 | `otahub/gui/` | PySide6 interface: catalogue, linear arrays, planar arrays, waveguides |
@@ -144,7 +169,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1270 tests
+python -m pytest tests/ -q                # 1307 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```

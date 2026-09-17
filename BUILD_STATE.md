@@ -350,9 +350,34 @@ models converging. The cross-consistency guard on DRA volumes was loosened to
 Q is still borrowed from the hemisphere. That is the one substantive
 approximation left in this family.
 
+## Touchstone import added (post-S5)
+
+otahub/utils/touchstone.py plus a `touchstone` CLI subcommand. The exporters
+send a model out to CST or HFSS; this is the way back.
+
+Reads v1.0 and v1.1, MA/DB/RI formats, every frequency unit, S and Z
+parameters, any port count. G and H files are recognised and refused rather
+than mis-converted. Writes too, and the round trip is tested at 1, 2 and 3
+ports in all three formats.
+
+The two traps, both silent failures, both tested:
+
+- Two-port files are COLUMN-major (freq S11 S21 S12 S22) while three ports and
+  up are row-major. Reading a 2-port row-major transposes it, swapping forward
+  gain with reverse isolation. The test data is deliberately asymmetric so a
+  transpose cannot hide.
+- A frequency point may wrap across any number of lines, so the reader works on
+  a flat stream of values chunked by 1 + 2N^2, not line by line.
+
+Port-count inference turned out to need both signals. A nine-value first line
+is either a 2-port (whole matrix on one line) or the first row of a 4-port -
+a real ambiguity in the format, and why the .sNp suffix exists. The reader
+breaks the tie on the total value count where only one candidate divides
+evenly, and says so plainly where both do.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1270 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1307 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

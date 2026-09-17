@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1270 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1307 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -18,7 +18,7 @@ known cases passing.**
 | Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
 | Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; linear array factor, steering, grating-lobe limits; planar rectangular and triangular lattices with exact directivity, scan loss and beam-following cuts |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
-| Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching |
+| Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
 | Export | `otahub/export/` | Neutral geometry IR rendered to CST VBA and HFSS IronPython |
 | Interfaces | `otahub/cli/`, `otahub/gui/` | 12 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
 
@@ -278,8 +278,11 @@ known case only checks what it asserts.
    layouts, subarray architectures, and element-pattern embedding (the module
    assumes isotropic elements, so real gains need the element pattern folded
    in separately).
-6. **Touchstone import** so measured or simulated S-parameters can be read
-   back and compared against predictions.
+6. ~~**Touchstone import**~~ — done. `otahub/utils/touchstone.py` plus a
+   `touchstone` CLI subcommand: reads v1.0 and v1.1 files in MA/DB/RI, any
+   frequency unit, S and Z parameters, with the two-port column-major exception
+   and arbitrary line wrapping handled. G and H parameter files are recognised
+   and refused rather than mis-converted.
 7. **Re-audit the session 1–4 specs** — partly done. Two systematic audits now
    run over the whole catalogue: the dimensional one (793 quantities against
    scale invariance) and the cross-consistency one (23 relationships between
