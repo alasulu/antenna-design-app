@@ -303,9 +303,27 @@ cases pin the fit at the other end of the design space.
 Worth remembering: an agreement that looks acceptable can be two errors
 cancelling, and the only way to tell is to check each term on its own.
 
+## Cross-consistency audit added (post-S5)
+
+tests/test_cross_consistency.py: 23 relationships between archetypes that must
+agree because the same physics reaches two specs by different routes. Monopole
+against dipole, folded against plain, slot against its complementary dipole,
+conical monopole against biconical, slot array against single slot, Potter horn
+cutoffs against the circular-guide Bessel zeros, and the three DRA shapes -
+exact Mie, published fits, magnetic-wall algebra - against each other.
+
+All clean on the first run. Verified to fire by injecting a 3% drift into
+half_wave_dipole's radiation resistance: six tests across three families
+failed, which is the blast radius that makes it worth having. The known-case
+harness flags the one archetype; this shows how far the error reaches.
+
+Together with the dimensional audit the catalogue now has two systematic checks
+that need no external reference. Neither covers an archetype with no sibling
+and no dimensional quirk; those still need reading against their source.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1239 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1262 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

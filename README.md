@@ -144,7 +144,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1239 tests
+python -m pytest tests/ -q                # 1262 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
@@ -188,6 +188,27 @@ the triangular unit cell is `2/√3` larger in area — **13.40% fewer elements*
 for the same grating-lobe-free scan volume. A test recomputes that from the
 primitive vectors, and another confirms by brute force that a grating lobe
 appears just past the limit and not before.
+
+### Cross-consistency between archetypes
+
+`tests/test_cross_consistency.py` checks archetypes against **each other**, at
+the places where the same physics reaches two specs by different routes: a
+quarter-wave monopole is exactly half a half-wave dipole, a folded dipole four
+times one, a turnstile's on-axis directivity equal to a single dipole's, a slot
+times its complementary dipole equal to η₀²/4, a conical monopole exactly half a
+biconical, a slot array's guide conductance identical to the single-slot spec's,
+the Potter horn's mode cutoffs equal to the circular-guide Bessel zeros, and the
+three dielectric-resonator shapes — solved by exact Mie theory, by published
+curve fits and by magnetic-wall algebra respectively — agreeing on volume within
+a factor of 1.41.
+
+It exists because neither a citation nor a unit check catches the failure mode
+that matters most here. `corner_reflector_90` shipped for four sessions with its
+null where its optimum is, passing its own cited cases throughout;
+`rectangular_patch_inset` agreed with Balanis to 1.7% while both of its
+conductance terms were wrong in cancelling directions. A second independent
+route to the same number catches both. Injecting a 3% drift into one shared
+archetype fires six of these tests across three families.
 
 ### The dimensional audit
 

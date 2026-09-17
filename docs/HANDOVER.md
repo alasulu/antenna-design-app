@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1239 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1262 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -279,7 +279,12 @@ known case only checks what it asserts.
    in separately).
 6. **Touchstone import** so measured or simulated S-parameters can be read
    back and compared against predictions.
-7. **Re-audit the session 1–4 specs the way session 5 audited three of them.**
+7. **Re-audit the session 1–4 specs** — partly done. Two systematic audits now
+   run over the whole catalogue: the dimensional one (793 quantities against
+   scale invariance) and the cross-consistency one (23 relationships between
+   archetypes that must agree). Both are clean. What neither covers is an
+   archetype with no sibling and no dimensional quirk — those still need
+   reading against their source.
    Every archetype passes the cases it declares; that is not the same as being
    right. `corner_reflector_90` had a null where its optimum is and said so
    confidently for four sessions. The archetypes carrying a single known case
