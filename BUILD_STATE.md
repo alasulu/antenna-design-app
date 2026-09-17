@@ -432,9 +432,40 @@ replacement and `.replace("**0", "")` turned `k0ae**0` into `k0ae`, making the
 constant term linear. The known cases caught it immediately - three failures at
 18%, 12% and 48%. Build expressions term by term, not by patching strings.
 
+## Conical and corrugated horns integrated (post-S5)
+
+The last two pinned efficiencies in the horn family: 0.51 smooth, 0.69
+corrugated. Both now integrated from their aperture fields - TE11 for the
+smooth cone, the balanced hybrid HE11 (a J0(2.405*rho/a) taper) for the
+corrugated one - with quadratic phase across the flare.
+
+Two validations fell straight out. The uniform-phase limits are 0.836829 and
+0.691660, against 0.836 and 0.69 in the literature. The corrugated horn's 0.69
+is therefore DERIVED here, not quoted.
+
+The 0.51 puzzle resolved rather than being papered over. The integral gives
+0.53847 at the sqrt(3*lambda*L) flare, not 0.51. The two are both right: 0.51
+is the efficiency at the TRUE maximum-gain flare, s = 0.3908, while the
+sqrt(3*lambda*L) rule puts s at exactly 0.375. They differ by 4% in efficiency
+and 0.0078 dB in gain - which is what "optimum" means, the peak being flat. The
+old spec paired one convention's efficiency with the other's aperture, costing
+0.24 dB.
+
+Found while doing it: gain_advantage_over_smooth_db shipped as
+db10(0.69/0.51) = +1.31 dB, comparing the corrugated horn at ZERO phase error
+against the smooth horn at its optimum. Like for like at the same flare the
+corrugated horn is slightly BEHIND, -0.17 dB at the optimum, because the J0
+taper is heavier. It pulls ahead only when over-flared, where its taper
+tolerates phase error better. Corrugation buys pattern symmetry and
+cross-polarisation, not gain, and the spec now says so.
+
+Also: my uniform-phase limit case used flare = 0.0001, which describes a horn
+a fraction of a millimetre across and a 109,000 degree beamwidth. The
+plausibility guard caught it. Limit checks still have to describe real objects.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1339 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1353 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

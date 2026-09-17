@@ -751,7 +751,7 @@
       "key": "conical_horn",
       "name": "Conical horn (optimum gain)",
       "family": "horn",
-      "summary": "Circular waveguide flared into a cone; the standard reflector feed.",
+      "summary": "Circular waveguide flared into a cone, with the aperture efficiency integrated from the TE11 aperture field.",
       "freq_range_hz": [
         1000000000.0,
         300000000000.0
@@ -759,51 +759,87 @@
       "parameters": [
         {
           "symbol": "f0",
-          "name": "design frequency",
+          "name": "operating frequency",
           "unit": "Hz",
           "role": "requirement"
         },
         {
           "symbol": "L",
-          "name": "axial flare length",
+          "name": "slant length",
           "unit": "m",
           "role": "requirement",
           "typical": "0.3"
+        },
+        {
+          "symbol": "flare",
+          "name": "flare relative to the sqrt(3*lambda*L) rule",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
         },
         {
           "symbol": "dm",
           "name": "aperture diameter",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "s_phase",
+          "name": "edge phase error",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
           "output": "dm",
-          "expr": "np.sqrt(3*(c/f0)*L)",
+          "expr": "flare*sqrt(3*(c/f0)*L)",
           "units_out": "m",
           "depends_on": [
+            "flare",
+            "f0",
+            "L"
+          ]
+        },
+        {
+          "output": "s_phase",
+          "expr": "(dm/2)**2/(2*(c/f0)*L)",
+          "units_out": "-",
+          "depends_on": [
+            "dm",
             "f0",
             "L"
           ],
-          "notes": "optimum-gain condition d_m = sqrt(3*lambda*L)"
+          "notes": "Quadratic phase error at the aperture rim, in wavelengths. It is exactly 0.375*flare^2, so the sqrt(3*lambda*L) rule puts it at 3/8 - and the efficiency depends on this number and nothing else."
         }
       ],
       "analysis": [
         {
-          "metric": "gain_dbi",
-          "expr": "db10(0.51*4*pi*(pi*dm**2/4)*(f0/c)**2)",
-          "units_out": "dBi",
+          "metric": "aperture_efficiency",
+          "expr": "(0.63846643)*s_phase**6 + (-3.7328243)*s_phase**5 + (5.3364472)*s_phase**4 + (-0.61389969)*s_phase**3 + (-2.4457965)*s_phase**2 + (-0.0046021307)*s_phase**1 + (0.83687612)",
+          "units_out": "-",
           "depends_on": [
-            "dm",
-            "f0"
+            "s_phase"
           ],
-          "notes": "aperture efficiency 0.51, as for the pyramidal horn"
+          "notes": "Integrated from the circular-guide TE11 aperture field with quadratic phase, then fitted over s in [0, 0.8]; worst error 0.0002. At zero phase error it gives 0.83683, the published TE11 circular-aperture value, which is the check that the integral is set up right. See the note on the 0.51 this spec used to pin."
         },
         {
-          "metric": "aperture_efficiency",
-          "expr": "0.51",
-          "units_out": "-"
+          "metric": "aperture_area_m2",
+          "expr": "pi*dm**2/4",
+          "units_out": "m^2",
+          "depends_on": [
+            "dm"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "dm",
+            "f0"
+          ]
         },
         {
           "metric": "hpbw_e_deg",
@@ -813,7 +849,7 @@
             "dm",
             "f0"
           ],
-          "notes": "approximately 60*lambda/d_m; the conical horn's E- and H-plane beamwidths differ by roughly 10%, which is why cross-polarisation is poor"
+          "notes": "indicative, near the optimum flare only"
         },
         {
           "metric": "hpbw_h_deg",
@@ -822,30 +858,71 @@
           "depends_on": [
             "dm",
             "f0"
-          ]
+          ],
+          "notes": "Indicative. The E and H beamwidths differ by about 10 degrees because the TE11 aperture field is tapered in one plane and not the other - which is exactly what corrugating the horn fixes."
         }
       ],
       "validity": [
-        "optimum flare only",
-        "TE11 dominant mode",
-        "asymmetric pattern and high cross-polarisation; use a corrugated horn where pattern symmetry matters"
+        "aperture-field model with the unperturbed TE11 distribution and a quadratic phase across the flare; it ignores flare-edge diffraction and throat reflection",
+        "the exact spherical path difference is slightly SMALLER than the quadratic approximation, so this underestimates efficiency - by 0.2% at a 6 degree flare half-angle, 3% at 22 degrees",
+        "the efficiency fit covers s in [0, 0.8]; beyond that a degree-6 polynomial diverges rather than degrades",
+        "beamwidth figures are indicative and hold near the optimum flare only"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 10000000000.0,
-            "L": 0.3
+            "L": 0.3,
+            "flare": 1.0
           },
           "expect": {
-            "dm_m": 0.1642,
-            "gain_dbi": 21.55
+            "s_phase": 0.375,
+            "aperture_efficiency": 0.53847
           },
-          "tol_pct": 1.5,
-          "source": "d_m = sqrt(3*lambda*L) = 164.2 mm at 10 GHz, L = 0.3 m; G = 0.51*4*pi*A/lambda^2. Balanis, Antenna Theory 4th ed., Ch. 13"
+          "tol_pct": 0.5,
+          "source": "The sqrt(3*lambda*L) flare puts 3/8 of a wavelength at the rim, where the integrated efficiency is 0.53847. This spec used to pin 0.51, which is the efficiency at the TRUE maximum-gain flare (s = 0.3908, eta = 0.51760) - a different convention. Pinning one convention's efficiency while synthesising the other's aperture cost 0.24 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 0.1
+          },
+          "expect": {
+            "aperture_efficiency": 0.8367931
+          },
+          "tol_pct": 0.5,
+          "source": "Near the uniform-phase limit: a 0.1 flare leaves only 0.00375 wavelengths of edge phase error, where the efficiency is 0.836793 against the zero-phase value 0.836829 - the 0.836 quoted in the literature. A vanishing flare would test the limit more exactly but would describe a horn a fraction of a millimetre across, so this stops at a small aperture that is still a real antenna."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "dm": 0.16425992
+          },
+          "tol_pct": 0.2,
+          "source": "sqrt(3*lambda*L) = 164.26 mm at 10 GHz for a 300 mm slant"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.3
+          },
+          "expect": {
+            "s_phase": 0.63375,
+            "aperture_efficiency": 0.2159889
+          },
+          "tol_pct": 1.0,
+          "source": "Over-flaring to 1.3x drives s to 0.6338 and the efficiency down to 0.21599 - less than half the optimum. A pinned efficiency cannot express this, and would have claimed the larger aperture was simply better."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.5)"
+        "Balanis, Antenna Theory 4th ed., Ch. 13.5",
+        "Efficiency integrated here from the TE11 aperture field and checked against the published uniform-phase value of 0.836"
       ]
     },
     {
@@ -882,14 +959,38 @@
           "name": "corrugation depth",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "flare",
+          "name": "flare relative to the sqrt(3*lambda*L) rule",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0"
+        },
+        {
+          "symbol": "s_phase",
+          "name": "edge phase error",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
           "output": "dm",
-          "expr": "np.sqrt(3*(c/f0)*L)",
+          "expr": "flare*sqrt(3*(c/f0)*L)",
           "units_out": "m",
           "depends_on": [
+            "flare",
+            "f0",
+            "L"
+          ]
+        },
+        {
+          "output": "s_phase",
+          "expr": "(dm/2)**2/(2*(c/f0)*L)",
+          "units_out": "-",
+          "depends_on": [
+            "dm",
             "f0",
             "L"
           ]
@@ -901,24 +1002,36 @@
           "depends_on": [
             "f0"
           ],
-          "notes": "lambda/4 slots present a high surface impedance, which is what enforces the balanced-hybrid HE11 condition. Depth must hold across the band, so wideband designs taper it from lambda/2 at the throat to lambda/4 at the aperture."
+          "notes": "Quarter-wave corrugations present an anisotropic surface that forces the balanced hybrid HE11 mode - which is what makes the E and H patterns identical and the cross-polarisation low."
         }
       ],
       "analysis": [
         {
-          "metric": "gain_dbi",
-          "expr": "db10(0.69*4*pi*(pi*dm**2/4)*(f0/c)**2)",
-          "units_out": "dBi",
+          "metric": "aperture_efficiency",
+          "expr": "(0.11624212)*s_phase**6 + (-1.1614789)*s_phase**5 + (2.0296634)*s_phase**4 + (-0.19599169)*s_phase**3 + (-1.3887302)*s_phase**2 + (-0.0014933285)*s_phase**1 + (0.69167577)",
+          "units_out": "-",
           "depends_on": [
-            "dm",
-            "f0"
+            "s_phase"
           ],
-          "notes": "aperture efficiency 0.69, materially better than the 0.51 of a smooth-wall horn"
+          "notes": "Integrated from the balanced hybrid HE11 aperture field, which is a J0(2.405*rho/a) taper, with quadratic phase. At zero phase error it gives 0.69157 - the 0.69 quoted for corrugated horns, now derived rather than assumed. Fitted over s in [0, 0.8], worst error 0.0001."
         },
         {
-          "metric": "aperture_efficiency",
-          "expr": "0.69",
-          "units_out": "-"
+          "metric": "aperture_area_m2",
+          "expr": "pi*dm**2/4",
+          "units_out": "m^2",
+          "depends_on": [
+            "dm"
+          ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "dm",
+            "f0"
+          ]
         },
         {
           "metric": "hpbw_deg",
@@ -928,43 +1041,73 @@
             "dm",
             "f0"
           ],
-          "notes": "the same in both planes, which is the whole point of the corrugations"
+          "notes": "One figure for both planes, which is the point of the design"
         },
         {
           "metric": "cross_pol_db",
           "expr": "-30.0",
           "units_out": "dB",
-          "notes": "Indicative: well-made corrugated horns reach -30 dB or better across the design band"
+          "notes": "INDICATIVE. A well-made corrugated horn reaches -30 dB or better over a wide band; the balanced hybrid condition is what suppresses it, and this spec does not compute the residual."
         },
         {
           "metric": "gain_advantage_over_smooth_db",
-          "expr": "db10(0.69/0.51)",
-          "units_out": "dB"
+          "expr": "db10(((0.11624212)*s_phase**6 + (-1.1614789)*s_phase**5 + (2.0296634)*s_phase**4 + (-0.19599169)*s_phase**3 + (-1.3887302)*s_phase**2 + (-0.0014933285)*s_phase**1 + (0.69167577))/((0.63846643)*s_phase**6 + (-3.7328243)*s_phase**5 + (5.3364472)*s_phase**4 + (-0.61389969)*s_phase**3 + (-2.4457965)*s_phase**2 + (-0.0046021307)*s_phase**1 + (0.83687612)))",
+          "units_out": "dB",
+          "depends_on": [
+            "s_phase"
+          ],
+          "notes": "Both efficiencies integrated at the SAME phase error, so this is a like-for-like comparison. At the sqrt(3*lambda*L) flare the corrugated horn is actually slightly BEHIND on raw gain - its J0 taper is heavier than the TE11 one. The reason to corrugate is pattern symmetry and cross-polarisation, not gain."
         }
       ],
       "validity": [
-        "at least 5 corrugations per wavelength; below that the surface-impedance model fails",
-        "balanced-hybrid condition holds over roughly an octave; wider needs a tapered slot depth",
-        "cross-polarisation figure is indicative, not derived"
+        "balanced hybrid HE11 assumed, which needs quarter-wave corrugations and several of them per wavelength; a shallow or coarse corrugation does not produce it",
+        "aperture-field model with quadratic phase, as for the smooth horn",
+        "efficiency fit covers s in [0, 0.8]",
+        "the cross-polarisation figure is indicative and not computed"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 10000000000.0,
-            "L": 0.3
+            "L": 0.3,
+            "flare": 0.1
           },
           "expect": {
-            "dm_m": 0.1642,
-            "slot_depth_m": 0.0074948,
-            "gain_advantage_over_smooth_db": 1.3155
+            "aperture_efficiency": 0.6916404
           },
-          "tol_pct": 1.5,
-          "source": "Same aperture as the smooth conical horn, lambda/4 = 7.49 mm slots, and 10*log10(0.69/0.51) = 1.32 dB of aperture-efficiency advantage. Clarricoats & Olver, Corrugated Horns for Microwave Antennas"
+          "tol_pct": 0.5,
+          "source": "Near the uniform-phase limit: a 0.1 flare leaves only 0.00375 wavelengths of edge phase error, where the efficiency is 0.691640 against the zero-phase value 0.691660 - the 0.69 quoted in the literature. A vanishing flare would test the limit more exactly but would describe a horn a fraction of a millimetre across, so this stops at a small aperture that is still a real antenna."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "s_phase": 0.375,
+            "aperture_efficiency": 0.5173408
+          },
+          "tol_pct": 0.5,
+          "source": "At the sqrt(3*lambda*L) flare the HE11 efficiency falls to 0.51734, against the smooth horn's 0.53847 at the same phase error."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "slot_depth": 0.007494811
+          },
+          "tol_pct": 0.2,
+          "source": "quarter-wave corrugations, 7.495 mm at 10 GHz"
         }
       ],
       "references": [
-        "Clarricoats & Olver, Corrugated Horns for Microwave Antennas",
-        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.6)"
+        "Balanis, Antenna Theory 4th ed., Ch. 13.5",
+        "Clarricoats & Olver, Corrugated Horns for Microwave Antennas, IEE 1984",
+        "Efficiency integrated here from the HE11 J0 taper; the uniform-phase value reproduces the published 0.69"
       ]
     },
     {

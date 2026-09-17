@@ -426,3 +426,40 @@ def test_circular_patch_is_less_directive_than_a_rectangular_one(syn):
         circ = syn("circular_patch", f0=f0, eps_r=eps_r, h=h)
         rect = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
         assert circ.metrics["directivity_linear"] < rect.metrics["directivity_linear"]
+
+
+def test_conical_horn_uniform_phase_limit_is_the_te11_aperture_value(syn):
+    """0.836 for a TE11 circular aperture is in every textbook. Reaching it as
+    the flare vanishes is what says the aperture integral is set up right."""
+    d = syn("conical_horn", f0=10e9, L=0.3, flare=0.1)
+    assert d.metrics["aperture_efficiency"] == pytest.approx(0.8368, abs=0.002)
+
+
+def test_corrugated_horn_uniform_phase_limit_is_the_published_069(syn):
+    """The 0.69 quoted for corrugated horns is the uniform-phase efficiency of
+    a J0(2.405 rho/a) taper. Derived, not assumed."""
+    d = syn("corrugated_conical_horn", f0=10e9, L=0.3, flare=0.1)
+    assert d.metrics["aperture_efficiency"] == pytest.approx(0.6916, abs=0.002)
+
+
+def test_corrugating_a_horn_does_not_buy_gain_at_the_same_flare(syn):
+    """The shipped spec claimed db10(0.69/0.51) = +1.31 dB, which compared the
+    corrugated horn at ZERO phase error against the smooth horn at its optimum.
+    Like for like, the heavier J0 taper is slightly BEHIND on raw gain near the
+    optimum flare - corrugation buys pattern symmetry and cross-polarisation."""
+    at_optimum = syn("corrugated_conical_horn", f0=10e9, L=0.3, flare=1.0)
+    assert -1.0 < at_optimum.metrics["gain_advantage_over_smooth_db"] < 0.0
+    # but the J0 taper tolerates phase error better, so it wins when over-flared
+    over = syn("corrugated_conical_horn", f0=10e9, L=0.3, flare=1.3)
+    assert over.metrics["gain_advantage_over_smooth_db"] > \
+        at_optimum.metrics["gain_advantage_over_smooth_db"]
+
+
+def test_every_horn_efficiency_falls_away_from_its_optimum_flare(syn):
+    """True of all four flared horns now, and expressible by none of them while
+    their efficiencies were pinned."""
+    for key, extra in (("conical_horn", {"L": 0.3}),
+                       ("corrugated_conical_horn", {"L": 0.3})):
+        etas = {f: syn(key, f0=10e9, flare=f, **extra).metrics["aperture_efficiency"]
+                for f in (0.4, 0.7, 1.0, 1.3)}
+        assert etas[0.4] > etas[0.7] > etas[1.0] > etas[1.3], f"{key}: {etas}"
