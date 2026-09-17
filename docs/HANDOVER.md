@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1353 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1361 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -129,6 +129,7 @@ being written into a spec.
 | Sectoral and pyramidal horns | Aperture efficiency exact in Fresnel integrals | Closed form, Balanis 13-19/13-41 as published, and direct aperture integration all agree to 1e-14 |
 | `circular_patch` | Directivity integrated from the TM110 fields in J0 ∓ J2 | Quadrature and an independent 2-D angular grid agree to 0.0000%; replaces a hard-coded 6.3 that was 84% high on εr = 10.2 |
 | Conical and corrugated horns | Efficiency integrated from the TE₁₁ and HE₁₁ aperture fields | Uniform-phase limits reproduce the published 0.836 and 0.69; the latter derived from a J₀ taper rather than quoted |
+| Rectangular patches (3 specs) | Directivity from the two-slot model, `2·D₁/(1 + G₁₂/G₁)` | Matches direct 2-D pattern integration to 0.000%; the narrow-slot limit gives exactly 3.0, a magnetic dipole doubled by the ground plane |
 
 **These fits are only as good as the model behind them.** Each is a
 closed-form or ray-optics idealisation, not a full-wave result, and the

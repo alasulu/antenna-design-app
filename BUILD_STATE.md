@@ -463,9 +463,45 @@ Also: my uniform-phase limit case used flare = 0.0001, which describes a horn
 a fraction of a millimetre across and a 109,000 degree beamwidth. The
 plausibility guard caught it. Limit checks still have to describe real objects.
 
+## Rectangular patch directivity integrated (post-S5)
+
+Found by sweeping the catalogue for directivities that are bare constants. Of
+33 such expressions most are legitimately exact - a short dipole really is 1.5,
+a ground-plane DRA really is 3.0 - but `6.6` was shared by THREE patch specs
+and was a flat number for every substrate.
+
+Derived from the two-slot model instead. Each radiating edge is a uniform
+magnetic line current of length W, giving a single slot D1 = (k0*W)^2/I1 over
+the half space, and the pair D = 2*D1/(1 + G12/G1). Both pieces already existed
+in the inset patch's conductance work.
+
+  eps_r  2.2   true 5.44 (7.36 dBi)   the 6.6 was 21% high
+  eps_r  4.4   true 4.06 (6.08 dBi)   63% high
+  eps_r 10.2   true 3.47 (5.40 dBi)   90% high
+
+and LOW for a wide patch on thin low-permittivity board, where it passes 7.8.
+
+Two checks: direct 2-D pattern integration agrees to 0.000% at five aperture
+sizes, and the narrow-slot limit gives D1 = 3.00001 - a magnetic dipole's 1.5
+doubled by the ground plane.
+
+A convention split worth knowing, and now stated in both specs: the slot
+SEPARATION for the pattern is the EFFECTIVE length L + 2*dL, because the
+equivalent currents sit at the fringing edges, while the mutual conductance
+that sets the input resistance uses the PHYSICAL L - which is what reproduces
+Balanis Example 14.2. Balanis uses both in one chapter. Using L_eff for the
+impedance instead would move it from 228 to 261 ohm.
+
+A test had to be retired. It asserted that a circular patch is less directive
+than a rectangular one, which was not physics but an artifact of comparing two
+invented constants, 6.3 against 6.6. With both integrated they agree to within
+2% and cross over around eps_r 6. Asserting an ordering there would be
+asserting numerical noise; the test now checks that they track each other and
+that both fall with permittivity.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1353 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1361 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -68,6 +68,18 @@
           "unit": "S/m",
           "role": "material",
           "typical": "5.8e7"
+        },
+        {
+          "symbol": "L_eff",
+          "name": "effective length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "g_pattern",
+          "name": "G12/G1 at the radiating separation",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -113,6 +125,27 @@
             "dL"
           ],
           "notes": "Balanis 14-3"
+        },
+        {
+          "output": "L_eff",
+          "expr": "L + 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "dL"
+          ],
+          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+        },
+        {
+          "output": "g_pattern",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L_eff)**1 + (0.00033186218)*(k0*L_eff)**1*(k0*W) + (-0.1890797)*(k0*L_eff)**2 + (-0.0052674407)*(k0*L_eff)**2*(k0*W) + (-0.0089556897)*(k0*L_eff)**3 + (0.0011641111)*(k0*L_eff)**3*(k0*W) + (0.015779123)*(k0*L_eff)**4 + (-0.0017182346)*(k0*L_eff)**5",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L_eff",
+            "W"
+          ],
+          "notes": "the same mutual/self conductance fit, evaluated at the EFFECTIVE separation because that is where the slots radiate from"
         }
       ],
       "analysis": [
@@ -146,14 +179,22 @@
         },
         {
           "metric": "directivity_linear",
-          "expr": "6.6",
+          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern)",
           "units_out": "-",
-          "notes": "Balanis: a single patch runs 5-7 (7-8 dBi); 6.6 is the standard thin-substrate figure"
+          "depends_on": [
+            "k0",
+            "W",
+            "g_pattern"
+          ],
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(6.6)",
-          "units_out": "dBi"
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -190,7 +231,8 @@
         "W/h > 1 for the eps_reff expression",
         "h < 0.05*lambda0; thicker substrates need a probe-inductance correction",
         "transmission-line model ignores surface waves and mutual edge coupling; expect 1-3% error in f0 and more on high-permittivity substrates",
-        "single-layer, isotropic, non-magnetic substrate"
+        "single-layer, isotropic, non-magnetic substrate",
+        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
       ],
       "known_cases": [
         {
@@ -219,11 +261,48 @@
           },
           "tol_pct": 2.0,
           "source": "Standard FR-4 2.4 GHz patch: W = 38.0 mm, L = 29.2 mm. Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "directivity_linear": 5.441124
+          },
+          "tol_pct": 1.0,
+          "source": "Two-slot model at eps_r = 2.2: k0*W = 2.48365, k0*L_eff = 2.23742, giving D = 5.43769 (7.354 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +21% from that."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "directivity_linear": 4.060026
+          },
+          "tol_pct": 1.0,
+          "source": "Two-slot model at eps_r = 4.4: k0*W = 1.91191, k0*L_eff = 1.55424, giving D = 4.05865 (6.084 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +63% from that."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "directivity_linear": 3.466126
+          },
+          "tol_pct": 1.0,
+          "source": "Two-slot model at eps_r = 10.2: k0*W = 1.32757, k0*L_eff = 1.07302, giving D = 3.46670 (5.399 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +90% from that."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-1, 14-2, 14-3, 14-6)",
-        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook",
+        "Directivity derived here from the two-slot model and checked against direct 2-D pattern integration and the narrow-slot magnetic-dipole limit"
       ]
     },
     {
@@ -316,6 +395,18 @@
           "name": "mutual/self conductance ratio",
           "unit": "-",
           "role": "derived"
+        },
+        {
+          "symbol": "L_eff",
+          "name": "effective length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "g_pattern",
+          "name": "G12/G1 at the radiating separation",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -399,6 +490,27 @@
             "Rin0"
           ],
           "notes": "Inverts Rin(y0) = Rin0*cos^2(pi*y0/L) (Balanis 14-20). The cos^2 law degrades for deep insets and wide notches; verify in a solver."
+        },
+        {
+          "output": "L_eff",
+          "expr": "L + 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "dL"
+          ],
+          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+        },
+        {
+          "output": "g_pattern",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L_eff)**1 + (0.00033186218)*(k0*L_eff)**1*(k0*W) + (-0.1890797)*(k0*L_eff)**2 + (-0.0052674407)*(k0*L_eff)**2*(k0*W) + (-0.0089556897)*(k0*L_eff)**3 + (0.0011641111)*(k0*L_eff)**3*(k0*W) + (0.015779123)*(k0*L_eff)**4 + (-0.0017182346)*(k0*L_eff)**5",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L_eff",
+            "W"
+          ],
+          "notes": "the same mutual/self conductance fit, evaluated at the EFFECTIVE separation because that is where the slots radiate from"
         }
       ],
       "analysis": [
@@ -450,16 +562,31 @@
           ]
         },
         {
+          "metric": "directivity_linear",
+          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "W",
+            "g_pattern"
+          ],
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(6.6)",
-          "units_out": "dBi"
+          "expr": "db10(directivity_linear)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear"
+          ]
         }
       ],
       "validity": [
         "cos^2 inset law is an approximation; error grows past y0/L ~ 0.35",
         "the G12 fit is valid over k0*L in [0.8, 3.3] and k0*W in [1.15, 3.25]. The design formulas keep any patch on eps_r between 1 and 12 inside that, but a hand-entered W or L outside it will make the 5th-order polynomial diverge rather than degrade",
         "W/h > 1, h < 0.05*lambda0",
-        "transmission-line model throughout: it ignores surface waves, the feed probe's inductance, and any finite ground plane"
+        "transmission-line model throughout: it ignores surface waves, the feed probe's inductance, and any finite ground plane",
+        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
       ],
       "known_cases": [
         {
@@ -1662,6 +1789,18 @@
           "name": "truncation leg",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "L_eff",
+          "name": "effective length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "g_pattern",
+          "name": "G12/G1 at the radiating separation",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1717,6 +1856,27 @@
             "f0"
           ],
           "notes": "From dS/S = 1/(2Q), with Q taken from the patch bandwidth as Q = 1/(BW*sqrt(2)), so dS/S = BW/sqrt(2). The two cut triangles have combined area c^2, so c/L = sqrt(dS/S)."
+        },
+        {
+          "output": "L_eff",
+          "expr": "L + 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "dL"
+          ],
+          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+        },
+        {
+          "output": "g_pattern",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*L) + (-0.0014910918)*(k0*L_eff)**1 + (0.00033186218)*(k0*L_eff)**1*(k0*L) + (-0.1890797)*(k0*L_eff)**2 + (-0.0052674407)*(k0*L_eff)**2*(k0*L) + (-0.0089556897)*(k0*L_eff)**3 + (0.0011641111)*(k0*L_eff)**3*(k0*L) + (0.015779123)*(k0*L_eff)**4 + (-0.0017182346)*(k0*L_eff)**5",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L_eff",
+            "L"
+          ],
+          "notes": "the mutual/self conductance fit at the effective separation. This patch is SQUARE, so the slot width and the resonant length are the same dimension L - there is no separate W here."
         }
       ],
       "analysis": [
@@ -1778,10 +1938,23 @@
           "notes": "Indicative: the 3 dB axial-ratio band of a single-feed CP patch is typically about a third of its impedance band. A dual-feed patch with a quadrature hybrid is far wider, at the cost of the hybrid."
         },
         {
+          "metric": "directivity_linear",
+          "expr": "2*((k0*L)**2/(-2 + cos(k0*L) + k0*L*Si(k0*L) + sin(k0*L)/(k0*L)))/(1 + g_pattern)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L",
+            "g_pattern"
+          ],
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(6.6)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "as a linear square patch; the truncation is too small to change the aperture"
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "axial_ratio_on_axis_db",
@@ -1794,7 +1967,8 @@
         "the dS/S = 1/(2Q) rule assumes the two modes are otherwise degenerate and equally excited, which requires the feed on a diagonal",
         "single-feed CP is narrowband in axial ratio - a few tenths of a percent on thin high-permittivity substrates",
         "sense of rotation is set by WHICH diagonal is cut; this spec does not track handedness",
-        "axial ratio degrades rapidly off boresight and off frequency; only the on-axis, on-frequency value is claimed"
+        "axial ratio degrades rapidly off boresight and off frequency; only the on-axis, on-frequency value is claimed",
+        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
       ],
       "known_cases": [
         {

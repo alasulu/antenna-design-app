@@ -418,14 +418,67 @@ def test_circular_patch_feed_law_is_exactly_one_at_the_edge(syn):
     assert max(ratios) - min(ratios) < 1e-12, "permittivity must cancel out"
 
 
-def test_circular_patch_is_less_directive_than_a_rectangular_one(syn):
-    """Physically required on any given substrate: a circular patch has the
-    smaller aperture. The old hard-coded 6.3 made it MORE directive than the
-    rectangular patch's 6.6 on low-permittivity board and wrong everywhere."""
-    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9)):
+def test_circular_and_rectangular_patches_track_each_other(syn):
+    """Two resonant patches of similar size on the same board must land within a
+    few percent, and both must fall with permittivity.
+
+    This test previously asserted that the circular patch is the LESS directive
+    of the two. That was not physics - it was an artifact of comparing two
+    invented constants, 6.3 against 6.6. With both integrated from their own
+    cavity models they agree to within 2% and cross over around eps_r 6, which
+    is well inside either model's accuracy. Asserting an ordering here would be
+    asserting numerical noise.
+    """
+    previous = None
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                         (10.2, 1.27e-3, 5.8e9)):
         circ = syn("circular_patch", f0=f0, eps_r=eps_r, h=h)
         rect = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
-        assert circ.metrics["directivity_linear"] < rect.metrics["directivity_linear"]
+        dc = circ.metrics["directivity_linear"]
+        dr = rect.metrics["directivity_linear"]
+        assert abs(dc/dr - 1) < 0.05, f"eps_r={eps_r}: circular {dc}, rectangular {dr}"
+        if previous is not None:
+            assert dc < previous[0] and dr < previous[1], (
+                "both must fall as permittivity rises and the patch shrinks")
+        previous = (dc, dr)
+
+
+def test_rectangular_patch_directivity_matches_the_two_slot_quadrature(syn):
+    """The closed form 2*D1/(1 + G12/G1) against a direct 2-D integration of
+    the same two-slot pattern."""
+    import numpy as np
+
+    def sinc(x):
+        return np.where(np.abs(x) < 1e-12, 1.0,
+                        np.sin(x)/np.where(np.abs(x) < 1e-12, 1, x))
+
+    def grid(k0W, k0Le, n=900):
+        th = np.linspace(0, np.pi/2, n)
+        ph = np.linspace(0, 2*np.pi, 2*n)
+        T, P = np.meshgrid(th, ph, indexing="ij")
+        cy = np.sin(T)*np.sin(P)
+        slot = np.sqrt(np.maximum(1 - cy**2, 0.0))*sinc(k0W/2*cy)
+        u = (slot*2*np.cos(k0Le/2*np.sin(T)*np.cos(P)))**2
+        prad = np.trapezoid(np.trapezoid(u*np.sin(T), ph, axis=1), th, axis=0)
+        return 4*np.pi*u.max()/prad
+
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                         (10.2, 1.27e-3, 5.8e9)):
+        d = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
+        k0 = 2*math.pi*f0/2.99792458e8
+        assert d.metrics["directivity_linear"] == pytest.approx(
+            grid(k0*d.get("W"), k0*d.get("L_eff")), rel=5e-3), f"eps_r={eps_r}"
+
+
+def test_a_narrow_patch_slot_approaches_a_magnetic_dipole(syn):
+    """One slot's half-space directivity is (k0 W)^2/I1, which must tend to 3.0
+    as the slot narrows - a magnetic dipole's 1.5 doubled by the ground plane.
+    That limit is what says the two-slot normalisation is right."""
+    from scipy.special import sici
+
+    for k0W in (0.02, 0.1, 0.3):
+        i1 = -2 + math.cos(k0W) + k0W*sici(k0W)[0] + math.sin(k0W)/k0W
+        assert k0W**2/i1 == pytest.approx(3.0, rel=0.02), f"k0W={k0W}"
 
 
 def test_conical_horn_uniform_phase_limit_is_the_te11_aperture_value(syn):
