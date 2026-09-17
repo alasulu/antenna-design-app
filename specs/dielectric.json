@@ -386,7 +386,7 @@
       "key": "rectangular_dra",
       "name": "Rectangular dielectric resonator antenna",
       "family": "dielectric",
-      "summary": "Dielectric brick on a ground plane: two independent aspect ratios, so size and bandwidth can be traded without changing material.",
+      "summary": "Dielectric brick on a ground plane, sized by the dielectric waveguide model rather than by assuming magnetic walls all round.",
       "freq_range_hz": [
         300000000.0,
         100000000000.0
@@ -436,20 +436,52 @@
           "name": "length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "P",
+          "name": "transverse wavenumber group",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "u_kz_h",
+          "name": "kz*h",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "d",
-          "expr": "(pi/(2*pi*f0*sqrt(eps_r)/c))*sqrt(1/aspect_wd**2 + 1/aspect_Ld**2 + 0.25)",
-          "units_out": "m",
+          "output": "P",
+          "expr": "pi**2*(1/aspect_wd**2 + 1/aspect_Ld**2)",
+          "units_out": "-",
           "depends_on": [
-            "f0",
-            "eps_r",
             "aspect_wd",
             "aspect_Ld"
           ],
-          "notes": "Inverted from the magnetic-wall condition eps_r*k0^2 = (pi/w)^2 + (pi/L)^2 + (pi/2d)^2 for TE111. The 2d in the last term is the ground plane: the brick behaves as half a resonator twice as tall."
+          "notes": "(kx^2 + ky^2)*h^2 with kx = pi/w and ky = pi/L. Non-dimensionalising collapses the whole problem onto this one group and eps_r: the aspect ratios enter nowhere else."
+        },
+        {
+          "output": "u_kz_h",
+          "expr": "(0.47360296) + (0.52173269)*sqrt(P) + (-0.15073401)*P + (0.023283499)*P*sqrt(P) + (-0.0014625035)*P**2 + (-0.33989702)/eps_r + (0.087736792)*sqrt(P)/eps_r + (-0.0084100244)*P/eps_r + (-0.12485445)/eps_r**2",
+          "units_out": "-",
+          "depends_on": [
+            "P",
+            "eps_r"
+          ],
+          "notes": "u = kz*h, the root of u*tan(u) = sqrt(((eps_r-1)*P - u^2)/eps_r). No closed form, so this is a polynomial fitted to the exact root over P in [2, 20] and eps_r in [6, 50] - the range aspect ratios from 1 to 3 produce. Worst error 0.001 in u, 0.032% in the resulting size. resonance_residual reports the true equation's value at this u, so the fit cannot drift unnoticed."
+        },
+        {
+          "output": "d",
+          "expr": "sqrt((P + u_kz_h**2)/eps_r)/k0",
+          "units_out": "m",
+          "depends_on": [
+            "P",
+            "u_kz_h",
+            "eps_r",
+            "k0"
+          ],
+          "notes": "k0*h = sqrt((P + u^2)/eps_r), straight from kx^2 + ky^2 + kz^2 = eps_r*k0^2."
         },
         {
           "output": "w",
@@ -472,16 +504,50 @@
       ],
       "analysis": [
         {
+          "metric": "resonance_residual",
+          "expr": "u_kz_h*tan(u_kz_h) - sqrt(((eps_r - 1)*P - u_kz_h**2)/eps_r)",
+          "units_out": "-",
+          "depends_on": [
+            "u_kz_h",
+            "eps_r",
+            "P"
+          ],
+          "notes": "The exact dielectric-waveguide condition evaluated at the fitted root; it vanishes at the true resonance. A live check on the fit rather than a restatement of it."
+        },
+        {
           "metric": "resonant_frequency_check_hz",
-          "expr": "(c/(2*pi*sqrt(eps_r)))*sqrt((pi/w)**2 + (pi/Lr)**2 + (pi/(2*d))**2)",
+          "expr": "(c/(2*pi*sqrt(eps_r)))*sqrt((pi/w)**2 + (pi/Lr)**2 + (u_kz_h/d)**2)",
           "units_out": "Hz",
           "depends_on": [
             "eps_r",
             "w",
             "Lr",
+            "u_kz_h",
             "d"
           ],
-          "notes": "forward check: must return f0"
+          "notes": "forward check from the geometry: must return f0"
+        },
+        {
+          "metric": "height_magnetic_wall_m",
+          "expr": "(pi/(k0*sqrt(eps_r)))*sqrt(1/aspect_wd**2 + 1/aspect_Ld**2 + 0.25)",
+          "units_out": "m",
+          "depends_on": [
+            "k0",
+            "eps_r",
+            "aspect_wd",
+            "aspect_Ld"
+          ],
+          "notes": "What the all-magnetic-wall model would give. It assumes total confinement on every face, so it takes kz = pi/(2h) - the largest kz possible - and therefore oversizes the brick. NOT a limiting case of the model above: as eps_r grows, k0 shrinks with it and the open-face condition tends to u*tan(u) = sqrt(P), which is finite. The magnetic wall is never recovered."
+        },
+        {
+          "metric": "magnetic_wall_oversize",
+          "expr": "height_magnetic_wall_m/d",
+          "units_out": "-",
+          "depends_on": [
+            "height_magnetic_wall_m",
+            "d"
+          ],
+          "notes": "About 1.10 for a square brick and worse at extreme aspect ratios"
         },
         {
           "metric": "k0_w",
@@ -517,10 +583,10 @@
           "metric": "radiation_q_indicative",
           "expr": "0.38014*eps_r**1.32122",
           "units_out": "-",
-          "notes": "BORROWED, not derived for this shape: it is the exact hemispherical DRA result from this family. Shape matters less than permittivity here - the cylindrical archetype's independent fit gives 7.60 at eps_r = 10 against the hemisphere's 8.04, under 6% apart - but aspect ratio moves a rectangular DRA's Q by considerably more than that. Treat as an order of magnitude.",
           "depends_on": [
             "eps_r"
-          ]
+          ],
+          "notes": "BORROWED from the hemispherical DRA's exact Mie solution, and still the weakest part of this spec. It is more defensible than it was: with the resonance corrected, this brick comes out within 6% of the hemispherical and cylindrical archetypes' volumes at the same permittivity, where the magnetic-wall version was 30-41% larger. Three shapes of the same size and material do have similar Q. Aspect ratio still moves a rectangular DRA's Q more than this captures."
         },
         {
           "metric": "fractional_bandwidth_indicative",
@@ -535,21 +601,15 @@
           "metric": "directivity_dbi",
           "expr": "db10(3.0)",
           "units_out": "dBi",
-          "notes": "Exactly 3.0 for the same reason as the hemisphere: a horizontal magnetic dipole whose ground-plane image is co-directed."
-        },
-        {
-          "metric": "model_bias_note",
-          "expr": "1.0",
-          "units_out": "-",
-          "notes": "The all-magnetic-wall model is known to predict the resonant frequency HIGH, typically by 10 to 20 percent, because it assumes total internal confinement. Build slightly larger than this spec says, or solve the dielectric-waveguide transcendental for the transverse wavenumber."
+          "notes": "Exactly 3.0: a horizontal magnetic dipole whose image in a perfect ground plane is co-directed, doubling the free-space 1.5."
         }
       ],
       "validity": [
-        "MAGNETIC-WALL MODEL: it assumes perfect confinement on all faces and so overestimates f0 by roughly 10-20%. The algebra is exact; the physical assumption is not",
-        "the more accurate dielectric-waveguide model replaces one wavenumber with the root of ky*tan(ky*L/2) = sqrt((eps_r-1)*k0^2 - ky^2), which has no closed form and is not attempted here",
+        "DIELECTRIC WAVEGUIDE MODEL: magnetic walls on the four side faces, the open top treated properly. The published accuracy is a few percent against measurement, far better than the all-magnetic-wall model it replaces",
+        "the u fit covers P in [2, 20] and eps_r in [6, 50], which is aspect ratios from 1 to 3. Outside that a 4th-order polynomial diverges rather than degrades - check resonance_residual, which stays near zero only where the fit is valid",
         "infinite perfect ground plane",
         "radiation Q is borrowed from the hemispherical solution and is indicative only",
-        "TE111 only"
+        "TE111 only; higher modes exist and are not tracked"
       ],
       "known_cases": [
         {
@@ -560,12 +620,11 @@
             "aspect_Ld": 2.0
           },
           "expect": {
-            "d": 0.00410508,
-            "w": 0.00821015,
+            "d": 0.00373252434,
             "resonant_frequency_check_hz": 10000000000.0
           },
-          "tol_pct": 0.5,
-          "source": "Magnetic-wall algebra at eps_r = 10 with w = L = 2d: d = (pi/(k0*sqrt(eps_r)))*sqrt(1/4 + 1/4 + 1/4) = 4.1051 mm, so the brick is 8.2102 mm square. The forward check closing on 10 GHz confirms the inversion."
+          "tol_pct": 0.2,
+          "source": "Dielectric waveguide model at eps_r = 10, w = L = 2d: P = 4.9348, the exact root of u*tan(u) = sqrt(((eps_r-1)P-u^2)/eps_r) is u = 1.088500, giving d = 3.7325 mm. The fitted u gives 3.7325 mm, 0.0002% away. Root found here by bisection on the transcendental."
         },
         {
           "given": {
@@ -575,10 +634,37 @@
             "aspect_Ld": 2.0
           },
           "expect": {
-            "k0_w": 1.720721
+            "resonance_residual": 0.0
+          },
+          "tol_abs": 0.005,
+          "source": "The exact condition must vanish at the true root; it nearly does at the fitted one. Expectation of zero, so an absolute tolerance."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "magnetic_wall_oversize": 1.09981
           },
           "tol_pct": 0.5,
-          "source": "k0*w = 1.72072. The hemispherical DRA at the same permittivity needs k0*a = 0.95112, so its DIAMETER is k0*2a = 1.902 - within 10% of this brick's width. Two different shapes at the same permittivity come out much the same size, which is the useful cross-check."
+          "source": "The all-magnetic-wall model gives 4.1051 mm against 3.7325, oversizing the brick by 10.0% in every dimension and therefore predicting the resonance high - which is the bias the previous version of this spec recorded but could not remove."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 20.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "d": 0.00264412867,
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.2,
+          "source": "Same at eps_r = 20: exact root u = 1.098625, d = 2.6441 mm."
         },
         {
           "given": {
@@ -588,16 +674,31 @@
             "aspect_Ld": 1.5
           },
           "expect": {
+            "d": 0.00390638045,
             "resonant_frequency_check_hz": 10000000000.0
           },
-          "tol_pct": 0.5,
-          "source": "An asymmetric brick must still close on the design frequency - the check that the inversion handles unequal aspect ratios"
+          "tol_pct": 0.3,
+          "source": "An asymmetric brick, which the P grouping has to handle: P = 5.4831, exact u = 1.104415, d = 3.9063 mm."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 8.0,
+            "aspect_wd": 1.0,
+            "aspect_Ld": 1.0
+          },
+          "expect": {
+            "d": 0.00779586568,
+            "resonant_frequency_check_hz": 10000000000.0
+          },
+          "tol_pct": 0.3,
+          "source": "The tall thin corner of the design space, P = 19.7392: exact u = 1.272106, d = 7.7960 mm."
         }
       ],
       "references": [
         "Mongia & Ittipiboon, Theoretical and experimental investigations on rectangular DRAs, IEEE T-AP 45(9), 1997",
         "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007, Ch. 3",
-        "Van Bladel, On the resonances of a dielectric resonator of very high permittivity, IEEE T-MTT 23(2), 1975"
+        "Roots of the transcendental found here by bisection; the u fit is to those roots, and the corrected size agrees with this family's hemispherical and cylindrical archetypes to within 6%"
       ]
     }
   ]

@@ -321,9 +321,38 @@ Together with the dimensional audit the catalogue now has two systematic checks
 that need no external reference. Neither covers an archetype with no sibling
 and no dimensional quirk; those still need reading against their source.
 
+## Rectangular DRA resonance corrected (post-S5)
+
+The all-magnetic-wall model is gone, replaced by the dielectric waveguide model:
+magnetic walls on the four sides, the open top treated properly, so kz solves
+kz*tan(kz*h) = sqrt((eps_r-1)*k0^2 - kz^2).
+
+Non-dimensionalising first made it tractable. With u = kz*h and
+P = pi^2*(1/aw^2 + 1/aL^2), the condition collapses to
+u*tan(u) = sqrt(((eps_r-1)*P - u^2)/eps_r) - a function of P and eps_r alone,
+with the aspect ratios entering nowhere else. Fitting u over P in [2,20] and
+eps_r in [6,50] gives 0.032% error in the resulting size.
+
+I had the limit backwards at first and it is worth recording why. I assumed the
+magnetic wall was the eps_r -> infinity limit. It is not: k0 shrinks with eps_r
+too, so the right-hand side tends to sqrt(P), which is finite, and u settles
+below pi/2 for any permittivity. The magnetic wall is a cruder model, not a
+limiting case - so the oversize does not vanish at high eps_r, and the spec now
+says so explicitly.
+
+The validation is the useful part. Correcting the resonance brings the brick
+from 1.41x the volume of the hemispherical and cylindrical archetypes down to
+1.06x, holding within 1.14x across eps_r from 8 to 40. Those two come from
+exact Mie theory and from published curve fits respectively - three unrelated
+models converging. The cross-consistency guard on DRA volumes was loosened to
+2.5x to accommodate the old brick, which made it nearly useless; it is now 1.25x.
+
+Q is still borrowed from the hemisphere. That is the one substantive
+approximation left in this family.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1262 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1270 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

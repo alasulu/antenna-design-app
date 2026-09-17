@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1262 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1270 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -124,6 +124,8 @@ being written into a spec.
 | `diagonal_horn` | Aperture efficiency 8/π² = 0.8106 | Aperture integration on a 2001² grid: 0.8110 |
 | `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
+| `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
+| `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
 
 **These fits are only as good as the model behind them.** Each is a
 closed-form or ray-optics idealisation, not a full-wave result, and the
@@ -175,14 +177,13 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   optimum-σ line; expect ~1 dB error.
 - **Taylor taper** realises its design sidelobe level to about 1 dB for small
   arrays (−28.9 dB measured for a 20-element −30 dB design).
-- **`rectangular_dra`'s radiation Q is borrowed**, not derived: it is the
-  hemispherical DRA's exact result reused. Shape matters less than permittivity
-  here — the cylindrical archetype's independent fit sits within 6% of the
-  hemisphere's at εr = 10 — but aspect ratio moves a rectangular DRA's Q by
-  considerably more than that.
-- **`rectangular_dra`'s resonance uses an all-magnetic-wall model**, whose
-  algebra is exact and whose physical assumption is not: it predicts f₀ high by
-  roughly 10–20%. The spec says so in a dedicated note.
+- **`rectangular_dra`'s radiation Q is still borrowed**, not derived: it is the
+  hemispherical DRA's exact result reused. It is more defensible than it was —
+  with the resonance corrected, the brick now lands within 6% of the
+  hemispherical and cylindrical volumes, and three shapes of the same size and
+  material genuinely do have similar Q — but aspect ratio moves a rectangular
+  DRA's Q more than this captures. **This is the one substantive approximation
+  left in the dielectric family.**
 - **`discone` and `conical_monopole` rest on engineering conventions** — the
   quarter-wavelength slant and the decade bandwidth figure — not on derivations.
 - **Fresnel zone plate efficiencies** (1/π², 4/π², 8/π²) are the standard
@@ -289,9 +290,12 @@ known case only checks what it asserts.
    right. `corner_reflector_90` had a null where its optimum is and said so
    confidently for four sessions. The archetypes carrying a single known case
    are the place to start.
-8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve, and its
-   magnetic-wall resonance with the dielectric-waveguide transcendental. The
-   machinery used for the hemispherical DRA transfers directly.
+8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
+   resonance half of this is now done (the dielectric-waveguide transcendental
+   replaced the magnetic-wall model), but Q still comes from the hemisphere.
+   Deriving it needs the DWM field expressions for the stored energy and the
+   equivalent magnetic dipole moment, which is a genuine piece of work and the
+   place to be most careful about sign and normalisation conventions.
 
 ---
 

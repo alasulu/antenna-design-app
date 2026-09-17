@@ -230,8 +230,16 @@ def test_corner_reflector_self_resistance_is_the_isolated_dipole(syn):
 
 def test_three_dra_shapes_agree_on_size_and_directivity(syn):
     """Three unrelated models - exact Mie for the hemisphere, published curve
-    fits for the cylinder, magnetic-wall algebra for the brick. At the same
-    permittivity and frequency they must land on comparable volumes."""
+    fits for the cylinder, the dielectric-waveguide transcendental for the
+    brick. At the same permittivity and frequency they must land on comparable
+    volumes.
+
+    The tolerance is deliberately tight. While the brick used an
+    all-magnetic-wall resonance it was 1.41x the other two and this test had to
+    allow 2.5x to pass, which made it nearly useless as a guard. With the
+    transcendental solved the spread is 1.06-1.14x across eps_r from 8 to 40,
+    so 1.25x is now a real constraint.
+    """
     volumes = {
         "hemispherical": syn("hemispherical_dra", f0=10e9, eps_r=10.0),
         "cylindrical": syn("cylindrical_dra", f0=10e9, eps_r=10.0, aspect=1.0),
@@ -239,7 +247,7 @@ def test_three_dra_shapes_agree_on_size_and_directivity(syn):
                            aspect_wd=2.0, aspect_Ld=2.0),
     }
     vols = {k: d.metrics["volume_mm3"] for k, d in volumes.items()}
-    assert max(vols.values()) / min(vols.values()) < 2.5, vols
+    assert max(vols.values()) / min(vols.values()) < 1.25, vols
     # all three radiate as a horizontal magnetic dipole over a ground plane
     dbi = [d.metrics["directivity_dbi"] for d in volumes.values()]
     assert max(dbi) - min(dbi) < 1e-9
@@ -290,3 +298,27 @@ def test_inset_patch_conductances_match_direct_quadrature(syn):
     assert d.metrics["mutual_conductance_S"] == pytest.approx(g12_exact, rel=5e-3)
     assert d.metrics["edge_resistance_ohm"] == pytest.approx(
         1 / (2 * (g1_exact + g12_exact)), rel=5e-3)
+
+
+def test_dra_shapes_stay_close_across_the_permittivity_range(syn):
+    """Not one lucky point: the three models must track each other as eps_r
+    moves, which is what would expose a wrong exponent in any of them."""
+    for eps_r in (8.0, 10.0, 20.0, 40.0):
+        vols = [
+            syn("hemispherical_dra", f0=10e9, eps_r=eps_r).metrics["volume_mm3"],
+            syn("cylindrical_dra", f0=10e9, eps_r=eps_r,
+                aspect=1.0).metrics["volume_mm3"],
+            syn("rectangular_dra", f0=10e9, eps_r=eps_r, aspect_wd=2.0,
+                aspect_Ld=2.0).metrics["volume_mm3"],
+        ]
+        assert max(vols) / min(vols) < 1.25, f"eps_r={eps_r}: {vols}"
+
+
+def test_rectangular_dra_beats_the_magnetic_wall_model_it_replaced(syn):
+    """The oversize factor is reported so the improvement is visible, not just
+    claimed. It must be real and it must be bounded."""
+    for eps_r in (8.0, 20.0):
+        d = syn("rectangular_dra", f0=10e9, eps_r=eps_r, aspect_wd=2.0,
+                aspect_Ld=2.0)
+        assert 1.02 < d.metrics["magnetic_wall_oversize"] < 1.30
+        assert d.metrics["height_magnetic_wall_m"] > d.get("d")
