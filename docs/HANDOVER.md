@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1235 tests, 423/423 citable
+6,031 lines of Python, 14,835 lines of spec data, 1239 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -151,11 +151,20 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
 
 ### Known open discrepancies
 
-- **Inset patch mutual conductance.** Approximating G12 as `G1·J0(k0·L)`
-  lands within 1.7% of Balanis Example 14.2, but numerically integrating
-  eq. 14-18a directly gives 212.5 Ω against the published 228.35 Ω — a 6.9%
-  disagreement that is recorded in the spec and unresolved. Inset depths carry
-  real uncertainty.
+- ~~**Inset patch mutual conductance.**~~ **Resolved — and the discrepancy was
+  never real.** Direct quadrature of eqs. 14-12 and 14-18a reproduces Balanis
+  Example 14.2 to 0.05%: G1 = 1.5747e-3 S against the published 1.57e-3, and
+  G12 = 6.1651e-4 against 6.1683e-4. The recorded "212.5 Ω by direct
+  integration" was a bad integration, not a disagreement with the textbook.
+
+  The spec's old 1.7% agreement was two errors cancelling: `G1` used the
+  `(1/90)(W/λ₀)²` small-width branch, which runs 10% high, while
+  `G12 = G1·J0(k0·L)` runs 28% low. `G1` is now the exact closed form
+  (`I₁ = −2 + cos X + X·Si(X) + sin X/X`, X = k0W, verified against quadrature
+  to eight figures), and `G12/G1` is a polynomial fitted to the exact integral
+  over the whole practical design space — k0L ∈ [0.8, 3.3], k0W ∈ [1.15, 3.25],
+  which is what εr from 1 to 12 produces. Worst fit error 0.0021 in the ratio,
+  under 0.1% in the resistance. Example 14.2 now reproduces to **0.066%**.
 - **Axial-mode helix gain.** The Kraus formula is known to overestimate for
   large N, and the published corrections disagree by 1–2 dB. Both the classic
   and a corrected variant are exposed; neither should be trusted to better
@@ -252,8 +261,8 @@ known case only checks what it asserts.
    by 32 archetypes while the exporter still builds geometry for 7. Start with
    `half_wave_dipole` (simplest geometry, strongest analytical reference:
    73.08 + j42.52 Ω at λ/2).
-2. **Close the inset-patch discrepancy** — decide whether the 228.35 Ω
-   published figure or the 212.5 Ω direct integration is right.
+2. ~~**Close the inset-patch discrepancy**~~ — done. The published figure was
+   right; the "direct integration" that disagreed with it was wrong. See §4.
 3. **Add geometry builders** for horns, which need a loft or truncated-pyramid
    primitive neither backend abstraction has yet, and for the loop family,
    which needs a torus. Yagi-Uda remains blocked for a different reason: the

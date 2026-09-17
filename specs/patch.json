@@ -310,6 +310,12 @@
           "name": "free-space wavenumber",
           "unit": "rad/m",
           "role": "derived"
+        },
+        {
+          "symbol": "G12_over_G1",
+          "name": "mutual/self conductance ratio",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -354,24 +360,34 @@
         },
         {
           "output": "G1",
-          "expr": "(1/90)*(W*f0/c)**2",
+          "expr": "(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W))/(120*pi**2)",
           "units_out": "S",
           "depends_on": [
-            "W",
-            "f0"
+            "k0",
+            "W"
           ],
-          "notes": "Balanis 14-12, the W/lambda0 < 1 branch of the slot conductance"
+          "notes": "Balanis 14-12 in its EXACT closed form: G1 = I1/(120*pi^2) with I1 = -2 + cos(X) + X*Si(X) + sin(X)/X and X = k0*W. This replaces the (1/90)*(W/lambda0)^2 small-width branch, which runs 10% high on the Balanis Example 14.1 patch (1.7389e-3 against the exact 1.5748e-3). Verified against numerical quadrature of the integral to eight figures."
+        },
+        {
+          "output": "G12_over_G1",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L)**1 + (0.00033186218)*(k0*L)**1*(k0*W) + (-0.1890797)*(k0*L)**2 + (-0.0052674407)*(k0*L)**2*(k0*W) + (-0.0089556897)*(k0*L)**3 + (0.0011641111)*(k0*L)**3*(k0*W) + (0.015779123)*(k0*L)**4 + (-0.0017182346)*(k0*L)**5",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L",
+            "W"
+          ],
+          "notes": "Mutual-to-self slot conductance ratio. The exact quantity is the integral of Balanis 14-18a divided by 14-12, which has no closed form, so this is a polynomial fitted to that integral over the whole practical design space: k0*L from 0.8 to 3.3 and k0*W from 1.15 to 3.25, which is what eps_r between 1 and 12 produces. Worst error 0.0021 in the ratio, and under 0.1% in the resulting resistance. The older approximation G12 = G1*J0(k0*L) is the leading term of this and is 28% low, because the weighting favours theta near 90 degrees but not nearly as strongly as that form assumes."
         },
         {
           "output": "Rin0",
-          "expr": "1/(2*G1*(1 + j0(k0*L)))",
+          "expr": "1/(2*G1*(1 + G12_over_G1))",
           "units_out": "ohm",
           "depends_on": [
             "G1",
-            "k0",
-            "L"
+            "G12_over_G1"
           ],
-          "notes": "Balanis 14-17 including the mutual conductance between the two radiating slots, with G12 approximated as G1*J0(k0*L). Neglecting G12 entirely overestimates Rin by 26% (288 vs 228 ohm on the Example 14.1 patch), so it cannot be ignored. DISCREPANCY WORTH KNOWING: this J0 form lands within 1.7% of the 228.35 ohm Balanis quotes in Example 14.2, but numerically integrating eq. 14-18a directly gives 212.5 ohm (6.9% below the quoted value). The two disagree; treat any inset depth from this model as a starting point to verify in a full-wave solver."
+          "notes": "Balanis 14-17 with the PLUS sign, which is the one the dominant TM010 mode takes. Neglecting G12 entirely overestimates Rin by about 25%, so it cannot be dropped."
         },
         {
           "output": "y0",
@@ -393,6 +409,25 @@
           "depends_on": [
             "Rin0"
           ]
+        },
+        {
+          "metric": "self_conductance_S",
+          "expr": "G1",
+          "units_out": "S",
+          "depends_on": [
+            "G1"
+          ],
+          "notes": "one radiating slot, exact"
+        },
+        {
+          "metric": "mutual_conductance_S",
+          "expr": "G1*G12_over_G1",
+          "units_out": "S",
+          "depends_on": [
+            "G1",
+            "G12_over_G1"
+          ],
+          "notes": "between the two radiating slots"
         },
         {
           "metric": "inset_resistance_ohm",
@@ -422,11 +457,38 @@
       ],
       "validity": [
         "cos^2 inset law is an approximation; error grows past y0/L ~ 0.35",
-        "mutual conductance between the two radiating slots is neglected in Rin0",
+        "the G12 fit is valid over k0*L in [0.8, 3.3] and k0*W in [1.15, 3.25]. The design formulas keep any patch on eps_r between 1 and 12 inside that, but a hand-entered W or L outside it will make the 5th-order polynomial diverge rather than degrade",
         "W/h > 1, h < 0.05*lambda0",
-        "mutual slot conductance is approximated as G1*J0(k0*L); the exact integral of eq. 14-18a disagrees with the published example by 6.9%, so inset depths carry real uncertainty"
+        "transmission-line model throughout: it ignores surface waves, the feed probe's inductance, and any finite ground plane"
       ],
       "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 50.0
+          },
+          "expect": {
+            "edge_resistance_ohm": 228.5007
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis Example 14.2: 228.3508 ohm at the radiating edge of the Example 14.1 patch. This model gives 228.5007 ohm, 0.07% away. Direct numerical quadrature of eqs. 14-12 and 14-18a gives 228.3957 ohm, confirming BOTH the published value and the fit - and correcting an earlier note in this spec that claimed the exact integral disagreed with Balanis by 6.9%. It does not; that was a bad integration."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 50.0
+          },
+          "expect": {
+            "self_conductance_S": 0.001572431,
+            "mutual_conductance_S": 0.000615746255
+          },
+          "tol_pct": 1.0,
+          "source": "Balanis Example 14.2 quotes G1 = 1.57e-3 S and G12 = 6.1683e-4 S. Exact quadrature here gives 1.572431e-03 and 6.167520e-04, matching the published pair to 0.05%."
+        },
         {
           "given": {
             "f0": 10000000000.0,
@@ -442,34 +504,34 @@
         },
         {
           "given": {
-            "f0": 10000000000.0,
-            "eps_r": 2.2,
-            "h": 0.001588,
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016,
             "Z_target": 50.0
           },
           "expect": {
-            "edge_resistance_ohm": 228.35
+            "edge_resistance_ohm": 321.5988
           },
-          "tol_pct": 3.0,
-          "source": "Balanis Example 14.2: Rin = 228.35 ohm at the radiating edge of the Example 14.1 patch, with mutual slot conductance included. The G1*J0(k0*L) model reproduces this to 1.7%."
+          "tol_pct": 0.5,
+          "source": "A 2.4 GHz FR-4 patch, well away from the Balanis example. Exact quadrature gives 321.5008 ohm against the fit's 321.5988 - 0.030% apart, which is what the fit is for."
         },
         {
           "given": {
-            "f0": 10000000000.0,
-            "eps_r": 2.2,
-            "h": 0.001588,
-            "Z_target": 224.0
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127,
+            "Z_target": 50.0
           },
           "expect": {
-            "inset_fraction": 0.0
+            "edge_resistance_ohm": 567.5011
           },
-          "tol_abs": 0.05,
-          "source": "Targeting a resistance at the edge value must place the inset at the edge (y0/L -> 0), confirming the cos^2 inversion is self-consistent."
+          "tol_pct": 0.5,
+          "source": "High permittivity, the other end of the fit range. Exact quadrature 567.5688 ohm, fit 567.5011."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-12, 14-17, 14-20)",
-        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+        "Balanis, Antenna Theory 4th ed., Ch. 14.2 (eqs. 14-12, 14-17, 14-18a, 14-20)",
+        "G12 fitted here to numerical quadrature of eq. 14-18a over the practical design space; the quadrature independently reproduces Example 14.2"
       ]
     },
     {

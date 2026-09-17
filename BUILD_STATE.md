@@ -282,9 +282,30 @@ This is the same failure the S3 notes describe ("form opened with an empty f0,
 so synthesis produced zero geometry and looked broken"), in a place the S3 fix
 did not reach.
 
+## Inset-patch discrepancy resolved (post-S5)
+
+Open since S1 and recorded in the spec's own validity block: the exact integral
+of Balanis 14-18a was said to give 212.5 ohm against the published 228.35, a
+6.9% disagreement.
+
+There was no disagreement. Direct quadrature of 14-12 and 14-18a reproduces
+Example 14.2 to 0.05% - G1 = 1.5747e-3 S against the published 1.57e-3, and
+G12 = 6.1651e-4 against 6.1683e-4. The 212.5 ohm figure was simply a bad
+integration.
+
+The spec's 1.7% agreement was two errors cancelling: G1 used the (1/90)(W/lam)^2
+small-width branch, 10% high, while G12 = G1*J0(k0*L) was 28% low. Both fixed.
+G1 is now the exact closed form; G12/G1 is a polynomial fitted to the exact
+integral over k0L in [0.8, 3.3] and k0W in [1.15, 3.25], the range eps_r from 1
+to 12 produces. Example 14.2 now reproduces to 0.066%, and two further known
+cases pin the fit at the other end of the design space.
+
+Worth remembering: an agreement that looks acceptable can be two errors
+cancelling, and the only way to tell is to check each term on its own.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1235 tests, 423/423 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1239 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
