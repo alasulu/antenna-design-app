@@ -538,7 +538,7 @@
       "key": "circular_patch",
       "name": "Circular microstrip patch",
       "family": "patch",
-      "summary": "Circular patch resonating in the dominant TM11 mode.",
+      "summary": "Circular microstrip patch in the TM110 mode, with the directivity integrated from the cavity-model fields rather than assumed.",
       "freq_range_hz": [
         300000000.0,
         100000000000.0
@@ -575,6 +575,26 @@
           "name": "uncorrected radius",
           "unit": "m",
           "role": "derived"
+        },
+        {
+          "symbol": "rho_frac",
+          "name": "probe radius / effective radius",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.3",
+          "description": "where the probe sits, as a fraction of a_e"
+        },
+        {
+          "symbol": "a_eff",
+          "name": "effective radius",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "k0ae",
+          "name": "k0 * a_eff",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -598,44 +618,183 @@
             "eps_r"
           ],
           "notes": "Balanis 14-64. The bracket depends only on the ratio h/F, so the formula is unit-agnostic and works directly in metres - the previous version carried factors of 100 to work in centimetres instead."
-        }
-      ],
-      "analysis": [
+        },
         {
-          "metric": "effective_radius_m",
-          "expr": "a*np.sqrt(1 + (2*h/(pi*a*eps_r))*(np.log(pi*a/(2*h)) + 1.7726))",
+          "output": "a_eff",
+          "expr": "a*sqrt(1 + (2*h/(pi*a*eps_r))*(log(pi*a/(2*h)) + 1.7726))",
           "units_out": "m",
           "depends_on": [
             "a",
             "h",
             "eps_r"
           ],
-          "notes": "Balanis 14-66, the fringing-corrected radius"
+          "notes": "Balanis 14-66, the fringing-corrected radius the fields actually see"
+        },
+        {
+          "output": "k0ae",
+          "expr": "k0*a_eff",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "a_eff"
+          ],
+          "notes": "The one number the pattern depends on. At resonance k*a_e = 1.8412 with k = k0*sqrt(eps_r), so k0*a_e = 1.8412/sqrt(eps_r) and the directivity is a function of permittivity alone."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "effective_radius_m",
+          "expr": "a_eff",
+          "units_out": "m",
+          "depends_on": [
+            "a_eff"
+          ]
         },
         {
           "metric": "resonant_frequency_check_hz",
-          "expr": "1.8412*c/(2*pi*(a*np.sqrt(1 + (2*h/(pi*a*eps_r))*(np.log(pi*a/(2*h)) + 1.7726)))*np.sqrt(eps_r))",
+          "expr": "1.8412*c/(2*pi*a_eff*sqrt(eps_r))",
           "units_out": "Hz",
           "depends_on": [
-            "a",
-            "h",
+            "a_eff",
             "eps_r"
           ],
-          "notes": "Forward check: TM11 resonance from the effective radius. 1.8412 is the first zero of J1'. Must return f0."
+          "notes": "forward check from the effective radius: must return f0"
+        },
+        {
+          "metric": "k0_ae",
+          "expr": "k0ae",
+          "units_out": "-",
+          "depends_on": [
+            "k0ae"
+          ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "(-1.5749262)*k0ae**5 + (7.8328863)*k0ae**4 + (-14.031725)*k0ae**3 + (13.773366)*k0ae**2 + (-5.4358965)*k0ae**1 + (3.9028535)",
+          "units_out": "-",
+          "depends_on": [
+            "k0ae"
+          ],
+          "notes": "Integrated from the TM110 far fields (Balanis 14-79/14-80), whose angular dependence is J0 -/+ J2 of k0*a_e*sin(theta), over the UPPER hemisphere only - the ground plane takes the rest. Fitted to that quadrature over k0*a_e in [0.45, 1.90], which is eps_r from 1 to 17; worst error 0.19%. This spec previously carried a hard-coded 6.3, which is 54% high on FR-4 and 84% high on eps_r = 10.2 - the very substrates a circular patch is chosen for."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(6.3)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "marginally below a rectangular patch of the same resonance"
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "shape_integral",
+          "expr": "4.0/directivity_linear",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "the pattern integral itself, exposed because the radiation conductance is the same integral scaled"
+        },
+        {
+          "metric": "radiation_conductance_S",
+          "expr": "pi*k0ae**2*(4.0/directivity_linear)/(8*eta0)",
+          "units_out": "S",
+          "depends_on": [
+            "k0ae",
+            "directivity_linear"
+          ],
+          "notes": "DERIVED HERE, NOT CHECKED AGAINST A PUBLISHED EXAMPLE. G = 2*P_rad/|V0|^2 from the same cavity-model fields as the directivity, which IS checked. The derivation is sound but the absolute level rests on the cavity model's edge-voltage normalisation, so treat the resistance below as a starting point to tune rather than a prediction."
+        },
+        {
+          "metric": "edge_resistance_ohm",
+          "expr": "1/radiation_conductance_S",
+          "units_out": "ohm",
+          "depends_on": [
+            "radiation_conductance_S"
+          ],
+          "notes": "at rho0 = a_e, where J1 peaks and the resistance is highest"
+        },
+        {
+          "metric": "feed_resistance_ratio",
+          "expr": "(j1(1.8412*rho_frac)/j1(1.8412))**2",
+          "units_out": "-",
+          "depends_on": [
+            "rho_frac"
+          ],
+          "notes": "R(rho0)/R_edge = [J1(k*rho0)/J1(k*a_e)]^2. Since k*a_e = 1.8412 at resonance for every substrate, this depends ONLY on rho0/a_e - the permittivity cancels out entirely, which is the useful part."
+        },
+        {
+          "metric": "feed_resistance_ohm",
+          "expr": "edge_resistance_ohm*(j1(1.8412*rho_frac)/j1(1.8412))**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "edge_resistance_ohm",
+            "rho_frac"
+          ]
+        },
+        {
+          "metric": "probe_radius_m",
+          "expr": "rho_frac*a_eff",
+          "units_out": "m",
+          "depends_on": [
+            "rho_frac",
+            "a_eff"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "the rectangular-patch estimate applied here; indicative for this shape"
         }
       ],
       "validity": [
-        "h << lambda0 and h/a small; the fringing model degrades for thick substrates",
-        "TM11 only; TM21 appears at about 1.66*f0",
-        "cgs-derived constants: the synthesis expression converts explicitly"
+        "TM110 dominant mode, cavity model: thin substrate, magnetic side wall, no surface waves and no probe inductance",
+        "the directivity fit covers k0*a_e in [0.45, 1.90], which is eps_r from about 1 to 17",
+        "broadside is the pattern peak throughout that range, checked; it would not be for a much larger k0*a_e",
+        "radiation_conductance_S and the resistances derived from it are NOT validated against a published worked example - only the derivation is. The directivity and the feed-position ratio are, and those are the numbers to lean on"
       ],
       "known_cases": [
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "directivity_linear": 5.5620315
+          },
+          "tol_pct": 0.5,
+          "source": "k0*a_e = 1.25421 on eps_r = 2.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 5.56435 (7.454 dBi); the fit gives 5.56203. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +13% from the true value here."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "directivity_linear": 4.0863686
+          },
+          "tol_pct": 0.5,
+          "source": "k0*a_e = 0.87895 on eps_r = 4.4. Quadrature of the TM110 far fields over the upper hemisphere gives D = 4.08356 (6.110 dBi); the fit gives 4.08637. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +54% from the true value here."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "directivity_linear": 3.4242518
+          },
+          "tol_pct": 0.6,
+          "source": "k0*a_e = 0.57723 on eps_r = 10.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 3.42786 (5.350 dBi); the fit gives 3.42425. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +84% from the true value here."
+        },
         {
           "given": {
             "f0": 10000000000.0,
@@ -647,11 +806,38 @@
             "resonant_frequency_check_hz": 10000000000.0
           },
           "tol_pct": 2.0,
-          "source": "Balanis Example 14.4: f0 = 10 GHz, eps_r = 2.2, h = 0.1588 cm gives a = 0.525 cm"
+          "source": "Balanis Example 14.4: 10 GHz, eps_r = 2.2, h = 0.1588 cm gives a = 0.525 cm"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "rho_frac": 0.3
+          },
+          "expect": {
+            "feed_resistance_ratio": 0.20864135
+          },
+          "tol_pct": 0.5,
+          "source": "[J1(1.8412*0.3)/J1(1.8412)]^2 = 0.208641. Because k*a_e is 1.8412 at resonance whatever the substrate, this ratio depends only on rho0/a_e - permittivity cancels. At rho0 = a_e it must be exactly 1, which is the check that the normalisation is right."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "rho_frac": 1.0
+          },
+          "expect": {
+            "feed_resistance_ratio": 1.0
+          },
+          "tol_pct": 0.5,
+          "source": "[J1(1.8412*1.0)/J1(1.8412)]^2 = 1.000000. Because k*a_e is 1.8412 at resonance whatever the substrate, this ratio depends only on rho0/a_e - permittivity cancels. At rho0 = a_e it must be exactly 1, which is the check that the normalisation is right."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 14 (eqs. 14-64, 14-65, 14-66)"
+        "Balanis, Antenna Theory 4th ed., Ch. 14.3 (eqs. 14-64 to 14-66, 14-79, 14-80)",
+        "Directivity integrated here from the published far fields and confirmed on an independent 2-D angular grid"
       ]
     },
     {

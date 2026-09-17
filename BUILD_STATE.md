@@ -408,9 +408,33 @@ Verified three ways, agreeing to 1e-14: the closed form, Balanis 13-19 and
 published directivity expression as a live metric so the two routes are checked
 against each other on every run.
 
+## circular_patch directivity integrated (post-S5)
+
+Next on the weakness survey after the horns. It carried db10(6.3) with no
+derivation at all. The TM110 far fields are closed in J0 -/+ J2 (Balanis
+14-79/14-80), so the directivity is one quadrature over the upper hemisphere.
+
+The hard-coded value was 14% high on eps_r 2.2, 54% high on FR-4 and 84% high
+on eps_r 10.2 - worst exactly where circular patches get used, since high
+permittivity is why you pick one. True values: 5.50, 4.08, 3.43.
+
+Everything depends on k0*a_e alone, and the resonance condition k*a_e = 1.8412
+ties that to eps_r, so it is a one-variable fit. Worst error 0.19%. Also added
+the feed-position law R(rho0)/R_edge = [J1(k*rho0)/J1(k*a_e)]^2, which is
+permittivity-independent for the same reason.
+
+The radiation conductance is derived from the same fields but is NOT checked
+against any published example, and says so in its notes. The directivity and
+the feed law are checked; those are the numbers to lean on.
+
+Bug in my own work worth recording: I built the fit expression by string
+replacement and `.replace("**0", "")` turned `k0ae**0` into `k0ae`, making the
+constant term linear. The known cases caught it immediately - three failures at
+18%, 12% and 48%. Build expressions term by term, not by patching strings.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1326 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1339 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1326 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1339 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -127,6 +127,7 @@ being written into a spec.
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
 | Sectoral and pyramidal horns | Aperture efficiency exact in Fresnel integrals | Closed form, Balanis 13-19/13-41 as published, and direct aperture integration all agree to 1e-14 |
+| `circular_patch` | Directivity integrated from the TM110 fields in J0 ∓ J2 | Quadrature and an independent 2-D angular grid agree to 0.0000%; replaces a hard-coded 6.3 that was 84% high on εr = 10.2 |
 
 **These fits are only as good as the model behind them.** Each is a
 closed-form or ray-optics idealisation, not a full-wave result, and the

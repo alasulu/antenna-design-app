@@ -383,3 +383,46 @@ def test_horn_efficiency_depends_only_on_the_flare_ratio(syn):
             d = syn("e_plane_sectoral_horn", f0=f0, a_wg=0.02286, rho=rho, flare=1.0)
             assert d.metrics["aperture_efficiency"] == pytest.approx(
                 0.64870263, rel=1e-6), f"rho={rho}, f0={f0}"
+
+
+def test_circular_patch_directivity_matches_its_own_quadrature(syn):
+    """The fit must track the integral it was fitted to, across substrates.
+    The value it replaced was a hard-coded 6.3 that was 84% high on eps_r 10.2."""
+    from scipy.integrate import quad
+    from scipy.special import jv
+
+    def exact(k0ae):
+        integ = quad(lambda t: ((jv(0, k0ae*math.sin(t)) - jv(2, k0ae*math.sin(t)))**2
+                                + math.cos(t)**2
+                                * (jv(0, k0ae*math.sin(t)) + jv(2, k0ae*math.sin(t)))**2)
+                     * math.sin(t), 0, math.pi/2, limit=400)[0]
+        return 4.0/integ
+
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                         (10.2, 1.27e-3, 5.8e9)):
+        d = syn("circular_patch", f0=f0, eps_r=eps_r, h=h)
+        assert d.metrics["directivity_linear"] == pytest.approx(
+            exact(d.metrics["k0_ae"]), rel=3e-3), f"eps_r={eps_r}"
+
+
+def test_circular_patch_feed_law_is_exactly_one_at_the_edge(syn):
+    """R(rho0)/R_edge must be 1 when the probe IS at the edge, and it must not
+    depend on permittivity - k*a_e is 1.8412 at resonance for every substrate."""
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (10.2, 1.27e-3, 5.8e9)):
+        edge = syn("circular_patch", f0=f0, eps_r=eps_r, h=h, rho_frac=1.0)
+        assert edge.metrics["feed_resistance_ratio"] == pytest.approx(1.0, rel=1e-9)
+    ratios = [syn("circular_patch", f0=f, eps_r=e, h=h,
+                  rho_frac=0.3).metrics["feed_resistance_ratio"]
+              for e, h, f in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                              (10.2, 1.27e-3, 5.8e9))]
+    assert max(ratios) - min(ratios) < 1e-12, "permittivity must cancel out"
+
+
+def test_circular_patch_is_less_directive_than_a_rectangular_one(syn):
+    """Physically required on any given substrate: a circular patch has the
+    smaller aperture. The old hard-coded 6.3 made it MORE directive than the
+    rectangular patch's 6.6 on low-permittivity board and wrong everywhere."""
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9)):
+        circ = syn("circular_patch", f0=f0, eps_r=eps_r, h=h)
+        rect = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
+        assert circ.metrics["directivity_linear"] < rect.metrics["directivity_linear"]
