@@ -322,3 +322,64 @@ def test_rectangular_dra_beats_the_magnetic_wall_model_it_replaced(syn):
                 aspect_Ld=2.0)
         assert 1.02 < d.metrics["magnetic_wall_oversize"] < 1.30
         assert d.metrics["height_magnetic_wall_m"] > d.get("d")
+
+
+# ---------------------------------------------------------------------- horns
+
+def test_horn_gain_agrees_with_the_published_directivity_expression(syn):
+    """Each sectoral horn carries its efficiency as a closed form AND Balanis's
+    directivity expression as published. They are algebraically the same thing,
+    so any drift between them is a transcription error."""
+    for key, guide, flares in (
+            ("e_plane_sectoral_horn", {"a_wg": 0.02286}, (0.6, 0.8, 1.0, 1.2, 1.4)),
+            ("h_plane_sectoral_horn", {"b_wg": 0.01016}, (0.6, 1.0, 1.4))):
+        for flare in flares:
+            d = syn(key, f0=10e9, rho=0.3, flare=flare, **guide)
+            from_aperture = 10 ** (d.metrics["gain_dbi"] / 10)
+            assert d.metrics["directivity_balanis_form"] == pytest.approx(
+                from_aperture, rel=1e-12), f"{key} at flare {flare}"
+
+
+def test_the_optimum_flare_is_actually_a_maximum(syn):
+    """The point of an optimum-gain horn. A spec with a PINNED aperture
+    efficiency cannot express this at all - its gain rises without limit as the
+    flare grows, which would recommend over-flaring indefinitely."""
+    for key, guide in (("e_plane_sectoral_horn", {"a_wg": 0.02286}),
+                       ("h_plane_sectoral_horn", {"b_wg": 0.01016})):
+        gains = {f: syn(key, f0=10e9, rho=0.3, flare=f, **guide).metrics["gain_dbi"]
+                 for f in (0.7, 0.85, 1.0, 1.15, 1.3)}
+        assert gains[1.0] == max(gains.values()), f"{key}: {gains}"
+        assert gains[1.3] < gains[1.0] - 0.5, "over-flaring must cost real gain"
+
+
+def test_optimum_horn_phase_errors_are_the_canonical_quarter_and_three_eighths(syn):
+    e = syn("e_plane_sectoral_horn", f0=10e9, a_wg=0.02286, rho=0.3, flare=1.0)
+    h = syn("h_plane_sectoral_horn", f0=10e9, b_wg=0.01016, rho=0.3, flare=1.0)
+    assert e.metrics["max_phase_error_wavelengths"] == pytest.approx(0.25, rel=1e-9)
+    assert h.metrics["max_phase_error_wavelengths"] == pytest.approx(0.375, rel=1e-9)
+
+
+def test_pyramidal_efficiency_is_the_two_sectoral_ones_combined(syn):
+    """eta_P = (pi^2/8)*eta_E*eta_H. The pi^2/8 removes one copy of the TE10
+    cosine taper, which both sectoral efficiencies contain."""
+    p = syn("pyramidal_horn", f0=10e9, G_target=20.0)
+    assert p.metrics["aperture_efficiency"] == pytest.approx(
+        math.pi ** 2 / 8 * p.metrics["eta_e_plane"] * p.metrics["eta_h_plane"],
+        rel=1e-12)
+    # and its two halves must equal the standalone sectoral horns at the optimum
+    e = syn("e_plane_sectoral_horn", f0=10e9, a_wg=0.02286, rho=0.3, flare=1.0)
+    h = syn("h_plane_sectoral_horn", f0=10e9, b_wg=0.01016, rho=0.3, flare=1.0)
+    assert p.metrics["eta_e_plane"] == pytest.approx(
+        e.metrics["aperture_efficiency"], rel=1e-9)
+    assert p.metrics["eta_h_plane"] == pytest.approx(
+        h.metrics["aperture_efficiency"], rel=1e-9)
+
+
+def test_horn_efficiency_depends_only_on_the_flare_ratio(syn):
+    """A dimensionless quadratic-phase problem cannot care about frequency or
+    absolute size, only about how far the flare is from optimum."""
+    for rho in (0.1, 0.3, 1.0):
+        for f0 in (6e9, 10e9, 18e9):
+            d = syn("e_plane_sectoral_horn", f0=f0, a_wg=0.02286, rho=rho, flare=1.0)
+            assert d.metrics["aperture_efficiency"] == pytest.approx(
+                0.64870263, rel=1e-6), f"rho={rho}, f0={f0}"

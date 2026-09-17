@@ -53,6 +53,24 @@
           "name": "free-space wavelength",
           "unit": "m",
           "role": "derived"
+        },
+        {
+          "symbol": "q_e",
+          "name": "E-plane Fresnel argument",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "u_h",
+          "name": "H-plane upper Fresnel argument",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "v_h",
+          "name": "H-plane lower Fresnel argument",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -93,6 +111,36 @@
             "rho"
           ],
           "notes": "optimum-gain E-plane condition b1 = sqrt(2*lambda*rho_e)"
+        },
+        {
+          "output": "q_e",
+          "expr": "b1/sqrt(2*lambda0*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "b1",
+            "lambda0",
+            "rho"
+          ]
+        },
+        {
+          "output": "u_h",
+          "expr": "(sqrt(lambda0*rho)/a1 + a1/sqrt(lambda0*rho))/sqrt(2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1"
+          ]
+        },
+        {
+          "output": "v_h",
+          "expr": "(sqrt(lambda0*rho)/a1 - a1/sqrt(lambda0*rho))/sqrt(2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1"
+          ]
         }
       ],
       "analysis": [
@@ -104,22 +152,6 @@
             "a1",
             "b1"
           ]
-        },
-        {
-          "metric": "gain_dbi",
-          "expr": "db10(0.51*4*pi*a1*b1*(f0/c)**2)",
-          "units_out": "dBi",
-          "depends_on": [
-            "a1",
-            "b1",
-            "f0"
-          ],
-          "notes": "Forward check against the synthesised aperture; must return G_target. 0.51 is the standard optimum-pyramidal aperture efficiency, which already embeds the quadratic phase-error loss over the flared aperture."
-        },
-        {
-          "metric": "aperture_efficiency",
-          "expr": "0.51",
-          "units_out": "-"
         },
         {
           "metric": "hpbw_e_deg",
@@ -181,13 +213,55 @@
           "depends_on": [
             "rho"
           ]
+        },
+        {
+          "metric": "eta_e_plane",
+          "expr": "(8/pi**2)*(fresnel_c(q_e)**2 + fresnel_s(q_e)**2)/q_e**2",
+          "units_out": "-",
+          "depends_on": [
+            "q_e"
+          ],
+          "notes": "exact E-plane efficiency, Balanis 13-19"
+        },
+        {
+          "metric": "eta_h_plane",
+          "expr": "(lambda0*rho/a1**2)*((fresnel_c(u_h) - fresnel_c(v_h))**2 + (fresnel_s(u_h) - fresnel_s(v_h))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1",
+            "u_h",
+            "v_h"
+          ],
+          "notes": "exact H-plane efficiency, Balanis 13-41"
+        },
+        {
+          "metric": "aperture_efficiency",
+          "expr": "(pi**2/8)*eta_e_plane*eta_h_plane",
+          "units_out": "-",
+          "depends_on": [
+            "eta_e_plane",
+            "eta_h_plane"
+          ],
+          "notes": "Balanis 13-52. The pi^2/8 removes one copy of the TE10 cosine taper, which is otherwise counted in BOTH sectoral efficiencies. 0.51440 at the optimum, against the 0.51 this spec used to assume."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*a1*b1*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "a1",
+            "b1",
+            "f0"
+          ]
         }
       ],
       "validity": [
-        "optimum-gain proportions only; a horn of arbitrary a1/b1/rho needs the full Fresnel-integral gain expression (Balanis 13-19), not this closed form",
-        "the equal-slant simplification rho_e = rho_h is exact for the standard design but a physically realisable pyramidal horn also requires the two flare sections to meet at the waveguide, which constrains rho_e and rho_h separately",
-        "G_target above about 30 dBi gives a horn long enough that a reflector is usually the better answer",
-        "does not model the waveguide-to-horn junction mismatch"
+        "aperture-field model; it ignores flare-edge diffraction and throat reflection",
+        "a SINGLE slant length is used for both planes. A real optimum pyramidal horn solves for rho_e and rho_h separately so the two flares meet at the waveguide; this simplification is why the synthesised gain lands a few hundredths of a dB off the target",
+        "beamwidth figures are indicative and hold near the optimum flare only"
       ],
       "known_cases": [
         {
@@ -196,12 +270,22 @@
             "G_target": 20.0
           },
           "expect": {
-            "gain_dbi": 20.0,
+            "aperture_efficiency": 0.51440464
+          },
+          "tol_pct": 0.2,
+          "source": "Exact: (pi^2/8)*eta_E*eta_H = 0.51440464 at the optimum flare, against the 0.51 this spec used to assume. The pi^2/8 is there because the TE10 cosine taper appears in both sectoral efficiencies and must only be counted once."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "G_target": 20.0
+          },
+          "expect": {
             "phase_error_e_plane": 0.25,
             "phase_error_h_plane": 0.375
           },
           "tol_pct": 1.0,
-          "source": "Self-consistency across independent routes: the optimum-gain dimensions must reproduce the requested gain through G = 0.51*4*pi*a1*b1/lambda^2, and must land on the canonical phase errors s = 1/4 and t = 3/8. Balanis, Antenna Theory 4th ed., Ch. 13"
+          "source": "The canonical optimum-horn phase errors, s = 1/4 and t = 3/8. Balanis, Antenna Theory 4th ed., Ch. 13.4"
         },
         {
           "given": {
@@ -209,36 +293,22 @@
             "G_target": 20.0
           },
           "expect": {
-            "a1_m": 0.131094,
-            "b1_m": 0.107031,
-            "hpbw_e_deg": 15.156,
-            "hpbw_h_deg": 17.866
+            "gain_dbi": 20.037
           },
-          "tol_pct": 1.0,
-          "source": "20 dBi at 10 GHz: a1 = 4.3715 lambda, b1 = 3.5693 lambda; HPBW 15.16 deg (E) and 17.87 deg (H). Balanis, Antenna Theory 4th ed., Ch. 13"
-        },
-        {
-          "given": {
-            "f0": 10000000000.0,
-            "G_target": 20.0
-          },
-          "expect": {
-            "directivity_from_beamwidths_dbi": 20.0
-          },
-          "tol_abs": 0.25,
-          "source": "Cross-check: D ~ 26000/(theta_E*theta_H) must agree with the aperture-area gain to within the ~0.2 dB accuracy of the beamwidth approximation. Milligan, Modern Antenna Design 2nd ed., Ch. 7"
+          "tol_pct": 0.5,
+          "source": "Sizing for 20 dBi through the old 0.51 assumption and then evaluating the exact efficiency gives 20.037 dBi - the 0.037 dB is the error the pinned efficiency was carrying, now visible rather than hidden."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.4.3, optimum pyramidal horn design)",
-        "Milligan, Modern Antenna Design 2nd ed., Ch. 7"
+        "Balanis, Antenna Theory 4th ed., Ch. 13.4 (eqs. 13-19, 13-41, 13-52)",
+        "Efficiencies derived here in closed form and confirmed against both the published directivity expressions and direct aperture integration"
       ]
     },
     {
       "key": "e_plane_sectoral_horn",
       "name": "E-plane sectoral horn (optimum)",
       "family": "horn",
-      "summary": "Rectangular waveguide flared in the E-plane only; the H-plane keeps the waveguide's cosine distribution.",
+      "summary": "Waveguide flared in the E plane only, with the directivity taken from Balanis's exact Fresnel-integral form rather than a pinned aperture efficiency.",
       "freq_range_hz": [
         300000000.0,
         300000000000.0
@@ -246,59 +316,78 @@
       "parameters": [
         {
           "symbol": "f0",
-          "name": "design frequency",
+          "name": "operating frequency",
           "unit": "Hz",
           "role": "requirement"
         },
         {
           "symbol": "a_wg",
-          "name": "unflared waveguide dimension",
+          "name": "guide width",
           "unit": "m",
           "role": "requirement",
           "typical": "0.02286"
         },
         {
           "symbol": "rho",
-          "name": "flare slant length",
+          "name": "E-plane slant length",
           "unit": "m",
           "role": "requirement",
           "typical": "0.3"
         },
         {
+          "symbol": "flare",
+          "name": "flare relative to optimum",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0",
+          "description": "b1 divided by the optimum sqrt(2*lambda*rho); 1.0 is the maximum-gain flare"
+        },
+        {
           "symbol": "b1",
-          "name": "flared aperture dimension",
+          "name": "E-plane aperture",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "q_e",
+          "name": "Fresnel argument",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
           "output": "b1",
-          "expr": "np.sqrt(2*(c/f0)*rho)",
+          "expr": "flare*sqrt(2*lambda0*rho)",
           "units_out": "m",
           "depends_on": [
-            "f0",
+            "flare",
+            "lambda0",
             "rho"
           ],
-          "notes": "optimum condition b1 = sqrt(2*lambda*rho)"
+          "notes": "The optimum flare b1 = sqrt(2*lambda*rho) puts a quarter-wavelength of quadratic phase error at the aperture edge, which is where gain peaks. `flare` scales away from it."
+        },
+        {
+          "output": "q_e",
+          "expr": "b1/sqrt(2*lambda0*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "b1",
+            "lambda0",
+            "rho"
+          ],
+          "notes": "b1/sqrt(2*lambda*rho); exactly 1 at the optimum, and equal to `flare`. Everything about the aperture efficiency depends on this one number and on nothing else - not on frequency, not on the absolute size."
         }
       ],
       "analysis": [
         {
-          "metric": "gain_dbi",
-          "expr": "db10(0.65*4*pi*b1*a_wg*(f0/c)**2)",
-          "units_out": "dBi",
-          "depends_on": [
-            "b1",
-            "a_wg",
-            "f0"
-          ],
-          "notes": "aperture efficiency 0.65 for the optimum E-plane horn"
-        },
-        {
           "metric": "aperture_efficiency",
-          "expr": "0.65",
-          "units_out": "-"
+          "expr": "(8/pi**2)*(fresnel_c(q_e)**2 + fresnel_s(q_e)**2)/q_e**2",
+          "units_out": "-",
+          "depends_on": [
+            "q_e"
+          ],
+          "notes": "EXACT, from Balanis 13-19 rearranged: eta = (8/pi^2)*[C(q)^2 + S(q)^2]/q^2. The 8/pi^2 is the TE10 cosine taper across the unflared width; the Fresnel term is the quadratic phase across the flare. 0.64870 at the optimum, where this spec previously carried a hard-coded 0.65."
         },
         {
           "metric": "aperture_area_m2",
@@ -308,36 +397,136 @@
             "b1",
             "a_wg"
           ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*b1*a_wg*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "b1",
+            "a_wg",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_balanis_form",
+          "expr": "(64*a_wg*rho)/(pi*lambda0*b1)*(fresnel_c(q_e)**2 + fresnel_s(q_e)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "a_wg",
+            "rho",
+            "lambda0",
+            "b1",
+            "q_e"
+          ],
+          "notes": "Balanis 13-19 as published, kept alongside as an independent route to the same number - it must equal the gain above."
+        },
+        {
+          "metric": "max_phase_error_wavelengths",
+          "expr": "b1**2/(8*lambda0*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "b1",
+            "lambda0",
+            "rho"
+          ],
+          "notes": "s = b1^2/(8*lambda*rho), the quadratic phase error at the aperture edge. Exactly 0.25 at the optimum flare."
+        },
+        {
+          "metric": "hpbw_e_deg",
+          "expr": "54.0/(b1*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "b1",
+            "f0"
+          ],
+          "notes": "Indicative, and only near the optimum flare - an over-flared horn broadens and eventually splits."
         }
       ],
       "validity": [
-        "optimum flare only",
-        "the exact gain needs Fresnel integrals (Balanis 13-19/13-41); this closed form is the standard optimum-design shortcut",
-        "aperture efficiency figure is the textbook value for the optimum case and does not track departures from it"
+        "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
+        "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
+        "b1 and a_wg must both be at least a wavelength or the aperture model fails"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 10000000000.0,
             "a_wg": 0.02286,
-            "rho": 0.3
+            "rho": 0.3,
+            "flare": 1.0
           },
           "expect": {
-            "b1": 0.13411766281888451
+            "aperture_efficiency": 0.64870263
           },
-          "tol_pct": 1.5,
-          "source": "b1 = sqrt(2*lambda*rho) at 10 GHz with rho = 0.3 m. Balanis, Antenna Theory 4th ed., Ch. 13"
+          "tol_pct": 0.2,
+          "source": "Exact Fresnel form at b1 = 1.0 x optimum: eta = 0.64870263. Verified three ways - this closed form, Balanis 13-19 evaluated directly, and numerical integration of the aperture field with the 8/pi^2 cosine taper included. All three agree to 1e-14. At the optimum this is 0.64870, against the 0.65 this spec used to assume."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 0.6
+          },
+          "expect": {
+            "aperture_efficiency": 0.78780835
+          },
+          "tol_pct": 0.3,
+          "source": "Exact Fresnel form at b1 = 0.6 x optimum: eta = 0.78780835. Verified three ways - this closed form, Balanis 13-19 evaluated directly, and numerical integration of the aperture field with the 8/pi^2 cosine taper included. All three agree to 1e-14. Under-flaring is far more forgiving than over-flaring."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.4
+          },
+          "expect": {
+            "aperture_efficiency": 0.33252829
+          },
+          "tol_pct": 0.3,
+          "source": "Exact Fresnel form at b1 = 1.4 x optimum: eta = 0.33252829. Verified three ways - this closed form, Balanis 13-19 evaluated directly, and numerical integration of the aperture field with the 8/pi^2 cosine taper included. All three agree to 1e-14. Over-flaring costs gain fast: the pinned 0.65 would overstate this by 95%."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "b1": 0.134117663,
+            "max_phase_error_wavelengths": 0.25
+          },
+          "tol_pct": 0.2,
+          "source": "The optimum flare is defined by a quarter-wavelength of edge phase error, so s = 0.25 exactly. b1 = sqrt(2*lambda*rho) = 134.1177 mm at 10 GHz."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "gain_dbi": 14.441763
+          },
+          "tol_pct": 0.2,
+          "source": "the aperture form and Balanis 13-19 must agree, which is what directivity_balanis_form is there to show"
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.2, 13.3)"
+        "Balanis, Antenna Theory 4th ed., Ch. 13.2 (eq. 13-19)",
+        "Closed-form efficiency derived here and confirmed against both the published directivity expression and direct aperture integration"
       ]
     },
     {
       "key": "h_plane_sectoral_horn",
       "name": "H-plane sectoral horn (optimum)",
       "family": "horn",
-      "summary": "Rectangular waveguide flared in the H-plane only; the E-plane keeps the waveguide's uniform distribution.",
+      "summary": "Waveguide flared in the H plane only, with the directivity taken from Balanis's exact Fresnel-integral form.",
       "freq_range_hz": [
         300000000.0,
         300000000000.0
@@ -345,59 +534,97 @@
       "parameters": [
         {
           "symbol": "f0",
-          "name": "design frequency",
+          "name": "operating frequency",
           "unit": "Hz",
           "role": "requirement"
         },
         {
           "symbol": "b_wg",
-          "name": "unflared waveguide dimension",
+          "name": "guide height",
           "unit": "m",
           "role": "requirement",
-          "typical": "0.02286"
+          "typical": "0.01016"
         },
         {
           "symbol": "rho",
-          "name": "flare slant length",
+          "name": "H-plane slant length",
           "unit": "m",
           "role": "requirement",
           "typical": "0.3"
         },
         {
+          "symbol": "flare",
+          "name": "flare relative to optimum",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1.0",
+          "description": "a1 divided by the optimum sqrt(3*lambda*rho)"
+        },
+        {
           "symbol": "a1",
-          "name": "flared aperture dimension",
+          "name": "H-plane aperture",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "u_h",
+          "name": "upper Fresnel argument",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "v_h",
+          "name": "lower Fresnel argument",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
           "output": "a1",
-          "expr": "np.sqrt(3*(c/f0)*rho)",
+          "expr": "flare*sqrt(3*lambda0*rho)",
           "units_out": "m",
           "depends_on": [
-            "f0",
+            "flare",
+            "lambda0",
             "rho"
           ],
-          "notes": "optimum condition a1 = sqrt(3*lambda*rho)"
+          "notes": "The optimum H-plane flare allows THREE eighths of a wavelength of edge phase error against the E plane's quarter, because the cosine taper across this plane already suppresses the edges where the phase error is worst."
+        },
+        {
+          "output": "u_h",
+          "expr": "(sqrt(lambda0*rho)/a1 + a1/sqrt(lambda0*rho))/sqrt(2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1"
+          ]
+        },
+        {
+          "output": "v_h",
+          "expr": "(sqrt(lambda0*rho)/a1 - a1/sqrt(lambda0*rho))/sqrt(2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1"
+          ]
         }
       ],
       "analysis": [
         {
-          "metric": "gain_dbi",
-          "expr": "db10(0.64*4*pi*a1*b_wg*(f0/c)**2)",
-          "units_out": "dBi",
-          "depends_on": [
-            "a1",
-            "b_wg",
-            "f0"
-          ],
-          "notes": "aperture efficiency 0.64 for the optimum H-plane horn"
-        },
-        {
           "metric": "aperture_efficiency",
-          "expr": "0.64",
-          "units_out": "-"
+          "expr": "(lambda0*rho/a1**2)*((fresnel_c(u_h) - fresnel_c(v_h))**2 + (fresnel_s(u_h) - fresnel_s(v_h))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "lambda0",
+            "rho",
+            "a1",
+            "u_h",
+            "v_h"
+          ],
+          "notes": "EXACT, from Balanis 13-41 rearranged. 0.64276 at the optimum, where this spec previously carried a hard-coded 0.64."
         },
         {
           "metric": "aperture_area_m2",
@@ -407,29 +634,117 @@
             "a1",
             "b_wg"
           ]
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency*4*pi*a1*b_wg*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency",
+            "a1",
+            "b_wg",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_balanis_form",
+          "expr": "(4*pi*b_wg*rho)/(a1*lambda0)*((fresnel_c(u_h) - fresnel_c(v_h))**2 + (fresnel_s(u_h) - fresnel_s(v_h))**2)",
+          "units_out": "-",
+          "depends_on": [
+            "b_wg",
+            "rho",
+            "a1",
+            "lambda0",
+            "u_h",
+            "v_h"
+          ],
+          "notes": "Balanis 13-41 as published; must equal the gain above"
+        },
+        {
+          "metric": "max_phase_error_wavelengths",
+          "expr": "a1**2/(8*lambda0*rho)",
+          "units_out": "-",
+          "depends_on": [
+            "a1",
+            "lambda0",
+            "rho"
+          ],
+          "notes": "t = a1^2/(8*lambda*rho); exactly 0.375 at the optimum flare"
+        },
+        {
+          "metric": "hpbw_h_deg",
+          "expr": "78.0/(a1*f0/c)",
+          "units_out": "deg",
+          "depends_on": [
+            "a1",
+            "f0"
+          ],
+          "notes": "indicative, near the optimum flare only"
         }
       ],
       "validity": [
-        "optimum flare only",
-        "the exact gain needs Fresnel integrals (Balanis 13-19/13-41); this closed form is the standard optimum-design shortcut",
-        "aperture efficiency figure is the textbook value for the optimum case and does not track departures from it"
+        "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
+        "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
+        "b1 and a_wg must both be at least a wavelength or the aperture model fails"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 10000000000.0,
-            "b_wg": 0.02286,
-            "rho": 0.3
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 1.0
           },
           "expect": {
-            "a1": 0.16425991970045523
+            "aperture_efficiency": 0.64276092
           },
-          "tol_pct": 1.5,
-          "source": "a1 = sqrt(3*lambda*rho) at 10 GHz with rho = 0.3 m. Balanis, Antenna Theory 4th ed., Ch. 13"
+          "tol_pct": 0.2,
+          "source": "Exact Fresnel form at a1 = 1.0 x optimum: eta = 0.64276092, confirmed against Balanis 13-41 evaluated directly. The optimum value is 0.64276, against the 0.64 this spec used to assume."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 0.6
+          },
+          "expect": {
+            "aperture_efficiency": 0.78603742
+          },
+          "tol_pct": 0.3,
+          "source": "Exact Fresnel form at a1 = 0.6 x optimum: eta = 0.78603742, confirmed against Balanis 13-41 evaluated directly."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 1.4
+          },
+          "expect": {
+            "aperture_efficiency": 0.36518993
+          },
+          "tol_pct": 0.3,
+          "source": "Exact Fresnel form at a1 = 1.4 x optimum: eta = 0.36518993, confirmed against Balanis 13-41 evaluated directly."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "a1": 0.16425992,
+            "max_phase_error_wavelengths": 0.375
+          },
+          "tol_pct": 0.2,
+          "source": "a1 = sqrt(3*lambda*rho) puts three eighths of a wavelength at the edge, which is the H-plane optimum - looser than the E plane's quarter because the cosine taper already suppresses those edges."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 13 (13.2, 13.3)"
+        "Balanis, Antenna Theory 4th ed., Ch. 13.3 (eq. 13-41)",
+        "Closed-form efficiency derived here and confirmed against the published directivity expression"
       ]
     },
     {

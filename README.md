@@ -169,7 +169,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1307 tests
+python -m pytest tests/ -q                # 1326 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
@@ -213,6 +213,30 @@ the triangular unit cell is `2/√3` larger in area — **13.40% fewer elements*
 for the same grating-lobe-free scan volume. A test recomputes that from the
 primitive vectors, and another confirms by brute force that a grating lobe
 appears just past the limit and not before.
+
+### Horns solved rather than assumed
+
+The sectoral and pyramidal horns carried a pinned aperture efficiency — 0.65,
+0.64, 0.51 — and synthesised the aperture so the horn was always at its optimum
+flare by construction. Self-consistent, but it could not analyse a horn someone
+already had, and worse, **its gain rose without limit as the flare grew**: with
+efficiency fixed, over-flaring always looked better.
+
+Balanis gives the directivity exactly, in Fresnel integrals. Rearranged, the
+efficiency is closed-form for *any* flare:
+
+```
+η_E = (8/π²)·[C(q)² + S(q)²]/q²          q = b₁/√(2λρ)
+η_H = (λρ/a₁²)·{[C(u) − C(v)]² + [S(u) − S(v)]²}
+η_P = (π²/8)·η_E·η_H
+```
+
+The 8/π² is the TE₁₀ cosine taper across the unflared plane; in the pyramidal
+form it appears in both sectoral efficiencies and has to be removed once. At the
+optimum these give 0.64870, 0.64276 and 0.51440 against the pinned 0.65, 0.64
+and 0.51 — and away from it they give the right answer instead of a badly wrong
+one. Gain now peaks at the optimum flare, which is the property that makes it
+optimum.
 
 ### Cross-consistency between archetypes
 

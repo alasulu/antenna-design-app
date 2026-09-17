@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1307 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1326 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -126,6 +126,7 @@ being written into a spec.
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
+| Sectoral and pyramidal horns | Aperture efficiency exact in Fresnel integrals | Closed form, Balanis 13-19/13-41 as published, and direct aperture integration all agree to 1e-14 |
 
 **These fits are only as good as the model behind them.** Each is a
 closed-form or ray-optics idealisation, not a full-wave result, and the
@@ -283,7 +284,11 @@ known case only checks what it asserts.
    frequency unit, S and Z parameters, with the two-port column-major exception
    and arbitrary line wrapping handled. G and H parameter files are recognised
    and refused rather than mis-converted.
-7. **Re-audit the session 1–4 specs** — partly done. Two systematic audits now
+7. **Re-audit the session 1–4 specs** — continuing. A survey by how much each
+   archetype actually asserts put the sectoral horns at the bottom (one known
+   case asserting one quantity out of four produced); they have since been
+   rebuilt on exact theory. The same survey is the way to pick what to look at
+   next. Partly done otherwise: Two systematic audits now
    run over the whole catalogue: the dimensional one (793 quantities against
    scale invariance) and the cross-consistency one (23 relationships between
    archetypes that must agree). Both are clean. What neither covers is an

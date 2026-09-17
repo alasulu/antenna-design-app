@@ -375,9 +375,42 @@ a real ambiguity in the format, and why the .sNp suffix exists. The reader
 breaks the tie on the total value count where only one candidate divides
 evenly, and says so plainly where both do.
 
+## Horns rebuilt on exact theory (post-S5)
+
+Found by surveying the catalogue for weak verification: the two sectoral horns
+sat at the bottom, one known case each asserting one quantity out of four
+produced.
+
+They pinned the aperture efficiency at 0.65 and 0.64 and synthesised the
+aperture so the horn was always optimum by construction. Self-consistent, and
+useless for analysing a horn that already exists. Worse, with efficiency fixed
+the gain rose without limit as the flare grew - the old spec would have
+recommended over-flaring indefinitely.
+
+Balanis gives the directivity exactly in Fresnel integrals. Rearranged:
+
+  eta_E = (8/pi^2)*[C(q)^2 + S(q)^2]/q^2,   q = b1/sqrt(2*lam*rho)
+  eta_H = (lam*rho/a1^2)*{[C(u)-C(v)]^2 + [S(u)-S(v)]^2}
+  eta_P = (pi^2/8)*eta_E*eta_H
+
+The 8/pi^2 is the TE10 cosine taper across the unflared plane. In the pyramidal
+form it appears in both sectoral efficiencies and must be removed once - that
+factor is exactly what my first independent check was missing, which showed up
+as a CONSTANT 0.912 dB offset at every parameter. A constant offset means a
+constant factor, and pi^2/8 = 1.2337 is 0.912 dB.
+
+Optimum values 0.64870, 0.64276, 0.51440 against the pinned 0.65, 0.64, 0.51.
+Fresnel integrals added to the evaluator whitelist (scipy returns (S, C) in that
+order, which is the easy thing to reverse).
+
+Verified three ways, agreeing to 1e-14: the closed form, Balanis 13-19 and
+13-41 as published, and direct aperture integration. The spec keeps the
+published directivity expression as a live metric so the two routes are checked
+against each other on every run.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1307 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1326 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -30,6 +30,16 @@ def _ci(x):
     """Cosine integral Ci(x) = -int_x^inf cos(t)/t dt."""
     return _sp.sici(x)[1]
 
+def _fresnel_c(x):
+    """Fresnel C(x) = int_0^x cos(pi t^2/2) dt. scipy returns (S, C)."""
+    return _sp.fresnel(x)[1]
+
+
+def _fresnel_s(x):
+    """Fresnel S(x) = int_0^x sin(pi t^2/2) dt."""
+    return _sp.fresnel(x)[0]
+
+
 # Node types the evaluator will walk. Anything else raises.
 _ALLOWED_NODES: tuple[type[ast.AST], ...] = (
     ast.Expression, ast.Constant, ast.Name, ast.Load,
@@ -73,6 +83,11 @@ BASE_NAMESPACE: dict[str, Any] = {
     # exact resonance is a J/Y cross-product, and without Y it can only be
     # approximated.
     "y0": _sp.y0, "y1": _sp.y1, "yv": _sp.yv, "yn": _sp.yv,
+    # Fresnel integrals. Horn directivity is closed-form in these, so without
+    # them a horn spec has to pin its aperture efficiency at the optimum-flare
+    # value and lose the ability to analyse any other flare. scipy returns
+    # (S, C) in that order, which is the easy thing to get backwards.
+    "fresnel_c": _fresnel_c, "fresnel_s": _fresnel_s,
     "struve": _sp.struve, "ellipk": _sp.ellipk, "ellipe": _sp.ellipe,
     "db10": lambda x: 10.0 * np.log10(x),
     "db20": lambda x: 20.0 * np.log10(x),
