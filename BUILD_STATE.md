@@ -499,9 +499,26 @@ invented constants, 6.3 against 6.6. With both integrated they agree to within
 asserting numerical noise; the test now checks that they track each other and
 that both fall with permittivity.
 
+## Shorted patch: what shorting actually costs (post-S5)
+
+quarter_wave_shorted_patch has ONE radiating edge, so its directivity is exactly
+the single-slot term the two-slot model is built from, (k0*W)^2/I1. Dropped
+straight in from the previous iteration's work.
+
+The more interesting finding is the claim the spec carried alongside it: that
+one slot instead of two costs "about 3 dB". Computed, the cost is 2.16 dB on
+eps_r 2.2, 1.06 dB on FR-4 and 0.50 dB on eps_r 10.2. Always LESS than 3, and
+varying by 1.65 dB across ordinary substrates.
+
+The reason: the two slots sit well under a half wavelength apart - 0.36
+wavelengths at eps_r 2.2, 0.17 at eps_r 10.2 - so they never arrayed perfectly.
+On high-permittivity board they are nearly coincident and the second slot was
+adding almost nothing, so removing it costs almost nothing. Shorting a patch is
+much cheaper on high-permittivity board than the rule of thumb suggests.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1361 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1369 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

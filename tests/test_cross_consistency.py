@@ -516,3 +516,36 @@ def test_every_horn_efficiency_falls_away_from_its_optimum_flare(syn):
         etas = {f: syn(key, f0=10e9, flare=f, **extra).metrics["aperture_efficiency"]
                 for f in (0.4, 0.7, 1.0, 1.3)}
         assert etas[0.4] > etas[0.7] > etas[1.0] > etas[1.3], f"{key}: {etas}"
+
+
+def test_shorted_patch_is_the_single_slot_of_the_full_patch(syn):
+    """A quarter-wave shorted patch has one radiating edge where the full patch
+    has two, so its directivity must be exactly the single-slot term the
+    two-slot model is built from."""
+    from scipy.special import sici
+
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                         (10.2, 1.27e-3, 5.8e9)):
+        d = syn("quarter_wave_shorted_patch", f0=f0, eps_r=eps_r, h=h)
+        k0w = 2*math.pi*f0*d.get("W")/2.99792458e8
+        i1 = -2 + math.cos(k0w) + k0w*sici(k0w)[0] + math.sin(k0w)/k0w
+        assert d.metrics["directivity_linear"] == pytest.approx(k0w**2/i1, rel=1e-9)
+        # and the full-patch comparison must match the standalone full patch
+        full = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
+        assert d.metrics["full_patch_directivity_linear"] == pytest.approx(
+            full.metrics["directivity_linear"], rel=2e-3)
+
+
+def test_shorting_a_patch_costs_less_than_three_db_and_varies_with_substrate(syn):
+    """The spec assumed a flat 3 dB. Two slots less than a half wavelength apart
+    never arrayed perfectly, so removing one always costs LESS - and much less
+    on high-permittivity board, where they were nearly coincident."""
+    losses = {}
+    for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
+                         (10.2, 1.27e-3, 5.8e9)):
+        d = syn("quarter_wave_shorted_patch", f0=f0, eps_r=eps_r, h=h)
+        loss = d.metrics["directivity_lost_to_shorting_db"]
+        assert 0.0 < loss < 3.0, f"eps_r={eps_r} lost {loss} dB"
+        losses[eps_r] = loss
+    assert losses[2.2] > losses[4.4] > losses[10.2], (
+        f"the cost must fall as the slots crowd together: {losses}")

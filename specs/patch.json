@@ -1146,6 +1146,18 @@
           "name": "equivalent full patch length",
           "unit": "m",
           "role": "derived"
+        },
+        {
+          "symbol": "L_full_eff",
+          "name": "equivalent full-patch effective length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "g_pattern_full",
+          "name": "G12/G1 for the equivalent full patch",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1200,6 +1212,26 @@
             "dL"
           ],
           "notes": "what a conventional patch would need, for comparison"
+        },
+        {
+          "output": "L_full_eff",
+          "expr": "L_full_patch + 2*dL",
+          "units_out": "m",
+          "depends_on": [
+            "L_full_patch",
+            "dL"
+          ],
+          "notes": "the slot separation the unshorted patch would have"
+        },
+        {
+          "output": "g_pattern_full",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L_full_eff)**1 + (0.00033186218)*(k0*L_full_eff)**1*(k0*W) + (-0.1890797)*(k0*L_full_eff)**2 + (-0.0052674407)*(k0*L_full_eff)**2*(k0*W) + (-0.0089556897)*(k0*L_full_eff)**3 + (0.0011641111)*(k0*L_full_eff)**3*(k0*W) + (0.015779123)*(k0*L_full_eff)**4 + (-0.0017182346)*(k0*L_full_eff)**5",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "L_full_eff",
+            "W"
+          ]
         }
       ],
       "analysis": [
@@ -1224,10 +1256,22 @@
           "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
         },
         {
+          "metric": "directivity_linear",
+          "expr": "(k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W))",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "W"
+          ],
+          "notes": "EXACT for the single radiating slot this antenna has: D = (k0*W)^2/I1 over the half space, the same expression the full patch's two-slot model is built from. It tends to 3.0 as the slot narrows - a magnetic dipole's 1.5 doubled by the ground plane - and rises slowly with width. This spec previously carried a flat 3.3, reasoned as half the full patch's 6.6."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(3.3)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Indicative. One radiating slot instead of two costs about 3 dB against the full patch's 6.6, and the pattern tilts toward the open edge. Treat as a placeholder, not a computed value."
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -1240,7 +1284,7 @@
             "W",
             "L_full_patch"
           ],
-          "notes": "Roughly half the full patch's: the stored energy is nearly unchanged while only one slot radiates, so Q about doubles. Indicative."
+          "notes": "Roughly half the full patch's: the stored energy is nearly unchanged while only one slot radiates, so Q about doubles. INDICATIVE - unlike the directivity above, this halving has not been computed."
         },
         {
           "metric": "shorting_wall_width_m",
@@ -1259,6 +1303,27 @@
             "W",
             "h"
           ]
+        },
+        {
+          "metric": "full_patch_directivity_linear",
+          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern_full)",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "W",
+            "g_pattern_full"
+          ],
+          "notes": "what the same width would give with BOTH edges radiating"
+        },
+        {
+          "metric": "directivity_lost_to_shorting_db",
+          "expr": "db10(full_patch_directivity_linear/directivity_linear)",
+          "units_out": "dB",
+          "depends_on": [
+            "full_patch_directivity_linear",
+            "directivity_linear"
+          ],
+          "notes": "COMPUTED, not the 3 dB usually assumed. Two slots less than a half wavelength apart do not array perfectly, so removing one costs less than 3 dB - about 2.15 dB on eps_r 2.2 and only 1.05 dB on FR-4, where the slots are so close together that the second one was adding little. Shorting a patch is cheaper in gain on high-permittivity board than on low."
         }
       ],
       "validity": [
@@ -1292,11 +1357,48 @@
           },
           "tol_pct": 1.0,
           "source": "2.4 GHz on 1.6 mm FR-4: W = (c/2f)*sqrt(2/5.4) = 38.01 mm, unchanged from a full patch. eps_reff = 4.0858, dL = 0.739 mm, so L = c/(4f*sqrt(eps_reff)) - dL = 14.71 mm. Balanis, Antenna Theory 4th ed., Ch. 14.2 for the underlying cavity model."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "directivity_linear": 3.312281
+          },
+          "tol_pct": 0.5,
+          "source": "Single radiating slot at k0*W = 2.48365: D = (k0*W)^2/I1 = 3.31228 (5.201 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is -0.4% from it here."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "directivity_linear": 3.184222
+          },
+          "tol_pct": 0.5,
+          "source": "Single radiating slot at k0*W = 1.91191: D = (k0*W)^2/I1 = 3.18422 (5.030 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +3.6% from it here."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "directivity_linear": 3.088476
+          },
+          "tol_pct": 0.5,
+          "source": "Single radiating slot at k0*W = 1.32757: D = (k0*W)^2/I1 = 3.08848 (4.897 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +6.8% from it here."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 14.2 (transmission-line model)",
-        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9"
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9",
+        "Single-slot directivity derived with the rectangular patch's two-slot model and verified there"
       ]
     },
     {
