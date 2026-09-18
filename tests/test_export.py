@@ -46,6 +46,13 @@ CASES = {
                                       "b_wg": 0.01016, "N": 12},
     "waveguide_slot_array_travelling_wave": {"f0": 10e9, "a_wg": 0.02286,
                                              "b_wg": 0.01016},
+    "long_wire_travelling": {"f0": 300e6, "L_over_lambda": 4.0},
+    "leaky_wave_line_source": {"f0": 10e9},
+    "planar_monopole_rectangular": {"f_low": 1.5e9},
+    "planar_monopole_circular": {"f_low": 1.5e9},
+    "annular_ring_patch": {"f0": 2e9, "eps_r": 2.2, "h": 1.6e-3},
+    "pifa": {"f0": 2.4e9, "h": 0.006},
+    "stacked_patch": {"f0": 2.4e9, "eps_r": 2.2, "h": 1.6e-3},
 }
 
 
@@ -444,3 +451,86 @@ def test_cavity_sits_behind_the_slot_not_in_front(registry):
     assert cavity.z[1] <= 0.0, "the cavity belongs behind the ground plane"
     assert cavity.z[1] - cavity.z[0] == pytest.approx(
         design.get("cavity_depth"), rel=1e-6)
+
+
+# ------------------------------------------------ terminated and planar shapes
+
+def test_long_wire_exports_a_termination_port_not_just_a_feed(registry):
+    """A travelling-wave wire with nothing at the far end is a standing-wave
+    wire, and its pattern splits. The termination has to be modelled."""
+    model = build(registry["long_wire_travelling"].synthesize(
+        f0=300e6, L_over_lambda=4.0))
+    assert len(model.ports) == 2, "feed and termination"
+    feed, term = model.ports
+    assert term.impedance != feed.impedance, (
+        "the termination is not a 50 ohm measurement port")
+    assert any("termination" in n.lower() for n in model.notes)
+
+
+def test_leaky_wave_slit_stops_short_of_both_ends(registry):
+    """A slit running the full length would cut through the port faces."""
+    design = registry["leaky_wave_line_source"].synthesize(f0=10e9)
+    model = build(design)
+    guide = next(s for s in model.solids if s.name == "guide_interior")
+    slit = next(s for s in model.solids if s.name == "slit_cut")
+    assert slit.z[0] > guide.z[0] and slit.z[1] < guide.z[1]
+
+
+@pytest.mark.parametrize("key,given", [
+    ("planar_monopole_rectangular", {"f_low": 1.5e9}),
+    ("planar_monopole_circular", {"f_low": 1.5e9}),
+])
+def test_planar_monopoles_stand_above_their_ground_plane(key, given, registry):
+    """The feed gap is a design parameter for these - the low-frequency cut-off
+    depends on it directly - so the radiator must not touch the plane."""
+    design = registry[key].synthesize(**given)
+    model = build(design)
+    radiator = next(s for s in model.solids
+                    if s.name in ("plate", "disc"))
+    lowest = radiator.z[0] if hasattr(radiator, "z") else \
+        radiator.centre[1] - radiator.radius
+    assert lowest == pytest.approx(design.get("p_gap"), rel=1e-6, abs=1e-9)
+
+
+def test_annular_ring_is_cut_not_drawn_as_two_discs(registry):
+    from otahub.export.base import Subtract
+
+    design = registry["annular_ring_patch"].synthesize(
+        f0=2e9, eps_r=2.2, h=1.6e-3)
+    model = build(design)
+    subs = [op for op in model.operations if isinstance(op, Subtract)]
+    assert subs and subs[0].target == "ring"
+    ring = next(s for s in model.solids if s.name == "ring")
+    hole = next(s for s in model.solids if s.name == "ring_hole")
+    assert ring.radius == pytest.approx(design.get("b_out"), rel=1e-9)
+    assert hole.radius == pytest.approx(design.get("a_in"), rel=1e-9)
+    assert hole.radius < ring.radius
+
+
+def test_stacked_patch_parasitic_sits_above_the_driven_one(registry):
+    design = registry["stacked_patch"].synthesize(f0=2.4e9, eps_r=2.2, h=1.6e-3)
+    model = build(design)
+    driven = next(s for s in model.solids if s.name == "driven_patch")
+    para = next(s for s in model.solids if s.name == "parasitic_patch")
+    assert para.z[0] > driven.z[0]
+    assert para.z[0] - driven.z[0] == pytest.approx(design.get("h2"), rel=1e-9)
+
+
+def test_pifa_shorting_wall_spans_the_declared_width(registry):
+    design = registry["pifa"].synthesize(f0=2.4e9, h=0.006)
+    model = build(design)
+    wall = next(s for s in model.solids if s.name == "shorting_wall")
+    assert wall.x[1] - wall.x[0] == pytest.approx(design.get("Ws"), rel=1e-9)
+    assert wall.z[1] == pytest.approx(design.get("h"), rel=1e-9)
+
+
+def test_low_confidence_archetypes_say_so_in_their_exported_model(registry):
+    """A model whose spec is flagged low confidence must carry that warning into
+    the file, or it arrives in the solver looking as solid as any other."""
+    for key, given in (("pifa", {"f0": 2.4e9, "h": 0.006}),
+                       ("stacked_patch", {"f0": 2.4e9, "eps_r": 2.2, "h": 1.6e-3}),
+                       ("planar_monopole_circular", {"f_low": 1.5e9}),
+                       ("halo_loop", {"f0": 144e6})):
+        model = build(registry[key].synthesize(**given))
+        joined = " ".join(model.notes).lower()
+        assert "confidence" in joined, f"{key} does not carry its low-confidence flag"

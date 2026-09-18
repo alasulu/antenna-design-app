@@ -838,6 +838,221 @@ def _travelling_slot_array(design: DesignResult) -> Model:
     return model
 
 
+@builder("long_wire_travelling")
+def _long_wire(design: DesignResult) -> Model:
+    """One straight wire, fed at one end and terminated at the other."""
+    model = _base_model(design, "Terminated travelling-wave long wire")
+    length = _param(design, "L")
+    wire = _param(design, "aw", default=length / 4000.0)
+    gap = max(length / 2000.0, wire * 3.0)
+    model.solids.append(Cylinder("wire", "PEC", "x", wire, (gap, length + gap)))
+    model.ports += [
+        DiscretePort("port1", (0.0, 0.0, 0.0), (gap, 0.0, 0.0)),
+        DiscretePort("port2", (length + gap, 0.0, 0.0),
+                     (length + 2 * gap, 0.0, 0.0), impedance=600.0),
+    ]
+    model.notes += [
+        "TWO ports. Port 1 is the feed; port 2 stands in for the TERMINATION and "
+        "must be a real absorbing load - the travelling wave is the whole "
+        "premise. Leave it open and the reflected wave restores a standing-wave "
+        "pattern and the beam splits.",
+        "600 ohm is a placeholder. The right value is the wire's characteristic "
+        "impedance against ground, which depends on a height this spec does not "
+        "model.",
+        "Free space, no ground plane. A real long wire runs above earth, which "
+        "adds an image and tilts the beam upward.",
+    ]
+    return model
+
+
+@builder("leaky_wave_line_source")
+def _leaky_wave(design: DesignResult) -> Model:
+    """A waveguide with a continuous longitudinal slit in its broad wall."""
+    model = _base_model(design, "Uniform leaky-wave line source")
+    a = _param(design, "a")
+    length = _param(design, "L")
+    b = a * 0.45
+    wall = a / 20.0
+    slit = a / 12.0
+    model.solids += [
+        Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2),
+              (0.0, length)),
+        Brick("broad_wall", "PEC", (-a / 2, a / 2), (b / 2, b / 2 + wall),
+              (0.0, length)),
+        Brick("slit_cut", "VOID", (-slit / 2, slit / 2),
+              (b / 2 - wall, b / 2 + 2 * wall), (length * 0.05, length * 0.95)),
+    ]
+    model.operations.append(Subtract("broad_wall", ("slit_cut",)))
+    model.notes += [
+        f"Narrow wall set to {b * 1e3:.4g} mm, 0.45 of the broad wall, because "
+        "the spec gives only a. Feed a waveguide port at z = 0 and a matched "
+        "load at the far end.",
+        f"Slit width {slit * 1e3:.4g} mm. This is the leakage control and the "
+        "spec parameterises it only as alpha_norm, never as a dimension, so "
+        "expect to tune it - the slit sets how much power reaches the load "
+        "rather than radiating.",
+        "The slit stops short of both ends so the port faces stay solid.",
+    ]
+    return model
+
+
+@builder("planar_monopole_rectangular")
+def _planar_monopole_rect(design: DesignResult) -> Model:
+    """A flat plate standing on edge above a ground plane."""
+    model = _base_model(design, "Rectangular planar monopole")
+    height = _param(design, "Lp")
+    width = _param(design, "Wp")
+    gap = _param(design, "p_gap")
+    thick = max(width, height) / 500.0
+    ground = 4.0 * max(width, height)
+    model.solids += [
+        Brick("ground_plane", "PEC", (-ground / 2, ground / 2),
+              (-ground / 2, ground / 2), (-thick, 0.0)),
+        Brick("plate", "PEC", (-width / 2, width / 2), (-thick / 2, thick / 2),
+              (gap, gap + height)),
+    ]
+    model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
+    model.notes += [
+        f"Feed gap {gap * 1e3:.4g} mm, from the spec - a real design parameter "
+        "here, since the lower cut-off goes as 1/(L + W/2 + p).",
+        f"Plate rendered {thick * 1e3:.4g} mm thick; a real one is sheet metal or "
+        "copper on a substrate, and its thickness is not a design variable.",
+        f"Ground plane {ground * 1e3:.4g} mm square. A small ground plane raises "
+        "the cut-off and spoils the pattern; the spec assumes a large one.",
+    ]
+    return model
+
+
+@builder("planar_monopole_circular")
+def _planar_monopole_disc(design: DesignResult) -> Model:
+    """A disc standing on edge above a ground plane."""
+    model = _base_model(design, "Circular disc planar monopole")
+    radius = _param(design, "r_disc")
+    gap = _param(design, "p_gap")
+    thick = radius / 250.0
+    ground = 8.0 * radius
+    model.solids += [
+        Brick("ground_plane", "PEC", (-ground / 2, ground / 2),
+              (-ground / 2, ground / 2), (-thick, 0.0)),
+        Cylinder("disc", "PEC", "y", radius, (-thick / 2, thick / 2),
+                 (0.0, gap + radius)),
+    ]
+    model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
+    model.notes += [
+        f"Disc of radius {radius * 1e3:.4g} mm standing VERTICALLY, its lowest "
+        f"point {gap * 1e3:.4g} mm above the plane. The gap is a design "
+        "parameter: the cut-off goes as 1/(2r + r + p).",
+        f"Rendered {thick * 1e3:.4g} mm thick.",
+        "Marked low confidence in the catalogue - the equivalent-cylinder "
+        "cut-off rule is empirical and good to perhaps 10%.",
+    ]
+    return model
+
+
+@builder("annular_ring_patch")
+def _annular_ring(design: DesignResult) -> Model:
+    """A ring of copper on a substrate: outer disc with the inner one removed."""
+    model = _base_model(design, "Annular ring patch")
+    a_in = _param(design, "a_in")
+    b_out = _param(design, "b_out")
+    h = _param(design, "h")
+    eps_r = _param(design, "eps_r", default=2.2)
+    sub = b_out * 3.0
+    model.solids += [
+        Brick("substrate", f"eps_r={eps_r:g}", (-sub, sub), (-sub, sub), (0.0, h)),
+        Brick("ground", "PEC", (-sub, sub), (-sub, sub), (0.0, 0.0)),
+        Cylinder("ring", "PEC", "z", b_out, (h, h)),
+        Cylinder("ring_hole", "VOID", "z", a_in, (h, h)),
+    ]
+    model.operations.append(Subtract("ring", ("ring_hole",)))
+    feed_r = (a_in + b_out) / 2.0
+    model.ports.append(DiscretePort("port1", (feed_r, 0.0, 0.0), (feed_r, 0.0, h)))
+    model.notes += [
+        f"Probe at the MEAN radius {feed_r * 1e3:.4g} mm as a starting point. The "
+        "spec gives no feed position, and a ring is awkward to feed - probe, "
+        "coupled microstrip and aperture each perturb the TM11 mode differently.",
+        "Drawn as a zero-thickness annulus. Real etched copper has thickness, "
+        "which lowers the resonance by a fraction of a percent.",
+        "The spec's resonance is fitted to the exact Bessel cross-product and "
+        "carries no fringing correction on the radii, so expect the simulated "
+        "resonance a few percent low.",
+    ]
+    return model
+
+
+@builder("pifa")
+def _pifa(design: DesignResult) -> Model:
+    """Top plate over a ground plane, shorted along one edge, fed beside it."""
+    model = _base_model(design, "Planar inverted-F antenna")
+    length = _param(design, "L")
+    width = _param(design, "W")
+    height = _param(design, "h")
+    short_w = _param(design, "Ws", default=width)
+    ground = max(4.0 * length, 4.0 * width)
+    thick = height / 20.0
+    model.solids += [
+        Brick("ground_plane", "PEC", (-ground / 2, ground / 2),
+              (-ground / 2, ground / 2), (-thick, 0.0)),
+        Brick("top_plate", "PEC", (-width / 2, width / 2),
+              (-length / 2, length / 2), (height, height)),
+        Brick("shorting_wall", "PEC", (-short_w / 2, short_w / 2),
+              (-length / 2, -length / 2), (0.0, height)),
+    ]
+    feed_y = -length / 2 + length * 0.15
+    model.ports.append(DiscretePort("port1", (0.0, feed_y, 0.0), (0.0, feed_y, height)))
+    model.notes += [
+        f"Shorting wall {short_w * 1e3:.4g} mm wide against a {width * 1e3:.4g} mm "
+        "plate. That ratio is the PIFA's main tuning control: a full-width short "
+        "resonates near L + h = lambda/4, a narrow one nearer L + W + h = lambda/4.",
+        f"Probe {length * 0.15 * 1e3:.4g} mm from the shorted edge. The spec gives "
+        "no feed position and the impedance is very sensitive to it.",
+        "Air between plate and ground; a dielectric there lowers the resonance.",
+        "Marked low confidence. A PIFA is dominated by the ground plane it sits "
+        "on, rendered here as a plain rectangle rather than the handset it would "
+        "really be.",
+    ]
+    return model
+
+
+@builder("stacked_patch")
+def _stacked_patch(design: DesignResult) -> Model:
+    """Driven patch on its substrate, parasitic patch suspended above it."""
+    model = _base_model(design, "Stacked patch")
+    w = _param(design, "W")
+    length = _param(design, "L")
+    w2 = _param(design, "W2")
+    l2 = _param(design, "L2")
+    h = _param(design, "h")
+    h2 = _param(design, "h2")
+    eps_r = _param(design, "eps_r", default=2.2)
+    margin = max(w, length) * 0.6
+    sub_w, sub_l = max(w, w2) + 2 * margin, max(length, l2) + 2 * margin
+    model.solids += [
+        Brick("substrate", f"eps_r={eps_r:g}", (-sub_w / 2, sub_w / 2),
+              (-sub_l / 2, sub_l / 2), (0.0, h)),
+        Brick("ground", "PEC", (-sub_w / 2, sub_w / 2), (-sub_l / 2, sub_l / 2),
+              (0.0, 0.0)),
+        Brick("driven_patch", "PEC", (-w / 2, w / 2), (-length / 2, length / 2),
+              (h, h)),
+        Brick("parasitic_patch", "PEC", (-w2 / 2, w2 / 2), (-l2 / 2, l2 / 2),
+              (h + h2, h + h2)),
+    ]
+    model.ports.append(DiscretePort(
+        "port1", (0.0, -length / 4, 0.0), (0.0, -length / 4, h)))
+    model.notes += [
+        f"Parasitic patch suspended {h2 * 1e3:.4g} mm above the driven one, in "
+        "air. The spacer is not modelled: foam or honeycomb is close to air, a "
+        "dielectric one is not.",
+        "Probe at a quarter of the driven patch's length, which is a guess. The "
+        "spec gives no feed position, and on a stack the probe inductance is "
+        "often large enough to need a series capacitor.",
+        "Marked LOW CONFIDENCE: the bandwidth multiplier is an expectation drawn "
+        "from published designs, not a computed result. The geometry here is "
+        "sound; the predicted bandwidth is the part to distrust.",
+    ]
+    return model
+
+
 def build(design: DesignResult) -> Model:
     """Build a model for a design, or a parameters-only model if we cannot.
 

@@ -565,9 +565,38 @@ Left without builders: reflector, travelling-wave and lens. Parabolic dishes
 need a swept profile and horns need a loft, both of which mean guessing at API
 structure rather than parameter names.
 
+## Seven more geometry builders (post-S5)
+
+30 -> 37. Found by asking which of the remaining archetypes are buildable with
+the primitives ALREADY in the IR, rather than assuming the empty families all
+needed new ones. Most did not.
+
+long_wire_travelling, leaky_wave_line_source, planar_monopole_rectangular,
+planar_monopole_circular, annular_ring_patch, pifa, stacked_patch. Bricks,
+cylinders and boolean cuts throughout.
+
+Two worth noting. The long wire exports TWO ports, the second standing in for
+the TERMINATION at a non-50-ohm impedance - a travelling-wave wire with an open
+far end is a standing-wave wire and its pattern splits, so leaving that implicit
+would produce a model that runs and answers the wrong question. And the annular
+ring is CUT from a disc rather than drawn as two, for the same reason the slots
+are.
+
+New test: an archetype whose spec is flagged low confidence must carry that
+warning into the exported file. pifa, stacked_patch, planar_monopole_circular
+and halo_loop all do. Without it a shaky model arrives in the solver looking as
+solid as any other.
+
+Caught while adding the cases: I passed eps_r to the PIFA, which declares no
+such parameter. The unit test on exported parameters caught it - an undeclared
+requirement reaches the exporter with no unit and cannot be classified.
+
+Left: reflector 0/7 and lens 0/4, plus the horns. All need swept profiles or
+lofts, which means guessing at API structure rather than parameter names.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1521 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1608 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

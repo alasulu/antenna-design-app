@@ -148,17 +148,18 @@ become named variables in millimetres, frequencies in GHz, and everything else
 keeps its own units — driven by each spec's declared unit rather than guessed
 from magnitude.
 
-Geometry is built for **30 of the 72 archetypes** — those whose construction is
+Geometry is built for **37 of the 72 archetypes** — those whose construction is
 unambiguous from their primary dimensions:
 
 | Group | Archetypes |
 |---|---|
 | Wire | half-wave, resonant and short dipoles; quarter-wave monopole; folded dipole; dipole over ground; turnstile |
-| Patch | rectangular, inset-fed, circular, quarter-wave shorted |
+| Patch | rectangular, inset-fed, circular, quarter-wave shorted, annular ring, PIFA, stacked |
 | Dielectric resonator | rectangular, cylindrical, hemispherical |
-| Wideband | biconical, conical monopole, discone |
+| Wideband | biconical, conical monopole, discone, planar monopoles (disc and rectangular) |
 | Loop | small circular and square, one-wavelength circular, quad, Alford, halo |
 | Slot | half-wave, folded, cavity-backed, waveguide longitudinal, resonant and travelling-wave arrays |
+| Travelling wave | terminated long wire, leaky-wave line source |
 | Aperture | open-ended waveguide |
 
 **Everything else exports its parameters and states plainly that no solid
@@ -171,7 +172,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1521 tests
+python -m pytest tests/ -q                # 1608 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
