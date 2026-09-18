@@ -516,9 +516,33 @@ On high-permittivity board they are nearly coincident and the second slot was
 adding almost nothing, so removing it costs almost nothing. Shorting a patch is
 much cheaper on high-permittivity board than the rule of thumb suggests.
 
+## Loop geometry builders (post-S5)
+
+18 -> 24 builders. The loop family was the largest with none at all, and it
+turned out to need only one new primitive: a torus, which both CST and HFSS
+expose directly. That is the difference from the horns, where a loft would mean
+guessing at the API's STRUCTURE (CST picks faces by id, HFSS wants a polyline
+then a loft) rather than just its parameter names.
+
+Built: small_circular_loop, one_wavelength_circular_loop, small_square_loop,
+quad_loop_square, alford_loop, halo_loop. Square loops needed no new primitive
+at all - four cylinders, one of them split for the feed.
+
+The two backends specify a torus differently and the difference is silent: CST
+takes inner and outer radii measured from the axis, HFSS takes major and minor.
+Feed either one the other's numbers and you get a ring of the wrong size with
+nothing in the file looking wrong. A test pins both forms.
+
+Feed gaps are cut with a real boolean rather than drawn, because a port across
+an unbroken ring shorts itself out. The halo is the exception worth noting: its
+gap is a DESIGN parameter, since the tip capacitance sets the resonance, where
+every other loop's gap is invented by the exporter and says so.
+
+Still nothing for reflector, slot, travelling-wave or lens.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1369 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1443 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

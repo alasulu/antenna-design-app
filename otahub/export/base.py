@@ -51,6 +51,21 @@ class Cone:
 
 
 @dataclass(frozen=True, slots=True)
+class Torus:
+    """A ring. `major_radius` is axis-to-tube-centre, `minor_radius` the tube.
+
+    Both backends have this as a primitive, which is why the loop family can be
+    built at all - unlike the horns, which would need a loft.
+    """
+    name: str
+    material: str
+    axis: str                     # normal to the plane of the ring
+    major_radius: float
+    minor_radius: float
+    centre: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+
+@dataclass(frozen=True, slots=True)
 class Sphere:
     name: str
     material: str
@@ -549,6 +564,97 @@ def _discone(design: DesignResult) -> Model:
         "and its thickness is not a design parameter.",
         "The feed gap is the main control on the high-frequency limit and is "
         "the least certain dimension in the spec - expect to tune it.",
+    ]
+    return model
+
+
+
+@builder("small_circular_loop")
+@builder("one_wavelength_circular_loop")
+def _circular_loop(design: DesignResult) -> Model:
+    """A wire ring in the x-y plane, fed across a gap cut out of it."""
+    model = _base_model(design, "Circular loop")
+    radius = _param(design, "a")
+    wire = _param(design, "b", "aw", default=radius / 100.0)
+    gap = max(radius / 50.0, wire * 3.0)
+    model.solids += [
+        Torus("loop", "PEC", "z", radius, wire),
+        Brick("feed_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
+              (-gap / 2, gap / 2), (-2 * wire, 2 * wire)),
+    ]
+    model.operations.append(Subtract("loop", ("feed_gap_cut",)))
+    model.ports.append(DiscretePort(
+        "port1", (radius, -gap / 2, 0.0), (radius, gap / 2, 0.0)))
+    model.notes += [
+        f"Feed gap {gap * 1e3:.4g} mm, cut from the ring with a boolean. The "
+        "spec assumes an unbroken loop, so the gap is a modelling necessity "
+        "rather than part of the design - and for an electrically small loop it "
+        "adds capacitance that shifts the tuning.",
+        f"Wire radius {wire * 1e3:.4g} mm as a solid PEC tube.",
+        "A small loop's radiation resistance is milliohms, so the simulated "
+        "input impedance will be dominated by whatever loss the solver models. "
+        "Set the conductor to a real metal rather than PEC if efficiency is the "
+        "question.",
+    ]
+    return model
+
+
+@builder("small_square_loop")
+@builder("quad_loop_square")
+@builder("alford_loop")
+def _square_loop(design: DesignResult) -> Model:
+    """Four wires round a square, fed across a gap in the bottom side."""
+    model = _base_model(design, "Square loop")
+    side = _param(design, "s")
+    wire = _param(design, "b", "aw", default=side / 200.0)
+    gap = max(side / 100.0, wire * 3.0)
+    h = side / 2.0
+    model.solids += [
+        Cylinder("side_top", "PEC", "x", wire, (-h, h), (h, 0.0)),
+        Cylinder("side_left", "PEC", "y", wire, (-h, h), (-h, 0.0)),
+        Cylinder("side_right", "PEC", "y", wire, (-h, h), (h, 0.0)),
+        Cylinder("side_bottom_a", "PEC", "x", wire, (-h, -gap / 2), (-h, 0.0)),
+        Cylinder("side_bottom_b", "PEC", "x", wire, (gap / 2, h), (-h, 0.0)),
+    ]
+    model.ports.append(DiscretePort(
+        "port1", (-gap / 2, -h, 0.0), (gap / 2, -h, 0.0)))
+    model.notes += [
+        f"Feed gap {gap * 1e3:.4g} mm in the centre of the bottom side; the spec "
+        "does not define one.",
+        "Corners are butt joints between straight tubes rather than mitred or "
+        "radiused, which is a small perturbation at the current maximum.",
+        "The Alford loop's corner capacitors, if this is one, are NOT modelled - "
+        "without them the current is not uniform and the azimuthal pattern will "
+        "not be the near-circle the spec predicts.",
+    ]
+    return model
+
+
+@builder("halo_loop")
+def _halo_loop(design: DesignResult) -> Model:
+    """A half-wave dipole bent into a ring, fed across the gap between its tips."""
+    model = _base_model(design, "Halo loop")
+    diameter = _param(design, "Dm")
+    gap = _param(design, "g")
+    radius = diameter / 2.0
+    wire = _param(design, "b", "aw", default=radius / 60.0)
+    model.solids += [
+        Torus("halo", "PEC", "z", radius, wire),
+        Brick("tip_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
+              (-gap / 2, gap / 2), (-2 * wire, 2 * wire)),
+    ]
+    model.operations.append(Subtract("halo", ("tip_gap_cut",)))
+    model.ports.append(DiscretePort(
+        "port1", (radius, -gap / 2, 0.0), (radius, gap / 2, 0.0)))
+    model.notes += [
+        f"Tip gap {gap * 1e3:.4g} mm, from the spec - unlike the other loops "
+        "here, the halo's gap IS a design parameter, because the capacitance "
+        "across it sets the resonance.",
+        "Modelled as a full ring with the gap cut out. A real halo is usually a "
+        "ring with flattened or capacitor-hatted tips, which increases that "
+        "capacitance and lowers the resonant frequency.",
+        "This archetype is marked low confidence in the catalogue; treat the "
+        "simulated resonance as the answer and the spec's as a starting point.",
     ]
     return model
 

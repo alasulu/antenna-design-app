@@ -6,7 +6,8 @@ Dimensions become design variables so the model stays parametric.
 """
 from __future__ import annotations
 
-from .base import Brick, Cone, Cylinder, DiscretePort, Model, Sphere, Subtract
+from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
+                   Subtract, Torus)
 from .cst import classify
 
 _MM = 1e3
@@ -196,6 +197,19 @@ def _render_solid(solid) -> str:
             f'    "BottomRadius:=", "{_mm(solid.radius_start)}",',
             f'    "TopRadius:=", "{_mm(solid.radius_end)}",',
             f'    "Height:=", "{_mm(height)}", "WhichAxis:=", "{axis}"],',
+            f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
+            f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
+        ])
+    if isinstance(solid, Torus):
+        return "\n".join([
+            "oEditor.CreateTorus([",
+            '    "NAME:TorusParameters",',
+            f'    "XCenter:=", "{_mm(solid.centre[0])}", '
+            f'"YCenter:=", "{_mm(solid.centre[1])}",',
+            f'    "ZCenter:=", "{_mm(solid.centre[2])}",',
+            f'    "MajorRadius:=", "{_mm(solid.major_radius)}",',
+            f'    "MinorRadius:=", "{_mm(solid.minor_radius)}",',
+            f'    "WhichAxis:=", "{solid.axis.upper()}"],',
             f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
             f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
         ])

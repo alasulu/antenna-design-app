@@ -31,6 +31,12 @@ CASES = {
     "conical_monopole": {"f_low": 1e9, "cone_half_angle_deg": 47.0},
     "biconical": {"f0": 1e9},
     "discone": {"f_low": 100e6},
+    "small_circular_loop": {"f0": 10e6, "C_over_lambda": 0.1},
+    "one_wavelength_circular_loop": {"f0": 300e6},
+    "small_square_loop": {"f0": 10e6, "P_over_lambda": 0.1},
+    "quad_loop_square": {"f0": 144e6},
+    "alford_loop": {"f0": 300e6, "P_over_lambda": 0.5},
+    "halo_loop": {"f0": 144e6},
 }
 
 
@@ -283,3 +289,75 @@ def test_dra_resonator_sits_on_the_ground_plane(registry):
         span = res.z if hasattr(res, "z") else res.span
         assert span[0] == pytest.approx(0.0), f"{key} resonator starts at {span[0]}"
         assert span[1] > 0
+
+
+# ------------------------------------------------------------------- loops
+
+def test_torus_reaches_both_backends_with_the_right_radii(registry):
+    """CST wants inner and outer radii measured from the axis; HFSS wants major
+    and minor. Feeding either one the other's numbers makes a torus of the
+    wrong size, and nothing in the file looks wrong."""
+    from otahub.export.base import Torus
+
+    model = build(registry["one_wavelength_circular_loop"].synthesize(f0=300e6))
+    tori = [s for s in model.solids if isinstance(s, Torus)]
+    assert tori, "a circular loop must contain a torus"
+    t = tori[0]
+    vba, py = cst.render(model), hfss.render(model)
+    assert "With Torus" in vba and "CreateTorus" in py
+    # CST: outer and inner, derived
+    assert f"{(t.major_radius + t.minor_radius)*1e3:.6f}" in vba
+    assert f"{(t.major_radius - t.minor_radius)*1e3:.6f}" in vba
+    # HFSS: major and minor, as given
+    assert f'"MajorRadius:=", "{t.major_radius*1e3:.6f}' in py
+    assert f'"MinorRadius:=", "{t.minor_radius*1e3:.6f}' in py
+
+
+def test_loop_feed_gap_is_cut_not_merely_drawn(registry):
+    """A port across an unbroken ring shorts itself out. The gap has to be a
+    real boolean subtraction."""
+    from otahub.export.base import Subtract
+
+    for key, given in (("small_circular_loop", {"f0": 10e6, "C_over_lambda": 0.1}),
+                       ("halo_loop", {"f0": 144e6})):
+        model = build(registry[key].synthesize(**given))
+        subs = [op for op in model.operations if isinstance(op, Subtract)]
+        assert subs, f"{key} must cut its feed gap"
+        names = {s.name for s in model.solids}
+        assert subs[0].target in names
+        assert all(t in names for t in subs[0].tools)
+
+
+def test_square_loop_sides_close_the_perimeter(registry):
+    """Four sides, one of them split for the feed - five cylinders whose spans
+    add up to the perimeter less the gap."""
+    from otahub.export.base import Cylinder
+
+    design = registry["quad_loop_square"].synthesize(f0=144e6)
+    model = build(design)
+    cyls = [s for s in model.solids if isinstance(s, Cylinder)]
+    assert len(cyls) == 5, "three whole sides plus a split fourth"
+    total = sum(abs(c.span[1] - c.span[0]) for c in cyls)
+    side = design.get("s")
+    gap = 4 * side - total
+    assert 0 < gap < side / 10, f"gap {gap} is not a small fraction of a side"
+
+
+def test_halo_gap_comes_from_the_spec_not_from_the_builder(registry):
+    """Every other loop's feed gap is invented by the exporter. The halo's is a
+    design parameter, because the tip capacitance sets its resonance."""
+    design = registry["halo_loop"].synthesize(f0=144e6)
+    model = build(design)
+    port = model.ports[0]
+    assert abs(port.end[1] - port.start[1]) == pytest.approx(design.get("g"), rel=1e-9)
+
+
+def test_loop_builders_say_what_they_had_to_invent(registry):
+    """Feed gaps, wire radii and missing corner capacitors all change the
+    answer; a model that stays silent about them is misleading."""
+    for key, given in (("small_circular_loop", {"f0": 10e6, "C_over_lambda": 0.1}),
+                       ("small_square_loop", {"f0": 10e6, "P_over_lambda": 0.1}),
+                       ("alford_loop", {"f0": 300e6, "P_over_lambda": 0.5})):
+        model = build(registry[key].synthesize(**given))
+        joined = " ".join(model.notes).lower()
+        assert "gap" in joined, f"{key} does not mention its feed gap"

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1369 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1443 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -201,12 +201,13 @@ are engineering rules of thumb rather than derived results. Every one says so
 in its `notes`. They exist so a design sheet is complete, not because they are
 predictions.
 
-### Exporters build geometry for 18 of 72 archetypes
+### Exporters build geometry for 24 of 72 archetypes
 
 Dipoles (3), monopole, folded dipole, dipole over ground, turnstile, four
-patch variants, three dielectric resonators, biconical, conical monopole,
-discone, and open-ended waveguide. **The other 54 export parameters only and
-say so.**
+patch variants, six loops, three dielectric resonators, biconical, conical
+monopole, discone, and open-ended waveguide. **The other 48 export parameters
+only and say so.** By family: wire 8/11, loop 6/8, patch 4/9, dielectric 3/3,
+uwb 2/8, horn 1/8, and nothing yet for reflector, slot, travelling-wave or lens.
 Where a builder must choose something the spec cannot supply — feed gap, inset
 notch width, a finite ground plane standing in for an infinite one — the
 choice is stated in the exported file's header.
@@ -269,8 +270,10 @@ known case only checks what it asserts.
 2. ~~**Close the inset-patch discrepancy**~~ — done. The published figure was
    right; the "direct integration" that disagreed with it was wrong. See §4.
 3. **Add geometry builders** for horns, which need a loft or truncated-pyramid
-   primitive neither backend abstraction has yet, and for the loop family,
-   which needs a torus. Yagi-Uda remains blocked for a different reason: the
+   primitive — the one shape where I would be guessing at the API's structure
+   rather than just its parameter names, so it has been left alone. The loop
+   family is now done (a torus turned out to be a direct primitive in both
+   tools). Yagi-Uda remains blocked for a different reason: the
    spec gives boom length, reflector and driven lengths and a director count,
    but not individual director lengths, so its geometry is genuinely
    underdetermined and building it would mean inventing dimensions.

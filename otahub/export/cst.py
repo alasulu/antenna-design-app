@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import math
 
-from .base import Brick, Cone, Cylinder, DiscretePort, Model, Sphere, Subtract
+from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
+                   Subtract, Torus)
 
 _MM = 1e3          # the macro works in millimetres
 
@@ -179,6 +180,26 @@ def _render_solid(solid) -> str:
             f'        .{axis.upper()}range "{_expr(solid.span[0])}", "{_expr(solid.span[1])}"',
             f'        .{other[0].upper()}center "{_expr(solid.centre[0])}"',
             f'        .{other[1].upper()}center "{_expr(solid.centre[1])}"',
+            '        .Segments "0"',
+            "        .Create",
+            "    End With",
+        ])
+    if isinstance(solid, Torus):
+        axis = solid.axis.lower()
+        # CST specifies a torus by how far its inner and outer edges sit from
+        # the axis, not by major and minor radius.
+        return "\n".join([
+            "    With Torus",
+            "        .Reset",
+            f'        .Name "{solid.name}"',
+            '        .Component "component1"',
+            f'        .Material "{material}"',
+            f'        .Axis "{axis}"',
+            f'        .Outerradius "{_expr(solid.major_radius + solid.minor_radius)}"',
+            f'        .Innerradius "{_expr(solid.major_radius - solid.minor_radius)}"',
+            f'        .Xcenter "{_expr(solid.centre[0])}"',
+            f'        .Ycenter "{_expr(solid.centre[1])}"',
+            f'        .Zcenter "{_expr(solid.centre[2])}"',
             '        .Segments "0"',
             "        .Create",
             "    End With",

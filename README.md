@@ -148,7 +148,7 @@ become named variables in millimetres, frequencies in GHz, and everything else
 keeps its own units — driven by each spec's declared unit rather than guessed
 from magnitude.
 
-Geometry is built for **18 of the 72 archetypes** — those whose construction is
+Geometry is built for **24 of the 72 archetypes** — those whose construction is
 unambiguous from their primary dimensions:
 
 | Group | Archetypes |
@@ -157,6 +157,7 @@ unambiguous from their primary dimensions:
 | Patch | rectangular, inset-fed, circular, quarter-wave shorted |
 | Dielectric resonator | rectangular, cylindrical, hemispherical |
 | Wideband | biconical, conical monopole, discone |
+| Loop | small circular and square, one-wavelength circular, quad, Alford, halo |
 | Aperture | open-ended waveguide |
 
 **Everything else exports its parameters and states plainly that no solid
@@ -169,7 +170,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1369 tests
+python -m pytest tests/ -q                # 1443 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
