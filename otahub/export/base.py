@@ -659,6 +659,185 @@ def _halo_loop(design: DesignResult) -> Model:
     return model
 
 
+@builder("half_wave_slot")
+def _ground_plane_slot(design: DesignResult) -> Model:
+    """A slot cut through a finite ground plane, fed across its middle."""
+    model = _base_model(design, "Slot in a ground plane")
+    length = _param(design, "L")
+    width = _param(design, "w", default=length / 20.0)
+    plate = 3.0 * length
+    thick = plate / 2000.0
+    model.solids += [
+        Brick("ground_plane", "PEC", (-plate / 2, plate / 2),
+              (-plate / 2, plate / 2), (-thick, 0.0)),
+        Brick("slot_cut", "VOID", (-length / 2, length / 2),
+              (-width / 2, width / 2), (-thick * 1.5, thick * 0.5)),
+    ]
+    model.operations.append(Subtract("ground_plane", ("slot_cut",)))
+    model.ports.append(DiscretePort(
+        "port1", (0.0, -width / 2, -thick / 2), (0.0, width / 2, -thick / 2)))
+    model.notes += [
+        f"Ground plane rendered {plate * 1e3:.4g} mm square and "
+        f"{thick * 1e3:.4g} mm thick. Babinet's principle assumes an INFINITE, "
+        "zero-thickness, perfectly conducting screen; a finite plate adds edge "
+        "diffraction and a real thickness lowers the resonance slightly.",
+        "The slot radiates from BOTH faces, so compare against the spec's "
+        "two-sided impedance unless you back it with a cavity - see "
+        "cavity_backed_slot, which halves the radiation and doubles the "
+        "resistance.",
+        "Port across the slot at its centre, where the slot voltage is highest.",
+    ]
+    return model
+
+
+@builder("folded_slot")
+def _folded_slot(design: DesignResult) -> Model:
+    """N parallel slots sharing a ground plane, fed across one of them."""
+    model = _base_model(design, "Folded slot")
+    length = _param(design, "L")
+    width = _param(design, "w", default=length / 20.0)
+    n = int(round(_param(design, "N", default=2.0)))
+    pitch = 3.0 * width
+    plate = 3.0 * length
+    thick = plate / 2000.0
+    offsets = [(i - (n - 1) / 2.0) * pitch for i in range(n)]
+    model.solids.append(
+        Brick("ground_plane", "PEC", (-plate / 2, plate / 2),
+              (-plate / 2, plate / 2), (-thick, 0.0)))
+    for i, y in enumerate(offsets):
+        model.solids.append(
+            Brick(f"slot_cut_{i + 1}", "VOID", (-length / 2, length / 2),
+                  (y - width / 2, y + width / 2), (-thick * 1.5, thick * 0.5)))
+    model.operations.append(
+        Subtract("ground_plane", tuple(f"slot_cut_{i + 1}" for i in range(n))))
+    y0 = offsets[0]
+    model.ports.append(DiscretePort(
+        "port1", (0.0, y0 - width / 2, -thick / 2),
+        (0.0, y0 + width / 2, -thick / 2)))
+    model.notes += [
+        f"{n} slots on a {pitch * 1e3:.4g} mm pitch, three slot widths apart. "
+        "The N^2 impedance division assumes the slots are CLOSE compared with a "
+        "wavelength; widening this pitch moves the result away from the spec.",
+        "Only the first slot is driven. The others are shorted at their ends by "
+        "the surrounding conductor, which is what makes the folding work.",
+        "Infinite zero-thickness screen assumed, as for the plain slot.",
+    ]
+    return model
+
+
+@builder("cavity_backed_slot")
+def _cavity_backed_slot(design: DesignResult) -> Model:
+    """A slot in a ground plane with a box behind it, so it radiates one way."""
+    model = _base_model(design, "Cavity-backed slot")
+    length = _param(design, "slot_length")
+    width = _param(design, "slot_width", default=length / 20.0)
+    depth = _param(design, "cavity_depth")
+    plate = 3.0 * length
+    thick = plate / 2000.0
+    cav_l, cav_w = length * 1.2, max(width * 6.0, length * 0.3)
+    model.solids += [
+        Brick("ground_plane", "PEC", (-plate / 2, plate / 2),
+              (-plate / 2, plate / 2), (-thick, 0.0)),
+        Brick("slot_cut", "VOID", (-length / 2, length / 2),
+              (-width / 2, width / 2), (-thick * 1.5, thick * 0.5)),
+        Brick("cavity", "VACUUM", (-cav_l / 2, cav_l / 2),
+              (-cav_w / 2, cav_w / 2), (-depth - thick, -thick)),
+    ]
+    model.operations.append(Subtract("ground_plane", ("slot_cut",)))
+    model.ports.append(DiscretePort(
+        "port1", (0.0, -width / 2, -thick / 2), (0.0, width / 2, -thick / 2)))
+    model.notes += [
+        f"Cavity {cav_l * 1e3:.4g} x {cav_w * 1e3:.4g} x {depth * 1e3:.4g} mm. "
+        "Only the DEPTH comes from the spec - the lateral size is chosen here, "
+        "and it matters: a cavity close to the slot in width loads it and "
+        "shifts the resonance.",
+        "The cavity is drawn as a vacuum volume; enclose it in PEC walls in the "
+        "solver, or the slot radiates backwards and the point is lost.",
+        "Backing the slot halves the radiated power and doubles the input "
+        "resistance against the two-sided case.",
+    ]
+    return model
+
+
+def _slotted_guide(design: DesignResult, title: str, count: int,
+                   spacing: float, offset: float, alternate: bool) -> Model:
+    """Shared body for the three waveguide slot archetypes."""
+    model = _base_model(design, title)
+    a = _param(design, "a_wg")
+    b = _param(design, "b_wg")
+    slot_l = _param(design, "slot_length")
+    slot_w = slot_l / 16.0
+    wall = min(a, b) / 20.0
+    run = max((count - 1) * spacing + 4 * slot_l, 4 * slot_l)
+    model.solids += [
+        Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2),
+              (0.0, run)),
+        Brick("broad_wall", "PEC", (-a / 2, a / 2), (b / 2, b / 2 + wall),
+              (0.0, run)),
+    ]
+    tools = []
+    for i in range(count):
+        z = (i - (count - 1) / 2.0) * spacing + run / 2.0
+        x = offset * (-1 if (alternate and i % 2) else 1)
+        name = f"slot_cut_{i + 1}"
+        tools.append(name)
+        model.solids.append(
+            Brick(name, "VOID", (x - slot_w / 2, x + slot_w / 2),
+                  (b / 2 - wall, b / 2 + 2 * wall),
+                  (z - slot_l / 2, z + slot_l / 2)))
+    model.operations.append(Subtract("broad_wall", tuple(tools)))
+    model.notes += [
+        f"Broad wall drawn {wall * 1e3:.4g} mm thick with the slots cut through "
+        "it. The other three walls are left to the surrounding PEC boundary, as "
+        "for open_ended_waveguide.",
+        f"Slot width set to a sixteenth of its length ({slot_w * 1e3:.4g} mm); "
+        "the spec gives only the length. Width affects bandwidth more than "
+        "resonance, but it is a choice made here and not by the design.",
+        "Assign a waveguide port to the z = 0 face. A resonant array needs a "
+        "short a quarter guide wavelength beyond the last slot; a "
+        "travelling-wave array needs a matched load there instead.",
+    ]
+    return model
+
+
+@builder("waveguide_longitudinal_slot")
+def _single_guide_slot(design: DesignResult) -> Model:
+    model = _slotted_guide(design, "Longitudinal slot in a waveguide broad wall",
+                           1, 0.0, _param(design, "x1"), False)
+    model.notes.append(
+        "One slot at the offset the spec gives. Its conductance goes as "
+        "sin^2(pi*x/a), so the offset is the whole design variable here.")
+    return model
+
+
+@builder("waveguide_slot_array_resonant")
+def _resonant_slot_array(design: DesignResult) -> Model:
+    n = int(round(_param(design, "N", default=12.0)))
+    model = _slotted_guide(design, "Resonant longitudinal slot array", n,
+                           _param(design, "spacing"), _param(design, "offset"),
+                           True)
+    model.notes.append(
+        f"{n} slots at half a GUIDE wavelength, offsets ALTERNATING about the "
+        "centreline. That alternation undoes the 180 degrees of propagation "
+        "phase between neighbours; put them all on one side and the array "
+        "splits into two beams off broadside instead of one on it.")
+    return model
+
+
+@builder("waveguide_slot_array_travelling_wave")
+def _travelling_slot_array(design: DesignResult) -> Model:
+    n = int(round(_param(design, "N", default=20.0)))
+    a = _param(design, "a_wg")
+    model = _slotted_guide(design, "Travelling-wave longitudinal slot array", n,
+                           _param(design, "spacing"), a * 0.13, True)
+    model.notes.append(
+        "Slot offsets are UNIFORM here at 13% of the broad wall. A real "
+        "travelling-wave array tapers them along the guide to hold the aperture "
+        "distribution as power drains away; the spec gives no taper, so none is "
+        "applied.")
+    return model
+
+
 def build(design: DesignResult) -> Model:
     """Build a model for a design, or a parameters-only model if we cannot.
 

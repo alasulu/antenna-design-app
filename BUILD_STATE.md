@@ -540,9 +540,34 @@ every other loop's gap is invented by the exporter and says so.
 
 Still nothing for reflector, slot, travelling-wave or lens.
 
+## Slot geometry builders (post-S5)
+
+24 -> 30 builders, and the slot family is now complete at 6/6. No new
+primitives at all: every one is bricks with boolean cuts, both already in use.
+
+A slot has to be SUBTRACTED from its ground plane. Drawn as a separate solid it
+is not a slot, it is a plate with a bar lying on it - and nothing in the
+exported file would look wrong. Four tests pin that, including that the
+waveguide cuts span the full wall thickness rather than leaving a blind hole.
+
+The resonant array's alternating offsets get their own test, because the
+alternation IS the mechanism: it undoes the 180 degrees of propagation phase
+between slots half a guide wavelength apart. Build them all on one side and the
+array splits into two beams off broadside instead of one on it - a mistake that
+produces a perfectly plausible-looking model.
+
+Each builder states what it chose that the spec could not supply: slot widths
+(the specs give only lengths), cavity lateral dimensions, and for the
+travelling-wave array the fact that its offsets are UNIFORM where a real one
+tapers them along the guide.
+
+Left without builders: reflector, travelling-wave and lens. Parabolic dishes
+need a swept profile and horns need a loft, both of which mean guessing at API
+structure rather than parameter names.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1443 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1521 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

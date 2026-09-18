@@ -37,6 +37,15 @@ CASES = {
     "quad_loop_square": {"f0": 144e6},
     "alford_loop": {"f0": 300e6, "P_over_lambda": 0.5},
     "halo_loop": {"f0": 144e6},
+    "half_wave_slot": {"f0": 300e6},
+    "folded_slot": {"f0": 300e6, "N": 2},
+    "cavity_backed_slot": {"f0": 2.4e9},
+    "waveguide_longitudinal_slot": {"f0": 10e9, "a_wg": 0.02286,
+                                    "b_wg": 0.01016, "x1": 0.003},
+    "waveguide_slot_array_resonant": {"f0": 10e9, "a_wg": 0.02286,
+                                      "b_wg": 0.01016, "N": 12},
+    "waveguide_slot_array_travelling_wave": {"f0": 10e9, "a_wg": 0.02286,
+                                             "b_wg": 0.01016},
 }
 
 
@@ -361,3 +370,77 @@ def test_loop_builders_say_what_they_had_to_invent(registry):
         model = build(registry[key].synthesize(**given))
         joined = " ".join(model.notes).lower()
         assert "gap" in joined, f"{key} does not mention its feed gap"
+
+
+# -------------------------------------------------------------------- slots
+
+def test_a_slot_is_cut_from_its_ground_plane(registry):
+    """A slot drawn as a separate solid is not a slot, it is a plate with a bar
+    lying on it. Every slot archetype must subtract."""
+    from otahub.export.base import Subtract
+
+    for key, given in (("half_wave_slot", {"f0": 300e6}),
+                       ("folded_slot", {"f0": 300e6, "N": 2}),
+                       ("cavity_backed_slot", {"f0": 2.4e9})):
+        model = build(registry[key].synthesize(**given))
+        subs = [op for op in model.operations if isinstance(op, Subtract)]
+        assert subs, f"{key} never cuts its slot"
+        assert subs[0].target == "ground_plane"
+
+
+def test_folded_slot_cuts_one_slot_per_conductor(registry):
+    for n in (1, 2, 3):
+        model = build(registry["folded_slot"].synthesize(f0=300e6, N=n))
+        cuts = [s for s in model.solids if s.name.startswith("slot_cut")]
+        assert len(cuts) == n
+        assert len(model.operations[0].tools) == n
+
+
+def test_slot_array_alternates_its_offsets(registry):
+    """The alternation is the whole mechanism: it undoes the 180 degrees of
+    propagation phase between slots half a guide wavelength apart. Building
+    them all on one side gives two beams off broadside instead of one on it."""
+    design = registry["waveguide_slot_array_resonant"].synthesize(
+        f0=10e9, a_wg=0.02286, b_wg=0.01016, N=12)
+    model = build(design)
+    cuts = sorted((s for s in model.solids if s.name.startswith("slot_cut")),
+                  key=lambda s: s.z[0])
+    assert len(cuts) == 12
+    centres = [(c.x[0] + c.x[1]) / 2 for c in cuts]
+    signs = [1 if c > 0 else -1 for c in centres]
+    assert all(a != b for a, b in zip(signs, signs[1:])), "offsets must alternate"
+    assert all(abs(abs(c) - design.get("offset")) < 1e-12 for c in centres)
+
+
+def test_slot_array_spacing_matches_the_spec(registry):
+    for key, given, want in (
+            ("waveguide_slot_array_resonant",
+             {"f0": 10e9, "a_wg": 0.02286, "b_wg": 0.01016, "N": 12}, "spacing"),
+            ("waveguide_slot_array_travelling_wave",
+             {"f0": 10e9, "a_wg": 0.02286, "b_wg": 0.01016}, "spacing")):
+        design = registry[key].synthesize(**given)
+        model = build(design)
+        cuts = sorted((s for s in model.solids if s.name.startswith("slot_cut")),
+                      key=lambda s: s.z[0])
+        gaps = [b.z[0] - a.z[0] for a, b in zip(cuts, cuts[1:])]
+        assert all(g == pytest.approx(design.get(want), rel=1e-9) for g in gaps)
+
+
+def test_slots_are_cut_through_the_broad_wall_not_the_interior(registry):
+    """A slot that stops short of the wall's outer face is a blind hole."""
+    design = registry["waveguide_longitudinal_slot"].synthesize(
+        f0=10e9, a_wg=0.02286, b_wg=0.01016, x1=0.003)
+    model = build(design)
+    wall = next(s for s in model.solids if s.name == "broad_wall")
+    cut = next(s for s in model.solids if s.name.startswith("slot_cut"))
+    assert cut.y[0] <= wall.y[0] and cut.y[1] >= wall.y[1], (
+        "the cut must span the full wall thickness")
+
+
+def test_cavity_sits_behind_the_slot_not_in_front(registry):
+    design = registry["cavity_backed_slot"].synthesize(f0=2.4e9)
+    model = build(design)
+    cavity = next(s for s in model.solids if s.name == "cavity")
+    assert cavity.z[1] <= 0.0, "the cavity belongs behind the ground plane"
+    assert cavity.z[1] - cavity.z[0] == pytest.approx(
+        design.get("cavity_depth"), rel=1e-6)
