@@ -55,6 +55,10 @@ CASES = {
     "stacked_patch": {"f0": 2.4e9, "eps_r": 2.2, "h": 1.6e-3},
     "fresnel_zone_plate": {"f0": 30e9, "F": 0.15, "M": 4},
     "luneburg_lens": {"f0": 30e9, "D": 0.3},
+    "dipole_arbitrary_length": {"f0": 300e6, "L_over_lambda": 0.75, "aw": 1e-4},
+    "top_loaded_monopole": {"f0": 10e6, "h_over_lambda": 0.05, "beta_top": 0.6},
+    "inductively_loaded_monopole": {"f0": 10e6, "h_over_lambda": 0.05},
+    "multiturn_small_loop": {"f0": 10e6, "C_over_lambda": 0.1, "Rin_target": 50.0},
 }
 
 

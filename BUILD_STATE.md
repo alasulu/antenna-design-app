@@ -623,9 +623,39 @@ several large heredocs before they ran. Checking with grep rather than assuming
 the edit landed, and falling back to the Write tool for the new test file, kept
 the work from being silently lost.
 
+## Wire family complete, loop nearly (post-S5)
+
+39 -> 43. wire is 11/11 and loop 7/8, both with primitives already in the IR.
+
+dipole_arbitrary_length needed no new builder at all - it is the same two arms
+and a gap, so it joined the existing dipole decorator stack rather than getting
+a copy that would have to be kept in step. A test asserts the two produce
+identical geometry at 0.5 lambda.
+
+Three builders export an extra port, and in each case leaving it out would give
+a model that runs cleanly and answers a different question:
+
+- inductively_loaded_monopole's port 2 IS the loading coil's gap. Left open the
+  whip is just a short whip and the spec's resonance never happens. The note
+  names loading_inductance_H and coil_q so the reader knows what to put there.
+- long_wire_travelling's port 2 is the termination, from the earlier round.
+- multiturn_small_loop draws N separate rings, which solved as-drawn is one
+  driven ring and N-1 parasitic ones. The spec's N-squared radiation resistance
+  depends entirely on the turns being in series, so the note says CONNECT THE
+  TURNS in as many words.
+
+Two honesty notes went into the specs' exported files. top_loaded_monopole's
+hat radius and its beta_top are BOTH inputs to the spec and are not derived
+from one another, so the model does not imply the drawn hat produces the
+assumed current distribution. multiturn_small_loop's pitch comes from the wire
+radius rather than the spec's l_coil, so a loosely wound coil will not match.
+
+ferrite_rod_loop stays unbuilt: its geometry does not resolve without
+ld_target and L_target, and it needs a ferrite material model besides.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1642 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1694 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -148,16 +148,16 @@ become named variables in millimetres, frequencies in GHz, and everything else
 keeps its own units — driven by each spec's declared unit rather than guessed
 from magnitude.
 
-Geometry is built for **39 of the 72 archetypes** — those whose construction is
+Geometry is built for **43 of the 72 archetypes** — those whose construction is
 unambiguous from their primary dimensions:
 
 | Group | Archetypes |
 |---|---|
-| Wire | half-wave, resonant and short dipoles; quarter-wave monopole; folded dipole; dipole over ground; turnstile |
+| Wire | every one: dipoles (half-wave, resonant, short, arbitrary length), monopoles (quarter-wave, top-loaded, inductively loaded), folded dipole, dipole over ground, turnstile, biconical |
 | Patch | rectangular, inset-fed, circular, quarter-wave shorted, annular ring, PIFA, stacked |
 | Dielectric resonator | rectangular, cylindrical, hemispherical |
 | Wideband | biconical, conical monopole, discone, planar monopoles (disc and rectangular) |
-| Loop | small circular and square, one-wavelength circular, quad, Alford, halo |
+| Loop | small circular and square, one-wavelength circular, multi-turn, quad, Alford, halo |
 | Slot | half-wave, folded, cavity-backed, waveguide longitudinal, resonant and travelling-wave arrays |
 | Travelling wave | terminated long wire, leaky-wave line source |
 | Lens | Fresnel zone plate, Luneburg |
@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1642 tests
+python -m pytest tests/ -q                # 1694 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```

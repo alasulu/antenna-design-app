@@ -162,6 +162,7 @@ def _base_model(design: DesignResult, title: str) -> Model:
 @builder("half_wave_dipole")
 @builder("resonant_dipole")
 @builder("short_dipole")
+@builder("dipole_arbitrary_length")
 def _dipole(design: DesignResult) -> Model:
     """Two collinear wire arms along z with a discrete port in the gap."""
     model = _base_model(design, "Centre-fed dipole")
@@ -1132,6 +1133,110 @@ def _luneburg(design: DesignResult) -> Model:
         "and any number of feeds can share it - which is the reason to build one.",
         "Materials are named by permittivity; define them in the solver before "
         "running the macro.",
+    ]
+    return model
+
+
+@builder("top_loaded_monopole")
+def _top_loaded(design: DesignResult) -> Model:
+    """Short vertical with a disc hat, over a ground plane."""
+    model = _base_model(design, "Capacitively top-loaded monopole")
+    height = _param(design, "h")
+    hat_r = _param(design, "a_hat")
+    wire = _param(design, "aw", default=height / 500.0)
+    gap = max(height / 200.0, wire * 3.0)
+    ground = max(6.0 * hat_r, 3.0 * height)
+    hat_t = max(hat_r / 200.0, wire)
+    model.solids += [
+        Cylinder("ground_plane", "PEC", "z", ground / 2.0, (-ground / 400.0, 0.0)),
+        Cylinder("rod", "PEC", "z", wire, (gap, gap + height)),
+        Cylinder("top_hat", "PEC", "z", hat_r, (gap + height, gap + height + hat_t)),
+    ]
+    model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
+    model.notes += [
+        f"Hat radius {hat_r * 1e3:.4g} mm comes from the spec's "
+        "hat_radius_over_lambda, which is an INPUT there and not derived from "
+        "the loading it achieves. The spec's beta_top - how nearly uniform the "
+        "hat makes the rod current - is likewise an input, so the two are not "
+        "tied together here. Simulate to find the beta this hat really gives.",
+        f"Feed gap {gap * 1e3:.4g} mm between the plane and the rod base.",
+        f"Ground plane rendered as a disc {ground * 1e3:.4g} mm across. The "
+        "spec's directivity of exactly 3.0 assumes it is infinite; a real "
+        "radial ground system also adds loss that often exceeds the radiation "
+        "resistance entirely.",
+    ]
+    return model
+
+
+@builder("inductively_loaded_monopole")
+def _loaded_monopole(design: DesignResult) -> Model:
+    """Short whip with a gap where the loading coil goes."""
+    model = _base_model(design, "Inductively loaded monopole")
+    height = _param(design, "h")
+    wire = _param(design, "aw", default=height / 500.0)
+    gap = max(height / 200.0, wire * 3.0)
+    coil_gap = height / 20.0
+    ground = 3.0 * height
+    model.solids += [
+        Cylinder("ground_plane", "PEC", "z", ground / 2.0, (-ground / 400.0, 0.0)),
+        Cylinder("rod_lower", "PEC", "z", wire, (gap, gap + coil_gap)),
+        Cylinder("rod_upper", "PEC", "z", wire,
+                 (gap + 2 * coil_gap, gap + height + coil_gap)),
+    ]
+    model.ports += [
+        DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)),
+        DiscretePort("port2", (0.0, 0.0, gap + coil_gap),
+                     (0.0, 0.0, gap + 2 * coil_gap)),
+    ]
+    model.notes += [
+        "TWO ports. Port 1 is the feed; port 2 is the gap where the LOADING "
+        "COIL goes, and it must be given the spec's loading_inductance_H with "
+        "the spec's coil_q as a series resistance. Leave it open and the whip "
+        "is just a short whip.",
+        f"Coil gap {coil_gap * 1e3:.4g} mm at a twentieth of the height, which "
+        "puts it near the base. The spec captures coil POSITION only through "
+        "beta_top, so moving this gap up the rod will not match the spec's "
+        "numbers unless beta_top is changed to suit.",
+        "A real coil is a wound solenoid with its own self-capacitance and "
+        "radiation; a lumped port is the idealisation the spec assumes.",
+        f"Ground plane rendered as a disc {ground * 1e3:.4g} mm across; the "
+        "spec's ground loss is an input, not modelled geometrically.",
+    ]
+    return model
+
+
+@builder("multiturn_small_loop")
+def _multiturn_loop(design: DesignResult) -> Model:
+    """A stack of coaxial rings standing in for a closely wound coil."""
+    model = _base_model(design, "Multi-turn small loop")
+    radius = _param(design, "a")
+    turns = int(round(_param(design, "N", default=10.0)))
+    wire = _param(design, "b", "aw", default=radius / 200.0)
+    pitch = 3.0 * wire
+    gap = max(radius / 50.0, wire * 3.0)
+    for i in range(turns):
+        z = (i - (turns - 1) / 2.0) * pitch
+        model.solids.append(
+            Torus(f"turn_{i + 1}", "PEC", "z", radius, wire, (0.0, 0.0, z)))
+    z0 = -(turns - 1) / 2.0 * pitch
+    model.solids.append(
+        Brick("feed_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
+              (-gap / 2, gap / 2), (z0 - 2 * wire, z0 + 2 * wire)))
+    model.operations.append(Subtract("turn_1", ("feed_gap_cut",)))
+    model.ports.append(DiscretePort(
+        "port1", (radius, -gap / 2, z0), (radius, gap / 2, z0)))
+    model.notes += [
+        f"{turns} turns as SEPARATE coaxial rings on a {pitch * 1e3:.4g} mm "
+        "pitch, not as a helix. For a closely wound coil the difference is "
+        "small, and the rings are far easier to mesh - but they are also not "
+        "electrically connected to each other here.",
+        "CONNECT THE TURNS before solving, or this models one driven ring and "
+        f"{turns - 1} parasitic ones rather than an N-turn loop. The spec's "
+        "N-squared radiation resistance depends entirely on the turns carrying "
+        "the same current in series.",
+        f"Feed gap {gap * 1e3:.4g} mm cut from the bottom turn.",
+        "The spec's coil length l_coil is not used here; the pitch is set from "
+        "the wire radius instead, so a loosely wound coil will not match.",
     ]
     return model
 
