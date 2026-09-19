@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1608 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1642 tests, 426/426 citable
 known cases passing.**
 
 ---
@@ -201,15 +201,15 @@ are engineering rules of thumb rather than derived results. Every one says so
 in its `notes`. They exist so a design sheet is complete, not because they are
 predictions.
 
-### Exporters build geometry for 37 of 72 archetypes
+### Exporters build geometry for 39 of 72 archetypes
 
 Dipoles (3), monopole, folded dipole, dipole over ground, turnstile, four
 patch variants (seven now), six loops, six slots, three dielectric resonators,
 two planar monopoles, a terminated long wire, a leaky-wave line source,
 biconical, conical monopole, discone, and open-ended waveguide. **The other 35
 export parameters only and say so.** By family: dielectric 3/3, slot 6/6,
-patch 7/9, loop 6/8, wire 8/11, uwb 4/8, travelling-wave 2/8, horn 1/8, and
-nothing yet for reflector or lens.
+patch 7/9, loop 6/8, wire 8/11, uwb 4/8, travelling-wave 2/8, horn 1/8, lens 2/4, and
+nothing yet for reflector.
 Where a builder must choose something the spec cannot supply — feed gap, inset
 notch width, a finite ground plane standing in for an infinite one — the
 choice is stated in the exported file's header.

@@ -594,9 +594,38 @@ requirement reaches the exporter with no unit and cannot be classified.
 Left: reflector 0/7 and lens 0/4, plus the horns. All need swept profiles or
 lofts, which means guessing at API structure rather than parameter names.
 
+## Lens geometry builders (post-S5)
+
+37 -> 39. The lens family looked like it would need swept profiles; two of the
+four turned out to be concentric shells, which Sphere, Cylinder and Subtract
+already cover.
+
+fresnel_zone_plate builds the metal rings of a Soret plate, with zone edges
+from the EXACT r(m) = sqrt(m*lambda*F + (m*lambda/2)^2) rather than the
+sqrt(m*lambda*F) approximation - the difference matters when F is only a few
+wavelengths. A test pins the builder's radii against the spec's own r_first and
+r_outer, so the two independent copies of that formula cannot drift apart.
+
+luneburg_lens builds the eight concentric shells a real one is made from, with
+boundaries at equal steps in r^2 rather than in r. Permittivity is exactly
+linear in r^2, so that spacing gives every shell the same permittivity span;
+equal steps in r would not. A test asserts the r^2 spacing directly.
+
+Both lenses export NO port and say why: they are illuminated by a separate
+feed, and a Luneburg lens can carry several at once, which is the reason to
+build one. A model with no port and no explanation reads as unfinished.
+
+Left at zero: reflector 0/7, plus the hyperbolic lens and the horns - all
+needing swept profiles or lofts.
+
+Worth recording about the session itself: repeated classifier timeouts dropped
+several large heredocs before they ran. Checking with grep rather than assuming
+the edit landed, and falling back to the Write tool for the new test file, kept
+the work from being silently lost.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1608 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1642 tests, 426/426 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

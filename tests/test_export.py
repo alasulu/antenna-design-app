@@ -53,6 +53,8 @@ CASES = {
     "annular_ring_patch": {"f0": 2e9, "eps_r": 2.2, "h": 1.6e-3},
     "pifa": {"f0": 2.4e9, "h": 0.006},
     "stacked_patch": {"f0": 2.4e9, "eps_r": 2.2, "h": 1.6e-3},
+    "fresnel_zone_plate": {"f0": 30e9, "F": 0.15, "M": 4},
+    "luneburg_lens": {"f0": 30e9, "D": 0.3},
 }
 
 

@@ -1053,6 +1053,89 @@ def _stacked_patch(design: DesignResult) -> Model:
     return model
 
 
+@builder("fresnel_zone_plate")
+def _zone_plate(design: DesignResult) -> Model:
+    """Concentric metal rings on a flat plane: a Soret amplitude zone plate.
+
+    Zone m runs from r(m-1) to r(m) with r(m) = sqrt(m*lambda*F + (m*lambda/2)^2).
+    Odd zones are left open and even zones filled with metal, so the blocked
+    contributions are the ones that would have arrived out of phase.
+    """
+    model = _base_model(design, "Fresnel zone plate")
+    f0 = float(design.requirements.get("f0", 1e9))
+    focal = _param(design, "F")
+    zones = int(round(_param(design, "M", default=4.0)))
+    lam = 2.99792458e8 / f0
+    radii = [math.sqrt(m * lam * focal + (m * lam / 2.0) ** 2)
+             for m in range(0, zones + 1)]
+    thick = radii[-1] / 200.0
+    rings = 0
+    for m in range(2, zones + 1, 2):          # even zones carry the metal
+        rings += 1
+        outer, inner = radii[m], radii[m - 1]
+        model.solids += [
+            Cylinder(f"ring_{rings}", "PEC", "z", outer, (0.0, thick)),
+            Cylinder(f"ring_{rings}_hole", "VOID", "z", inner,
+                     (-thick, 2 * thick)),
+        ]
+        model.operations.append(
+            Subtract(f"ring_{rings}", (f"ring_{rings}_hole",)))
+    model.notes += [
+        f"{rings} metal rings from {zones} zones, outermost radius "
+        f"{radii[-1] * 1e3:.4g} mm. Zone edges from "
+        "r(m) = sqrt(m*lambda*F + (m*lambda/2)^2) - the exact form, not the "
+        "sqrt(m*lambda*F) approximation, which matters when F is only a few "
+        "wavelengths.",
+        f"Rendered {thick * 1e3:.4g} mm thick. A real plate is etched foil on a "
+        "thin dielectric, which is not modelled - the dielectric shifts the "
+        "focus slightly.",
+        "This is the OPAQUE (Soret) plate, whose first-order efficiency is "
+        "1/pi^2, about 10%. The phase-reversing and stepped versions in the spec "
+        "replace these rings with dielectric steps and are NOT built here.",
+        "No feed is included. Illuminate it from the focal point with a separate "
+        "source; there is no port to drive.",
+    ]
+    model.built_geometry = rings > 0
+    return model
+
+
+@builder("luneburg_lens")
+def _luneburg(design: DesignResult) -> Model:
+    """A Luneburg lens as the concentric shells one is actually built from.
+
+    The ideal gradient n(r) = sqrt(2 - (r/R)^2) is continuous and unmakeable, so
+    real lenses are stepped. Each shell here gets the index at its own mid-radius.
+    """
+    model = _base_model(design, "Luneburg lens")
+    radius = _param(design, "R")
+    shells = 8
+    edges = [radius * (i / shells) ** 0.5 for i in range(shells + 1)]
+    for i in range(shells, 0, -1):
+        outer, inner = edges[i], edges[i - 1]
+        mid = 0.5 * (outer + inner) / radius
+        eps = 2.0 - mid ** 2
+        model.solids.append(
+            Sphere(f"shell_{i}", f"eps_r={eps:.4g}", outer))
+        if inner > 0:
+            model.solids.append(Sphere(f"shell_{i}_core", "VOID", inner))
+            model.operations.append(Subtract(f"shell_{i}", (f"shell_{i}_core",)))
+    model.notes += [
+        f"{shells} shells, boundaries placed at equal steps in r^2 rather than "
+        "in r, because the permittivity is exactly linear in r^2 - that spacing "
+        "makes each shell span the same permittivity range.",
+        f"Permittivity runs from {2.0 - (0.5 * edges[1] / radius) ** 2:.4g} at "
+        f"the core to {2.0 - (0.5 * (edges[-1] + edges[-2]) / radius) ** 2:.4g} "
+        "at the rim, against the ideal 2.0 and 1.0. The stepping is the whole "
+        "difference between this and the ideal lens: the steps scatter, costing "
+        "a few tenths of a dB and raising the sidelobes.",
+        "No feed is included. A Luneburg lens is fed from a point ON its surface, "
+        "and any number of feeds can share it - which is the reason to build one.",
+        "Materials are named by permittivity; define them in the solver before "
+        "running the macro.",
+    ]
+    return model
+
+
 def build(design: DesignResult) -> Model:
     """Build a model for a design, or a parameters-only model if we cannot.
 
