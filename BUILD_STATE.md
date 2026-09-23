@@ -696,9 +696,59 @@ agreeing to within 10% is worth more than either alone.
 Remaining bare constants after this: `triangular_patch` (5.0) and `biconical`
 (1.6409).
 
+## The triangle's mode, found rather than quoted
+
+`triangular_patch` carried `db10(5.0)` with the note "roughly 1 dB below a
+rectangular one because its aperture is smaller. Placeholder, not computed."
+Both halves of that sentence turned out to be wrong.
+
+The cavity model needs the dominant Neumann eigenfunction of an equilateral
+triangle. Rather than copy a closed form out of a handbook and hope the
+placement of the axes matched, it was found here: the six plane waves of
+magnitude k = 4*pi/(3a) sitting on the hexagonal star span a two-dimensional
+null space of the magnetic-wall condition - two-dimensional because the mode IS
+degenerate, which is the reason a triangle can be made to radiate circularly -
+and the member symmetric about a median is the one a probe on that median
+excites. The Neumann residual on the walls comes back at 2e-14.
+
+All THREE walls radiate, as magnetic line currents M = 2*Ez*(z_hat x n_hat).
+Ez restricted to a straight side is a sum of twelve exponentials, so each
+wall's far-field integral is elementary and exact - no edge discretisation at
+all. The first version sampled the walls numerically and took 84 seconds per
+sweep; the closed form takes 40 for the whole design space and agrees with it
+to five digits, which is also a check on both.
+
+Two things fell out that are worth more than the number itself:
+
+- The fringing correction cancels exactly out of k0*a_eff. The synthesis sets
+  a_eff = 2c/(3*f0*sqrt(eps_r)), so k0*a_eff = 4*pi/(3*sqrt(eps_r)) whatever
+  the substrate height. Directivity is therefore a function of ONE variable,
+  and eps_r alone fixes it. That is shipped as its own metric so the claim is
+  checkable rather than assumed.
+- The small-patch limit is exactly 3. A patch much smaller than a wavelength is
+  a horizontal magnetic dipole over a ground plane, and the raw integral
+  returns 3.0000039 at k0*a_eff = 0.0042. Nothing in the chain was set up to
+  make that happen, so it verifies the mode, the wall currents and the
+  hemisphere integral at once - with no reference data. The shipped form is
+  D = 3 + (k0*a_eff)^2*g(k0*a_eff) so that the limit survives outside the fit
+  range, where a bare polynomial would wander off. Degree 5 in g, worst error
+  0.028% over eps_r 1 to 21.
+
+The flat 5.0 was 43% LOW on an air substrate and 47% HIGH on eps_r = 10.2.
+
+And the old note's reasoning was backwards. The triangle does not run 1 dB
+below a rectangular patch - it lands within 0.1 dB of one at every permittivity
+tested, +0.09 dB on air and -0.04 dB on eps_r 10.2. So the 36% board-area
+saving costs essentially nothing in directivity, which is a better argument for
+the shape than the spec was making for it. The summary line was corrected to
+say so. Three patch shapes now agree within 5% at eps_r 2.2 and all converge on
+3.0 as the substrate gets denser, by three independently derived patterns.
+
+Remaining bare constant: `biconical` (1.6409).
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1711 tests, 456/456 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1733 tests, 464/464 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

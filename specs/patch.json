@@ -1405,7 +1405,7 @@
       "key": "triangular_patch",
       "name": "Equilateral triangular patch",
       "family": "patch",
-      "summary": "Equilateral triangle in a cavity: about 40 percent less copper than a rectangular patch at the same frequency.",
+      "summary": "Equilateral triangle in a cavity: about 36 percent less copper than a rectangular patch at the same frequency, for the same directivity.",
       "freq_range_hz": [
         300000000.0,
         100000000000.0
@@ -1536,10 +1536,32 @@
           "notes": "TM20 at exactly twice the fundamental"
         },
         {
+          "metric": "k0_a_eff",
+          "expr": "k0*a_eff",
+          "units_out": "-",
+          "depends_on": [
+            "a_eff"
+          ],
+          "notes": "Exactly 4*pi/(3*sqrt(eps_r)) by construction - the single variable the far field depends on. A live check on the synthesis: if this drifts from 4.18879/sqrt(eps_r) the geometry no longer resonates where the spec says it does."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "3.0 + (k0*a_eff)**2*((-0.00042999369)*(k0*a_eff)**5 + (0.0034053154)*(k0*a_eff)**4 + (-0.010422684)*(k0*a_eff)**3 + (0.024430326)*(k0*a_eff)**2 + (-0.012626165)*(k0*a_eff)**1 + (0.22527526))",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "a_eff"
+          ],
+          "notes": "Integrated from the cavity mode rather than assumed. The dominant Neumann eigenfunction of the equilateral triangle was found, not quoted: the six plane waves of magnitude k = 4*pi/(3*a) that live on the hexagonal star span a 2-D null space of the magnetic-wall condition, and the member symmetric about a median is the one a feed on that median excites. All THREE walls then radiate, as magnetic line currents M = 2*Ez*(z_hat x n_hat); each wall integral is exact in closed form because Ez restricted to a straight side is a sum of twelve exponentials. Only the hemisphere integral is numerical, and it converges to nine digits. The fit variable is k0*a_eff, which the synthesis pins to exactly 4*pi/(3*sqrt(eps_r)) whatever the substrate height, so D depends on eps_r ALONE. The form is D = 3 + (k0*a_eff)^2*g(k0*a_eff), which is right in the small-patch limit by construction rather than by luck: a vanishing patch is a horizontal magnetic dipole over a ground plane, D = 3 exactly, and the raw integral returns 3.0000039 at k0*a_eff = 0.0042. Worst fit error 0.028% over k0*a_eff 0.90 to 4.25, i.e. eps_r 1 to 21. The flat 5.0 this spec used to carry is 43% LOW on an air substrate and 47% HIGH on eps_r = 10.2."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(5.0)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Indicative. A triangular patch runs roughly 1 dB below a rectangular one because its aperture is smaller. Placeholder, not computed."
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "Cavity model: lossless, infinite ground plane, no surface waves. A built triangle lands below this."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -1557,7 +1579,8 @@
         "h << lambda0; the cavity model assumes a single z-directed field with magnetic side walls",
         "the a_eff = a + h/sqrt(eps_r) correction is the common first-order one and loses accuracy on thick or low-permittivity substrates",
         "feed placement along a median sets the impedance and is not solved here",
-        "directivity is indicative"
+        "the directivity fit covers k0*a_eff 0.90 to 4.25, i.e. eps_r about 1 to 21; below that range it still tends to the correct limit of 3, above it the polynomial diverges",
+        "directivity is the lossless cavity-model value on an infinite ground plane: no conductor or dielectric loss, no surface-wave power, no finite-ground diffraction"
       ],
       "known_cases": [
         {
@@ -1598,11 +1621,64 @@
           },
           "tol_pct": 0.1,
           "source": "Mode spectrum follows sqrt(m^2+mn+n^2): 1, sqrt(3), 2. Garg et al., Microstrip Antenna Design Handbook, Ch. 7"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "k0_a_eff": 2.824082,
+            "directivity_linear": 5.30523
+          },
+          "tol_pct": 0.2,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 2.2: D = 5.30523 (7.247 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -6% from it here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "k0_a_eff": 1.996927,
+            "directivity_linear": 4.01686
+          },
+          "tol_pct": 0.2,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 4.4: D = 4.01686 (6.039 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +24% from it here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "k0_a_eff": 1.311561,
+            "directivity_linear": 3.40532
+          },
+          "tol_pct": 0.2,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 10.2: D = 3.40532 (5.322 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +47% from it here."
+        },
+        {
+          "given": {
+            "f0": 5000000000.0,
+            "eps_r": 1.0,
+            "h": 0.003
+          },
+          "expect": {
+            "k0_a_eff": 4.18879,
+            "directivity_linear": 8.77068
+          },
+          "tol_pct": 0.2,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 1.0: D = 8.77068 (9.430 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -43% from it here."
         }
       ],
       "references": [
         "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 7",
-        "Helszajn & James, Planar triangular resonators with magnetic walls, IEEE T-MTT 26(2), 1978"
+        "Helszajn & James, Planar triangular resonators with magnetic walls, IEEE T-MTT 26(2), 1978",
+        "Directivity integrated here from the triangle's own Neumann eigenfunction; verified by its exact limit D -> 3, a horizontal magnetic dipole over a ground plane, as the patch shrinks"
       ]
     },
     {
