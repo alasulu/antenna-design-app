@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1733 tests, 464/464 citable
+6,031 lines of Python, 14,835 lines of spec data, 1747 tests, 464/464 citable
 known cases passing.**
 
 ---
@@ -16,6 +16,7 @@ known cases passing.**
 |---|---|---|
 | Engine | `otahub/core/` | Spec model, whitelisted AST evaluator, partial synthesis solver, registry, first-principles pattern maths |
 | Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
+| Reference solvers | `otahub/num/` | Thin-wire method of moments: EFIE, mixed potential, rooftop basis, Galerkin. An independent full-wave check on the closed forms |
 | Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; linear array factor, steering, grating-lobe limits; planar rectangular and triangular lattices with exact directivity, scan loss and beam-following cuts |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
@@ -63,6 +64,30 @@ Three consequences, in order of importance:
 | Pozar Ex 5.2 | Stub tuner d = 0.110λ, l = 0.095λ; d = 0.259λ, l = 0.405λ |
 | Viezbicke NBS TN688 | Yagi gains 7.1–14.2 dBi, fit residual ≤ 0.18 dB |
 | WR-90 datasheet | Cutoff 6.557 GHz, 0.108 dB/m, 1.05 MW, band 8.2–12.4 GHz |
+
+### A full-wave reference of its own
+
+`otahub/num/mom.py` is a thin-wire method of moments — EFIE in mixed-potential
+form, rooftop basis, Galerkin testing, the singular part of the kernel removed
+analytically rather than quadratured. It exists because several archetypes
+(one-wavelength loop, quad loop, folded dipole) had no closed form to check
+against and no published number precise enough to cite, and because §6 item 4
+— validate a low-confidence archetype end to end — was previously marked
+impossible for want of a solver.
+
+It is validated by six independent checks, in `tests/test_mom.py`:
+
+| Check | Result |
+|---|---|
+| Matrix alone, driven with a prescribed sinusoid (no solve) | 73.083 + j42.494 Ω against the induced-EMF 73.0796 + j42.5152 |
+| Far-field code alone, same prescribed current (no matrix) | Rr = 73.088 Ω, D = 1.6405 against 1.64093 |
+| Pattern integral vs circuit power 0.5·Re(V I\*) | agree to 1 part in 10⁵ |
+| Short dipole and small loop directivity | 1.4996 and 1.4971 against the exact 1.5 |
+| Small loop Rr vs 20π²(C/λ)⁴ | ratio → 0.998 at C = 0.025λ |
+| Folded dipole vs plain dipole at resonance | 4.014 against the classic 4 |
+
+**Limits that bite:** no ground plane, no dielectric, no loss, no junction of
+more than two wires, and the reduced rather than the exact kernel.
 
 ### Independent first-principles checks
 
@@ -241,6 +266,30 @@ Recorded because they show what the test harness is for.
 Spec errors the harness caught include a loop loss resistance out by **30.9×**,
 another by 3.3×, and several of my own arithmetic slips (WR-90 open-ended gain,
 Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
+
+### The reference that was not what it looked like
+
+73.08 + j42.52 Ω is quoted everywhere as "the" half-wave dipole impedance, and
+the MoM appeared to be 18% wrong against it — 86 Ω at a/λ = 0.001, drifting
+upward under mesh refinement, which looks exactly like a convergence bug. It is
+not one. That figure is the **induced-EMF** value for an *assumed sinusoidal
+current* on a *vanishingly thin* wire. The driving-point impedance of a
+delta-gap-fed wire of finite radius is a different quantity, and the real
+current is visibly fatter than a sinusoid near the ends.
+
+Three things settled it, and it is worth recording which, because the first two
+were not enough on their own:
+
+1. driving the matrix with the sinusoid reproduced 73.083 + j42.494 — so the
+   matrix was right and the solve was the suspect;
+2. raising the quadrature from 24 points to 160 changed the answer by nothing
+   at all — so it was not a quadrature error either;
+3. an independent **Hallén** solve — different integral equation, no divergence
+   term, collocation instead of Galerkin — returned 86.6 Ω. Two formulations
+   sharing no algebra agreed with each other and disagreed with the constant.
+
+`test_delta_gap_impedance_is_not_the_induced_emf_value` pins this so the next
+reader does not spend the same afternoon on it.
 
 ### Errors found in already-shipped specs during session 5
 

@@ -1,0 +1,201 @@
+"""Validation of the thin-wire method of moments.
+
+A solver is only worth what it has been checked against, so this file is the
+solver's licence. Six independent checks, in increasing order of how much of
+the code they exercise:
+
+1. the impedance matrix alone, driven with a prescribed sinusoid, reproduces
+   the induced-EMF 73.0796 + j42.5152 ohm - no solve involved;
+2. the far-field code, given that same prescribed current, returns the same
+   73.08 ohm and D = 1.64093 - no matrix involved;
+3. the pattern integral and the circuit power 0.5*Re(V I*) agree, which ties
+   the solved current to the radiated field;
+4. limits that are exact: D = 1.5 for a short dipole and for a small loop, and
+   Rr = 20*pi^2*(C/lambda)^4 for a small loop;
+5. a thin dipole resonates just below half a wavelength at about 72 ohm;
+6. a folded dipole shows the 4:1 transformation, which also exercises a closed
+   multi-conductor path with corners.
+
+A seventh test records something that cost real time to establish: the classic
+73.08 + j42.52 is the induced-EMF value for an ASSUMED sinusoidal current, and
+it is NOT the driving-point impedance of a delta-gap-fed wire of finite radius.
+The two differ by 18% at a/lambda = 0.001. An independent Hallen solve - a
+different integral equation, no divergence term, point matching instead of
+Galerkin - agrees with the EFIE, not with the textbook constant.
+"""
+from __future__ import annotations
+
+import math
+
+import numpy as np
+import pytest
+
+from otahub.core.constants import ETA0
+from otahub.num import mom
+
+EMF_R, EMF_X = 73.0796, 42.5152      # induced-EMF half-wave dipole [ohm]
+
+
+def _sinusoid(model, length):
+    z = np.array([model.node_of(n)[2] for n in range(model.n_basis)])
+    return np.sin(mom.K * (0.5 * length - np.abs(z))).astype(complex)
+
+
+# ------------------------------------------------------------------ 1. matrix
+
+def test_matrix_reproduces_the_induced_emf_impedance():
+    """I^T Z I with the sinusoidal current is the induced-EMF integral, which
+    has a published closed form. This touches the matrix and nothing else."""
+    m = mom.dipole(0.5, 1e-5, 120)
+    I = _sinusoid(m, 0.5)
+    z = complex((I @ mom.impedance_matrix(m) @ I) / I.max() ** 2)
+    assert z.real == pytest.approx(EMF_R, rel=2e-3)
+    assert z.imag == pytest.approx(EMF_X, rel=2e-2)
+
+
+def test_matrix_is_symmetric():
+    """Reciprocity. Galerkin testing makes it exact, so any asymmetry is a bug
+    in the assembly rather than a tolerance question."""
+    Z = mom.impedance_matrix(mom.loop(0.5, 1e-3, 24))
+    assert np.abs(Z - Z.T).max() == 0.0
+
+
+# ------------------------------------------------------------- 2. far field
+
+def test_far_field_of_a_prescribed_sinusoid():
+    """Same reference number by a completely different route: no matrix, just
+    the radiation integral of a current that was handed to it."""
+    m = mom.dipole(0.5, 1e-3, 80)
+    I = _sinusoid(m, 0.5)
+    sol = mom.MoMSolution(m, I, int(np.argmax(np.abs(I))))
+    rr = 2.0 * mom.radiated_power(sol, 100, 100) / abs(I).max() ** 2
+    assert rr == pytest.approx(EMF_R, rel=2e-3)
+    assert mom.directivity(sol, 100, 100) == pytest.approx(1.64093, rel=2e-3)
+
+
+# --------------------------------------------------------- 3. power balance
+
+@pytest.mark.parametrize("length", [0.1, 0.5, 1.0])
+def test_pattern_power_matches_circuit_power(length):
+    """0.5*Re(V I*) at the terminals against the integral of the far field over
+    the sphere. They share no algebra, so this ties the whole chain together."""
+    sol = mom.solve(mom.dipole(length, 1e-3, 60))
+    assert mom.radiated_power(sol, 70, 70) == pytest.approx(
+        sol.circuit_power, rel=1e-4)
+
+
+# ----------------------------------------------------------------- 4. limits
+
+@pytest.mark.parametrize("length", [0.02, 0.1])
+def test_short_dipole_directivity_is_three_halves(length):
+    sol = mom.solve(mom.dipole(length, 1e-4, 30))
+    assert mom.directivity(sol, 70, 70) == pytest.approx(1.5, rel=5e-3)
+
+
+def test_small_loop_directivity_is_also_three_halves():
+    """A small loop is a magnetic dipole; the pattern is the same doughnut."""
+    sol = mom.solve(mom.loop(0.05, 1e-4, 36))
+    assert mom.directivity(sol, 70, 70) == pytest.approx(1.5, rel=5e-3)
+
+
+def test_small_loop_radiation_resistance_tends_to_the_closed_form():
+    """Rr = 20*pi^2*(C/lambda)^4 is exact for a UNIFORM current, so the ratio
+    must approach 1 as the loop shrinks and the current flattens - and must not
+    be assumed at sizes where it does not. At C = 0.1 lambda the delta-gap
+    current already varies by 6% and Rr is 11% above the uniform value."""
+    ratios = {}
+    for c in (0.1, 0.05, 0.025):
+        sol = mom.solve(mom.loop(c, c * 1e-3, 36))
+        rr = 2.0 * sol.circuit_power / abs(sol.feed_current) ** 2
+        ratios[c] = rr / (20.0 * math.pi ** 2 * c ** 4)
+    assert ratios[0.025] == pytest.approx(1.0, abs=0.02)
+    assert ratios[0.05] < ratios[0.1]
+    assert ratios[0.1] > 1.05
+
+
+# -------------------------------------------------------------- 5. resonance
+
+def test_thin_dipole_resonates_just_below_half_a_wavelength():
+    """The textbook shortening: a wire dipole is resonant near 0.475 lambda at
+    a/lambda = 0.001, with a resistance a little under the 73 ohm figure."""
+    lo, hi = 0.42, 0.52
+    for _ in range(22):
+        mid = 0.5 * (lo + hi)
+        if mom.input_impedance(mom.dipole(mid, 1e-3, 40)).imag < 0:
+            lo = mid
+        else:
+            hi = mid
+    z = mom.input_impedance(mom.dipole(lo, 1e-3, 40))
+    assert 0.465 < lo < 0.485, f"resonant length {lo}"
+    assert 65.0 < z.real < 80.0, f"resonant resistance {z.real}"
+
+
+# ----------------------------------------------------------- 6. folded dipole
+
+def test_folded_dipole_steps_the_impedance_up_four_times():
+    """The classic 4:1, and the only geometry here with corners and two
+    parallel conductors, so it exercises the non-collinear path as well."""
+    length = 0.46
+    m = mom.folded_dipole_wire(length, 0.01, 1e-3, 80)
+    nodes = np.array([m.node_of(n) for n in range(m.n_basis)])
+    feed = int(np.argmin(np.abs(nodes[:, 0]) + np.abs(nodes[:, 1] - 0.005)))
+    folded = mom.solve(m, feed).input_impedance
+    plain = mom.input_impedance(mom.dipole(length, 1e-3, 80))
+    assert abs(folded / plain) == pytest.approx(4.0, rel=0.05)
+
+
+# ------------------------------------------ 7. what 73 ohm actually refers to
+
+def _hallen_dipole(length, a, n=120, nq=64):
+    """Hallen's equation, solved by point matching with a triangular basis.
+
+    Deliberately shares nothing with the EFIE: a different integral equation,
+    an extra scalar unknown instead of a divergence term, and collocation
+    instead of Galerkin.
+    """
+    h = 0.5 * length
+    z = np.linspace(-h, h, n + 1)
+    d = z[1] - z[0]
+    nb = n - 1
+    zm = np.concatenate([z[1:n], [h]])
+    x, w = np.polynomial.legendre.leggauss(nq)
+    A = np.zeros((nb + 1, nb + 1), dtype=complex)
+    for j in range(nb):
+        c = z[j + 1]
+        for lo, hi, rise in ((c - d, c, True), (c, c + d, False)):
+            s = 0.5 * (hi - lo) * (x + 1.0) + lo
+            f = (s - (c - d)) / d if rise else ((c + d) - s) / d
+            R = np.sqrt((zm[:, None] - s[None, :]) ** 2 + a * a)
+            A[:, j] += (0.5 * (hi - lo)) * (
+                (np.exp(-1j * mom.K * R) / (4 * math.pi * R))
+                * f[None, :] * w[None, :]).sum(axis=1)
+    A[:, nb] = (1j / ETA0) * np.cos(mom.K * zm)
+    rhs = -(1j / ETA0) * 0.5 * np.sin(mom.K * np.abs(zm))
+    sol = np.linalg.solve(A, rhs)
+    return 1.0 / np.concatenate([[0.0], sol[:nb], [0.0]])[n // 2]
+
+
+def test_delta_gap_impedance_is_not_the_induced_emf_value():
+    """The trap this solver walked into, recorded so nobody walks into it twice.
+
+    73.08 + j42.52 is the induced-EMF result for an ASSUMED sinusoidal current
+    on a vanishingly thin wire. The driving-point impedance of a delta-gap-fed
+    wire of a/lambda = 0.001 is about 86 ohm - nearly 20% higher - because the
+    real current is visibly fatter than a sinusoid near the ends. An entirely
+    independent Hallen solve agrees with the EFIE, not with the constant.
+    """
+    efie = mom.input_impedance(mom.dipole(0.5, 1e-3, 80))
+    hallen = _hallen_dipole(0.5, 1e-3, 120)
+    assert efie.real == pytest.approx(hallen.real, rel=0.03)
+    assert efie.imag == pytest.approx(hallen.imag, rel=0.05)
+    assert efie.real > 1.15 * EMF_R, (
+        "the delta-gap value should sit well above the induced-EMF one")
+
+
+def test_feed_lands_on_a_node_whatever_segment_count_is_asked_for():
+    """An odd segment count has no node at the centre, so the feed would sit
+    half a segment off and quietly break the symmetry. dipole() rounds up."""
+    for asked in (39, 40, 41):
+        m = mom.dipole(0.5, 1e-3, asked)
+        sol = mom.solve(m)
+        assert m.node_of(sol.feed)[2] == pytest.approx(0.0, abs=1e-12)

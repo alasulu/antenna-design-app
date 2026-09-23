@@ -746,9 +746,70 @@ say so. Three patch shapes now agree within 5% at eps_r 2.2 and all converge on
 
 Remaining bare constant: `biconical` (1.6409).
 
+## A full-wave solver, and a reference that was not what it looked like
+
+A sweep of the whole catalogue for metrics whose expression is a bare number
+found 66 of them, 37 not labelled indicative. Most are exactly right and should
+be constants - a short dipole's 1.5, a half-wave dipole's 78.08 degree
+beamwidth, an offset parabolic's blockage efficiency of 1. A handful are not:
+`one_wavelength_circular_loop` asserts 3.4 dBi and 100 ohm, `quad_loop_square`
+3.3 dBi and 120 ohm, and neither has a closed form to check against or a
+citable number precise enough to use. Deriving them needs a full-wave solver,
+which is also what HANDOVER section 6 item 4 - validate a low-confidence
+archetype end to end - had been blocked on since session 1.
+
+So `otahub/num/mom.py`: thin-wire method of moments, EFIE in mixed-potential
+form, rooftop basis, Galerkin testing. The kernel's singular part is removed
+analytically rather than quadratured, which matters more than it sounds: with
+a = 0.001 lambda and segments of 0.006 lambda the kernel peak is six times
+narrower than a segment, and plain quadrature loses the self term silently.
+
+The afternoon went on one thing. The solver returned 86 ohm for a half-wave
+dipole where every textbook says 73.08 + j42.52, and the discrepancy GREW under
+mesh refinement - the signature of a convergence bug. It was not one.
+
+- Driving the matrix with a prescribed sinusoid returned 73.083 + j42.494. So
+  the matrix was right, and the solve was the suspect.
+- Raising the quadrature from 24 points to 160 changed the answer by nothing
+  whatsoever. So it was not quadrature either.
+- An independent Hallen solve - a different integral equation, no divergence
+  term, collocation instead of Galerkin - returned 86.6 ohm.
+
+Two formulations sharing no algebra agreed with each other and disagreed with
+the constant. 73.08 + j42.52 is the INDUCED-EMF value for an ASSUMED sinusoidal
+current on a VANISHINGLY THIN wire. It is not the driving-point impedance of a
+delta-gap-fed wire of finite radius, and the real current is visibly fatter than
+a sinusoid near the ends - 0.385 against 0.309 at z = 0.2 lambda. The lesson is
+that a famous number can be a different quantity wearing the same name, and the
+way to find out is a second formulation rather than a finer mesh.
+
+Six checks now licence the solver, chosen so each touches a different part:
+the matrix alone against the induced-EMF integral; the far-field code alone
+against the same number by a different route; the pattern integral against the
+circuit power, to 1 part in 1e5; D = 1.5 for a short dipole and a small loop;
+Rr -> 20*pi^2*(C/lambda)^4 as a loop shrinks; and the folded dipole's 4.014:1,
+which is also the only geometry with corners and two parallel conductors.
+
+Two real bugs found on the way, both in my own code:
+
+- `dipole()` defaulted to an ODD segment count, and an odd count has no node at
+  the centre - so the feed sat half a segment off and broke the symmetry of the
+  problem. It now rounds up, and a test asserts the feed node is at z = 0 for
+  odd and even requests alike.
+- The far-field routine looped in Python over every angle, which made the
+  validation suite take 18 seconds. Vectorising the segment phasor and
+  accumulating per segment rather than per basis function took it to 1.4. The
+  matrix build got the same treatment - one pass over segment pairs computing
+  the four linear moments, instead of recomputing each pair up to four times -
+  which took a 60-segment solve from about 10 seconds to 0.02.
+
+What it does not do, and these are limits rather than approximations that wash
+out: no ground plane, no dielectric, no loss, no junction of more than two
+wires, and the reduced rather than the exact kernel.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1733 tests, 464/464 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1747 tests, 464/464 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
