@@ -11,6 +11,7 @@ from .mom import (
     Wire, WireModel, MoMSolution, dipole, loop, arc, halo, folded_dipole_wire,
     impedance_matrix, solve, input_impedance, far_field, pattern_power,
     radiated_power, directivity, directivity_towards,
+    vswr, resonant_scale, antenna_q, vswr_bandwidth,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "folded_dipole_wire",
     "impedance_matrix", "solve", "input_impedance", "far_field",
     "pattern_power", "radiated_power", "directivity", "directivity_towards",
+    "vswr", "resonant_scale", "antenna_q", "vswr_bandwidth",
 ]

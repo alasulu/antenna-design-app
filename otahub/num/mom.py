@@ -431,3 +431,73 @@ def halo(circumference: float, gap: float, radius: float = 1e-3,
         raise ValueError("gap must be a fraction of the circumference")
     return arc(circumference - gap,
                2.0 * math.pi * (1.0 - gap / circumference), radius, segments)
+
+
+# ------------------------------------------------------- frequency behaviour
+#
+# Geometry here is in wavelengths, so scaling every dimension by `s` IS moving
+# the frequency by `s`. A frequency sweep therefore costs nothing beyond
+# rebuilding the model, and the functions below all take a callable
+# `z_of_scale(s) -> complex` rather than a model, so they work for any
+# structure the caller can parameterise.
+
+
+def vswr(z: complex, z0: float) -> float:
+    """Standing-wave ratio of `z` against a real reference `z0`."""
+    g = abs((z - z0) / (z + z0))
+    return float("inf") if g >= 1.0 else (1.0 + g) / (1.0 - g)
+
+
+def resonant_scale(z_of_scale, lo: float = 0.85, hi: float = 1.15,
+                   steps: int = 26) -> float | None:
+    """Frequency scale where the reactance crosses zero, or None if it does not
+    inside the bracket. Returning None rather than a bracket end matters: a
+    structure with no resonance in range should say so, not report an edge."""
+    if z_of_scale(lo).imag * z_of_scale(hi).imag > 0:
+        return None
+    for _ in range(steps):
+        mid = 0.5 * (lo + hi)
+        if z_of_scale(mid).imag < 0:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def antenna_q(z_of_scale, scale0: float, h: float = 2e-3) -> float:
+    """Q = (w0 / 2 R0) |dZ/dw|, after Yaghjian and Best.
+
+    Scale is frequency, so d/d(scale) at scale0 = 1 already carries the w0.
+    This is the narrowband route to bandwidth; `vswr_bandwidth` is the direct
+    one, and the two agreeing is the check that either is worth anything.
+    """
+    z0 = z_of_scale(scale0)
+    dz = (z_of_scale(scale0 + h) - z_of_scale(scale0 - h)) / (2.0 * h)
+    return float(abs(dz) * scale0 / (2.0 * z0.real))
+
+
+def vswr_bandwidth(z_of_scale, scale0: float, z0: float, target: float = 2.0,
+                   step: float = 5e-3, span: float = 0.6):
+    """(fractional bandwidth, (lower edge, upper edge)) about `scale0`.
+
+    Walks outwards in `step` until VSWR exceeds `target`, then bisects. The
+    walk matters: bisecting a bracket chosen by guesswork finds whichever
+    crossing happens to be inside it, and a wideband antenna has several.
+    """
+    edges = []
+    for direction in (-1.0, +1.0):
+        lo = hi = scale0
+        while abs(hi - scale0) < span:
+            hi += direction * step
+            if vswr(z_of_scale(hi), z0) > target:
+                break
+        else:
+            return float("inf"), (None, None)
+        for _ in range(30):
+            mid = 0.5 * (lo + hi)
+            if vswr(z_of_scale(mid), z0) < target:
+                lo = mid
+            else:
+                hi = mid
+        edges.append(hi)
+    return (edges[1] - edges[0]) / scale0, (edges[0], edges[1])

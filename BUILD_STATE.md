@@ -988,9 +988,72 @@ spec sentence that overstated the same thing was corrected with them.
 
 The loop family is now fully derived apart from `alford_loop`'s 0.5 dB ripple.
 
+## Bandwidth that is computed, and a 4:1 that needed qualifying
+
+Fractional bandwidth is the metric this catalogue has most often carried as
+"indicative", because the closed forms reach it only through an ASSUMED Q. The
+solver can do better. Geometry here is in wavelengths, so scaling every
+dimension is the same thing as moving the frequency, and a sweep costs nothing
+beyond rebuilding the model.
+
+It is computed twice, by routes sharing no algebra: directly, by walking
+outwards from resonance until VSWR crosses 2 and then bisecting, and through
+the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw|. They agree to 2.0% at
+worst, and they part company in the right direction - the gap widens as the
+bandwidth grows, which is exactly how a narrowband approximation should fail.
+Neither would be worth putting in a spec on its own.
+
+`folded_dipole` was the first customer, and the headline is a correction to a
+correction. The classic 4:1 step-up holds, and holds tightly - 3.949 to 4.021
+across every spacing and gauge - but only between structures AT THEIR OWN
+RESONANCE. At a fixed frequency it is not 4 and not even constant: it runs 2.2
+to 4.9 across a 20% span of length, because the transmission-line mode does not
+scale with the radiating one. My own first reading of the sweep took the
+same-frequency ratio for the law and briefly had the spec wrong; the two
+comparisons are different questions and the spec now says which is which.
+
+What else was found:
+
+- Resonant length is 0.449 to 0.474 lambda, not the flat 0.48 synthesised.
+  Wider spacing shortens it markedly.
+- Resistance is 284 to 290 ohm, where the spec computed 4 x 73.079 = 292.3.
+  The 1 to 3% overshoot is the induced-EMF 73.079 standing in for a real
+  dipole's 71.9 ohm resonant resistance - the same confusion that cost an
+  afternoon when the MoM first disagreed with the textbook.
+- Bandwidth is 10.7% to 18.7%, against a flat 0.10. And it is NOT "roughly
+  twice a plain thin dipole's" as the spec said: against a plain dipole of the
+  same gauge it is 1.36 to 1.72 times, never 2.
+- The pattern is not quite "indistinguishable from a plain dipole" either. The
+  two conductors are a short end-fire pair, so the directivity is 1.1% up on
+  the closest spacing and 7.0% up on the widest - 0.05 to 0.29 dB, small but
+  systematic rather than noise.
+
+Two cross-consistency tests failed on the rewrite, and both were encoding the
+error rather than catching it: they compared the folded dipole's resistance
+against the induced-EMF 73.079 and demanded exactly 4.00 and 9.00. Against that
+constant the real ratios are 3.91 and 8.81. One now asserts 4 within 3% AND
+that it lands below 4, with the reason; the other compares each archetype's own
+N-scaling instead of dividing a derived number by an asserted one, which is
+what it had been doing.
+
+## A low-confidence archetype promoted, for the first time
+
+`halo_loop` has come off the low-confidence list. That is section 6 item 4 of
+the handover discharged - "validate a low-confidence archetype end to end and
+either promote it or record why it cannot be" - which had been marked
+impossible since session 1 for want of a solver.
+
+The remaining eight cannot follow it, and the reason is the same for nearly all
+of them: `cassegrain`, `conical_horn_dual_mode`, `pifa`,
+`planar_monopole_circular`, `stacked_patch`, `vivaldi_tsa` and
+`waveguide_longitudinal_slot` are patches, horns, reflectors and slots, and a
+thin-wire solver cannot reach any of them. `ferrite_rod_loop` needs a ferrite
+material model besides. That is a limit worth stating plainly rather than
+leaving as an open task that looks actionable and is not.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1800 tests, 487/487 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1820 tests, 495/495 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

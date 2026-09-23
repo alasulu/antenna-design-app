@@ -549,7 +549,7 @@
       "key": "folded_dipole",
       "name": "Folded dipole",
       "family": "wire",
-      "summary": "Two parallel half-wave conductors joined at the ends; steps the impedance up by N^2.",
+      "summary": "Two parallel conductors shorted at the ends: four times a dipole's resonant resistance, about 1.6 times its bandwidth, and a few percent shorter than a plain dipole at resonance.",
       "freq_range_hz": [
         100000.0,
         30000000000.0
@@ -596,7 +596,7 @@
           "depends_on": [
             "f0"
           ],
-          "notes": "slightly short of lambda/2, as for any real dipole"
+          "notes": "Nominal starting length. resonant_length_m is what actually resonates, and it is 1.3 to 6.6% shorter - the two conductors and the end shorts load the structure."
         },
         {
           "output": "d_sep",
@@ -606,6 +606,36 @@
             "f0"
           ],
           "notes": "typical practical spacing, 0.01-0.05 lambda; must stay << lambda for the transmission-line mode to be non-radiating"
+        },
+        {
+          "output": "d_over_lambda",
+          "expr": "d_sep*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "d_sep",
+            "f0"
+          ]
+        },
+        {
+          "output": "thickness_parameter",
+          "expr": "2*log(L/aw)",
+          "units_out": "-",
+          "depends_on": [
+            "L",
+            "aw"
+          ],
+          "notes": "Omega on the NOMINAL length, so nothing here is circular."
+        },
+        {
+          "output": "resonant_length_m",
+          "expr": "(((0.43520241) + (0.0033831321)*thickness_parameter**1 + (-5.1036734e-05)*thickness_parameter**2 + (-0.14802747)*d_over_lambda**1 + (-0.038160116)*d_over_lambda**1*thickness_parameter**1 + (2.5026758)*d_over_lambda**2))*(c/f0)",
+          "units_out": "m",
+          "depends_on": [
+            "d_over_lambda",
+            "thickness_parameter",
+            "f0"
+          ],
+          "notes": "Length at which the reactance crosses zero: 0.449 to 0.474 lambda over the spacings and wire gauges here, against the flat 0.48 this spec synthesises. Wider spacing shortens it markedly - 0.474 at d = 0.005 lambda down to 0.450 at 0.04. Worst fit error 0.09%. Method of moments (otahub/num/mom.py), whose folded-dipole geometry is one of the six cases licensing the solver. Bandwidth is computed twice by routes sharing no algebra - directly, by finding where VSWR crosses 2 either side of resonance, and through the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw| - and they agree to 2.0% at worst, widening with bandwidth exactly as the narrowband Q approximation should."
         }
       ],
       "analysis": [
@@ -613,66 +643,112 @@
           "metric": "impedance_step_ratio",
           "expr": "N**2",
           "units_out": "-",
-          "notes": "equal-diameter conductors carry equal currents, so the feed sees N^2 times the single-dipole impedance",
           "depends_on": [
             "N"
-          ]
+          ],
+          "notes": "Verified, with a caveat about what it means. Comparing each structure AT ITS OWN RESONANCE the ratio is 3.949 to 4.021 across every spacing and gauge tested - the classic 4:1 is a law, not a coincidence. Comparing at the SAME FREQUENCY it is nothing of the kind: it runs from 2.2 to 4.9 across a 20% span of length, because the transmission-line mode does not scale with the radiating one. Only N = 2 was solved; higher N keeps the classical N^2."
         },
         {
           "metric": "input_resistance_ohm",
-          "expr": "N**2 * 73.079",
+          "expr": "(((302.39266) + (-2.8854487)*thickness_parameter**1 + (0.11330684)*thickness_parameter**2 + (740.48139)*d_over_lambda**1 + (-40.268342)*d_over_lambda**1*thickness_parameter**1 + (-2664.6544)*d_over_lambda**2))*(N/2)**2",
           "units_out": "ohm",
-          "notes": "292.3 ohm for the standard two-conductor case, the classic 300 ohm twin-lead match",
           "depends_on": [
+            "d_over_lambda",
+            "thickness_parameter",
             "N"
-          ]
+          ],
+          "notes": "284 to 290 ohm at resonance for the two-conductor case, against the 292.3 this spec computed as 4 x 73.079. The 1 to 3% overshoot is the induced-EMF 73.079 standing in for a real dipole's 72 ohm resonant resistance. Still the classic 300 ohm twin-lead match. Worst fit error 0.16%. Method of moments (otahub/num/mom.py), whose folded-dipole geometry is one of the six cases licensing the solver. Bandwidth is computed twice by routes sharing no algebra - directly, by finding where VSWR crosses 2 either side of resonance, and through the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw| - and they agree to 2.0% at worst, widening with bandwidth exactly as the narrowband Q approximation should."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(1.6409)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "pattern is indistinguishable from a plain dipole"
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "0.10",
+          "expr": "(0.4345038) + (-0.035342193)*thickness_parameter**1 + (0.0009236638)*thickness_parameter**2 + (3.1804067)*d_over_lambda**1 + (-0.10550715)*d_over_lambda**1*thickness_parameter**1 + (-16.957899)*d_over_lambda**2",
           "units_out": "-",
-          "notes": "roughly twice a plain thin dipole's, from the lower effective Q of the two-conductor structure. Indicative: the true figure depends on d_sep/aw."
+          "depends_on": [
+            "d_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "COMPUTED, not indicative: the VSWR = 2 window about resonance, referenced to the antenna's own resonant resistance. 10.7% to 18.7% over the geometries here, against the flat 0.10 this spec asserted. And the folded dipole is NOT 'roughly twice' a plain dipole's bandwidth - measured against a plain dipole of the same wire gauge it is 1.36 to 1.72 times, never 2. Worst fit error 0.95%. Method of moments (otahub/num/mom.py), whose folded-dipole geometry is one of the six cases licensing the solver. Bandwidth is computed twice by routes sharing no algebra - directly, by finding where VSWR crosses 2 either side of resonance, and through the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw| - and they agree to 2.0% at worst, widening with bandwidth exactly as the narrowband Q approximation should."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "(1.8940441) + (-0.03067725)*thickness_parameter**1 + (0.00091691005)*thickness_parameter**2 + (4.7489096)*d_over_lambda**1 + (-0.15137738)*d_over_lambda**1*thickness_parameter**1 + (-24.398059)*d_over_lambda**2",
+          "units_out": "-",
+          "depends_on": [
+            "d_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "The pattern is NOT quite 'indistinguishable from a plain dipole', as this spec used to say. It runs 1.1% up on the closest spacing and thinnest wire and 7.0% up on the widest and thickest - the two conductors are a short end-fire pair, and the gain grows with their separation. Small, 0.05 to 0.29 dB, but systematic rather than noise. Worst fit error 0.04%. Method of moments (otahub/num/mom.py), whose folded-dipole geometry is one of the six cases licensing the solver. Bandwidth is computed twice by routes sharing no algebra - directly, by finding where VSWR crosses 2 either side of resonance, and through the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw| - and they agree to 2.0% at worst, widening with bandwidth exactly as the narrowband Q approximation should."
         }
       ],
       "validity": [
-        "d_sep << lambda so the transmission-line mode does not radiate",
-        "equal conductor diameters; unequal diameters give a step ratio between 1 and N^2",
-        "bandwidth figure is indicative, not a closed-form result"
+        "the fits cover conductor spacing 0.005 to 0.04 lambda and wire radius 1e-4 to 1e-3 lambda, with spacing at least six wire radii",
+        "N = 2 is the only case solved; the N^2 step-up for more conductors is classical and is not verified here",
+        "equal-diameter conductors. Unequal diameters divide the current unevenly and the step-up becomes (1 + alpha)^2 with alpha the division factor, which this spec does not model",
+        "free space, lossless, delta-gap feed, reduced thin-wire kernel",
+        "bandwidth is referenced to the antenna's OWN resonant resistance, so it is the best case: feeding it from 300 ohm line adds its own mismatch",
+        "the 4:1 step-up holds between structures AT RESONANCE; at a fixed frequency off resonance it is not 4 and not even constant"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 300000000.0,
-            "N": 2
+            "d_sep": 0.019986163866666667,
+            "aw": 9.993081933333333e-05,
+            "N": 2.0
           },
           "expect": {
-            "input_resistance_ohm": 292.316,
-            "impedance_step_ratio": 4.0
+            "resonant_length_m": 0.4626699,
+            "input_resistance_ohm": 286.1309,
+            "directivity_linear": 1.67139,
+            "fractional_bandwidth_vswr2": 0.1218658
           },
-          "tol_pct": 1.0,
-          "source": "4 x 73.08 = 292.3 ohm, the standard folded-dipole result. Balanis, Antenna Theory 4th ed., Ch. 4"
+          "tol_pct": 1.5,
+          "source": "Method of moments at d = 0.02 lambda, wire radius 0.0001 lambda: the reactance crosses zero at 0.46294 lambda with R = 286.06 ohm, which is 3.973 times a plain dipole's resonant resistance. The VSWR = 2 window is 12.18% wide, confirmed to 0.9% by the independent Q = (w0/2R0)|dZ/dw| route, against 7.56% for a plain dipole of the same gauge - a factor of 1.611, not the 'roughly twice' this spec claimed. Directivity 1.67111 against the plain dipole's 1.62307."
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "d_sep": 0.0299792458,
+            "aw": 0.0008993773739999998,
+            "N": 2.0
+          },
+          "expect": {
+            "resonant_length_m": 1.400479,
+            "input_resistance_ohm": 285.6827,
+            "directivity_linear": 1.663733,
+            "fractional_bandwidth_vswr2": 0.1286566
+          },
+          "tol_pct": 1.5,
+          "source": "Method of moments at d = 0.01 lambda, wire radius 0.0003 lambda: the reactance crosses zero at 0.46717 lambda with R = 286.00 ohm, which is 3.975 times a plain dipole's resonant resistance. The VSWR = 2 window is 12.99% wide, confirmed to 1.0% by the independent Q = (w0/2R0)|dZ/dw| route, against 8.91% for a plain dipole of the same gauge - a factor of 1.457, not the 'roughly twice' this spec claimed. Directivity 1.66440 against the plain dipole's 1.62702."
         },
         {
           "given": {
             "f0": 300000000.0,
-            "N": 3
+            "d_sep": 0.039972327733333333,
+            "aw": 0.0009993081933333333,
+            "N": 2.0
           },
           "expect": {
-            "input_resistance_ohm": 657.711,
-            "impedance_step_ratio": 9.0
+            "resonant_length_m": 0.4481203,
+            "input_resistance_ohm": 289.5066,
+            "directivity_linear": 1.731203,
+            "fractional_bandwidth_vswr2": 0.186911
           },
-          "tol_pct": 1.0,
-          "source": "N^2 scaling: three-wire folded dipole is 9 x 73.08. Balanis, Antenna Theory 4th ed., Ch. 4"
+          "tol_pct": 1.5,
+          "source": "Method of moments at d = 0.04 lambda, wire radius 0.001 lambda: the reactance crosses zero at 0.44848 lambda with R = 289.64 ohm, which is 4.021 times a plain dipole's resonant resistance. The VSWR = 2 window is 18.73% wide, confirmed to 2.0% by the independent Q = (w0/2R0)|dZ/dw| route, against 11.11% for a plain dipole of the same gauge - a factor of 1.686, not the 'roughly twice' this spec claimed. Directivity 1.73124 against the plain dipole's 1.61794."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 9.5"
+        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 9.5",
+        "Resonant length, resistance, directivity and VSWR bandwidth derived here by method of moments, with bandwidth cross-checked against the Yaghjian-Best antenna Q"
       ]
     },
     {

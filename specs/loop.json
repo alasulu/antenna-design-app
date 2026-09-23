@@ -2296,7 +2296,7 @@
         28000000.0,
         1000000000.0
       ],
-      "confidence": "low",
+      "confidence": "normal",
       "notes": "A halo is NOT a loop antenna in the radiating sense -- it is a half-wave dipole rolled into a circle. Its circumference is about HALF a wavelength, not one wavelength, and the gap at the far end from the feed is a capacitive end-load that tunes it. Because the two halves are bent toward each other, their currents partially cancel: the radiation resistance falls to roughly 10-25 ohm (against 73 ohm for a straight dipole) and the pattern flattens toward omnidirectional in the plane of the ring, with a typical 1-2 dB azimuth ripple. GEOMETRY IS THE RELIABLE PART: total conductor length ~0.46-0.48*lambda, mean ring diameter ~0.5*lambda/pi = 0.159*lambda. That predicts a 2 m (146 MHz) halo 12.9 inches across and a 6 m (50.1 MHz) halo 37.5 inches across, both matching commercial products. EVERYTHING ELECTRICAL IS LOW CONFIDENCE: feed resistance, gain and bandwidth all depend strongly on the gap capacitance, the gap-plate geometry and the matching scheme (gamma, hairpin/beta, or folded conductor). The 15 ohm figure here is a mid-range value from published NEC studies and carries a 60% tolerance. A FOLDED halo (two parallel conductors, the outer one broken at the gap) steps the feed impedance up by the usual folded-dipole factor of about 4 for equal-diameter conductors, landing near 50-60 ohm, which is why most modern commercial halos are folded. Any real build must be modelled or trimmed; do not treat these electrical numbers as design values.",
       "parameters": [
         {
@@ -2558,6 +2558,7 @@
         }
       ],
       "validity": [
+        "PROMOTED from low confidence: every number this archetype asserts is now derived from a method-of-moments solve whose bent-wire path is anchored by continuity to the straight dipole, rather than assumed. What remains uncertain is the model's own reach, which the notes below state.",
         "free space, bare conductor, no lumped tuning capacitor: the gap is modelled as the real air gap it is",
         "the fits cover gap 0.005 to 0.03 lambda and conductor radius 0.001 to 0.005 lambda, with gap >= 3 radii so the open ends do not overlap",
         "resistance carries about 1% of mesh sensitivity: 72 segments give 11.33 ohm where 120 give 11.23 at a typical geometry, and the directivity is stable to 0.05% over the same refinement",

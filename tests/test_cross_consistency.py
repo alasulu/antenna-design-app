@@ -62,10 +62,22 @@ def test_monopole_is_exactly_half_a_dipole(syn):
 
 
 def test_folded_dipole_is_four_times_a_plain_one(syn):
+    """Four times, but four times WHAT.
+
+    This used to demand exactly 4 x 73.079, and the folded dipole's resistance
+    is now solved rather than defined as that product - so it no longer lands
+    there, and should not. 73.079 is the induced-EMF figure for an assumed
+    sinusoidal current; a real dipole's RESONANT resistance is about 71.9, and
+    the folded dipole is four times that. Against the induced-EMF constant the
+    ratio is therefore about 3.91 rather than 4.00. The tight 4:1 between
+    resonant resistances is checked directly in test_folded_dipole.py.
+    """
     hw = syn("half_wave_dipole", f0=F, aw=1e-4)
     fold = syn("folded_dipole", f0=F, N=2, aw=1e-4)
-    assert fold.metrics["input_resistance_ohm"] == pytest.approx(
-        4 * hw.metrics["radiation_resistance_ohm"], rel=5e-3)
+    ratio = (fold.metrics["input_resistance_ohm"]
+             / hw.metrics["radiation_resistance_ohm"])
+    assert ratio == pytest.approx(4.0, rel=0.03)
+    assert ratio < 4.0, "the induced-EMF 73.079 overstates a resonant dipole"
 
 
 def test_turnstile_on_axis_matches_a_single_dipole(syn):
@@ -104,15 +116,23 @@ def test_folded_slot_reduces_to_the_plain_slot(syn):
 
 def test_folding_a_slot_divides_where_folding_a_dipole_multiplies(syn):
     """The dual relationship, checked against the folded DIPOLE rather than
-    asserted: one steps up by N^2, the other down by the same factor."""
-    hw = syn("half_wave_dipole", f0=F, aw=1e-4)
-    fold = syn("folded_dipole", f0=F, N=3, aw=1e-4)
+    asserted: one steps up by N^2, the other down by the same factor.
+
+    Compared within each archetype rather than between them. The folded
+    dipole's absolute resistance is now solved, the folded slot's is still
+    asserted, and dividing one by the other would test the difference between
+    a derived number and a stated one instead of the duality.
+    """
+    fd1 = syn("folded_dipole", f0=F, N=1, aw=1e-4)
+    fd3 = syn("folded_dipole", f0=F, N=3, aw=1e-4)
     fs1 = syn("folded_slot", f0=F, N=1)
     fs3 = syn("folded_slot", f0=F, N=3)
-    dipole_step = fold.metrics["input_resistance_ohm"] / \
-        hw.metrics["radiation_resistance_ohm"]
-    slot_step = fs1.metrics["input_resistance_ohm"] / \
-        fs3.metrics["input_resistance_ohm"]
+    # Each archetype's own N-scaling, so a derived absolute value on one side
+    # is not being compared against an asserted one on the other.
+    dipole_step = (fd3.metrics["input_resistance_ohm"]
+                   / fd1.metrics["input_resistance_ohm"])
+    slot_step = (fs1.metrics["input_resistance_ohm"]
+                 / fs3.metrics["input_resistance_ohm"])
     assert dipole_step == pytest.approx(9.0, rel=5e-3)
     assert slot_step == pytest.approx(dipole_step, rel=5e-3)
 
