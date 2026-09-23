@@ -1764,10 +1764,23 @@
           ]
         },
         {
+          "metric": "directivity_linear",
+          "expr": "(2.9922478) + (0.038186582)*(k0*b_out)**1 + (0.89081883)*(k0*b_out)**2 + (0.40451891)*(k0*b_out)**3 + (0.21312929)*(k0*b_out)**4 + (-0.011030037)*(k0*a_in)**1 + (1.6706666)*(k0*a_in)**1*(k0*b_out)**1 + (-2.4581593)*(k0*a_in)**1*(k0*b_out)**2 + (0.099127645)*(k0*a_in)**1*(k0*b_out)**3 + (1.2461995)*(k0*a_in)**2 + (3.4113999)*(k0*a_in)**2*(k0*b_out)**1 + (4.2731314)*(k0*a_in)**2*(k0*b_out)**2 + (-2.5468551)*(k0*a_in)**3 + (-2.8981153)*(k0*a_in)**3*(k0*b_out)**1 + (2.4413576)*(k0*a_in)**4",
+          "units_out": "-",
+          "depends_on": [
+            "k0",
+            "a_in",
+            "b_out"
+          ],
+          "notes": "Integrated from the TM11 cavity fields rather than assumed. The ring radiates from BOTH edge walls, each a phi-directed magnetic ring current with a cos(phi) dependence - the same source that gives the circular patch its J0 -/+ J2 pattern - so the far field is the superposition of two such rings, weighted by the cavity eigenfunction at each radius and opposite in sign because the outward normals oppose. Fitted over eps_r 2 to 13 and b/a 1.2 to 3, worst error 0.005%, and checked against a full 2-D angular grid. The flat 5.0 this spec used to carry is 5% LOW on eps_r 2.2 and 48% HIGH on eps_r 10.2 - wrong in both directions. Note the fit is in the two RADII, not in b/a: the directivity is genuinely two-dimensional, and two different (eps_r, b/a) pairs sharing a k0*b can differ by 13%."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(5.0)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Indicative placeholder. The TM11 ring radiates broadside much as a disc does, a little lower for the smaller aperture."
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "f_tm21_hz",
@@ -1783,7 +1796,8 @@
         "1.05 < b/a < 5, the range the correction was fitted over",
         "cavity model with magnetic side walls and no fringing correction on the radii: real rings resonate a few percent low",
         "the exact resonance is transcendental; resonance_residual reports how far the design rule sits from it",
-        "feeding a ring is awkward - a probe, a coupled microstrip line or an aperture all perturb the mode differently"
+        "feeding a ring is awkward - a probe, a coupled microstrip line or an aperture all perturb the mode differently",
+        "the directivity fit covers eps_r 2 to 13 and b/a 1.2 to 3; outside that a degree-4 polynomial in two variables diverges rather than degrades"
       ],
       "known_cases": [
         {
@@ -1824,12 +1838,65 @@
           },
           "tol_pct": 1.0,
           "source": "Outer radius 1.3534/k against a disc's 1.8412/k: 26% smaller in radius and 46% smaller in area at the same frequency"
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "directivity_linear": 5.276016
+          },
+          "tol_pct": 0.5,
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 2.0: D = 5.27639 (7.223 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -5% from it here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "directivity_linear": 3.978203
+          },
+          "tol_pct": 0.5,
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 4.4, b/a = 2.0: D = 3.97824 (5.997 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +26% from it here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 10.2,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "directivity_linear": 3.386171
+          },
+          "tol_pct": 0.5,
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 10.2, b/a = 2.0: D = 3.38614 (5.297 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +48% from it here."
+        },
+        {
+          "given": {
+            "f0": 2000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "ratio": 3.0
+          },
+          "expect": {
+            "directivity_linear": 5.337916
+          },
+          "tol_pct": 0.5,
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 3.0: D = 5.33839 (7.274 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -6% from it here."
         }
       ],
       "references": [
         "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 8",
         "Chew, A broad-band annular-ring microstrip antenna, IEEE T-AP 30(5), 1982",
-        "Exact roots computed here by bisection on the Bessel cross-product; the design rule is a fit to them"
+        "Exact roots computed here by bisection on the Bessel cross-product; the design rule is a fit to them",
+        "Directivity integrated here from the two-edge magnetic ring currents and checked against an independent 2-D angular grid"
       ]
     },
     {

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1694 tests, 426/426 citable
+6,031 lines of Python, 14,835 lines of spec data, 1711 tests, 456/456 citable
 known cases passing.**
 
 ---
@@ -123,6 +123,7 @@ being written into a spec.
 | `corner_reflector_90`, `corner_reflector_60` | Image array factors | Summed field leaves ~1e-15 tangential E on the plates |
 | `diagonal_horn` | Aperture efficiency 8/π² = 0.8106 | Aperture integration on a 2001² grid: 0.8110 |
 | `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
+| `annular_ring_patch` | Directivity from the TWO edge walls' magnetic ring currents, fitted in (k₀a, k₀b) | Quadrature and an independent 2-D angular grid agree to four decimals; replaces a hard-coded 5.0 that was 5% low at εr = 2.2 and 48% high at εr = 10.2 |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |

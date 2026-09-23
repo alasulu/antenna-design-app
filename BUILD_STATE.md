@@ -653,9 +653,52 @@ radius rather than the spec's l_coil, so a loosely wound coil will not match.
 ferrite_rod_loop stays unbuilt: its geometry does not resolve without
 ld_target and L_target, and it needs a ferrite material model besides.
 
+## The annular ring's directivity is two-dimensional
+
+The ring carried a flat `db10(5.0)`. It is now integrated, and the integration
+turned up something that changed how it had to be shipped.
+
+The ring radiates from BOTH edge walls. Each is a phi-directed magnetic ring
+current with a cos(phi) dependence - the same source that gives the circular
+patch its J0 -/+ J2 pattern - so the far field is the superposition of two such
+rings, weighted by the cavity eigenfunction
+
+    R(rho) = J1(k*rho)*Y1'(k*a) - Y1(k*rho)*J1'(k*a)
+
+at each radius, and OPPOSITE in sign, because the two outward normals oppose.
+That sign is the whole character of the answer: the two rings partly cancel, so
+the ring sits just below a solid disc of the same outer radius rather than
+above it. Quadrature and an independent 2-D angular grid agree to four decimals.
+
+The flat 5.0 was wrong in both directions - 5% LOW at eps_r 2.2 and 48% HIGH at
+eps_r 10.2. A constant cannot be merely conservative when the true value crosses
+it.
+
+The fit is in the two RADII, not in the ratio b/a, and that was not the first
+choice. A 1-D fit in k0*b failed no matter the degree, and the diagnostic said
+why: D is not a single-valued function of k0*b. Two designs reaching the same
+k0*b from different (eps_r, b/a) pairs differ by as much as 13.5%, so a
+one-variable fit has to average away a real 13% spread. In (k0*a_in, k0*b_out)
+a degree-3 fit already beats degree-6 in (k0*b, ratio) - 0.042% against 0.028%
+for twice the terms. Shipped: degree 4, 15 terms, worst error 0.0046% over
+eps_r 2-13 and b/a 1.2-3. The validity block says the fit diverges rather than
+degrades outside that box, because a bivariate polynomial does.
+
+`tests/test_ring_directivity.py` pins both facts: that the shipped fit tracks
+its own quadrature, and that the 2-D-ness is real - two designs sharing a k0*b
+to within 10% whose directivities still differ by more than 5%. If someone
+later "simplifies" this to a function of the ratio, that test fails.
+
+One cross-check earned its place: the ring must land below the circular patch
+on the same board, but not far below - two independently derived patterns
+agreeing to within 10% is worth more than either alone.
+
+Remaining bare constants after this: `triangular_patch` (5.0) and `biconical`
+(1.6409).
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1694 tests, 426/426 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1711 tests, 456/456 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
