@@ -807,9 +807,72 @@ What it does not do, and these are limits rather than approximations that wash
 out: no ground plane, no dielectric, no loss, no junction of more than two
 wires, and the reduced rather than the exact kernel.
 
+## The full-wave loop, and three numbers that were all wrong
+
+With the solver in hand, `one_wavelength_circular_loop` was the first place to
+point it: the spec asserted a fixed 1.09*lambda resonance, 100 ohm and 3.4 dBi,
+none of them derived from anything.
+
+Because a single solver proves nothing, the arbiter came first. The circular
+loop has a classical Fourier-mode solution - expand I(phi) in exp(j n phi), and
+the phi-directed EFIE separates mode by mode into
+
+    I_n = 4 k V / ( j eta [ k^2 b^2 (G_{n-1} + G_{n+1}) - 2 n^2 G_n ] )
+
+with G_m the Fourier coefficients of exp(-jkR)/R around the ring. It was
+derived here rather than copied, and it discretises no geometry at all, so it
+shares nothing with the method of moments but Maxwell. The two agree to 0.25%
+on impedance and to four decimals on the current distribution, which is a
+stronger statement than either alone.
+
+All three asserted numbers are wrong, and not in a way a tolerance would hide:
+
+- The resonant circumference is NOT fixed. It runs 1.0384 lambda on 1e-4 lambda
+  wire to 1.0937 on 3e-3 - the flat 1.09 is 2.6 to 5.0% long.
+- The driving-point resistance is 138 to 151 ohm. The asserted 100 ohm is 28 to
+  30% LOW. Sanity: the square quad loop, whose ~120 ohm is well attested, comes
+  out at 126-136 ohm from the same solver, and a circle encloses more area than
+  a square of equal perimeter, so the ordering is right.
+- Broadside directivity is 3.61 to 3.77 dBi. The asserted 3.4 is 4.7 to 6.2%
+  low, and the gain over a dipole is 1.46-1.62 dBd rather than 1.25.
+
+The sharpest finding is the one that was written down twice. The spec carried a
+thickness correction `1.09 - 0.0045*(20 - Omega)` AND a validity note saying
+"thicker conductors resonate at a shorter circumference". Both solvers say the
+opposite: thicker resonates LONGER. The old correction was +6.0% at thin wire
+and -5.8% at thick, crossing the truth in the middle, which is how it could
+look plausible on a spot check. `test_a_thicker_conductor_resonates_at_a_longer
+_circumference` pins the direction now.
+
+The thickness parameter itself was wrong too - defined as 2*ln(2*pi*C/b) where
+the loop's Omega is 2*ln(2*pi*a/b) = 2*ln(C/b), an extra 2*pi inside the
+logarithm putting it 3.676 high.
+
+Everything now keys off that one corrected number, with degree-3 fits at 0.061%
+(circumference), 0.209% (resistance) and 0.051% (directivity).
+
+Two checks worth keeping for their own sake. The far-field routine reproduces
+the EXACT uniform-current loop directivity, 2*k*a*J1(k*a)^2 / int J2, to 0.01%
+on this same ring geometry - a validation of the radiation integral on a curved
+path rather than a straight one. And broadside being the main beam is not
+geometry, it is the current: with a UNIFORM current a one-wavelength loop peaks
+in its own plane instead, 90 degrees away. The test asserts the beam direction
+for that reason.
+
+The dimensional audit earned its keep again, on this session's own work: it
+rejected `dBd` as a unit with no scaling rule the moment it appeared. It is a
+legitimate unit - a ratio of two directivities, invariant for the same reason
+dBi is - so the rule went into the table rather than the unit coming out of the
+spec.
+
+Still constants in the loop family: `quad_loop_square` (3.3 dBi, 120 ohm, and a
+1.0218*lambda perimeter which the solver says is not resonant at all - it reads
+107 - 108j there), `halo_loop` and `alford_loop`. The quad is next; the halo
+needs a lumped capacitive gap, which this solver cannot yet model.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1747 tests, 464/464 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1767 tests, 472/472 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

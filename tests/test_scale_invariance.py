@@ -48,7 +48,10 @@ _POWER = {
     # the Archimedean spiral's growth is metres per radian, the equiangular
     # spiral's is dimensionless per radian.
     "m/rad": -1, "1/rad": 0,
-    "-": 0, "dbi": 0, "db": 0, "deg": 0, "ohm": 0, "ohm^2": 0, "rad": 0, "": 0,
+    # dBd is gain against a half-wave dipole rather than an isotrope. It is a
+    # ratio of two directivities, so it is invariant for the same reason dBi is.
+    "-": 0, "dbi": 0, "dbd": 0, "db": 0, "deg": 0, "ohm": 0, "ohm^2": 0,
+    "rad": 0, "": 0,
 }
 
 

@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 1747 tests
+python -m pytest tests/ -q                # 1767 tests
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```

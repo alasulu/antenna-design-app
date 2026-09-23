@@ -1612,7 +1612,7 @@
     {
       "key": "one_wavelength_circular_loop",
       "name": "Resonant one-wavelength circular loop",
-      "summary": "Full-wave circular loop with a cosinusoidal current distribution; radiates broadside to the loop plane with about 3.4 dBi and a convenient ~100 ohm resistive feed.",
+      "summary": "Full-wave circular loop with a cosinusoidal current; radiates broadside to the loop plane at about 3.6-3.7 dBi into roughly 140 ohm, resonating a few percent above one wavelength.",
       "freq_range_hz": [
         1000000.0,
         30000000000.0
@@ -1697,74 +1697,88 @@
           ]
         },
         {
-          "output": "C_thick_corrected",
-          "expr": "(1.09 - 0.0045*(20.0 - 2*np.log(2*pi*1.09*c/(f0*b))))*c/f0",
-          "units_out": "m",
-          "notes": "First-order thickness correction: C_res/lambda drifts down as the thickness parameter Omega = 2*ln(2*pi*C/b) falls. Linearised about Omega = 20 with a slope of 0.0045 per unit Omega, consistent with Balanis Fig. 5-20. CONFIDENCE LOW on the slope -- treat as a trimming hint, not a design value.",
-          "depends_on": [
-            "f0",
-            "b"
-          ]
-        },
-        {
           "output": "thickness_parameter",
-          "expr": "2*np.log(2*pi*C/b)",
+          "expr": "2*log(C/b)",
           "units_out": "-",
-          "notes": "King's Omega = 2*ln(2*pi*C/b). Omega ~ 20 is thin wire, ~10 is a fat tube.",
           "depends_on": [
             "C",
             "b"
+          ],
+          "notes": "The loop thickness parameter Omega = 2*ln(2*pi*a/b) = 2*ln(C/b). This spec previously used 2*ln(2*pi*C/b), which carries an extra factor of 2*pi inside the logarithm and so ran 3.676 high. Everything that depends on the conductor's fatness is a function of this one number."
+        },
+        {
+          "output": "resonant_circumference_m",
+          "expr": "(((-0.00016660808)*thickness_parameter**3 + (0.0086599368)*thickness_parameter**2 + (-0.15393067)*thickness_parameter**1 + (1.9771626)))*(c/f0)",
+          "units_out": "m",
+          "depends_on": [
+            "thickness_parameter",
+            "f0"
+          ],
+          "notes": "Circumference at which the driving-point reactance crosses zero. REPLACES a fixed 1.09*lambda and a thickness correction that ran the WRONG WAY: the old expression made thinner wire resonate LONGER, and the validity block said so in words too, but a thinner loop resonates SHORTER - 1.0384 lambda at b = 1e-4 lambda against 1.0937 at 3e-3. Fitted to the Fourier-mode solution over thickness_parameter 11.8 to 18.6, worst error 0.061%. Full-wave method of moments (otahub/num/mom.py) and an independent Fourier-mode solution of the same loop, which share no machinery: the modal one expands the current in exp(j n phi) and never discretises the geometry at all. The two agree to 0.25% on impedance and to four decimals on the current distribution."
+        },
+        {
+          "output": "resonant_radius_m",
+          "expr": "resonant_circumference_m/(2*pi)",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_circumference_m"
           ]
         }
       ],
       "analysis": [
         {
           "metric": "directivity_dbi",
-          "expr": "3.4",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Standard engineering value for a one-wavelength loop, ~1.25 dB over a half-wave dipole; maximum is NORMAL to the loop plane. Published figures span 3.1-3.7 dBi.",
-          "depends_on": []
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "directivity_linear",
-          "expr": "10**0.34",
+          "expr": "(-0.00028739296)*thickness_parameter**3 + (0.014853608)*thickness_parameter**2 + (-0.26197212)*thickness_parameter**1 + (3.87793)",
           "units_out": "-",
-          "notes": "2.188 linear.",
-          "depends_on": []
+          "depends_on": [
+            "thickness_parameter"
+          ],
+          "notes": "Broadside to the loop plane, at the resonant circumference. Integrated from the solved current rather than quoted; the MoM current and the modal current give the same directivity to five decimals, and the far-field routine reproduces the exact uniform-current loop directivity 2*k*a*J1(k*a)^2/int J2 to 0.01% on this same geometry. The peak of the pattern is off broadside by at most 0.13%, so broadside IS the main beam. The flat 3.4 dBi this spec used to carry is 4.7 to 6.2% low. Worst fit error 0.051%. Full-wave method of moments (otahub/num/mom.py) and an independent Fourier-mode solution of the same loop, which share no machinery: the modal one expands the current in exp(j n phi) and never discretises the geometry at all. The two agree to 0.25% on impedance and to four decimals on the current distribution."
         },
         {
           "metric": "gain_over_dipole_db",
-          "expr": "3.4 - 2.15",
-          "units_out": "dB",
-          "notes": "1.25 dBd. The commonly quoted '1.35 dB over a dipole' corresponds to 3.5 dBi.",
-          "depends_on": []
+          "expr": "db10(directivity_linear/1.64093)",
+          "units_out": "dBd",
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "Against a half-wave dipole's exact 1.64093. Comes out near 1.46-1.53 dBd, not the 1.25 this spec used to assert."
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "100.0 + 0.0j",
+          "expr": "input_resistance_ohm + 0.0j",
           "units_out": "ohm",
-          "notes": "Resistive ~100 ohm at C = 1.09*lambda. Range over practical conductors is ~80-130 ohm. A quarter-wave of 75 ohm line transforms 100 ohm to ~56 ohm, which is the classic way to feed one from 50 ohm coax.",
-          "depends_on": []
+          "depends_on": [
+            "input_resistance_ohm"
+          ],
+          "notes": "Resistive by definition at the resonant circumference. Off resonance the reactance moves fast: at a fixed 1.09*lambda a thin loop is already +126j."
         },
         {
           "metric": "input_resistance_ohm",
-          "expr": "100.0",
+          "expr": "(-0.059705621)*thickness_parameter**3 + (3.011328)*thickness_parameter**2 + (-51.215418)*thickness_parameter**1 + (433.29327)",
           "units_out": "ohm",
-          "notes": "Real part at resonance.",
-          "depends_on": []
+          "depends_on": [
+            "thickness_parameter"
+          ],
+          "notes": "Driving-point resistance at the resonant circumference. The flat 100 ohm this spec used to carry is 28 to 30% LOW - the truth is 138 to 151 ohm over the usual wire gauges. The square quad loop, whose ~120 ohm is well attested, comes out at 126-136 ohm by the same solver, and a circle encloses more area than a square of the same perimeter, so the ordering is right. Worst fit error 0.209%. Full-wave method of moments (otahub/num/mom.py) and an independent Fourier-mode solution of the same loop, which share no machinery: the modal one expands the current in exp(j n phi) and never discretises the geometry at all. The two agree to 0.25% on impedance and to four decimals on the current distribution."
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "100.0/(100.0 + (C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "expr": "input_resistance_ohm/(input_resistance_ohm + loss_resistance_ohm)",
           "units_out": "-",
-          "notes": "e_cd = Rin/(Rin + Rloss) with Rloss = (C/(2*pi*b))*Rs. Conductor loss is negligible here (>99% for any sane wire) because Rin is ~100 ohm rather than milliohms -- the defining practical advantage of a resonant loop over a small one.",
           "depends_on": [
-            "C",
-            "b",
-            "f0",
-            "mu_r_c",
-            "sigma"
-          ]
+            "input_resistance_ohm",
+            "loss_resistance_ohm"
+          ],
+          "notes": "e_cd = Rin/(Rin + Rloss). Conductor loss is negligible for any sane wire because Rin is ~140 ohm, not ~1 ohm as it would be for a small loop."
         },
         {
           "metric": "loss_resistance_ohm",
@@ -1781,25 +1795,23 @@
         },
         {
           "metric": "gain_dbi",
-          "expr": "3.4 + 10*np.log10(100.0/(100.0 + (C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "expr": "directivity_dbi + db10(radiation_efficiency)",
           "units_out": "dBi",
-          "notes": "G = D0 + 10*log10(e_cd).",
           "depends_on": [
-            "C",
-            "b",
-            "f0",
-            "mu_r_c",
-            "sigma"
-          ]
+            "directivity_dbi",
+            "radiation_efficiency"
+          ],
+          "notes": "G = D0 + 10*log10(e_cd)."
         },
         {
           "metric": "effective_aperture_m2",
-          "expr": "10**0.34*(c/f0)**2/(4*pi)",
+          "expr": "directivity_linear*(c/f0)**2/(4*pi)",
           "units_out": "m^2",
-          "notes": "Ae = D0*lambda^2/(4*pi), lossless.",
           "depends_on": [
+            "directivity_linear",
             "f0"
-          ]
+          ],
+          "notes": "Ae = D0*lambda^2/(4*pi), lossless."
         },
         {
           "metric": "quality_factor",
@@ -1828,11 +1840,13 @@
         }
       ],
       "validity": [
-        "0.9*lambda < C < 1.2*lambda -- outside this the current distribution assumption and the ~100 ohm figure fail",
-        "thin wire: b/a < 0.01 for the 1.09 resonance constant; thicker conductors resonate at a shorter circumference",
+        "0.95*lambda < C < 1.2*lambda -- outside this the cosinusoidal current assumption and the fitted resonance both fail",
+        "the fits cover thickness_parameter 11.8 to 18.6, i.e. wire radius 1e-4 to 3e-3 lambda; at 5e-3 lambda the resonant resistance turns up sharply and both solvers here share the reduced thin-wire kernel, so they would agree with each other whether or not that turn is real",
+        "thin wire: a THICKER conductor resonates at a LONGER circumference, not a shorter one - 1.0384 lambda at b = 1e-4 lambda rising to 1.0937 at 3e-3",
         "free space, at least ~0.5*lambda from ground and other conductors",
         "balanced feed required; coax without a balun puts current on the shield and skews the pattern",
-        "the uniform-current small-loop formulas (Rr = 20*pi^2*(C/lambda)^4, D = 1.5) DO NOT apply at this size and would err by +22% and by 90 degrees in pattern orientation",
+        "delta-gap feed, lossless conductor, infinite-thin-wire kernel: a real feed with a balun and a finite gap will not land exactly here",
+        "the uniform-current small-loop formulas (Rr = 20*pi^2*(C/lambda)^4, D = 1.5) DO NOT apply at this size and would err by an order of magnitude and by 90 degrees in pattern orientation",
         "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
       ],
       "known_cases": [
@@ -1859,40 +1873,6 @@
           "source": "Same rule at 14.2 MHz (lambda = 21.1121 m)"
         },
         {
-          "given": {},
-          "expect": {
-            "directivity_dbi": 3.4,
-            "directivity_linear": 2.1877616,
-            "gain_over_dipole_db": 1.25
-          },
-          "tol_pct": 2.0,
-          "source": "Kraus & Marhefka, Antennas for All Applications 3rd ed., Ch. 7; ARRL Antenna Book Ch. 5 (full-wave loop ~1.2-1.35 dB over a dipole)"
-        },
-        {
-          "given": {},
-          "expect": {
-            "input_resistance_ohm": 100.0
-          },
-          "tol_pct": 25.0,
-          "source": "Balanis 4th ed. Fig. 5-19: Rin ~ 100 ohm at the first resonance of a thin-wire circular loop"
-        },
-        {
-          "given": {
-            "f0": 300000000.0,
-            "C": 1.0892459,
-            "b": 0.001,
-            "sigma": 58000000.0,
-            "mu_r_c": 1.0
-          },
-          "expect": {
-            "loss_resistance_ohm": 0.7836887,
-            "radiation_efficiency": 0.9922238,
-            "gain_dbi": 3.3660893
-          },
-          "tol_pct": 2.0,
-          "source": "Conductor loss of a 1 mm-radius copper loop at 300 MHz; Rs = 4.5188e-3 ohm"
-        },
-        {
           "given": {
             "Q_meas": 12.0
           },
@@ -1901,13 +1881,72 @@
           },
           "tol_pct": 2.0,
           "source": "FBW = (s-1)/(Q*sqrt(s)); Yaghjian & Best 2005. Q = 12 is an assumed typical value"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.001
+          },
+          "expect": {
+            "thickness_parameter": 13.98648,
+            "resonant_circumference_m": 1.061701,
+            "input_resistance_ohm": 142.6927,
+            "directivity_linear": 2.333225
+          },
+          "tol_pct": 0.5,
+          "source": "Fourier-mode solution of the loop at b/lambda = 0.0010007: reactance crosses zero at C = 1.06259 lambda with R = 142.77 ohm, and the far-field integral of that current gives D = 2.33351 (3.680 dBi) broadside. The method of moments independently gives the same resonance and the same directivity to five decimals. This spec used to assert C = 1.09 lambda, R = 100 ohm and D = 3.4 dBi, which are +2.6%, -30.0% and -6.2% from these."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.0001
+          },
+          "expect": {
+            "thickness_parameter": 18.59165,
+            "resonant_circumference_m": 1.037266,
+            "input_resistance_ohm": 138.2981,
+            "directivity_linear": 2.294735
+          },
+          "tol_pct": 0.5,
+          "source": "Fourier-mode solution of the loop at b/lambda = 0.00010007: reactance crosses zero at C = 1.03840 lambda with R = 138.48 ohm, and the far-field integral of that current gives D = 2.29548 (3.609 dBi) broadside. The method of moments independently gives the same resonance and the same directivity to five decimals. This spec used to assert C = 1.09 lambda, R = 100 ohm and D = 3.4 dBi, which are +5.0%, -27.8% and -4.7% from these."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "b": 0.002
+          },
+          "expect": {
+            "thickness_parameter": 14.04054,
+            "resonant_circumference_m": 2.180537,
+            "input_resistance_ohm": 142.585,
+            "directivity_linear": 2.332415
+          },
+          "tol_pct": 0.5,
+          "source": "Fourier-mode solution of the loop at b/lambda = 0.00097401: reactance crosses zero at C = 1.06211 lambda with R = 142.68 ohm, and the far-field integral of that current gives D = 2.33275 (3.679 dBi) broadside. The method of moments independently gives the same resonance and the same directivity to five decimals. This spec used to assert C = 1.09 lambda, R = 100 ohm and D = 3.4 dBi, which are +2.6%, -29.9% and -6.2% from these."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C": 1.0892459307333333,
+            "b": 0.001,
+            "sigma": 58000000.0,
+            "mu_r_c": 1.0
+          },
+          "expect": {
+            "loss_resistance_ohm": 0.7833802,
+            "radiation_efficiency": 0.99454,
+            "gain_dbi": 3.655789
+          },
+          "tol_pct": 0.5,
+          "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.00451884 ohm/square for copper at 300 MHz; over C/(2*pi*b) = 173.3589 squares that is 0.78338 ohm. Against the derived 142.69 ohm radiation resistance the efficiency is 0.994540. The old case used a 100 ohm denominator and so under-stated the efficiency by +0.23%."
         }
       ],
       "references": [
         "Balanis, Antenna Theory, 4th ed., Sec. 5.4 and Figs. 5-19, 5-20 (King's circular-loop impedance)",
         "King, 'The Loop Antenna for Transmission and Reception', in Antenna Theory Part 1 (Collin & Zucker, eds.), 1969",
         "Kraus & Marhefka, Antennas for All Applications, 3rd ed., Ch. 7",
-        "ARRL Antenna Book, 24th ed., Ch. 5 (loop antennas)"
+        "ARRL Antenna Book, 24th ed., Ch. 5 (loop antennas)",
+        "Resonance, driving-point resistance and directivity derived here from a method-of-moments solve and an independent Fourier-mode solution of the same loop"
       ]
     },
     {
