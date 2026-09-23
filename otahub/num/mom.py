@@ -45,7 +45,8 @@ import numpy as np
 from ..core.constants import ETA0
 
 __all__ = [
-    "Wire", "WireModel", "MoMSolution", "dipole", "loop", "folded_dipole_wire",
+    "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
+    "folded_dipole_wire",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
 
@@ -231,20 +232,35 @@ class MoMSolution:
         return 0.5 * float(np.real(np.conj(self.feed_current)))
 
 
-def solve(model: WireModel, feed: int | None = None) -> MoMSolution:
-    """Delta-gap excitation of one basis function; 1 V across the gap."""
+def solve(model: WireModel, feed: int | None = None,
+          loads: dict[int, complex] | None = None) -> MoMSolution:
+    """Delta-gap excitation of one basis function; 1 V across the gap.
+
+    `loads` puts a SERIES lumped impedance at a basis function, the way a real
+    wire code does it: the load's voltage drop is Z_L * I_m, so Z_L adds
+    straight onto the diagonal. A capacitor tuning a halo's gap, a loading coil
+    partway up a whip, a resistive termination on a travelling-wave wire are
+    all this one line. A very large load is the same as cutting the wire there,
+    which is how it gets checked.
+    """
     nb = model.n_basis
     if feed is None:
         feed = nb // 2
     if not 0 <= feed < nb:
         raise ValueError(f"feed index {feed} outside 0..{nb - 1}")
+    Z = impedance_matrix(model)
+    for m, zl in (loads or {}).items():
+        if not 0 <= m < nb:
+            raise ValueError(f"load index {m} outside 0..{nb - 1}")
+        Z[m, m] += zl
     V = np.zeros(nb, dtype=complex)
     V[feed] = 1.0
-    return MoMSolution(model, np.linalg.solve(impedance_matrix(model), V), feed)
+    return MoMSolution(model, np.linalg.solve(Z, V), feed)
 
 
-def input_impedance(model: WireModel, feed: int | None = None) -> complex:
-    return solve(model, feed).input_impedance
+def input_impedance(model: WireModel, feed: int | None = None,
+                    loads: dict[int, complex] | None = None) -> complex:
+    return solve(model, feed, loads).input_impedance
 
 
 # ---------------------------------------------------------------- radiation
@@ -380,3 +396,38 @@ def folded_dipole_wire(length: float, spacing: float, radius: float = 1e-3,
                     np.zeros_like(xs)], axis=1)
     nodes = np.vstack([top, bot])
     return WireModel([Wire(nodes, radius, closed=True)])
+
+
+def arc(length: float, subtend: float, radius: float = 1e-3,
+        segments: int = 60) -> WireModel:
+    """An open wire of the given LENGTH bent into a circular arc, in the x-y
+    plane, symmetric about +x, with its midpoint towards +x.
+
+    `subtend` is the angle the arc covers, so 0 is a straight wire along y and
+    just under 2*pi is a ring with a small gap. Bending a half-wave dipole round
+    until its ends nearly meet is exactly what a halo is, and running the bend
+    continuously from zero is how the bent-wire path gets checked: at subtend 0
+    it has to reproduce `dipole`, which is already validated two ways.
+    """
+    if subtend < 1e-6:
+        y = np.linspace(-0.5 * length, 0.5 * length, segments + 1)
+        nodes = np.stack([np.zeros_like(y), y, np.zeros_like(y)], axis=1)
+        return WireModel([Wire(nodes, radius)])
+    curve = length / subtend
+    t = np.linspace(-0.5 * subtend, 0.5 * subtend, segments + 1)
+    nodes = np.stack([curve * np.cos(t), curve * np.sin(t),
+                      np.zeros_like(t)], axis=1)
+    return WireModel([Wire(nodes, radius)])
+
+
+def halo(circumference: float, gap: float, radius: float = 1e-3,
+         segments: int = 60) -> WireModel:
+    """A ring of the given circumference broken by a gap of arc length `gap`.
+
+    The conductor is circumference - gap long, which is the identity the
+    `halo_loop` spec got wrong: it subtracted the gap twice.
+    """
+    if not 0 < gap < circumference:
+        raise ValueError("gap must be a fraction of the circumference")
+    return arc(circumference - gap,
+               2.0 * math.pi * (1.0 - gap / circumference), radius, segments)

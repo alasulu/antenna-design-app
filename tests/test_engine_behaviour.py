@@ -120,3 +120,35 @@ def test_complex_impedance_uses_magnitude_of_the_difference():
     from otahub.core.archetype import _compare
     passed, err = _compare(complex(73.0, 42.0), complex(73.1, 42.5), tol_pct=2.0)
     assert passed and err < 2.0
+
+
+def test_a_supplied_value_outranks_the_specs_own_default(registry):
+    """The quietest kind of wrong: asking for one antenna and being answered
+    about another.
+
+    Many specs synthesise a nominal geometry - a halo's gap, a loop's
+    circumference - so the archetype is usable from a frequency alone. The
+    resolver used to run those rules unconditionally, which meant a caller who
+    supplied the value watched it be overwritten by the default and got a
+    design sheet for a different antenna, with no warning anywhere. Every
+    number on the sheet was self-consistent; it just answered a question
+    nobody asked.
+    """
+    lam = 2.99792458e8 / 1.46e8
+    b = 0.002 * lam          # a wire radius, so the design resolves fully
+    default = registry["halo_loop"].synthesize(f0=1.46e8, b=b)
+    asked = registry["halo_loop"].synthesize(f0=1.46e8, b=b, g=0.03 * lam)
+    assert default.get("g") == pytest.approx(0.015 * lam, rel=1e-6)
+    assert asked.get("g") == pytest.approx(0.03 * lam, rel=1e-12)
+    # and it must actually propagate, not merely be recorded
+    assert asked.get("resonant_circumference_m") != pytest.approx(
+        default.get("resonant_circumference_m"), rel=1e-4)
+
+
+def test_overriding_still_leaves_everything_else_derived(registry):
+    """Overriding one output must not strand the rules that depend on it."""
+    lam = 2.99792458e8 / 1.46e8
+    d = registry["halo_loop"].synthesize(f0=1.46e8, g=0.02 * lam, b=0.002 * lam)
+    assert not d.unresolved, d.unresolved
+    assert d.get("Lc") + d.get("g") == pytest.approx(
+        d.get("resonant_circumference_m"), rel=1e-12)

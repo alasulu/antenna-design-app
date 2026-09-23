@@ -138,6 +138,16 @@ class Archetype:
             progressed = False
             still: list[Any] = []
             for rule in pending:
+                # A value the caller supplied is a REQUIREMENT and outranks the
+                # spec's default for it. Without this a spec that synthesises a
+                # nominal geometry - a halo's gap, a loop's circumference -
+                # silently discards what the caller asked for and answers a
+                # different question, which is the quietest kind of wrong.
+                if rule.output in requirements:
+                    progressed = True
+                    if rule.units_out:
+                        units[rule.output] = rule.units_out
+                    continue
                 try:
                     needed = referenced_symbols(rule.expr, syms)
                 except ExprError as exc:

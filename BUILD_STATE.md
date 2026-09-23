@@ -918,9 +918,79 @@ with a lumped capacitive gap, which this solver cannot model yet - adding a
 lumped load to the EFIE is a small, well-defined piece of work and the obvious
 next step.
 
+## The halo, and an engine bug that answered the wrong question
+
+`halo_loop` needed two things the solver did not have: bent open wires and
+lumped loading. Both went in, and both were checked before being used. At zero
+bend `arc` reproduces `dipole` to every digit, so following the bend round from
+straight to almost-closed never leaves ground the dipole already validated
+twice. And a huge series load at one point of a ring agrees with a real gap cut
+there to four figures on resistance - two unrelated ways of breaking a ring,
+and they meet.
+
+The geometry was wrong before any of the physics was. The spec synthesised a
+0.47*lambda conductor beside a 0.5*lambda ring and a 0.015*lambda gap, and
+those do not add up: 0.47 + 0.015 = 0.485. The gap had been subtracted twice.
+Conductor + gap = circumference is now an identity the spec computes and a test
+asserts exactly.
+
+The spec's REASONING was consistently sound, which is worth saying because it
+has not always been. It said the resistance is about a fifth of a dipole's
+because the bent halves' currents partly cancel - and following the bend
+continuously shows exactly that, 69 ohm straight falling to 11 ohm almost
+closed. It said the polarisation is horizontal, and that turns out to be exact
+rather than approximate: the horizon field is 100.000% E_phi at every azimuth.
+It said the peak is in the plane of the ring, and the horizon maximum IS the
+global maximum to 0.006%.
+
+Its numbers were another matter:
+
+- Resistance is 9.6 to 13.9 ohm, not 15 - 8 to 56% high, and 32% high at a
+  typical gap and tubing.
+- Peak directivity is 1.21 to 1.27 dBi against an assumed 1.0. Close, and
+  inside the 0 to 2 dBi its own note claimed.
+- Azimuth ripple is 2.7 to 3.3 dB, roughly DOUBLE the asserted 1.5, so the
+  worst-case azimuth gain is -1.4 to -2.1 dBi rather than -0.5. That is 1 to
+  1.6 dB optimistic in precisely the number the spec's note says an
+  omnidirectional link budget runs on. A halo is less omnidirectional than it
+  is usually sold as.
+
+One thing worth knowing that is the opposite of the intuition: a gap capacitor
+makes a halo SMALLER, not larger. It end-loads the dipole. A 0.5*lambda ring
+cannot be series-resonated by a capacitor opposite the feed at all - the only
+zero crossing on that branch is a parallel antiresonance around 25 kilohm. That
+took a wrong turn to establish: the first tuning sweep assumed the input
+reactance fell as gap capacitance was added, and it rises, from the closed
+ring's -3475j towards the open gap's +88j. Scanning instead of assuming
+monotonicity found the pole in between.
+
+## An engine bug: the spec's default silently beat the caller
+
+Sweeping the halo's gap did nothing at all, which is how this surfaced. The
+resolver ran every synthesis rule unconditionally, so a value the CALLER
+supplied was overwritten by the spec's own nominal for it. Ask for a
+0.03*lambda gap, get a design sheet for a 0.015*lambda one - and nothing warns,
+because every number on that sheet is perfectly self-consistent. It simply
+answers a question nobody asked, which is the quietest kind of wrong this
+project keeps running into.
+
+A supplied value is a requirement and now outranks the default. The change
+touched every archetype in the catalogue and broke nothing: 487/487 known cases
+still pass. Two tests in `test_engine_behaviour.py` pin it, including that
+overriding one output does not strand the rules downstream of it.
+
+Two of my OWN test claims failed on first run and were the things that were
+wrong, not the code: a wide gap on thin wire resonates very slightly ABOVE
+0.5*lambda, so "the resonant ring is always smaller than nominal" was an
+overreach; and the loaded branch dips below 50 ohm, so a threshold I picked by
+eye was simply wrong. Both assertions were narrowed to what is true, and the
+spec sentence that overstated the same thing was corrected with them.
+
+The loop family is now fully derived apart from `alford_loop`'s 0.5 dB ripple.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1781 tests, 479/479 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1800 tests, 487/487 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

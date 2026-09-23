@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1781 tests, 479/479 citable
+6,031 lines of Python, 14,835 lines of spec data, 1800 tests, 487/487 citable
 known cases passing.**
 
 ---
@@ -16,7 +16,7 @@ known cases passing.**
 |---|---|---|
 | Engine | `otahub/core/` | Spec model, whitelisted AST evaluator, partial synthesis solver, registry, first-principles pattern maths |
 | Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
-| Reference solvers | `otahub/num/` | Thin-wire method of moments (EFIE, mixed potential, rooftop basis, Galerkin) and a Fourier-mode solution of the circular loop. Independent full-wave checks on the closed forms |
+| Reference solvers | `otahub/num/` | Thin-wire method of moments (EFIE, mixed potential, rooftop basis, Galerkin) with lumped loading and bent wires, plus a Fourier-mode solution of the circular loop. Independent full-wave checks on the closed forms |
 | Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; linear array factor, steering, grating-lobe limits; planar rectangular and triangular lattices with exact directivity, scan loss and beam-following cuts |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
@@ -151,6 +151,7 @@ being written into a spec.
 | `annular_ring_patch` | Directivity from the TWO edge walls' magnetic ring currents, fitted in (k₀a, k₀b) | Quadrature and an independent 2-D angular grid agree to four decimals; replaces a hard-coded 5.0 that was 5% low at εr = 2.2 and 48% high at εr = 10.2 |
 | `one_wavelength_circular_loop` | Resonant circumference, driving-point resistance and broadside directivity, all as functions of the conductor thickness | A method-of-moments solve and an independent Fourier-mode solution of the same loop agree to 0.25% on impedance and four decimals on the current; replaces a fixed 1.09λ / 100 Ω / 3.4 dBi that were 2.6–5% long, 28–30% low and 5–6% low |
 | `quad_loop_square` | Resonant perimeter, resistance and directivity vs conductor thickness | Anchored to the circle's modal solution through an N-gon sequence (96-sided polygon 136.46 Ω against the modal circle's 137.07); replaces a 1.0218λ perimeter that is not resonant in free space at all |
+| `halo_loop` | Resonant ring size, resistance, peak directivity and azimuth ripple | Bent-wire MoM anchored by continuity to the straight dipole; the ripple is 2.7–3.3 dB against an asserted 1.5, and the spec's conductor length subtracted the gap twice |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -251,6 +252,15 @@ surface in the project.
 ---
 
 ## 5. Engine bugs found during the build
+
+**A supplied value was silently overwritten by the spec's own default.** Many
+archetypes synthesise a nominal geometry — a halo's gap, a loop's circumference
+— so they are usable from a frequency alone. The resolver ran those rules
+unconditionally, so a caller who supplied the value watched it be replaced and
+got a design sheet for a different antenna. Nothing warned: every number on the
+sheet was self-consistent, it just answered a question nobody had asked. A
+supplied value is a requirement and now outranks the default. Found while
+sweeping a halo's gap, which refused to move.
 
 Recorded because they show what the test harness is for.
 

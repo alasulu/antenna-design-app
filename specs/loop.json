@@ -2291,7 +2291,7 @@
     {
       "key": "halo_loop",
       "name": "Halo (bent half-wave dipole loop)",
-      "summary": "A half-wave dipole bent into a near-circle with a capacitive gap opposite the feed, giving horizontal polarisation with a nearly omnidirectional azimuth pattern.",
+      "summary": "A half-wave dipole bent into a near-circle with a gap opposite the feed: purely horizontal polarisation round the horizon, about 1.2 dBi at the peak, and 2.7-3.3 dB of azimuth ripple - less omnidirectional than a halo is usually sold as.",
       "freq_range_hz": [
         28000000.0,
         1000000000.0
@@ -2343,9 +2343,9 @@
           "symbol": "n_cond",
           "name": "conductor_count",
           "unit": "-",
-          "role": "geometry",
-          "description": "1 for a plain halo, 2 for a folded halo",
-          "typical": "1"
+          "role": "assumption",
+          "description": "Number of parallel conductors: 1 for a plain halo, 2 for a folded one. Defaults to a plain halo, which is the thing the name usually means.",
+          "typical": "1.0"
         },
         {
           "symbol": "sigma",
@@ -2374,15 +2374,6 @@
       ],
       "synthesis": [
         {
-          "output": "Lc",
-          "expr": "0.47*c/f0",
-          "units_out": "m",
-          "notes": "Total conductor length. A straight thin dipole resonates near 0.47-0.48*lambda; bending it into a ring and adding the gap capacitance pulls it a little shorter still, so 0.46-0.48 is the practical trim range. LOW CONFIDENCE on the third digit -- build it long and trim.",
-          "depends_on": [
-            "f0"
-          ]
-        },
-        {
           "output": "Dm",
           "expr": "0.5*c/(pi*f0)",
           "units_out": "m",
@@ -2408,47 +2399,104 @@
           "depends_on": [
             "f0"
           ]
+        },
+        {
+          "output": "gap_over_lambda",
+          "expr": "g*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "g",
+            "f0"
+          ]
+        },
+        {
+          "output": "thickness_parameter",
+          "expr": "2*log(circumference_m/b)",
+          "units_out": "-",
+          "depends_on": [
+            "circumference_m",
+            "b"
+          ],
+          "notes": "Omega on the NOMINAL 0.5*lambda ring, so it depends only on the inputs and nothing here is circular."
+        },
+        {
+          "output": "resonant_circumference_m",
+          "expr": "(((0.14040983) + (0.046005502)*thickness_parameter**1 + (-0.0016201234)*thickness_parameter**2 + (4.026942)*gap_over_lambda**1 + (-0.15831652)*gap_over_lambda**1*thickness_parameter**1 + (-17.809651)*gap_over_lambda**2))*(c/f0)",
+          "units_out": "m",
+          "depends_on": [
+            "gap_over_lambda",
+            "thickness_parameter",
+            "f0"
+          ],
+          "notes": "Ring circumference at which the bent dipole's reactance crosses zero: 0.460 to 0.508 lambda over the gaps and tubing here. The nominal 0.5 lambda sits near the top of that band, so it is about right for a wide gap on thin wire and up to 8% too big for a narrow gap on tubing. Note which way a gap capacitor moves this: adding capacitance end-loads the dipole and makes the ring SMALLER, so a capacitively tuned halo is under 0.5 lambda, not over. Worst fit error 0.19%. Method of moments (otahub/num/mom.py) on the bent open wire the halo actually is. The bent-wire path is checked by continuity: at zero bend `arc` reproduces `dipole` to every digit, and the dipole is already validated two ways, so following the bend round from straight to almost-closed never leaves validated ground. The gap is modelled as the real air gap it is, not as a lumped capacitor; a lumped load at the same place agrees on the resistance to four figures."
+        },
+        {
+          "output": "Lc",
+          "expr": "resonant_circumference_m - g",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_circumference_m",
+            "g"
+          ],
+          "notes": "Conductor length = ring circumference MINUS the gap. This spec used to synthesise 0.47*lambda alongside a 0.5*lambda ring and a 0.015*lambda gap, which do not add up: 0.47 + 0.015 = 0.485, not 0.5. The gap had been subtracted twice."
+        },
+        {
+          "output": "resonant_mean_diameter_m",
+          "expr": "resonant_circumference_m/pi",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_circumference_m"
+          ]
         }
       ],
       "analysis": [
         {
           "metric": "input_resistance_ohm",
-          "expr": "15.0*n_cond**2",
+          "expr": "(((-16.645432) + (3.7610922)*thickness_parameter**1 + (-0.13293624)*thickness_parameter**2 + (314.11654)*gap_over_lambda**1 + (-10.783393)*gap_over_lambda**1*thickness_parameter**1 + (-1229.0127)*gap_over_lambda**2))*n_cond**2",
           "units_out": "ohm",
-          "notes": "Plain halo (n_cond = 1): ~15 ohm, roughly a fifth of a straight dipole's 73 ohm because the bent halves' currents partially cancel. Folded halo (n_cond = 2): x4 to ~60 ohm, the standard folded-dipole impedance step for equal-diameter conductors. LOW CONFIDENCE: published values span 10-25 ohm unfolded.",
           "depends_on": [
+            "gap_over_lambda",
+            "thickness_parameter",
             "n_cond"
-          ]
+          ],
+          "notes": "At resonance: 9.6 to 13.9 ohm for a single conductor, against the flat 15 ohm this spec asserted, which is 8 to 56% high and 32% high at a typical gap and tubing. The spec's REASONING was right though - it is about a fifth of a dipole's 73 ohm because the bent halves' currents partly cancel, and following the bend continuously shows exactly that, 69 ohm straight falling to 11 ohm almost closed. The n_cond squared folding ratio is kept: the same solver reproduces a folded dipole's 4:1 to 0.4%. Worst fit error 0.56%. Method of moments (otahub/num/mom.py) on the bent open wire the halo actually is. The bent-wire path is checked by continuity: at zero bend `arc` reproduces `dipole` to every digit, and the dipole is already validated two ways, so following the bend round from straight to almost-closed never leaves validated ground. The gap is modelled as the real air gap it is, not as a lumped capacitor; a lumped load at the same place agrees on the resistance to four figures."
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "15.0*n_cond**2 + 0.0j",
+          "expr": "input_resistance_ohm + 0.0j",
           "units_out": "ohm",
-          "notes": "At the gap-tuned resonance the reactance is nulled by construction; off resonance X moves fast because Q is high for the size.",
           "depends_on": [
-            "n_cond"
-          ]
+            "input_resistance_ohm"
+          ],
+          "notes": "Resistive by definition at the resonant circumference."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "1.0",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Peak directivity in the plane of the ring. LOW CONFIDENCE: published free-space NEC results for halos run roughly 0 to 2 dBi peak. It must be below the 2.15 dBi of the straight dipole it was bent from, and above about -1 dBi.",
-          "depends_on": []
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "azimuth_ripple_db",
-          "expr": "1.5",
+          "expr": "directivity_dbi - gain_min_azimuth_dbi",
           "units_out": "dB",
-          "notes": "Peak-to-null variation around the horizon; 1-2 dB is typical, with the shallow null looking toward the gap.",
-          "depends_on": []
+          "depends_on": [
+            "directivity_dbi",
+            "gain_min_azimuth_dbi"
+          ],
+          "notes": "Peak-to-null variation round the horizon: 2.7 to 3.3 dB, roughly DOUBLE the 1.5 dB this spec asserted. The shallow null looks towards the gap. A halo is meaningfully less omnidirectional than it is usually sold as, and this is now derived rather than assumed."
         },
         {
           "metric": "gain_min_azimuth_dbi",
-          "expr": "1.0 - 1.5",
+          "expr": "db10(((1.4843604) + (-0.11113662)*thickness_parameter**1 + (0.0039326478)*thickness_parameter**2 + (-9.6283295)*gap_over_lambda**1 + (0.39550234)*gap_over_lambda**1*thickness_parameter**1 + (48.325433)*gap_over_lambda**2))",
           "units_out": "dBi",
-          "notes": "Worst-case azimuth gain = peak minus ripple; this is the number that matters for an omnidirectional link budget.",
-          "depends_on": []
+          "depends_on": [
+            "gap_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "Worst-case gain round the horizon - the number an omnidirectional link budget actually runs on, as this spec's own note says. It is -1.4 to -2.1 dBi, not the -0.5 the spec asserted, so the old figure was 1 to 1.6 dB OPTIMISTIC in exactly the place it matters. Worst fit error 0.29%. Method of moments (otahub/num/mom.py) on the bent open wire the halo actually is. The bent-wire path is checked by continuity: at zero bend `arc` reproduces `dipole` to every digit, and the dipole is already validated two ways, so following the bend round from straight to almost-closed never leaves validated ground. The gap is modelled as the real air gap it is, not as a lumped capacitor; a lumped load at the same place agrees on the resistance to four figures."
         },
         {
           "metric": "loss_resistance_ohm",
@@ -2465,26 +2513,22 @@
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "15.0*n_cond**2/(15.0*n_cond**2 + (Lc/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "expr": "input_resistance_ohm/(input_resistance_ohm + loss_resistance_ohm)",
           "units_out": "-",
-          "notes": "e_cd = Rin/(Rin + Rloss). Low Rin makes a halo noticeably more loss-sensitive than a dipole.",
           "depends_on": [
-            "n_cond",
-            "Lc",
-            "b",
-            "f0",
-            "mu_r_c",
-            "sigma"
-          ]
+            "input_resistance_ohm",
+            "loss_resistance_ohm"
+          ],
+          "notes": "Low Rin makes a halo noticeably more loss-sensitive than a dipole, and more so than the old 15 ohm implied."
         },
         {
           "metric": "matching_transformer_ratio",
-          "expr": "50.0/(15.0*n_cond**2)",
+          "expr": "50.0/input_resistance_ohm",
           "units_out": "-",
-          "notes": "Impedance ratio a matching network must supply to reach 50 ohm: 3.33:1 for a plain halo, 0.83:1 for a folded one (i.e. the folded halo is already close).",
           "depends_on": [
-            "n_cond"
-          ]
+            "input_resistance_ohm"
+          ],
+          "notes": "Impedance ratio a matching network must supply to reach 50 ohm. Nearer 4.4:1 than the 3.33:1 the old 15 ohm gave."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -2501,92 +2545,125 @@
           "units_out": "-",
           "notes": "Placeholder numeric. Physically: horizontal when the ring is mounted horizontally -- that is the whole point of a halo, matching horizontally polarised VHF weak-signal practice.",
           "depends_on": []
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "(1.4582508) + (-0.016144352)*thickness_parameter**1 + (0.00055713075)*thickness_parameter**2 + (-2.5372217)*gap_over_lambda**1 + (0.1061082)*gap_over_lambda**1*thickness_parameter**1 + (14.388994)*gap_over_lambda**2",
+          "units_out": "-",
+          "depends_on": [
+            "gap_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "Peak, which is IN the plane of the ring: the horizon maximum is the global maximum to 0.006%, so a halo really is a horizon antenna and not merely sold as one. 1.21 to 1.27 dBi, against the 1.0 this spec assumed - close, and inside the 0 to 2 dBi its note claimed. Worst fit error 0.04%. Method of moments (otahub/num/mom.py) on the bent open wire the halo actually is. The bent-wire path is checked by continuity: at zero bend `arc` reproduces `dipole` to every digit, and the dipole is already validated two ways, so following the bend round from straight to almost-closed never leaves validated ground. The gap is modelled as the real air gap it is, not as a lumped capacitor; a lumped load at the same place agrees on the resistance to four figures."
         }
       ],
       "validity": [
-        "geometry constants (0.47*lambda conductor, 0.159*lambda diameter) are reliable to a few percent; the electrical constants are NOT design-grade",
-        "gap capacitance dominates tuning and is not modelled; every halo needs bench trimming or NEC modelling",
-        "requires a matching network (gamma, hairpin/beta) unless folded",
-        "mounting mast and boom sit inside the near field and shift resonance by several percent",
-        "not valid as a general loop model -- do not apply small-loop or full-wave-loop formulas to this structure",
-        "free space; a halo less than 0.25*lambda above ground loses its omnidirectional azimuth pattern"
+        "free space, bare conductor, no lumped tuning capacitor: the gap is modelled as the real air gap it is",
+        "the fits cover gap 0.005 to 0.03 lambda and conductor radius 0.001 to 0.005 lambda, with gap >= 3 radii so the open ends do not overlap",
+        "resistance carries about 1% of mesh sensitivity: 72 segments give 11.33 ohm where 120 give 11.23 at a typical geometry, and the directivity is stable to 0.05% over the same refinement",
+        "a gap capacitor makes a halo SMALLER, not larger - it end-loads the dipole. A 0.5 lambda ring cannot be series-resonated by a capacitor opposite the feed at all; the only zero crossing there is a parallel antiresonance at about 25 kilohm",
+        "delta-gap feed, lossless conductor, reduced thin-wire kernel, no end caps on the open ends - the end capacitance is therefore under-modelled",
+        "horizontal polarisation is exact here, not approximate: the horizon field is 100.000% E_phi at every azimuth",
+        "n_cond = 2 uses the folded-dipole 4:1 ratio; the folded halo's geometry is not solved directly",
+        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
       ],
       "known_cases": [
-        {
-          "given": {
-            "f0": 146000000.0
-          },
-          "expect": {
-            "Lc_m": 0.9650853,
-            "Dm_m": 0.326836,
-            "circumference_m": 1.0266865
-          },
-          "tol_pct": 3.0,
-          "source": "2 m halo: mean diameter 0.3268 m = 12.87 in, matching commercial 2 m halos of 12-13 in"
-        },
         {
           "given": {
             "f0": 50100000.0
           },
           "expect": {
-            "Lc_m": 2.8124243,
-            "Dm_m": 0.9523766
+            "Dm": 0.9523643,
+            "circumference_m": 2.991941
           },
-          "tol_pct": 3.0,
-          "source": "6 m halo: mean diameter 0.9524 m = 37.5 in, matching commercial 6 m halos of 36-40 in"
+          "tol_pct": 0.1,
+          "source": "Nominal ring: half a wavelength of conductor bent round, so the mean circumference is lambda/2 = 2.991941 m at 50.10 MHz and the mean diameter is that over pi. These are the STARTING geometry; resonant_circumference_m is what actually resonates, and it lands within about 8% of this - smaller for a narrow gap, very slightly larger for a wide one on thin wire."
         },
         {
           "given": {
-            "n_cond": 1.0
+            "f0": 146000000.0
           },
           "expect": {
-            "input_resistance_ohm": 15.0,
-            "matching_transformer_ratio": 3.3333333
+            "Dm": 0.3268045,
+            "circumference_m": 1.026687
           },
-          "tol_pct": 60.0,
-          "source": "Plain halo feed resistance; published NEC values span roughly 10-25 ohm, hence the wide tolerance"
-        },
-        {
-          "given": {
-            "n_cond": 2.0
-          },
-          "expect": {
-            "input_resistance_ohm": 60.0
-          },
-          "tol_pct": 50.0,
-          "source": "Folded halo: the folded-dipole 4:1 step for equal-diameter conductors takes ~15 ohm to ~60 ohm, near 50 ohm without a matching network"
-        },
-        {
-          "given": {},
-          "expect": {
-            "directivity_dbi": 1.0,
-            "gain_min_azimuth_dbi": -0.5
-          },
-          "tol_pct": 100.0,
-          "source": "LOW CONFIDENCE placeholder; bounded above by the 2.15 dBi of the dipole the halo is bent from"
+          "tol_pct": 0.1,
+          "source": "Nominal ring: half a wavelength of conductor bent round, so the mean circumference is lambda/2 = 1.026687 m at 146.00 MHz and the mean diameter is that over pi. These are the STARTING geometry; resonant_circumference_m is what actually resonates, and it lands within about 8% of this - smaller for a narrow gap, very slightly larger for a wide one on thin wire."
         },
         {
           "given": {
             "f0": 146000000.0,
-            "Lc": 0.9650853,
-            "b": 0.00476,
+            "g": 0.030800595,
+            "b": 0.0041067460000000005,
+            "n_cond": 1.0
+          },
+          "expect": {
+            "resonant_circumference_m": 0.9877751,
+            "Lc": 0.9569745,
+            "input_resistance_ohm": 11.32597,
+            "directivity_linear": 1.330665,
+            "azimuth_ripple_db": 2.988899
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments on the open bent wire at gap = 0.015 lambda, conductor radius 0.002 lambda: the reactance crosses zero at a ring circumference of 0.48116 lambda with R = 11.33 ohm for a single conductor, peak directivity 1.240 dBi in the plane of the ring, and a horizon minimum of -1.750 dBi - an azimuth ripple of 2.990 dB. This spec used to assert 15 ohm, 1.0 dBi, a 1.5 dB ripple and a -0.5 dBi worst case."
+        },
+        {
+          "given": {
+            "f0": 50100000.0,
+            "g": 0.059838813972055885,
+            "b": 0.017951644191616767,
+            "n_cond": 1.0
+          },
+          "expect": {
+            "resonant_circumference_m": 2.775388,
+            "Lc": 2.715549,
+            "input_resistance_ohm": 9.83536,
+            "directivity_linear": 1.338314,
+            "azimuth_ripple_db": 2.765543
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments on the open bent wire at gap = 0.01 lambda, conductor radius 0.003 lambda: the reactance crosses zero at a ring circumference of 0.46382 lambda with R = 9.84 ohm for a single conductor, peak directivity 1.266 dBi in the plane of the ring, and a horizon minimum of -1.501 dBi - an azimuth ripple of 2.766 dB. This spec used to assert 15 ohm, 1.0 dBi, a 1.5 dB ripple and a -0.5 dBi worst case."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "g": 0.06160119,
+            "b": 0.0020533730000000003,
+            "n_cond": 2.0
+          },
+          "expect": {
+            "resonant_circumference_m": 1.042464,
+            "Lc": 0.980863,
+            "input_resistance_ohm": 55.44719,
+            "directivity_linear": 1.320056,
+            "azimuth_ripple_db": 3.333641
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments on the open bent wire at gap = 0.03 lambda, conductor radius 0.001 lambda: the reactance crosses zero at a ring circumference of 0.50827 lambda with R = 13.90 ohm for a single conductor, peak directivity 1.205 dBi in the plane of the ring, and a horizon minimum of -2.138 dBi - an azimuth ripple of 3.343 dB. This spec used to assert 15 ohm, 1.0 dBi, a 1.5 dB ripple and a -0.5 dBi worst case."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "Lc": 0.9518972891105336,
+            "g": 0.030800595,
+            "b": 0.0047638253600000005,
             "n_cond": 1.0,
             "sigma": 35400000.0,
             "mu_r_c": 1.0
           },
           "expect": {
-            "loss_resistance_ohm": 0.1302068,
-            "radiation_efficiency": 0.9913943
+            "loss_resistance_ohm": 0.1283243
           },
-          "tol_pct": 3.0,
-          "source": "3/8 in aluminium tubing (b = 4.76 mm, sigma = 3.54e7 S/m) at 146 MHz: skin depth 7.00 um, Rs = 4.0351e-3 ohm/sq (= 1/(sigma*delta)), giving R_loss = 0.130 ohm against a 15 ohm feed, e_cd = 0.991. Balanis 4th ed. eq. 5-24."
+          "tol_pct": 0.5,
+          "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.0040351 ohm/square for aluminium at 146 MHz, over Lc/(2*pi*b) = 31.802 squares. Against the derived 11.12 ohm the efficiency is 0.98859, where the old 15 ohm denominator flattered it to 0.99152."
         }
       ],
       "references": [
         "ARRL Antenna Book, 24th ed., Ch. 15 (VHF/UHF antennas: halos, squalos, horizontally polarised omnis)",
         "Balanis, Antenna Theory, 4th ed., Ch. 4 (folded dipole impedance step) and Ch. 5",
         "Sorrentino/Bianchi and general folded-dipole theory for the n_cond^2 impedance ratio",
-        "Marked LOW CONFIDENCE: the electrical constants here are consensus values from published NEC models and commercial datasheets, not from a closed-form derivation"
+        "Marked LOW CONFIDENCE: the electrical constants here are consensus values from published NEC models and commercial datasheets, not from a closed-form derivation",
+        "Resonant ring size, resistance, directivity and azimuth ripple derived here by method of moments on the bent open wire"
       ]
     },
     {
