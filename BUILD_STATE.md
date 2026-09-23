@@ -1051,9 +1051,57 @@ thin-wire solver cannot reach any of them. `ferrite_rod_loop` needs a ferrite
 material model besides. That is a limit worth stating plainly rather than
 leaving as an open task that looks actionable and is not.
 
+## Four asserted Q values, three of them derived and one explained
+
+A sweep for bandwidth metrics found four reaching their answer through
+`1.0/(Q_meas*sqrt(2))` with Q simply asserted, all in the loop family. With
+last round's machinery three of them are solvable.
+
+The circular loop got three routes, because it is the one shape here with a
+modal solution: the MoM's direct VSWR walk, the MoM's Q-derivative, and the
+Fourier-mode solver's own walk. They agree to 0.38% between the two SOLVERS and
+0.76% including the Q route. That is worth more than any single number.
+
+- `one_wavelength_circular_loop`: 7.6% to 16.7%, against 5.89% from an assumed
+  Q of 12. Real Q is 9.3 down to 4.3, so the old figure was up to 65% low.
+- `quad_loop_square`: 7.0% to 15.6%, against 5.05% from an assumed Q of 14.
+  Real Q 10.2 down to 4.6, up to 67% low.
+- `halo_loop`: 1.70% to 2.98%, against 2.83% from an assumed Q of 25. This one
+  erred the OTHER way - the halo is genuinely higher-Q than 25 over most of its
+  range, up to 42, so the assumption promised bandwidth the antenna does not
+  have. Worth noting that two assumptions in the same family, written by the
+  same hand, were wrong in opposite directions; there was no systematic bias to
+  correct for, just three guesses.
+
+`Q_meas` is gone as an input from all three. A number the solver can produce
+should not be something the user is asked to supply.
+
+## The one that could not be derived, and why that is the interesting one
+
+`alford_loop` keeps its assumed Q, and its notes now say so in as many words.
+Its bandwidth is set by the folded, capacitively loaded corner sections that
+force the current uniform - and that network is not part of the geometry this
+spec describes. Fitting a number to the bare square would have looked exactly
+like the other three and meant nothing.
+
+What CAN be checked about it was, and both results were worth having:
+
+- The equal-area circular equivalence its whole model rests on is far better
+  than the "good to a few percent" its own validity note claimed. Against a
+  uniform-current solve of the actual square it is within 0.73% on radiation
+  resistance and 0.08% on directivity over perimeters 0.5 to 1.0 lambda,
+  worsening monotonically with size exactly as it should.
+- The asserted 0.5 dB azimuth ripple is not a property of the shape at all.
+  With the current actually uniform, a square loop's horizon pattern is flat to
+  0.001 dB at half a wavelength and 0.010 dB at a full one - fifty times
+  smaller. So the ENTIRE ripple budget is how well the corner loading does its
+  job. That is a more useful thing for a builder to know than the 0.5 was, and
+  it only turned up because the ideal case was computed rather than assumed to
+  be roughly the real one.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1820 tests, 495/495 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1845 tests, 506/506 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

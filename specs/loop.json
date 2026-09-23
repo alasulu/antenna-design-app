@@ -1667,14 +1667,6 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
-        },
-        {
-          "symbol": "Q_meas",
-          "name": "measured_q",
-          "unit": "-",
-          "role": "material",
-          "description": "Measured/assumed resonator Q used for the bandwidth estimate",
-          "typical": "12.0"
         }
       ],
       "synthesis": [
@@ -1815,21 +1807,21 @@
         },
         {
           "metric": "quality_factor",
-          "expr": "Q_meas",
+          "expr": "(0.00042969425)*thickness_parameter**3 + (-0.022687982)*thickness_parameter**2 + (1.1214656)*thickness_parameter**1 + (-6.5019591)",
           "units_out": "-",
-          "notes": "Resonator Q. Thin-wire full-wave loops measure Q ~ 10-20; the default 12 corresponds to a 2:1 SWR bandwidth of ~5.9%. LOW CONFIDENCE.",
           "depends_on": [
-            "Q_meas"
-          ]
+            "thickness_parameter"
+          ],
+          "notes": "Derived from |dZ/dw| at resonance rather than assumed: 4.27 to 9.27, against the flat 12 this spec took as an input. Worst fit error 0.03%."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "expr": "(-0.00018430772)*thickness_parameter**3 + (0.0099061151)*thickness_parameter**2 + (-0.18452032)*thickness_parameter**1 + (1.2670955)",
           "units_out": "-",
-          "notes": "FBW(VSWR<=2) = 0.7071/Q. With Q = 12 this is 5.9%. LOW CONFIDENCE -- verify by simulation for any real build.",
           "depends_on": [
-            "Q_meas"
-          ]
+            "thickness_parameter"
+          ],
+          "notes": "7.6% to 16.7% over the wire gauges here, against the 5.89% this spec produced from an ASSUMED Q of 12 - so the old figure was up to 183% low. The real Q runs 9.3 down to 4.3. Worst fit error 0.43%. Computed, not assumed: the VSWR = 2 window about resonance, walked out from the solved impedance and referenced to the antenna's own resonant resistance. Cross-checked against the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw|, which shares no algebra with the walk."
         },
         {
           "metric": "polarisation",
@@ -1847,7 +1839,7 @@
         "balanced feed required; coax without a balun puts current on the shield and skews the pattern",
         "delta-gap feed, lossless conductor, infinite-thin-wire kernel: a real feed with a balun and a finite gap will not land exactly here",
         "the uniform-current small-loop formulas (Rr = 20*pi^2*(C/lambda)^4, D = 1.5) DO NOT apply at this size and would err by an order of magnitude and by 90 degrees in pattern orientation",
-        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
+        "bandwidth is referenced to the antenna's OWN resonant resistance, so it is a best case: feeding it from a fixed line adds its own mismatch"
       ],
       "known_cases": [
         {
@@ -1871,16 +1863,6 @@
           },
           "tol_pct": 0.5,
           "source": "Same rule at 14.2 MHz (lambda = 21.1121 m)"
-        },
-        {
-          "given": {
-            "Q_meas": 12.0
-          },
-          "expect": {
-            "fractional_bandwidth_vswr2": 0.0589256
-          },
-          "tol_pct": 2.0,
-          "source": "FBW = (s-1)/(Q*sqrt(s)); Yaghjian & Best 2005. Q = 12 is an assumed typical value"
         },
         {
           "given": {
@@ -1939,6 +1921,30 @@
           },
           "tol_pct": 0.5,
           "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.00451884 ohm/square for copper at 300 MHz; over C/(2*pi*b) = 173.3589 squares that is 0.78338 ohm. Against the derived 142.69 ohm radiation resistance the efficiency is 0.994540. The old case used a 100 ohm denominator and so under-stated the efficiency by +0.23%."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.001
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.1198793,
+            "quality_factor": 5.920807
+          },
+          "tol_pct": 1.5,
+          "source": "Method of moments at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.488% wide and the antenna Q from |dZ/dw| is 6.182, the two agreeing to 0.43%. This spec used to produce its bandwidth from an assumed Q instead."
+        },
+        {
+          "given": {
+            "f0": 14200000.0,
+            "b": 0.02
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.1181973,
+            "quality_factor": 6.001757
+          },
+          "tol_pct": 1.5,
+          "source": "Method of moments at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 11.488% wide and the antenna Q from |dZ/dw| is 6.182, the two agreeing to 0.43%. This spec used to produce its bandwidth from an assumed Q instead."
         }
       ],
       "references": [
@@ -2007,14 +2013,6 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
-        },
-        {
-          "symbol": "Q_meas",
-          "name": "measured_q",
-          "unit": "-",
-          "role": "material",
-          "description": "Measured/assumed resonator Q for the bandwidth estimate",
-          "typical": "14.0"
         }
       ],
       "synthesis": [
@@ -2173,12 +2171,12 @@
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "expr": "(-0.00017944018)*thickness_parameter**3 + (0.0095679396)*thickness_parameter**2 + (-0.17665818)*thickness_parameter**1 + (1.1988314)",
           "units_out": "-",
-          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 14 gives 5.05%. LOW CONFIDENCE -- measured HF wire quads are often narrower (2-4%).",
           "depends_on": [
-            "Q_meas"
-          ]
+            "thickness_parameter"
+          ],
+          "notes": "7.0% to 15.6% over the wire gauges here, against the 5.05% this spec produced from an ASSUMED Q of 14 - so the old figure was up to 208% low. The real Q runs 10.2 down to 4.6. Worst fit error 0.49%. Computed, not assumed: the VSWR = 2 window about resonance, walked out from the solved impedance and referenced to the antenna's own resonant resistance. Cross-checked against the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw|, which shares no algebra with the walk."
         },
         {
           "metric": "directivity_linear",
@@ -2188,6 +2186,15 @@
             "thickness_parameter"
           ],
           "notes": "Broadside to the loop plane, at the free-space resonant perimeter, integrated from the solved current. The 3.3 dBi this spec used to assert turns out to be essentially EXACT on thin wire - 3.299 dBi at b = 1e-4 lambda - and only 2.1% low on the fattest conductor here. Of the loop family's asserted constants this was the one that held up. Worst fit error 0.065%. Method of moments (otahub/num/mom.py). A square has no modal solution to check it against, so the verification is by continuity: a regular N-gon of the same perimeter converges to the circle, and the circle HAS an independent Fourier-mode solution. At 96 sides the polygon gives 136.46 - 21.26j where the modal circle gives 137.07 - 19.36j, so the corner handling, the non-collinear segments and the closed-loop wrap are all anchored to something outside this solver - and the square is simply N = 4 of that same sequence."
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "(0.0003381452)*thickness_parameter**3 + (-0.017455484)*thickness_parameter**2 + (1.1149223)*thickness_parameter**1 + (-6.58801)",
+          "units_out": "-",
+          "depends_on": [
+            "thickness_parameter"
+          ],
+          "notes": "Derived from |dZ/dw| at resonance: 4.58 to 10.17. Worst fit error 0.02%."
         }
       ],
       "validity": [
@@ -2197,7 +2204,7 @@
         "delta-gap feed, lossless conductor, reduced thin-wire kernel",
         "balanced feed required; coax without a balun skews the pattern",
         "a real cubical quad has a reflector, which lowers the driven element's resistance substantially - these are free-space driven-element figures",
-        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
+        "bandwidth is referenced to the antenna's OWN resonant resistance, so it is a best case: feeding it from a fixed line adds its own mismatch"
       ],
       "known_cases": [
         {
@@ -2278,6 +2285,30 @@
           },
           "tol_pct": 0.5,
           "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.000983128 ohm/square for copper at 14.2 MHz, over P/(2*pi*b) = 4223.07 squares. Against the derived 124.8 ohm radiation resistance the efficiency is 0.967797, where the old 120 ohm denominator gave 0.966559."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.001
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.1106276,
+            "quality_factor": 6.409669
+          },
+          "tol_pct": 1.5,
+          "source": "Method of moments at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.449% wide and the antenna Q from |dZ/dw| is 6.201, the two agreeing to 0.40%. This spec used to produce its bandwidth from an assumed Q instead."
+        },
+        {
+          "given": {
+            "f0": 14200000.0,
+            "b": 0.02
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.109024,
+            "quality_factor": 6.500166
+          },
+          "tol_pct": 1.5,
+          "source": "Method of moments at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 11.449% wide and the antenna Q from |dZ/dw| is 6.201, the two agreeing to 0.40%. This spec used to produce its bandwidth from an assumed Q instead."
         }
       ],
       "references": [
@@ -2362,14 +2393,6 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
-        },
-        {
-          "symbol": "Q_meas",
-          "name": "measured_q",
-          "unit": "-",
-          "role": "material",
-          "description": "Measured/assumed resonator Q for the bandwidth estimate",
-          "typical": "25.0"
         }
       ],
       "synthesis": [
@@ -2532,12 +2555,13 @@
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "1.0/(Q_meas*np.sqrt(2.0))",
+          "expr": "(0.027783714) + (-0.0011593057)*thickness_parameter**1 + (1.4896684e-05)*thickness_parameter**2 + (0.89885685)*gap_over_lambda**1 + (-0.050048635)*gap_over_lambda**1*thickness_parameter**1 + (-2.0863147)*gap_over_lambda**2",
           "units_out": "-",
-          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 25 gives 2.8%, consistent with a 2 m halo covering ~4 MHz. LOW CONFIDENCE.",
           "depends_on": [
-            "Q_meas"
-          ]
+            "gap_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "1.70% to 2.98% over the gaps and tubing here, against the 2.83% this spec produced from an ASSUMED Q of 25. That assumption ran OPTIMISTIC over most of the range - up to 67% high on a narrow gap and thin wire - which is the opposite direction to the two full-wave loops, whose assumed Q made them look narrower than they are. The real Q is 23.8 to 41.7. Worst fit error 0.77%. Computed, not assumed: the VSWR = 2 window about resonance, walked out from the solved impedance and referenced to the antenna's own resonant resistance. Cross-checked against the antenna Q of Yaghjian and Best, Q = (w0/2R0)|dZ/dw|, which shares no algebra with the walk."
         },
         {
           "metric": "polarisation",
@@ -2555,6 +2579,16 @@
             "thickness_parameter"
           ],
           "notes": "Peak, which is IN the plane of the ring: the horizon maximum is the global maximum to 0.006%, so a halo really is a horizon antenna and not merely sold as one. 1.21 to 1.27 dBi, against the 1.0 this spec assumed - close, and inside the 0 to 2 dBi its note claimed. Worst fit error 0.04%. Method of moments (otahub/num/mom.py) on the bent open wire the halo actually is. The bent-wire path is checked by continuity: at zero bend `arc` reproduces `dipole` to every digit, and the dipole is already validated two ways, so following the bend round from straight to almost-closed never leaves validated ground. The gap is modelled as the real air gap it is, not as a lumped capacitor; a lumped load at the same place agrees on the resistance to four figures."
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "(37.617304) + (-1.6691209)*thickness_parameter**1 + (0.17976035)*thickness_parameter**2 + (-768.5939)*gap_over_lambda**1 + (9.5307196)*gap_over_lambda**1*thickness_parameter**1 + (7562.5737)*gap_over_lambda**2",
+          "units_out": "-",
+          "depends_on": [
+            "gap_over_lambda",
+            "thickness_parameter"
+          ],
+          "notes": "Derived from |dZ/dw| at resonance: 23.8 to 41.7, against the flat 25 this spec assumed. A halo really is a high-Q antenna for its size - roughly five times a full-wave loop's. Worst fit error 0.51%."
         }
       ],
       "validity": [
@@ -2565,8 +2599,7 @@
         "a gap capacitor makes a halo SMALLER, not larger - it end-loads the dipole. A 0.5 lambda ring cannot be series-resonated by a capacitor opposite the feed at all; the only zero crossing there is a parallel antiresonance at about 25 kilohm",
         "delta-gap feed, lossless conductor, reduced thin-wire kernel, no end caps on the open ends - the end capacitance is therefore under-modelled",
         "horizontal polarisation is exact here, not approximate: the horizon field is 100.000% E_phi at every azimuth",
-        "n_cond = 2 uses the folded-dipole 4:1 ratio; the folded halo's geometry is not solved directly",
-        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
+        "n_cond = 2 uses the folded-dipole 4:1 ratio; the folded halo's geometry is not solved directly"
       ],
       "known_cases": [
         {
@@ -2657,6 +2690,32 @@
           },
           "tol_pct": 0.5,
           "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.0040351 ohm/square for aluminium at 146 MHz, over Lc/(2*pi*b) = 31.802 squares. Against the derived 11.12 ohm the efficiency is 0.98859, where the old 15 ohm denominator flattered it to 0.99152."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "g": 0.030800595,
+            "b": 0.0041067460000000005
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.02152137,
+            "quality_factor": 32.85779
+          },
+          "tol_pct": 2.0,
+          "source": "Method of moments at gap 0.015 lambda, radius 0.002 lambda: the VSWR = 2 window is 2.157% and Q from |dZ/dw| is 32.80, agreeing to 0.03%. The assumed Q of 25 this spec used gave 2.83%."
+        },
+        {
+          "given": {
+            "f0": 50100000.0,
+            "g": 0.17951644191616764,
+            "b": 0.017951644191616767
+          },
+          "expect": {
+            "fractional_bandwidth_vswr2": 0.0272064,
+            "quality_factor": 26.03269
+          },
+          "tol_pct": 2.0,
+          "source": "Method of moments at gap 0.03 lambda, radius 0.003 lambda: the VSWR = 2 window is 2.712% and Q from |dZ/dw| is 26.09, agreeing to 0.05%. The assumed Q of 25 this spec used gave 2.83%."
         }
       ],
       "references": [
@@ -2904,7 +2963,7 @@
           "metric": "azimuth_ripple_db",
           "expr": "0.5",
           "units_out": "dB",
-          "notes": "Ideal uniform current gives a perfectly circular azimuth pattern; practical folded-corner Alford loops measure 0.3-1.0 dB of ripple.",
+          "notes": "INDICATIVE, and now known to be entirely an allowance for imperfect current forcing rather than a property of the shape. With the current actually uniform, a square loop's horizon pattern is flat to 0.010 dB at a 1.0 lambda perimeter and 0.001 dB at 0.5 - fifty times smaller than the 0.5 dB carried here. So all of this budget is how well the folded, capacitively loaded corners do their job, which this spec does not model and cannot predict. Computed by prescribing a uniform current on the actual square geometry.",
           "depends_on": []
         },
         {
@@ -2921,7 +2980,7 @@
           "metric": "fractional_bandwidth_vswr2",
           "expr": "1.0/(Q_meas*np.sqrt(2.0))",
           "units_out": "-",
-          "notes": "FBW(VSWR<=2) = 0.7071/Q. Q = 20 gives 3.5%. LOW CONFIDENCE -- real Alford loop bandwidth is set by the corner-loading network, which can be made broader.",
+          "notes": "ASSUMED Q, and unlike its three neighbours in this family it cannot be derived here. The other loops' bandwidths are now solved, but an Alford loop's is set by the corner loading network that forces the current uniform, and that network is not part of the geometry this spec describes. Stated as an assumption rather than quietly fitted.",
           "depends_on": [
             "Q_meas"
           ]
@@ -2930,7 +2989,7 @@
       "validity": [
         "ka_equiv < 1.8412 -- above J1's first maximum the pattern peak leaves the loop plane and the antenna is no longer usefully omnidirectional",
         "current must actually be uniform and in phase; this is engineered by the folded, capacitively loaded corner sections and is NOT automatic for a loop of this size",
-        "the equal-area circular equivalence is good to a few percent up to ka ~ 1 and degrades beyond",
+        "the equal-area circular equivalence is better than the 'few percent' previously claimed: against a uniform-current solve of the actual square it is within 0.73% on radiation resistance and 0.08% on directivity over perimeters 0.5 to 1.0 lambda, worsening monotonically with size as expected",
         "feed impedance is set by the corner-loading and matching network, not by Rr alone -- Rr here is the radiation resistance referred to the uniform loop current",
         "free space; horizontal polarisation requires a horizontal loop plane and at least ~0.25*lambda of clearance",
         "does not model the cross-polarised radiation from the corner sections (typically -15 to -20 dB)"

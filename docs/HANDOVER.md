@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1820 tests, 495/495 citable
+6,031 lines of Python, 14,835 lines of spec data, 1845 tests, 506/506 citable
 known cases passing.**
 
 ---
@@ -153,6 +153,8 @@ being written into a spec.
 | `quad_loop_square` | Resonant perimeter, resistance and directivity vs conductor thickness | Anchored to the circle's modal solution through an N-gon sequence (96-sided polygon 136.46 Ω against the modal circle's 137.07); replaces a 1.0218λ perimeter that is not resonant in free space at all |
 | `halo_loop` | Resonant ring size, resistance, peak directivity and azimuth ripple | Bent-wire MoM anchored by continuity to the straight dipole; the ripple is 2.7–3.3 dB against an asserted 1.5, and the spec's conductor length subtracted the gap twice |
 | `folded_dipole` | Resonant length, resistance, directivity and a COMPUTED VSWR bandwidth | Bandwidth found twice, directly and via the Yaghjian–Best antenna Q, agreeing to 2%; the 4:1 step-up confirmed to 3.949–4.021 between resonances, and shown NOT to hold at fixed frequency |
+| Loop family bandwidth and Q | VSWR-2 windows and antenna Q for the full-wave circular loop, the quad and the halo | Three routes on the circular loop — MoM walk, MoM Q-derivative, and the independent modal solver's own walk — agreeing to under 1%; replaces four asserted Q values, three of which were 23–67% wrong |
+| `alford_loop` | Equal-area circle equivalence, and the true ripple of a uniform-current square | Within 0.73% on resistance and 0.08% on directivity, far better than the “few percent” claimed; ideal ripple 0.01 dB against an asserted 0.5 |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -234,6 +236,13 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   and its shadowing at angle.
 
 ### Metrics labelled "indicative"
+
+Bandwidth used to be the largest single group of these. Four loop archetypes
+reached it only through an asserted Q; three are now solved, and the fourth,
+`alford_loop`, keeps its assumption **and says so in the metric's own notes**,
+because its bandwidth is set by a corner-loading network the spec does not
+describe. That is the pattern to follow: derive it, or state plainly that it
+cannot be derived and why — never quietly fit something that looks derived.
 
 Several archetypes carry bandwidth, front-to-back or directivity figures that
 are engineering rules of thumb rather than derived results. Every one says so
