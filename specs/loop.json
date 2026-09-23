@@ -1952,7 +1952,7 @@
     {
       "key": "quad_loop_square",
       "name": "Resonant square loop (quad element)",
-      "summary": "Full-wave square loop fed at the centre of one side, the driven element of a cubical quad; ~1.02 lambda perimeter, ~120 ohm feed, ~3.3 dBi broadside.",
+      "summary": "Full-wave square loop fed at the centre of one side, the driven element of a cubical quad. In free space it resonates at 1.05-1.14 lambda depending on wire gauge, into 124-140 ohm, with 3.27-3.49 dBi broadside.",
       "freq_range_hz": [
         1000000.0,
         3000000000.0
@@ -2053,43 +2053,80 @@
           "depends_on": [
             "f0"
           ]
+        },
+        {
+          "output": "thickness_parameter",
+          "expr": "2*log(P/b)",
+          "units_out": "-",
+          "depends_on": [
+            "P",
+            "b"
+          ],
+          "notes": "Omega = 2*ln(P/b), the loop thickness parameter written for a square, with P the NOMINAL perimeter so it depends only on the inputs. Everything that varies with conductor fatness is a function of this one number."
+        },
+        {
+          "output": "resonant_perimeter_m",
+          "expr": "(((-0.00010779826)*thickness_parameter**3 + (0.006187218)*thickness_parameter**2 + (-0.12258559)*thickness_parameter**1 + (1.8943441)))*(c/f0)",
+          "units_out": "m",
+          "depends_on": [
+            "thickness_parameter",
+            "f0"
+          ],
+          "notes": "Perimeter at which the driving-point reactance crosses zero IN FREE SPACE. The 1.0218*lambda this spec synthesises is the ham-radio 1005/f(MHz) feet rule, which is an empirical figure for insulated HF wire near ground and inside a multi-element array - all of which shorten the resonance. At 1.0218*lambda an isolated bare-wire loop is not resonant at all: it reads 107 - 108j at b = 8e-4 lambda. The free-space resonance is 3.5 to 6.8% longer. Degree-3 fit over thickness_parameter 11.7 to 20.9, worst error 0.090%. Method of moments (otahub/num/mom.py). A square has no modal solution to check it against, so the verification is by continuity: a regular N-gon of the same perimeter converges to the circle, and the circle HAS an independent Fourier-mode solution. At 96 sides the polygon gives 136.46 - 21.26j where the modal circle gives 137.07 - 19.36j, so the corner handling, the non-collinear segments and the closed-loop wrap are all anchored to something outside this solver - and the square is simply N = 4 of that same sequence."
+        },
+        {
+          "output": "resonant_side_m",
+          "expr": "resonant_perimeter_m/4",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_perimeter_m"
+          ]
         }
       ],
       "analysis": [
         {
           "metric": "directivity_dbi",
-          "expr": "3.3",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Broadside to the loop plane. Published range 3.1-3.5 dBi; ~1.15 dB over a half-wave dipole.",
-          "depends_on": []
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "gain_over_dipole_db",
-          "expr": "3.3 - 2.15",
-          "units_out": "dB",
-          "notes": "1.15 dBd.",
-          "depends_on": []
+          "expr": "db10(directivity_linear/1.64093)",
+          "units_out": "dBd",
+          "depends_on": [
+            "directivity_linear"
+          ],
+          "notes": "Against a half-wave dipole's exact 1.64093."
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "120.0 + 0.0j",
+          "expr": "input_resistance_ohm + 0.0j",
           "units_out": "ohm",
-          "notes": "Resistive at resonance; measured free-space quad loops run 100-130 ohm. A quarter-wave 75 ohm line transforms 120 ohm to 47 ohm, which is the classic quad matching stub.",
-          "depends_on": []
+          "depends_on": [
+            "input_resistance_ohm"
+          ],
+          "notes": "Resistive by definition at the resonant perimeter."
         },
         {
           "metric": "input_resistance_ohm",
-          "expr": "120.0",
+          "expr": "(-0.029091982)*thickness_parameter**3 + (1.6148704)*thickness_parameter**2 + (-30.489242)*thickness_parameter**1 + (321.66449)",
           "units_out": "ohm",
-          "notes": "Real part at resonance.",
-          "depends_on": []
+          "depends_on": [
+            "thickness_parameter"
+          ],
+          "notes": "At the free-space resonant perimeter: 124 to 140 ohm. The 120 ohm this spec asserted is 4 to 9% low, which is much closer than the circular loop's 100 ohm was. The circle comes out higher again, 138-151 ohm, which is the right way round: a circle encloses more area than a square of equal perimeter. Worst fit error 0.282%. Method of moments (otahub/num/mom.py). A square has no modal solution to check it against, so the verification is by continuity: a regular N-gon of the same perimeter converges to the circle, and the circle HAS an independent Fourier-mode solution. At 96 sides the polygon gives 136.46 - 21.26j where the modal circle gives 137.07 - 19.36j, so the corner handling, the non-collinear segments and the closed-loop wrap are all anchored to something outside this solver - and the square is simply N = 4 of that same sequence."
         },
         {
           "metric": "matching_stub_z0_ohm",
-          "expr": "np.sqrt(120.0*50.0)",
+          "expr": "sqrt(input_resistance_ohm*50.0)",
           "units_out": "ohm",
-          "notes": "Characteristic impedance of a quarter-wave transformer from 120 ohm to 50 ohm: sqrt(120*50) = 77.5 ohm, which is why RG-11/RG-59 (75 ohm) is the standard quad matching line.",
-          "depends_on": []
+          "depends_on": [
+            "input_resistance_ohm"
+          ],
+          "notes": "Quarter-wave transformer from the loop to 50 ohm. Comes out 79-84 ohm rather than the 77.5 the old 120 ohm figure gave, so 75 ohm cable is still the practical choice but leaves a little more mismatch than the spec implied."
         },
         {
           "metric": "loss_resistance_ohm",
@@ -2106,38 +2143,33 @@
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "120.0/(120.0 + (4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "expr": "input_resistance_ohm/(input_resistance_ohm + loss_resistance_ohm)",
           "units_out": "-",
-          "notes": "e_cd = Rin/(Rin + Rloss). Essentially unity for any practical wire.",
           "depends_on": [
-            "s",
-            "b",
-            "f0",
-            "mu_r_c",
-            "sigma"
-          ]
+            "input_resistance_ohm",
+            "loss_resistance_ohm"
+          ],
+          "notes": "e_cd = Rin/(Rin + Rloss). Essentially unity for practical wire."
         },
         {
           "metric": "gain_dbi",
-          "expr": "3.3 + 10*np.log10(120.0/(120.0 + (4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)))",
+          "expr": "directivity_dbi + db10(radiation_efficiency)",
           "units_out": "dBi",
-          "notes": "G = D0 + 10*log10(e_cd).",
           "depends_on": [
-            "s",
-            "b",
-            "f0",
-            "mu_r_c",
-            "sigma"
-          ]
+            "directivity_dbi",
+            "radiation_efficiency"
+          ],
+          "notes": "G = D0 + 10*log10(e_cd)."
         },
         {
           "metric": "effective_aperture_m2",
-          "expr": "10**0.33*(c/f0)**2/(4*pi)",
+          "expr": "directivity_linear*(c/f0)**2/(4*pi)",
           "units_out": "m^2",
-          "notes": "Ae = D0*lambda^2/(4*pi), lossless.",
           "depends_on": [
+            "directivity_linear",
             "f0"
-          ]
+          ],
+          "notes": "Ae = D0*lambda^2/(4*pi), lossless."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -2147,15 +2179,25 @@
           "depends_on": [
             "Q_meas"
           ]
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "(-0.0001475077)*thickness_parameter**3 + (0.0084265918)*thickness_parameter**2 + (-0.1658552)*thickness_parameter**1 + (3.256372)",
+          "units_out": "-",
+          "depends_on": [
+            "thickness_parameter"
+          ],
+          "notes": "Broadside to the loop plane, at the free-space resonant perimeter, integrated from the solved current. The 3.3 dBi this spec used to assert turns out to be essentially EXACT on thin wire - 3.299 dBi at b = 1e-4 lambda - and only 2.1% low on the fattest conductor here. Of the loop family's asserted constants this was the one that held up. Worst fit error 0.065%. Method of moments (otahub/num/mom.py). A square has no modal solution to check it against, so the verification is by continuity: a regular N-gon of the same perimeter converges to the circle, and the circle HAS an independent Fourier-mode solution. At 96 sides the polygon gives 136.46 - 21.26j where the modal circle gives 137.07 - 19.36j, so the corner handling, the non-collinear segments and the closed-loop wrap are all anchored to something outside this solver - and the square is simply N = 4 of that same sequence."
         }
       ],
       "validity": [
-        "0.95*lambda < P < 1.15*lambda",
-        "fed at the centre of one side (polarisation parallel to that side) or at a corner (45-degree polarisation); the constants here assume side-centre feed",
-        "free space or at least 0.5*lambda above ground; a quad close to ground shifts both resonance and Rin substantially",
-        "balanced feed; use a balun or a symmetric matching stub",
-        "the 1.0218 constant is an empirical amateur-practice rule, not a free-space thin-wire result -- expect to trim",
-        "bandwidth figure derives from an assumed Q"
+        "free space, bare wire, isolated: the 1.0218*lambda nominal perimeter is an empirical figure for insulated HF wire near ground inside a quad array, and is NOT the free-space resonance",
+        "the fits cover thickness_parameter 11.7 to 20.9, i.e. wire radius 3e-5 to 3e-3 lambda",
+        "a THICKER conductor resonates at a LONGER perimeter, 1.0516 lambda at b = 3e-5 rising to 1.1362 at 3e-3",
+        "delta-gap feed, lossless conductor, reduced thin-wire kernel",
+        "balanced feed required; coax without a balun skews the pattern",
+        "a real cubical quad has a reflector, which lowers the driven element's resistance substantially - these are free-space driven-element figures",
+        "bandwidth figure derives from an assumed Q, not from a first-principles calculation"
       ],
       "known_cases": [
         {
@@ -2182,44 +2224,68 @@
           "source": "Same rule at 300 MHz; P/lambda = 1.0218"
         },
         {
-          "given": {},
-          "expect": {
-            "directivity_dbi": 3.3,
-            "gain_over_dipole_db": 1.15
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.001
           },
-          "tol_pct": 10.0,
-          "source": "ARRL Antenna Book Ch. 5: a quad loop runs roughly 1.1-1.35 dB over a dipole"
-        },
-        {
-          "given": {},
           "expect": {
-            "input_resistance_ohm": 120.0,
-            "matching_stub_z0_ohm": 77.4597
+            "thickness_parameter": 13.85726,
+            "resonant_perimeter_m": 1.096134,
+            "input_resistance_ohm": 131.849,
+            "directivity_linear": 2.183672
           },
-          "tol_pct": 25.0,
-          "source": "Free-space quad loop feed resistance 100-130 ohm; 75 ohm quarter-wave stub is the standard match"
+          "tol_pct": 0.5,
+          "source": "Method of moments at b/lambda = 0.0010007: the reactance crosses zero at P = 1.09654 lambda with R = 131.75 ohm, and the far-field integral gives D = 2.18318 (3.391 dBi) broadside. The N-gon sequence anchors this geometry to the circle's independent Fourier-mode solution. This spec used to assert P = 1.0218 lambda, R = 120 ohm and D = 3.3 dBi, which are -6.8%, -8.9% and -2.1% from these."
         },
         {
           "given": {
             "f0": 14200000.0,
-            "s": 5.393028,
+            "b": 0.0016
+          },
+          "expect": {
+            "thickness_parameter": 19.01833,
+            "resonant_perimeter_m": 22.3649,
+            "input_resistance_ohm": 125.7837,
+            "directivity_linear": 2.135269
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments at b/lambda = 7.5786e-05: the reactance crosses zero at P = 1.05873 lambda with R = 125.58 ohm, and the far-field integral gives D = 2.13441 (3.293 dBi) broadside. The N-gon sequence anchors this geometry to the circle's independent Fourier-mode solution. This spec used to assert P = 1.0218 lambda, R = 120 ohm and D = 3.3 dBi, which are -3.5%, -4.4% and +0.2% from these."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "b": 0.0001
+          },
+          "expect": {
+            "thickness_parameter": 18.46243,
+            "resonant_perimeter_m": 1.060977,
+            "input_resistance_ohm": 126.1263,
+            "directivity_linear": 2.138296
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments at b/lambda = 0.00010007: the reactance crosses zero at P = 1.06129 lambda with R = 125.98 ohm, and the far-field integral gives D = 2.13770 (3.299 dBi) broadside. The N-gon sequence anchors this geometry to the circle's independent Fourier-mode solution. This spec used to assert P = 1.0218 lambda, R = 120 ohm and D = 3.3 dBi, which are -3.7%, -4.7% and +0.0% from these."
+        },
+        {
+          "given": {
+            "f0": 14200000.0,
+            "s": 5.393097422260563,
             "b": 0.000813,
             "sigma": 58000000.0,
             "mu_r_c": 1.0
           },
           "expect": {
-            "loss_resistance_ohm": 4.151761,
-            "radiation_efficiency": 0.966559
+            "loss_resistance_ohm": 4.151814
           },
-          "tol_pct": 2.0,
-          "source": "AWG 14 copper (b = 0.8138 mm) at 14.2 MHz, uniform-current model: Rs = 9.8313e-4 ohm/sq over a 21.57 m perimeter gives R_loss = 4.15 ohm against a 120 ohm feed, i.e. e_cd = 0.967 (-0.15 dB). Uniform current is the conservative bound; the true standing-wave distribution roughly halves this. Balanis 4th ed. eq. 5-24."
+          "tol_pct": 0.5,
+          "source": "Rs = sqrt(pi*f*mu0/sigma) = 0.000983128 ohm/square for copper at 14.2 MHz, over P/(2*pi*b) = 4223.07 squares. Against the derived 124.8 ohm radiation resistance the efficiency is 0.967797, where the old 120 ohm denominator gave 0.966559."
         }
       ],
       "references": [
         "ARRL Antenna Book, 24th ed., Ch. 5 (quad and delta loops), quad length rule 1005/f(MHz)",
         "Balanis, Antenna Theory, 4th ed., Sec. 5.4 (resonant loops)",
         "Orr & Cowan, All About Cubical Quad Antennas, 3rd ed.",
-        "Stutzman & Thiele, Antenna Theory and Design, 3rd ed., Ch. 3"
+        "Stutzman & Thiele, Antenna Theory and Design, 3rd ed., Ch. 3",
+        "Resonant perimeter, driving-point resistance and directivity derived here by method of moments, anchored to the circular loop's independent Fourier-mode solution through a polygon sequence"
       ]
     },
     {

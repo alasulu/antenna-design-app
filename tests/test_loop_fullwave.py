@@ -10,7 +10,6 @@ conductor resonates at a LONGER circumference.
 """
 from __future__ import annotations
 
-import functools
 import math
 
 import numpy as np
@@ -18,63 +17,27 @@ import pytest
 from scipy.integrate import quad
 from scipy.special import jv
 
-from otahub.core.constants import ETA0
-from otahub.num import mom
+from otahub.num import loop_modal, mom
 
 K = 2.0 * math.pi
 NOMINAL = 1.09          # the nominal circumference the thickness parameter uses
 
 
 # ------------------------------------------------- the independent solver
+#
+# It lives in otahub/num/loop_modal.py, beside the MoM, because it is a
+# reference model rather than a test fixture - the quad-loop tests anchor
+# themselves to it too.
 
-@functools.lru_cache(maxsize=256)
-def _ghat(b: float, a: float, nmax: int, nq: int = 20000) -> tuple:
-    """Fourier coefficients of exp(-jkR)/R around the loop.
-
-    R(psi) = sqrt(4 b^2 sin^2(psi/2) + a^2) peaks over a width of about a/b, so
-    a thin wire needs a lot of points; 20000 is converged to five digits at
-    a/lambda = 1e-4, which is the thinnest this spec claims.
-    """
-    psi = np.arange(nq) * 2.0 * math.pi / nq
-    g = np.exp(-1j * K * np.sqrt(4.0 * b * b * np.sin(0.5 * psi) ** 2 + a * a)) \
-        / np.sqrt(4.0 * b * b * np.sin(0.5 * psi) ** 2 + a * a)
-    return tuple((g * np.exp(-1j * m * psi)).sum() * (2 * math.pi / nq)
-                 for m in range(nmax + 2))
-
-
-def _modal_currents(circumference: float, a: float, nmax: int = 60):
-    """I_n = 4 k V / (j eta [k^2 b^2 (G_{n-1}+G_{n+1}) - 2 n^2 G_n]), V = 1."""
-    b = circumference / (2.0 * math.pi)
-    G = _ghat(b, a, nmax)
-    out = {}
-    for n in range(-nmax, nmax + 1):
-        den = ((K * b) ** 2 * (G[abs(n - 1)] + G[abs(n + 1)])
-               - 2.0 * n * n * G[abs(n)])
-        out[n] = 4.0 * K / (1j * ETA0 * den)
-    return out
-
-
-def _modal_z(circumference: float, a: float, nmax: int = 60) -> complex:
-    return 1.0 / sum(_modal_currents(circumference, a, nmax).values())
-
-
-def _modal_resonance(a: float, steps: int = 20) -> tuple[float, float]:
-    lo, hi = 0.95, 1.30
-    for _ in range(steps):
-        mid = 0.5 * (lo + hi)
-        if _modal_z(mid, a).imag < 0:
-            lo = mid
-        else:
-            hi = mid
-    return lo, _modal_z(lo, a).real
+_modal_z = loop_modal.input_impedance
+_modal_resonance = loop_modal.resonant_circumference
 
 
 def _modal_directivity(circumference: float, a: float) -> float:
     m = mom.loop(circumference, a, 96)
     nodes = np.array([m.node_of(n) for n in range(m.n_basis)])
     phi = np.arctan2(nodes[:, 1], nodes[:, 0])
-    I = _modal_currents(circumference, a)
-    cur = sum(v * np.exp(1j * n * phi) for n, v in I.items())
+    cur = loop_modal.current_at(circumference, a, phi)
     return mom.directivity_towards(mom.MoMSolution(m, cur.astype(complex), 0),
                                    0.0, 0.0, 90, 90)
 

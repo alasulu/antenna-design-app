@@ -870,9 +870,57 @@ Still constants in the loop family: `quad_loop_square` (3.3 dBi, 120 ohm, and a
 107 - 108j there), `halo_loop` and `alford_loop`. The quad is next; the halo
 needs a lumped capacitive gap, which this solver cannot yet model.
 
+## The quad loop, verified by continuity rather than by a second formula
+
+`quad_loop_square` asserted 1.0218*lambda, 120 ohm and 3.3 dBi. A square has no
+modal solution to check it against, so the question was how to verify it at all
+without simply trusting one solver.
+
+The answer was continuity. A regular N-gon of a given perimeter tends to the
+circle of the same perimeter, and the circle HAS an independent Fourier-mode
+solution. The N-gon uses exactly the code path the square does - corners,
+non-collinear segments, a closed wrap - so if the sequence lands on the modal
+circle, that whole path is anchored to something outside this solver, and the
+square is simply N = 4 of it. It lands: 4 sides gives 114.3 - 69.0j, 8 gives
+129.4 - 38.1j, 48 gives 136.4 - 21.3j, 96 gives 136.5 - 21.3j, against the
+modal circle's 137.1 - 19.4j. The test asserts the approach is monotone as well
+as that the limit is right.
+
+Of the three asserted numbers, one was wrong, one was close and one was right:
+
+- The perimeter is wrong for the stated context. 1.0218*lambda is the ham-radio
+  1005/f(MHz) feet rule - an empirical figure for insulated HF wire near ground
+  inside a multi-element array, all of which shorten the resonance. An isolated
+  bare-wire loop is not resonant there at all: it reads 107 - 108j at
+  b = 8e-4 lambda. Free-space resonance is 1.0516 to 1.1362 lambda, 3.5 to 6.8%
+  longer. The number was not invented, it was just carrying a context the spec
+  never stated - so the spec now says which is which, keeps the empirical value
+  as the nominal, and derives the free-space one beside it.
+- 120 ohm is 4 to 9% low; the truth is 124 to 140 ohm. Much closer than the
+  circular loop's 100 ohm was.
+- 3.3 dBi is essentially EXACT - 3.299 on 1e-4 lambda wire - and only 2.1% low
+  on the fattest conductor tested. It now has a test of its own so a later
+  refactor cannot quietly move it. After a run of constants that were 30% and
+  48% out, it is worth recording that one of them was simply right.
+
+The cross-check that costs nothing and says the most: a square encloses less
+area than a circle of the same perimeter, so it must resonate LONGER and show a
+LOWER resistance and a LOWER directivity. All three orderings come out that way
+across every wire gauge, from two geometries fitted independently.
+
+The modal solver moved out of the scratchpad into `otahub/num/loop_modal.py`,
+beside the MoM, because it is a reference model and not a test fixture - the
+quad tests anchor to it as well as the circular ones.
+
+Remaining constants in the loop family: `halo_loop` (1.0 dBi, 15 ohm, 1.5 dB
+azimuth ripple) and `alford_loop` (0.5 dB ripple). The halo is a bent dipole
+with a lumped capacitive gap, which this solver cannot model yet - adding a
+lumped load to the EFIE is a small, well-defined piece of work and the obvious
+next step.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1767 tests, 472/472 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1781 tests, 479/479 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
