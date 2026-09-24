@@ -30,8 +30,10 @@ Units. Geometry is in WAVELENGTHS and k = 2*pi throughout, so a solution is
 frequency-independent; impedances come out in ohms. A structure given in metres
 is scaled by the caller.
 
-What it does not do. No ground plane, no dielectric, no loss, no junctions of
-more than two wires, and the reduced kernel rather than the exact one. Each of
+What it does not do. No ground plane (image theory stands in, exactly, for an
+infinite PEC plane), no dielectric, no distributed loss, and the reduced kernel
+rather than the exact one. Junctions of any number of wires ARE supported, but
+only at wire end points. Each of
 those is a real limit, not an approximation that washes out, so the validation
 suite pins the cases where they do not bite.
 
@@ -86,10 +88,26 @@ class Wire:
 class WireModel:
     """Wires discretised into segments and rooftop basis functions.
 
-    Basis function n is centred on an interior node and spans the two segments
-    meeting there, rising to 1 at the node. An open wire of N segments carries
-    N-1 of them, which is what forces the current to zero at the free ends; a
-    closed wire carries N, the node indices wrapping.
+    Basis function n is centred on a node and spans two segments, rising to 1
+    at the node. Each of its two halves is stored with its orientation, because
+    at a junction a wire may END at the node or START there, and the current
+    has to flow through regardless:
+
+      - half 0 carries current TOWARDS the node, half 1 AWAY from it;
+      - `basis_at_b[n, h]` says whether the node is the segment's end point
+        (its `b`) or its start point (its `a`).
+
+    An open wire of N segments carries N-1 interior functions, which forces the
+    current to zero at a FREE end; a closed wire carries N.
+
+    Junctions. Wherever the ends of K >= 2 open wires coincide, K-1 junction
+    functions are added, each carrying current from the first of those wires
+    (the lowest wire index) through the node into one of the others. That is
+    Kirchhoff's current law by construction: the reference wire carries the sum
+    of the rest. Two wires meeting end to end is simply a bend, and reproduces
+    one polyline exactly - which is how this was checked. Junctions are found
+    only at wire END points; a wire that should branch part-way along must be
+    split there.
     """
 
     wires: list[Wire]
@@ -98,11 +116,16 @@ class WireModel:
     seg_t: np.ndarray = field(init=False)      # unit tangents
     seg_len: np.ndarray = field(init=False)
     seg_rad: np.ndarray = field(init=False)
-    basis: np.ndarray = field(init=False)      # (Nb, 2) segment indices (minus, plus)
+    basis: np.ndarray = field(init=False)      # (Nb, 2) segment indices (towards, away)
+    basis_at_b: np.ndarray = field(init=False)  # (Nb, 2) node is the segment's end?
+    basis_node: np.ndarray = field(init=False)  # (Nb, 3) node positions
+    junctions: list = field(init=False)        # [(point, (basis indices,...)), ...]
 
     def __post_init__(self) -> None:
-        a, b, rad, basis = [], [], [], []
-        for w in self.wires:
+        a, b, rad = [], [], []
+        basis, at_b, node = [], [], []
+        ends = []            # (wire index, point, segment index, node at b?)
+        for wi, w in enumerate(self.wires):
             base = len(a)
             nodes = w.nodes
             pairs = list(zip(nodes[:-1], nodes[1:]))
@@ -116,9 +139,15 @@ class WireModel:
             if w.closed:
                 for i in range(n):
                     basis.append((base + i, base + (i + 1) % n))
+                    at_b.append((True, False))
+                    node.append(pairs[i][1])
             else:
                 for i in range(n - 1):
                     basis.append((base + i, base + i + 1))
+                    at_b.append((True, False))
+                    node.append(pairs[i][1])
+                ends.append((wi, np.asarray(pairs[0][0], float), base, False))
+                ends.append((wi, np.asarray(pairs[-1][1], float), base + n - 1, True))
         self.seg_a = np.array(a, dtype=float)
         self.seg_b = np.array(b, dtype=float)
         d = self.seg_b - self.seg_a
@@ -127,7 +156,36 @@ class WireModel:
             raise ValueError("a segment has zero length")
         self.seg_t = d / self.seg_len[:, None]
         self.seg_rad = np.array(rad, dtype=float)
+
+        # group coincident open-wire ends into junctions
+        tol = 1e-6 * float(self.seg_len.min())
+        used = [False] * len(ends)
+        self.junctions = []
+        for i, (wi, pi, si, bi) in enumerate(ends):
+            if used[i]:
+                continue
+            group = [i]
+            for j in range(i + 1, len(ends)):
+                if not used[j] and np.linalg.norm(ends[j][1] - pi) <= tol:
+                    group.append(j)
+            if len(group) < 2:
+                continue
+            for j in group:
+                used[j] = True
+            group.sort(key=lambda k: ends[k][0])
+            ref = ends[group[0]]
+            made = []
+            for k in group[1:]:
+                other = ends[k]
+                basis.append((ref[2], other[2]))
+                at_b.append((ref[3], other[3]))
+                node.append(pi)
+                made.append(len(basis) - 1)
+            self.junctions.append((pi.copy(), tuple(made)))
+
         self.basis = np.array(basis, dtype=int).reshape(-1, 2)
+        self.basis_at_b = np.array(at_b, dtype=bool).reshape(-1, 2)
+        self.basis_node = np.array(node, dtype=float).reshape(-1, 3)
         if len(self.basis) == 0:
             raise ValueError("model has no basis functions; wires are too coarse")
 
@@ -137,7 +195,17 @@ class WireModel:
 
     def node_of(self, n: int) -> np.ndarray:
         """Position of the node basis function `n` is centred on."""
-        return self.seg_b[self.basis[n, 0]]
+        return self.basis_node[n]
+
+    def junction_at(self, point) -> tuple[int, ...]:
+        """The junction functions at `point`, for feeding there: a delta gap on
+        the reference wire (the lowest-indexed wire meeting at the junction)
+        drives all of them together. Pass the tuple to `solve` as the feed."""
+        p = np.asarray(point, float)
+        for q, idx in self.junctions:
+            if np.linalg.norm(q - p) <= 1e-6 * float(self.seg_len.min()) + 1e-12:
+                return idx
+        raise ValueError(f"no junction at {tuple(p)}")
 
 
 # ---------------------------------------------------------------- kernels
@@ -187,17 +255,28 @@ def _segment_moments(model: WireModel):
 
 
 def _half_weights(model: WireModel, n: int):
-    """For basis n: (segment, (alpha, beta) of f, sigma).
+    """For basis n: [(segment, (alpha, beta), sigma)] for its two halves.
 
-    On the minus segment f rises 0 -> 1 towards the node and the divergence is
-    +1/L; on the plus segment f falls 1 -> 0 away from it and the divergence is
-    -1/L. Both segments already point the way the current flows, which is the
-    reason for orienting them so - there is no tangent sign to track.
+    The current on a half is (alpha + beta*s) along the segment's own tangent,
+    s measured from the segment's start - so a half whose current runs against
+    the tangent simply carries negative weights - and sigma is its divergence.
+    Towards-the-node halves always have sigma = +1/L and away halves -1/L,
+    whichever way the segment happens to be parameterised: divergence is a
+    scalar and does not care.
     """
-    m, pl = model.basis[n]
-    Lm, Lp = model.seg_len[m], model.seg_len[pl]
-    return [(m, (0.0, 1.0 / Lm), 1.0 / Lm),
-            (pl, (1.0, -1.0 / Lp), -1.0 / Lp)]
+    out = []
+    for h in (0, 1):
+        p = int(model.basis[n, h])
+        L = float(model.seg_len[p])
+        at_b = bool(model.basis_at_b[n, h])
+        if h == 0:                       # towards the node
+            w = (0.0, 1.0 / L) if at_b else (-1.0, 1.0 / L)
+            sigma = 1.0 / L
+        else:                            # away from the node
+            w = (1.0, -1.0 / L) if not at_b else (0.0, -1.0 / L)
+            sigma = -1.0 / L
+        out.append((p, w, sigma))
+    return out
 
 
 def impedance_matrix(model: WireModel) -> np.ndarray:
@@ -226,10 +305,14 @@ def impedance_matrix(model: WireModel) -> np.ndarray:
 class MoMSolution:
     model: WireModel
     currents: np.ndarray
-    feed: int
+    feed: int | tuple[int, ...]
 
     @property
     def feed_current(self) -> complex:
+        """Terminal current. A junction feed drives several functions that all
+        share the reference wire, and its terminal current is their sum."""
+        if isinstance(self.feed, tuple):
+            return complex(sum(self.currents[k] for k in self.feed))
         return complex(self.currents[self.feed])
 
     @property
@@ -242,7 +325,7 @@ class MoMSolution:
         return 0.5 * float(np.real(np.conj(self.feed_current)))
 
 
-def solve(model: WireModel, feed: int | None = None,
+def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
           loads: dict[int, complex] | None = None) -> MoMSolution:
     """Delta-gap excitation of one basis function; 1 V across the gap.
 
@@ -256,15 +339,18 @@ def solve(model: WireModel, feed: int | None = None,
     nb = model.n_basis
     if feed is None:
         feed = nb // 2
-    if not 0 <= feed < nb:
-        raise ValueError(f"feed index {feed} outside 0..{nb - 1}")
+    feeds = feed if isinstance(feed, tuple) else (feed,)
+    for f in feeds:
+        if not 0 <= f < nb:
+            raise ValueError(f"feed index {f} outside 0..{nb - 1}")
     Z = impedance_matrix(model)
     for m, zl in (loads or {}).items():
         if not 0 <= m < nb:
             raise ValueError(f"load index {m} outside 0..{nb - 1}")
         Z[m, m] += zl
     V = np.zeros(nb, dtype=complex)
-    V[feed] = 1.0
+    for f in feeds:
+        V[f] = 1.0
     return MoMSolution(model, np.linalg.solve(Z, V), feed)
 
 

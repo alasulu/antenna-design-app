@@ -1393,9 +1393,56 @@ than paraphrasing them - the same correction as the last three rounds.
 The suite has grown to 105 seconds, from 77, mostly the rhombic's fine-mesh
 checks. Worth marking the heaviest MoM tests slow if it keeps climbing.
 
+## Junctions, so wires that touch are connected
+
+Until now two wires that merely touched were not connected at all: basis
+functions lived inside single wires, and a node shared by several wire ends
+carried nothing. That put a whole class of real antennas out of reach - a top
+hat of radial wires, a ground plane of radials, a discone built as a wire cage -
+and `top_loaded_monopole` has carried a documented honesty problem since
+session 5 for exactly that reason: its hat radius and its top current are
+independent inputs, because nothing could derive one from the other.
+
+The change was to the core model, so it was done in the order that keeps it
+safe. First the basis layout was generalised: each function now stores its two
+halves with their orientation, so a wire may END at a node or START there and
+still carry current through it. A half whose current runs against its
+segment's direction simply carries negative weights, and its divergence comes
+out the same either way. Before touching junctions at all, seven reference
+impedances were recorded from the old code - dipole, loop, halo, helix, rhombic,
+folded dipole, LPDA - and the refactored code reproduces every one of them with
+a relative difference of exactly zero.
+
+Then the junctions: wherever K open-wire ends coincide, K - 1 junction
+functions carry current from the first wire into each of the others, so
+Kirchhoff's current law holds by construction. A feed at a junction drives all
+of them together, and its terminal current is their sum.
+
+Checked, each against something outside the new code:
+
+- a dipole split at its centre is the same dipole to 1e-14, in all four
+  combinations of which way each arm runs - the orientation logic in isolation;
+- a bent wire split into three pieces, the middle one reversed, matches the
+  single polyline to 7e-15;
+- a symmetric T splits its current equally between its arms to 4e-15, balances
+  power to 1e-5, and keeps the impedance matrix exactly symmetric;
+- a ground-plane vertical on four quarter-wave radials, fed at its five-wire
+  junction, reproduces the two familiar figures - 22.5 ohm with the radials
+  flat, 52.2 with them drooped 45 degrees, against the usual ~22 and ~50.
+
+The last one carried a small lesson worth keeping. The first comparison was at
+exactly a quarter wavelength, which gave 66 ohm at 45 degrees and looked wrong.
+It was not wrong, it was not resonant: that antenna carried +41j of reactance,
+and the rule of thumb is about resonant antennas. Resonating each droop first
+gave 52.2. A comparison with a published or remembered figure is only as good
+as the match between the conditions it was quoted under and the ones computed.
+
+The capability is in; putting it to work on `top_loaded_monopole`, the discone
+and the conical monopole is the next round.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1950 tests, 547/547 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1960 tests, 547/547 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1950 tests, 547/547 citable
+6,031 lines of Python, 14,835 lines of spec data, 1960 tests, 547/547 citable
 known cases passing.**
 
 ---
@@ -16,7 +16,7 @@ known cases passing.**
 |---|---|---|
 | Engine | `otahub/core/` | Spec model, whitelisted AST evaluator, partial synthesis solver, registry, first-principles pattern maths |
 | Catalogue | `specs/*.json` | 72 archetypes across wire (11), patch (9), loop (8), horn (8), travelling-wave (8), UWB (8), reflector (7), slot (6), lens (4), dielectric (3) |
-| Reference solvers | `otahub/num/` | Thin-wire method of moments (EFIE, mixed potential, rooftop basis, Galerkin) with lumped loading, bent wires and computed VSWR bandwidth, feed networks (transmission lines coupled in admittance form), plus a Fourier-mode solution of the circular loop and a Hallén solver as a second opinion on straight wires. Independent full-wave checks on the closed forms |
+| Reference solvers | `otahub/num/` | Thin-wire method of moments (EFIE, mixed potential, rooftop basis, Galerkin) with lumped loading, bent wires, junctions of any number of wires, computed VSWR bandwidth, feed networks (transmission lines coupled in admittance form), plus a Fourier-mode solution of the circular loop and a Hallén solver as a second opinion on straight wires. Independent full-wave checks on the closed forms |
 | Arrays | `otahub/arrays/` | Uniform, binomial, Dolph-Chebyshev, Taylor n-bar, raised-cosine tapers; linear array factor, steering, grating-lobe limits; planar rectangular and triangular lattices with exact directivity, scan loss and beam-following cuts |
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
