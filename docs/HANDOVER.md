@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2109 tests, 636/636 citable
+6,031 lines of Python, 14,835 lines of spec data, 2194 tests, 636/636 citable
 known cases passing.**
 
 ---
@@ -171,6 +171,7 @@ being written into a spec.
 | `truncated_corner_cp_patch` | Corner cut, the frequency the square is sized for, mode split, and the axial-ratio and VSWR bands, all from a cavity model of the real outline | `otahub/num/patch_cavity.py`: Neumann modes on linear triangles, probe feed, broadside polarisation over 30 modes, converged to 0.004% between 240 and 480 cells per side; fits hold to 0.03% on meshes they never saw. The old design had 7.9 dB of axial ratio at its own f0 |
 | `pyramidal_horn` | Two apex distances solved so both flares meet a real feed guide at one length (a quartic in √(ρ₁/λ)), with the optimum proportions in axial distances and the exact optimum efficiency | Flare geometry rebuilt from the output meets the guide to 1e-9 m; direct 2-D aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on three guides; root matches bisection on the unsquared condition |
 | `waveguide_longitudinal_slot`, `waveguide_slot_array_resonant` | Stevenson's shunt conductance with the wavelength ratio the right way up, and the array offsets it sets | `otahub/num/waveguide_slot.py` derives g by reciprocity, a half-space radiation integral and power balance, all by quadrature: +0.03% (the rounding of 2.09) from 8.2 to 40 GHz on two guides; twelve slots at the new offset sum to unity by that model |
+| Taylor taper (`otahub.arrays`) | Villeneuve's discrete n̄ distribution by zero placement, replacing a sampled line source that overshot its sidelobe level by up to 2.3 dB | Realised sidelobes by dense array-factor evaluation over 357 designs; nulls land where placed to 1e-12; equals the separate Dolph-Chebyshev implementation past the last zero pair to 1e-12; converges to Taylor's textbook line source (5e-6 at N = 400) |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -257,8 +258,15 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   optimum-σ line. Checked since against a full-wave solve of every element: the
   reading holds to ±0.6 dB of the log-period mean, and the periodic ripple
   around that mean is reported separately.
-- **Taylor taper** realises its design sidelobe level to about 1 dB for small
-  arrays (−28.9 dB measured for a 20-element −30 dB design).
+- ~~**Taylor taper**~~ **Resolved - and the recorded example was wrong.** The
+  "-28.9 dB for a 20-element -30 dB design" does not reproduce: that taper gave
+  -30.10 dB. Its real failures were elsewhere and larger - the sampled
+  line-source distribution overshot the design sidelobe level by more than
+  0.5 dB in 156 of 357 designs, by up to 2.3 dB. `taylor_nbar` is now
+  Villeneuve's discrete distribution, built by placing the array polynomial's
+  zeros: within 0.05 dB above design for N >= 10 (0.36 dB in one 9-element
+  case), the uniform array's nulls exactly from the nbar-th on, exactly
+  Dolph-Chebyshev past the last zero pair, and the line source again as N grows.
 - **`rectangular_dra`'s radiation Q is still borrowed**, not derived: it is the
   hemispherical DRA's exact result reused. It is more defensible than it was —
   with the resonance corrected, the brick now lands within 6% of the

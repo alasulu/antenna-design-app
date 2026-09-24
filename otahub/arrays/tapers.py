@@ -79,7 +79,7 @@ def dolph_chebyshev(n: int, sidelobe_db: float = -30.0) -> np.ndarray:
 
 
 def taylor_nbar(n: int, sidelobe_db: float = -30.0, nbar: int = 5) -> np.ndarray:
-    """Taylor n-bar taper: Chebyshev-like near-in sidelobes that then decay.
+    """Taylor n-bar taper for a DISCRETE array (Villeneuve's distribution).
 
     Dolph-Chebyshev holds every sidelobe at the design level forever, which
     means the far-out sidelobes are higher than they need to be and the
@@ -87,40 +87,70 @@ def taylor_nbar(n: int, sidelobe_db: float = -30.0, nbar: int = 5) -> np.ndarray
     `nbar` sidelobes near the design level and lets the rest fall off, which is
     what most real apertures use.
 
-    Two honest caveats. This is a SAMPLED line-source distribution, so the
-    realised sidelobe level lands within about 1 dB of the design value for
-    small arrays (measured -28.9 dB for a 20-element -30 dB design) and
-    converges as the array grows. And the frequent claim that Taylor beats
+    Built by placing the array polynomial's zeros, not by sampling the
+    continuous line-source distribution. In u, where the uniform N-element
+    array's zeros sit at 1, 2, 3, ..., the first nbar - 1 zeros are the
+    N-element Dolph-Chebyshev zeros stretched by sigma so that the nbar-th
+    lands on the uniform array's; every zero beyond that IS the uniform
+    array's (Villeneuve, IEEE Trans. AP-32, 1984). The weights are the
+    polynomial's coefficients, read off by an FFT of its samples.
+
+    Why not the line source: sampling it is exact only as N grows. Over 357
+    designs - N = 5..101, odd and even, -20 to -40 dB, every nbar from Taylor's
+    minimum 2A^2 + 1/2 up to 8 - the sampled line source exceeded its design
+    sidelobe level by more than 0.5 dB in 156, by up to 2.3 dB, and not only on
+    tiny arrays. This construction, judged by dense evaluation of the array
+    factor over the same 357, stays within 0.05 dB above the design level for
+    N >= 10 and at most 0.63 dB below it; one small odd array (N = 9, -30 dB,
+    nbar = 4) reaches 0.36 dB above. It converges to the line source as N grows
+    (weights within 1e-4 at N = 100) and is exactly Dolph-Chebyshev once nbar
+    passes the last zero pair. (An earlier note here reported -28.9 dB for a
+    20-element -30 dB design; the old taper actually gave -30.10 dB there -
+    its failures were elsewhere, and larger.)
+
+    Two properties worth knowing. A large nbar at a modest sidelobe level
+    (-20 dB with nbar >= 5 on a 10- to 16-element array, say) rises again at the
+    edges; that is Taylor's, not this construction's - the line-source version
+    does it in the same cases. And the frequent claim that Taylor beats
     Dolph-Chebyshev on aperture efficiency does not hold for DISCRETE arrays:
-    measured here, Chebyshev is the more efficient of the two at n >= 20, as
-    the optimality proof for discrete arrays implies. Choose Taylor for the
-    absence of edge spikes and for decaying far sidelobes, not for efficiency.
+    Chebyshev is the more efficient of the two at n >= 20, as the optimality
+    proof for discrete arrays implies. Choose Taylor for the absence of edge
+    spikes and for decaying far sidelobes, not for efficiency.
     """
     _check(n)
     if sidelobe_db >= 0:
         raise ValueError(f"sidelobe_db must be negative, got {sidelobe_db}")
+    if nbar < 1:
+        raise ValueError(f"nbar must be at least 1, got {nbar}")
+    if n == 1:
+        return np.ones(1)
     ratio = 10.0 ** (abs(sidelobe_db) / 20.0)
-    a = math.acosh(ratio) / math.pi
-    sigma = nbar / math.sqrt(a * a + (nbar - 0.5) ** 2)
-
-    def zeros_n(m: int) -> float:
-        if m < nbar:
-            return sigma * math.sqrt(a * a + (m - 0.5) ** 2)
-        return float(m)
-
-    # Sampled line-source distribution: g(p) = 1 + 2*sum_m F_m cos(2*pi*m*p)
-    positions = (np.arange(n) - (n - 1) / 2.0) / n
-    weights = np.ones(n)
-    for m in range(1, nbar):
-        num = 1.0
-        den = 1.0
-        for i in range(1, nbar):
-            num *= (1.0 - (m / zeros_n(i)) ** 2)
-        for i in range(1, nbar):
-            if i != m:
-                den *= (1.0 - (m / i) ** 2)
-        f_m = ((-1) ** (m + 1)) * num / (2.0 * den)
-        weights += 2.0 * f_m * np.cos(2.0 * np.pi * m * positions)
+    x0 = math.cosh(math.acosh(ratio) / (n - 1))
+    p = np.arange(1, n)
+    cheb = (n / math.pi) * np.arccos(np.cos((2 * p - 1) * math.pi / (2 * (n - 1))) / x0)
+    pairs = (n - 1) // 2
+    nb = min(nbar, pairs + 1)
+    # Once nbar passes the last zero pair every zero is Chebyshev's and the
+    # taper IS Dolph-Chebyshev. (For odd n the stretch would otherwise be set
+    # by a zero beyond psi = pi, which is not one of this array's.)
+    sigma = 1.0 if nbar > pairs else nb / cheb[nb - 1]
+    zeros = []
+    for q in range(1, pairs + 1):
+        u = sigma * cheb[q - 1] if q < nb else float(q)
+        zeros += [u, -u]
+    if n % 2 == 0:
+        zeros.append(n / 2.0)                           # psi = pi
+    roots = np.exp(2j * math.pi * np.asarray(zeros) / n)
+    z = np.exp(2j * math.pi * np.arange(n) / n)
+    diff = z[:, None] - roots[None, :]
+    # the polynomial's samples, in log form so a thousand-element array cannot overflow
+    with np.errstate(divide="ignore"):
+        logmag = np.log(np.abs(diff)).sum(axis=1)
+    phase = np.angle(diff).sum(axis=1)
+    live = np.isfinite(logmag)
+    samples = np.zeros(n, dtype=complex)
+    samples[live] = np.exp(logmag[live] - logmag[live].max() + 1j * phase[live])
+    weights = np.real(np.fft.fft(samples)) / n
     weights = np.abs(weights)
     return weights / weights.max()
 

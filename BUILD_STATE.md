@@ -1775,9 +1775,42 @@ confidence, and says why: the formula is now right, but Stevenson's model -
 a half-wave cosine slot in a thin wall, blind to the guide's evanescent modes -
 has still not been checked against a real guide.
 
+## The Taylor taper: a wrong example, and a real problem beside it
+
+The handover's open discrepancies still carried "Taylor taper realises its
+design sidelobe level to about 1 dB for small arrays (-28.9 dB measured for a
+20-element -30 dB design)", repeated in the function's own docstring. Measured
+again - dense evaluation of the array factor, and the package's own
+`array_pattern` and `first_sidelobe_db` - that taper gives -30.10 dB there. The
+example was wrong. The problem it gestured at was real and worse: the taper was
+Taylor's continuous line-source distribution sampled at the elements, and over
+357 designs (N = 5..101 odd and even, -20 to -40 dB, every nbar from Taylor's
+minimum 2A^2 + 1/2 to 8) it overshot the design sidelobe level by more than
+0.5 dB in 156, by up to 2.3 dB, and not only on tiny arrays.
+
+`taylor_nbar` is now Villeneuve's discrete distribution, built by placing the
+zeros of the array polynomial: the first nbar - 1 are the N-element
+Dolph-Chebyshev zeros stretched so the nbar-th lands on the uniform array's,
+and every one after that IS the uniform array's. The weights are the
+polynomial's coefficients, from an FFT of its samples taken in log form so a
+thousand-element array cannot overflow. Over the same 357 designs it sits
+within 0.05 dB above the design level for N >= 10 and at most 0.63 dB below;
+one 9-element case reaches 0.36 dB above. Odd N needed care the first draft did
+not have: once nbar passes the last zero pair the stretch would have been set
+by a zero beyond psi = pi, so there it is now exactly Dolph-Chebyshev.
+
+Checked by routes the construction does not use: realised sidelobes by dense
+array-factor evaluation; nulls at the uniform array's positions to 1e-12;
+equality with the separate, pattern-sampling Dolph-Chebyshev implementation to
+1e-12; and convergence to Taylor's line source re-derived from the textbook
+formula, 5e-6 at N = 400. Edge brightening at large nbar and modest sidelobe
+levels is Taylor's own - the old taper did it in 78 of 252 cases, this one in
+77 - and the docstring now says so. Chebyshev remains the more efficient of the
+two for N >= 20.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2109 tests, 636/636 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2194 tests, 636/636 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
