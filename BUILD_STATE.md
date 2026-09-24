@@ -1440,9 +1440,65 @@ as the match between the conditions it was quoted under and the ones computed.
 The capability is in; putting it to work on `top_loaded_monopole`, the discone
 and the conical monopole is the next round.
 
+## The top hat: a documented gap closed, and a fit that was declined
+
+`top_loaded_monopole` had said since session 5, in its own validity block,
+that "beta_top is an input, not a prediction - relating hat size to beta_top
+needs a numerical solve this spec does not attempt". With junctions it could
+be attempted: a vertical with a hat of radial wires, joined where they meet,
+over infinite ground by image theory.
+
+**The model was right; its input was not.** The spec's radiation resistance,
+160 pi^2 (h(1+beta)/2)^2, is within 0.1 to 2.4% of the solved radiated power
+for every hat tried - provided beta is the true one. And the spec's defaults
+disagreed with each other: a 0.01 lambda hat with eight radials gives beta =
+0.52, not the 0.6 carried beside it, so the default radiation resistance was
+11% high. beta is now derived from the hat and can still be overridden; every
+existing case that set it explicitly passes unchanged, which is the engine fix
+from the halo round earning its keep.
+
+Two things about the fit are worth recording.
+
+- **A variable was missing.** The first fit used three dimensionless groups -
+  hat radius over height, height over wire radius, radial count - and could not
+  get below about 0.1 in beta, whatever form or restriction was tried, including
+  a physics-shaped predictor with the hat's coupling to ground. There are four
+  groups, not three: the ELECTRICAL height h/lambda had been left out, on the
+  quiet assumption that a short antenna is quasi-static. At 0.05 to 0.1 lambda
+  it is not. Adding it took the worst error from 0.1 to 0.017, and 0.027 on
+  held-out cases.
+- **Radial count matters far more than expected.** On a 0.01 lambda hat, beta
+  is 0.41 with four radials, 0.61 with sixteen and 0.67 with thirty-two, still
+  rising. A solid disc beats any radial count the fit covers, and the spec says
+  so; radial count is now a parameter.
+
+The capture of the base current needed care: on a wire this short the delta gap
+over-reads the feed node, so the base current is taken from a straight-line fit
+to the vertical's current away from the feed. That definition is also the one
+that reproduces the radiation resistance to 2.4%, which is the reason to trust
+it.
+
+**The reactance was declined, deliberately.** It is the number a builder needs
+most - it sizes any remaining loading coil - and the spec has never computed
+it. Three forms were tried: log reactance (fails where it crosses zero at
+resonance, 480% error), a transmission-line angle X = -Z_v cot(theta) that
+passes smoothly through resonance (17% held-out), and reactance relative to the
+bare whip as a function of beta (0.2 spread - radials change capacitance and
+current taper differently). 17% on a high-Q short antenna would size a coil
+that misses resonance by several bandwidths, so no formula went in. The solved
+values ship as a table instead, including the hats large enough to resonate the
+whip by themselves, which the beta fit also excludes because the linear taper
+stops applying there. Declining a fit that looks respectable is the right call
+when the error would land in exactly the quantity the user acts on.
+
+The radial meshing needed one fix first: tying radial segments to the
+vertical's segment length gave a wide hat on a short whip several thousand
+segments. Capping at 12 per radial keeps the length ratio across the junction
+at 5 or less and moved beta by 0.0002.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1960 tests, 547/547 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1979 tests, 553/553 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

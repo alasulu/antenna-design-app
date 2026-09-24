@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1960 tests, 547/547 citable
+6,031 lines of Python, 14,835 lines of spec data, 1979 tests, 553/553 citable
 known cases passing.**
 
 ---
@@ -159,6 +159,7 @@ being written into a spec.
 | `axial_mode_helix` | Gain and beamwidth over (turns, C/λ, pitch), plus the full solved grid as a table | Image-theory helix, mirror-symmetric to 1e-7; directivity by reciprocity agrees with the pattern integral to 0.02 dB; replaces a “correction” that was worse than the formula it corrected |
 | `lpda` | Directivity and its periodic ripple over one log-period; input resistance and the feeder that sets it | Every element solved, feeder as a transposed transmission line; the spec's Carrel reading holds to ±0.6 dB, and the missing feeder design relation is added and checked to within 11% |
 | `rhombic` | Directivity, the optimal termination and the power it burns, solved with the resistor in circuit | The idealised travelling-wave model is 0.24–0.45 dB high; the termination is set by the wire radius (878 Ω at a = 10⁻⁵λ to 273 at 3×10⁻³), which the spec had left out |
+| `top_loaded_monopole` | The top-current ratio derived from the hat geometry, which the spec used to take as an unrelated input | Junction-connected radial hat over image ground; fitted to 0.017 in beta (0.027 held out); the reactance ships as a solved table because no fit was good enough to size a coil |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |

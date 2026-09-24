@@ -58,6 +58,7 @@ from ..core.constants import ETA0
 __all__ = [
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire", "helix_over_ground", "lpda_model", "rhombic_model",
+    "top_hat_monopole",
     "tl_admittance", "NetworkSolution", "solve_network",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
@@ -767,3 +768,36 @@ def rhombic_model(leg: float, half_angle_deg: float | None = None,
     nodes = np.array([model.node_of(k) for k in range(model.n_basis)])
     return (model, int(np.argmin(np.linalg.norm(nodes - p0, axis=1))),
             int(np.argmin(np.linalg.norm(nodes - p2, axis=1))))
+
+
+def top_hat_monopole(height: float, hat_radius: float, radials: int,
+                     radius: float = 1e-4, segments: int = 40):
+    """Monopole with a hat of radial wires, on an infinite PEC plane by images.
+
+    Returns (model, feed, top_junction). The full structure is one vertical
+    wire from -height to +height fed at its centre, `radials` wires at the top
+    and their images at the bottom, joined by junctions; the physical antenna
+    sees half its impedance and radiates into the upper half-space only.
+    `radials` = 0 gives a bare whip. Lengths in wavelengths.
+
+    Read the base current from the vertical AWAY from the feed: on a wire this
+    short the delta gap puts a local excess on the feed node itself (see the
+    note at the top of this module).
+    """
+    z = np.linspace(-height, height, segments + 1)
+    wires = [Wire(np.stack([np.zeros_like(z), np.zeros_like(z), z], axis=1), radius)]
+    if radials > 0 and hat_radius > 0:
+        step = 2.0 * height / segments
+        # cap the radial mesh: tying it to the vertical's step gives a wide hat
+        # on a short whip thousands of segments; 12 keeps the length ratio
+        # across the junction at 5 or less, which thin-wire codes tolerate
+        nr = max(3, min(int(math.ceil(hat_radius / step)), 12))
+        for zz in (height, -height):
+            for k in range(radials):
+                phi = 2.0 * math.pi * k / radials
+                r = np.linspace(0.0, hat_radius, nr + 1)
+                wires.append(Wire(np.stack([r * math.cos(phi), r * math.sin(phi),
+                                            np.full_like(r, zz)], axis=1), radius))
+    model = WireModel(wires)
+    top = model.junction_at([0.0, 0.0, height]) if model.junctions else ()
+    return model, segments // 2 - 1, top
