@@ -19,6 +19,8 @@ from scipy.special import jv
 
 from otahub.num import loop_modal, mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 K = 2.0 * math.pi
 NOMINAL = 1.09          # the nominal circumference the thickness parameter uses
 

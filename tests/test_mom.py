@@ -170,3 +170,23 @@ def test_feed_lands_on_a_node_whatever_segment_count_is_asked_for():
         m = mom.dipole(0.5, 1e-3, asked)
         sol = mom.solve(m)
         assert m.node_of(sol.feed)[2] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_segments_shorter_than_a_few_radii_leave_the_approximation():
+    """A fine mesh on a fat wire is not more accurate - it is outside the
+    reduced kernel. Resonant resistance on a 0.006-wavelength wire is stable
+    while segments are several radii long and runs away below one radius."""
+    def res_r(n):
+        lo, hi = 0.40, 0.53
+        for _ in range(26):
+            mid = 0.5 * (lo + hi)
+            if mom.input_impedance(mom.dipole(mid, 0.006, n)).imag < 0:
+                lo = mid
+            else:
+                hi = mid
+        return mom.input_impedance(mom.dipole(lo, 0.006, n)).real
+    ok = [res_r(n) for n in (10, 16)]              # 7.8 and 4.9 radii
+    assert ok[1] == pytest.approx(ok[0], rel=0.03)
+    with pytest.warns(UserWarning, match="shorter than their wire radius"):
+        broken = res_r(100)                        # 0.8 radii
+    assert broken > 1.3 * ok[1]

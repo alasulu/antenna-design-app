@@ -23,6 +23,8 @@ import pytest
 
 from otahub.num import loop_modal, mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 NOMINAL = 1.0218      # the empirical perimeter the spec synthesises
 LAMBDA = 2.99792458e8 / 3e8
 RADII = [1e-4, 1e-3, 3e-3]

@@ -21,6 +21,8 @@ import pytest
 
 from otahub.num import loop_modal, mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 NSEG = 48
 LAM = 1.0
 

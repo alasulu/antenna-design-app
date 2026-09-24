@@ -1548,9 +1548,61 @@ The suite now takes 132 seconds, from 107 two rounds ago, and the growth is
 all solver tests. The next housekeeping item is a slow marker on the heaviest
 of them, so the default run stays quick.
 
+## Auditing the cross-checks, and a limit of the solver found on the way
+
+The cone round found two cross-checks that had been written to agree rather
+than to check. That warranted reading all of `test_cross_consistency.py` with
+one question: does each relationship compare the same physical antenna on both
+sides? Most do - same frequency, same geometry, or a reduction within one
+archetype. Three were worth a closer look.
+
+- The slot-array check asserts equality with a single slot at a hand-typed
+  3 mm offset where the array derives 3.06 mm. Sound after all: both sides
+  compute the same Stevenson coefficient, which depends on the guide and the
+  frequency and not on the offset.
+- The corner reflector's self-resistance check compares like with like.
+- **The Babinet check was a tautology.** "Slot times its complementary dipole
+  is eta squared over four" - but the slot spec DEFINES its impedance as
+  eta0^2 / (4 Z_dipole) from dipole constants it carries itself, so the
+  product is eta0^2/4 by construction. It checked nothing about Babinet, and
+  Babinet cannot be checked here at all, since the solver models wires, not a
+  slot in a screen. What it could check - that the slot's borrowed constants
+  agree with what the dipole spec computes - it now checks, under a name that
+  says so.
+
+Following that thread turned up a real inconsistency. Babinet is exact, so a
+slot resonates where its complementary dipole does - and that dipole's radius
+is a quarter of the slot width, 0.006 lambda at the default. `half_wave_slot`
+uses 0.4785 lambda, which is a THIN dipole's resonant length; the catalogue's
+own `resonant_dipole` fit at that radius says 0.463, and the solver says 0.465.
+The slot's borrowed resonant resistance is thin-wire too: about 74 ohm would put
+the resonant slot near 480 rather than 530. It is NOT fixed yet, and says so:
+the dipole fits stop at 5e-3 lambda, and extending them is the next round's job.
+Until then a strict expected failure holds the gap open in the cross-checks and
+the spec's validity block names it.
+
+**The solver limit.** Checking that complementary dipole directly, the answer
+would not converge - 79 ohm at 60 segments, 113 at 100 - and the reason is the
+reduced thin-wire kernel. Mapped: on a 0.006 lambda wire the resonant
+resistance holds at 72-74 ohm while segments are 3 to 8 radii long, drifts to
+79 at 1.3 radii, and reads 115 - with the resonance moved 6% - at 0.8 radii. A
+finer mesh on a fat wire is not more accurate; it leaves the approximation. The
+rule, keep segments at least about three radii long, is now in the module
+docstring, and WireModel warns when any segment is shorter than its own radius.
+The whole suite runs clean with that warning promoted to an error, so nothing
+already built was relying on the broken regime.
+
+Housekeeping, overdue: the suite had reached 133 seconds, all of the growth
+solver applications. Those ten modules now carry a `slow` marker, so
+`pytest -m "not slow"` runs the other 1862 tests in about 25 seconds while the
+default run still includes everything. The solver's own licensing tests - the
+MoM validation, junctions, reference dipoles, feed referral - stay in the quick
+set, because everything else rests on them.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1999 tests, 559/559 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2000 tests (one strict expected
+failure held open deliberately), 559/559 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

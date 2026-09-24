@@ -21,6 +21,8 @@ import pytest
 
 from otahub.num import mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 C0 = 2.99792458e8
 
 

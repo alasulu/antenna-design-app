@@ -23,6 +23,8 @@ from otahub.core.constants import ETA0
 from otahub.num import mom
 from otahub.num.mom import _half_weights
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 K = 2.0 * math.pi
 
 

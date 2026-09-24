@@ -45,6 +45,14 @@ doubling), but the resistance referred to that node reads roughly 10% low and
 keeps drifting. For short-antenna RESISTANCE, trust the closed form over this
 solver; for reactance, impedance of anything near resonance, patterns and
 power, the delta gap is fine.
+
+A limit of the reduced kernel, also measured: keep every segment at least about
+three wire radii long. On a 0.006-wavelength wire the resonant resistance is
+72-74 ohm while segments are 3 to 8 radii long, drifts to 79 ohm at 1.3 radii,
+and reads 115 ohm - with the resonance moved 6% - at 0.8 radii. A fine mesh on a
+fat wire is not more accurate; it is outside the approximation. WireModel warns
+when any segment is shorter than its own radius, which is the clearly broken
+end of that range.
 """
 from __future__ import annotations
 
@@ -157,6 +165,14 @@ class WireModel:
             raise ValueError("a segment has zero length")
         self.seg_t = d / self.seg_len[:, None]
         self.seg_rad = np.array(rad, dtype=float)
+        short = self.seg_len < self.seg_rad
+        if np.any(short):
+            import warnings
+            warnings.warn(
+                f"{int(short.sum())} segment(s) shorter than their wire radius: the "
+                f"reduced thin-wire kernel is not valid there and results can be "
+                f"badly wrong. Keep segments at least ~3 radii long.",
+                UserWarning, stacklevel=2)
 
         # group coincident open-wire ends into junctions
         tol = 1e-6 * float(self.seg_len.min())

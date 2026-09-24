@@ -98,13 +98,23 @@ def test_unloaded_top_loaded_monopole_is_the_textbook_short_monopole(syn):
 # ------------------------------------------------------------------- Babinet
 # A slot and its complementary dipole are two specs written from one principle.
 
-def test_slot_times_its_complementary_dipole_is_eta_squared_over_four(syn):
+def test_the_slot_borrows_the_dipole_constants_the_dipole_spec_computes(syn):
+    """What this can check, and what it cannot.
+
+    It used to be called a Babinet test - "slot times its complementary dipole
+    is eta squared over four" - but the slot spec DEFINES its impedance as
+    eta0^2 / (4 Z_dipole) from dipole constants it carries itself, so that
+    product is eta0^2/4 by construction and asserting it checked nothing about
+    Babinet. Babinet cannot be checked here at all: the solver models wires,
+    not a slot in a conducting screen.
+
+    What CAN drift is the borrowed constants. The slot carries the dipole's
+    impedance as fixed numbers; the dipole spec computes it. They must agree.
+    """
     hw = syn("half_wave_dipole", f0=F, aw=1e-4)
     slot = syn("half_wave_slot", f0=F)
-    z_dipole = abs(complex(hw.metrics["radiation_resistance_ohm"],
-                           hw.metrics["input_reactance_ohm"]))
-    product = slot.metrics["input_impedance_magnitude_ohm"] * z_dipole
-    assert product == pytest.approx(ETA0 ** 2 / 4, rel=2e-3)
+    assert slot.parameters["Rd"] == pytest.approx(hw.metrics["radiation_resistance_ohm"], rel=2e-3)
+    assert slot.parameters["Xd"] == pytest.approx(hw.metrics["input_reactance_ohm"], rel=2e-3)
 
 
 def test_folded_slot_reduces_to_the_plain_slot(syn):
@@ -583,3 +593,18 @@ def test_shorting_a_patch_costs_less_than_three_db_and_varies_with_substrate(syn
         losses[eps_r] = loss
     assert losses[2.2] > losses[4.4] > losses[10.2], (
         f"the cost must fall as the slots crowd together: {losses}")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "OPEN: half_wave_slot's resonant length 0.4785*lambda is a THIN dipole's. "
+    "By Babinet a slot resonates where its complementary dipole does, and that "
+    "dipole has radius w/4 - 0.006 lambda at the default width, where "
+    "resonant_dipole (and the solver) say 0.463-0.465 lambda. Fixing it needs "
+    "the dipole fits extended to fatter wire first."))
+def test_a_slot_resonates_where_its_complementary_dipole_does(syn):
+    slot = syn("half_wave_slot", f0=F)
+    lam = 2.99792458e8 / F
+    a = slot.parameters["w"] / 4
+    dip = syn("resonant_dipole", f0=F, aw=a)
+    assert slot.parameters["L"] / lam == pytest.approx(
+        dip.metrics["length_over_lambda"], rel=0.01)

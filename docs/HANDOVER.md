@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1999 tests, 559/559 citable
+6,031 lines of Python, 14,835 lines of spec data, 2000 tests, 559/559 citable
 known cases passing.**
 
 ---
@@ -24,6 +24,7 @@ known cases passing.**
 | Interfaces | `otahub/cli/`, `otahub/gui/` | 12 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
 
 ```bash
+python -m pytest -m "not slow"      # the quick loop, ~25 s
 python OTA_Hub_AntennaToolkit.py gui
 python OTA_Hub_AntennaToolkit.py --help
 python -m pytest tests/ -q
@@ -203,6 +204,16 @@ They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
 
 ### Known open discrepancies
+
+**`half_wave_slot` resonates at a thin dipole's length.** By Babinet a slot
+resonates where its complementary dipole does, and that dipole's radius is a
+quarter of the slot width - 0.006 lambda at the default width. A dipole that
+fat resonates near 0.464 lambda (the catalogue's own `resonant_dipole` fit and
+the method of moments agree), not the 0.4785 the slot uses, and presents about
+74 ohm rather than the 67 the slot borrows, which would move the resonant slot
+from 530 ohm toward 480. It is held as a strict expected failure in
+`test_cross_consistency.py` and flagged in the spec. Fixing it needs the dipole
+fits extended to fatter wire, inside the solver's segment-length limit.
 
 - ~~**Inset patch mutual conductance.**~~ **Resolved — and the discrepancy was
   never real.** Direct quadrature of eqs. 14-12 and 14-18a reproduces Balanis

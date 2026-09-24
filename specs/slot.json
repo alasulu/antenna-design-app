@@ -247,7 +247,8 @@
         "the complementary radiator is a STRIP dipole of width w, equivalent to a round wire of radius a = w/4 -- not a round wire of radius w/2",
         "quoted Z assumes the feed is at the slot CENTRE. Feeding off-centre multiplies the impedance by cos^2(pi*x/L) (see cavity_backed_slot)",
         "wall thickness t must satisfy t << w, otherwise the slot behaves as a short length of below-cutoff waveguide and its resonant length grows",
-        "the 78 deg / omnidirectional beamwidths apply to a lambda/2 slot; longer slots break up into multiple lobes exactly as a long dipole does"
+        "the 78 deg / omnidirectional beamwidths apply to a lambda/2 slot; longer slots break up into multiple lobes exactly as a long dipole does",
+        "OPEN INCONSISTENCY, not yet corrected: by Babinet the slot resonates where its complementary dipole does, and that dipole's radius is w/4 - 0.006 lambda at the default w/L = 0.05. A dipole that fat resonates near 0.464 lambda (resonant_dipole's own fit and the method of moments agree), not the 0.4785 used here, which is a THIN dipole's resonant length. Its resonant resistance is also nearer 74 ohm than the 67 carried in Rd_res, which would put the resonant slot near 480 ohm rather than 530. Correcting it needs the dipole fits extended to fatter wire; tests/test_cross_consistency.py holds it as a strict expected failure until then"
       ],
       "known_cases": [
         {

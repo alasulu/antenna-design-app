@@ -23,6 +23,8 @@ import pytest
 
 from otahub.num import mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 ETA = 376.730313412
 
 

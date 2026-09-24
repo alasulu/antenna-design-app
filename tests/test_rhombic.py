@@ -21,6 +21,8 @@ import pytest
 
 from otahub.num import mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 MESH = 16          # directivity reads ~0.15 dB low here; fine for the physics
 
 

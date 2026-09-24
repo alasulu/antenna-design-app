@@ -21,6 +21,8 @@ import pytest
 
 from otahub.num import mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 NSEG = 72
 LAMBDA = 2.99792458e8 / 1.46e8
 CASES = [(0.010, 0.002), (0.015, 0.002), (0.020, 0.003), (0.030, 0.001)]

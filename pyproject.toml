@@ -21,5 +21,8 @@ include = ["otahub*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: full-wave solver applications - run by default, skip for a quick loop with -m 'not slow'",
+]
 addopts = "-q --tb=short"
 filterwarnings = ["error::RuntimeWarning"]

@@ -24,6 +24,8 @@ import pytest
 
 from otahub.num import mom
 
+pytestmark = pytest.mark.slow   # full-wave solves; skip with -m 'not slow'
+
 NOMINAL_L = 0.48
 NSEG = 40          # R moves 0.2% and bandwidth 0.03% from here to 96
 LAMBDA = 1.0            # geometry is already in wavelengths
