@@ -1647,9 +1647,63 @@ and resistance both. Past w/L = 0.05 the spec says it is extrapolating: there
 the complementary wire is too fat for a delta gap to be solved honestly, and
 Hallen already drifts at 0.05 under a fine mesh.
 
+## The CP patch that would have radiated linear polarisation
+
+HANDOVER section 6 says to pick the next audit by coverage - quantities a spec's
+known cases assert, over quantities it produces. The bottom of that ranking was
+`truncated_corner_cp_patch`, asserting 3 of 16. Nothing in the repo checked
+the rest, and a single-feed CP patch is unforgiving: its whole axial-ratio band
+is a fraction of a percent wide.
+
+The arbiter is new: `otahub/num/patch_cavity.py`, a cavity model of the actual
+truncated outline. Neumann modes by linear finite elements - the mesh follows
+the cut exactly and is split symmetrically, so the uncut square stays exactly
+degenerate and any split is the cut's - a probe feed, one loss Q for every
+mode, and the broadside polarisation summed over 30 modes. It assumes none of
+the rules it was brought in to check. Converged to 0.004% between 240 and 480
+cells per side.
+
+What it found, in order of damage:
+
+- **The feed rule was the nearly-square patch's.** The spec said feed on a
+  diagonal. Cutting a square's corners splits it into DIAGONAL modes, and on a
+  diagonal one of them is identically zero: the cavity model gives about
+  3000 dB of axial ratio there. Linear polarisation. The feed goes on a
+  centreline, and the other centreline reverses the handedness.
+- **The square was sized for the wrong frequency.** Only one mode moves when
+  the corners are cut, so the CP centre sits about 0.5/Q above the uncut
+  square's resonance. The spec sized the square for f0; in its own 2.4 GHz
+  example that put the CP centre 0.79% high, outside a +-0.29% axial-ratio
+  band - 7.9 dB of axial ratio at f0. The square is now sized for f_sq, and the
+  cavity model gives 0.006 dB at f0.
+- **The mode split was halved.** f0/(2Q) is each mode's offset from the
+  centre; the split is f0/Q. The cavity model puts perfect CP at Q = 1/split to
+  within 0.5%.
+- **The classic cut is first-order.** dS/S = 1/(2Q) comes from split = 2 dS/S;
+  the solved ratio falls to 1.93 by c/L = 0.14, so the classic cut is 0.2% short
+  in c at Q = 1150 and 2.6% short at Q = 12.
+- **Both bandwidths were one mode's.** Two staggered modes have
+  |Gamma| = x^2/(4 + x^2), a VSWR-2 band of sqrt(2)/Q - twice one mode's - and
+  a 3 dB axial-ratio band of exactly 0.347107/Q, where the spec had an
+  "indicative" 0.35 x one mode's band, 29% low. The cavity model reproduces
+  both to 4 digits.
+
+The cut and the offset are fitted in u = sqrt(1/(2Q)) over Q = 12..1156 and
+tested on three meshes the fit never saw (0.03%). Known cases come from a
+separate script: the patch formulas re-implemented, the corrections read by
+spline off the 480-cell scan rather than from the 240-cell polynomial the spec
+carries. Q0 is now a derived parameter that can be supplied, because the
+thin-substrate formula only knows radiation loss, and a lossier patch needs a
+bigger cut.
+
+In passing: `otahub.num.__all__` promised `bicone_cage` without importing it, so
+`from otahub.num import *` raised. Fixed. And two entries under "known open
+discrepancies" in the handover were stale - the helix gain and the LPDA
+directivity were both solved in earlier rounds - and now say so.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2015 tests, 566/566 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2033 tests, 603/603 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2015 tests, 566/566 citable
+6,031 lines of Python, 14,835 lines of spec data, 2033 tests, 603/603 citable
 known cases passing.**
 
 ---
@@ -168,6 +168,7 @@ being written into a spec.
 | `top_loaded_monopole` | The top-current ratio derived from the hat geometry, which the spec used to take as an unrelated input | Junction-connected radial hat over image ground; fitted to 0.017 in beta (0.027 held out); the reactance ships as a solved table because no fit was good enough to size a coil |
 | `biconical`, `conical_monopole` | Directivity at the band edge against flare, and across the band; the biconical's angle convention | 16-wire cages, directivity converged to 0.2%; the biconical used the full-angle impedance formula on a half-angle input (188 Ω for a cone that presents 100) |
 | `half_wave_slot`, `folded_slot` | Resonant length and resonant resistance from the complementary dipole of radius w/4, through `resonant_dipole`'s laws: 0.4637λ and 468 Ω at the default w/L = 0.05, replacing a thin dipole's 0.4785λ and a flat-67-Ω 529.6 | Exact-kernel MoM and Hallén's equation, each on meshes it has converged on: 0.4645–0.4654λ and a 471–479 Ω slot; at w/L = 0.02 the law is inside 0.1% on length |
+| `truncated_corner_cp_patch` | Corner cut, the frequency the square is sized for, mode split, and the axial-ratio and VSWR bands, all from a cavity model of the real outline | `otahub/num/patch_cavity.py`: Neumann modes on linear triangles, probe feed, broadside polarisation over 30 modes, converged to 0.004% between 240 and 480 cells per side; fits hold to 0.03% on meshes they never saw. The old design had 7.9 dB of axial ratio at its own f0 |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -237,14 +238,15 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   over the whole practical design space — k0L ∈ [0.8, 3.3], k0W ∈ [1.15, 3.25],
   which is what εr from 1 to 12 produces. Worst fit error 0.0021 in the ratio,
   under 0.1% in the resistance. Example 14.2 now reproduces to **0.066%**.
-- **Axial-mode helix gain.** The Kraus formula is known to overestimate for
-  large N, and the published corrections disagree by 1–2 dB. Both the classic
-  and a corrected variant are exposed; neither should be trusted to better
-  than a couple of dB.
+- ~~**Axial-mode helix gain.**~~ **Resolved** by a full-wave solve (§3): the
+  shipped gain is fitted to the solved helix, within 0.35 dB over the design
+  core, and the Kraus formula is kept beside it with its measured error.
 - **Stevenson's g1** for the waveguide shunt slot should be cross-checked
   against the source before committing an array to fabrication.
 - **LPDA directivity** collapses a two-dimensional Carrel chart onto the
-  optimum-σ line; expect ~1 dB error.
+  optimum-σ line. Checked since against a full-wave solve of every element: the
+  reading holds to ±0.6 dB of the log-period mean, and the periodic ripple
+  around that mean is reported separately.
 - **Taylor taper** realises its design sidelobe level to about 1 dB for small
   arrays (−28.9 dB measured for a 20-element −30 dB design).
 - **`rectangular_dra`'s radiation Q is still borrowed**, not derived: it is the
@@ -321,6 +323,31 @@ Recorded because they show what the test harness is for.
 Spec errors the harness caught include a loop loss resistance out by **30.9×**,
 another by 3.3×, and several of my own arithmetic slips (WR-90 open-ended gain,
 Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
+
+### A CP patch that would have radiated linear polarisation
+
+`truncated_corner_cp_patch` asserted 3 of the 16 quantities it produced, the
+lowest coverage in the catalogue, and a cavity model of its real outline found
+three errors, any one of which would have spoiled a built antenna:
+
+- **The feed rule was the wrong antenna's.** It said to feed on a diagonal.
+  That is the NEARLY-SQUARE patch's rule; cutting a square's corners splits it
+  into DIAGONAL modes, and on a diagonal one of them is identically zero. The
+  cavity model gives an axial ratio of about 3000 dB there - linear
+  polarisation. The feed belongs on a centreline.
+- **The mode split was half what CP needs**, f0/(2Q): that is each mode's
+  offset from the centre, not their separation.
+- **The square was sized for the wrong frequency.** Cutting the corners lifts
+  one mode and leaves the other, so the CP centre sits about 0.5/Q ABOVE the
+  uncut square's resonance. Sizing the square for f0 put the CP centre 0.79%
+  high in the spec's own example, outside its ±0.29% axial-ratio band: 7.9 dB
+  of axial ratio at f0.
+
+Also corrected: the classic cut dS/S = 1/(2Q) is first-order and under-cuts by
+up to 2.6% in c; the impedance band of two staggered modes is twice a single
+mode's; and the axial-ratio band, 0.347/Q exactly in the two-mode model, was an
+"indicative" figure 29% low. Every one was checked in the cavity model, which
+assumes none of the rules it checks.
 
 ### The reference that was not what it looked like
 
@@ -469,7 +496,10 @@ known case only checks what it asserts.
    Every archetype passes the cases it declares; that is not the same as being
    right. `corner_reflector_90` had a null where its optimum is and said so
    confidently for four sessions. The archetypes carrying a single known case
-   are the place to start.
+   are the place to start. Ranked by quantities asserted over quantities
+   produced, the bottom was `truncated_corner_cp_patch` (3 of 16), and auditing
+   it found three design-breaking errors (§5). Next by the same ranking:
+   `pyramidal_horn` (4 of 18) and `stacked_patch` (3 of 13).
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.

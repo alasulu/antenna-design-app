@@ -2006,6 +2006,34 @@
           "typical": "0.0016"
         },
         {
+          "symbol": "bw1",
+          "name": "one-mode bandwidth",
+          "unit": "-",
+          "role": "derived",
+          "description": "VSWR-2 bandwidth of ONE of the two modes - the linear square patch's"
+        },
+        {
+          "symbol": "Q0",
+          "name": "modal quality factor",
+          "unit": "-",
+          "role": "derived",
+          "description": "Q of each mode. Derived from the thin-substrate bandwidth formula; supply a measured or solved Q to override, and the cut and square follow"
+        },
+        {
+          "symbol": "u_cp",
+          "name": "classic cut ratio",
+          "unit": "-",
+          "role": "derived",
+          "description": "sqrt(1/(2 Q0)): the first-order c/L, the variable the corrections are fitted in"
+        },
+        {
+          "symbol": "f_sq",
+          "name": "uncut square resonance",
+          "unit": "Hz",
+          "role": "derived",
+          "description": "the frequency the square is sized for, below f0 because the CP centre sits above the uncut resonance"
+        },
+        {
           "symbol": "L0",
           "name": "first-pass side estimate",
           "unit": "m",
@@ -2050,14 +2078,53 @@
       ],
       "synthesis": [
         {
-          "output": "L0",
-          "expr": "c/(2*f0*sqrt(eps_r))",
-          "units_out": "m",
+          "output": "bw1",
+          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "Jackson's thin-substrate bandwidth for W/L = 1: one mode's VSWR-2 band"
+        },
+        {
+          "output": "Q0",
+          "expr": "1/(bw1*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "bw1"
+          ],
+          "notes": "one mode's Q, from BW = (S-1)/(Q sqrt(S)) at S = 2"
+        },
+        {
+          "output": "u_cp",
+          "expr": "sqrt(1/(2*Q0))",
+          "units_out": "-",
+          "depends_on": [
+            "Q0"
+          ]
+        },
+        {
+          "output": "f_sq",
+          "expr": "f0/(1 + (0.5 + (0.0132274)*u_cp + (-3.08167)*u_cp**2 + (2.20467)*u_cp**3)/Q0)",
+          "units_out": "Hz",
           "depends_on": [
             "f0",
+            "u_cp",
+            "Q0"
+          ],
+          "notes": "The CP centre sits above the uncut square's resonance by (0.5 + ...)/Q0; the bracket is fitted to the cavity model over Q0 = 12..1156, worst error 0.0004 in offset*Q0 and 0.02% on meshes the fit never saw. At 2.4 GHz on 1.6 mm of eps_r = 2.2 the square is sized 0.80% below f0."
+        },
+        {
+          "output": "L0",
+          "expr": "c/(2*f_sq*sqrt(eps_r))",
+          "units_out": "m",
+          "depends_on": [
+            "f_sq",
             "eps_r"
           ],
-          "notes": "first estimate of the side, used only to evaluate eps_reff - a square patch has W = L, so the usual width formula does not apply"
+          "notes": "first estimate of the side at f_sq, used only to evaluate eps_reff - a square patch has W = L, so the usual width formula does not apply"
         },
         {
           "output": "eps_reff",
@@ -2081,26 +2148,24 @@
         },
         {
           "output": "L",
-          "expr": "c/(2*f0*sqrt(eps_reff)) - 2*dL",
+          "expr": "c/(2*f_sq*sqrt(eps_reff)) - 2*dL",
           "units_out": "m",
           "depends_on": [
-            "f0",
+            "f_sq",
             "eps_reff",
             "dL"
           ],
-          "notes": "one iteration; a second pass moves it by well under a percent"
+          "notes": "The uncut square, sized as a linear patch resonant at f_sq - NOT at f0. Cutting the corners lifts one mode and puts the CP centre at f0."
         },
         {
           "output": "c_trunc",
-          "expr": "L*sqrt((3.771*(eps_r-1)/(eps_r**2)*(h*f0/c))/sqrt(2))",
+          "expr": "L*u_cp*(1 + (0.0884308)*u_cp + (1.04256)*u_cp**2 + (-4.21818)*u_cp**3)",
           "units_out": "m",
           "depends_on": [
             "L",
-            "eps_r",
-            "h",
-            "f0"
+            "u_cp"
           ],
-          "notes": "From dS/S = 1/(2Q), with Q taken from the patch bandwidth as Q = 1/(BW*sqrt(2)), so dS/S = BW/sqrt(2). The two cut triangles have combined area c^2, so c/L = sqrt(dS/S)."
+          "notes": "Leg of each cut triangle (two triangles, combined area c^2). The classic first-order rule is c/L = u_cp = sqrt(1/(2Q)); the bracket is the cavity model's correction, fitted over Q0 = 12..1156 to 0.0005 in (c/L)/u_cp and 0.03% on held-out meshes. It is 1.4% bigger than the classic cut at Q0 = 59."
         },
         {
           "output": "L_eff",
@@ -2127,32 +2192,40 @@
       "analysis": [
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)",
+          "expr": "sqrt(2)/Q0",
           "units_out": "-",
           "depends_on": [
-            "eps_r",
-            "h",
-            "f0"
+            "Q0"
           ],
-          "notes": "square patch, so W/L = 1"
+          "notes": "The CP patch's OWN VSWR-2 band: |Gamma| = x^2/(4 + x^2) in x = 2Q(f-f0)/f0 for two staggered modes, so VSWR 2 at x = sqrt(2) - twice one mode's band. Referenced to the resistance at the CP centre, with the probe's reactance tuned out. This spec used to quote one mode's band, half this."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2_one_mode",
+          "expr": "bw1",
+          "units_out": "-",
+          "depends_on": [
+            "bw1"
+          ],
+          "notes": "the same square fed for linear polarisation, for comparison"
         },
         {
           "metric": "quality_factor",
-          "expr": "1/(fractional_bandwidth_vswr2*sqrt(2))",
+          "expr": "Q0",
           "units_out": "-",
           "depends_on": [
-            "fractional_bandwidth_vswr2"
+            "Q0"
           ],
-          "notes": "inverted from BW = (S-1)/(Q*sqrt(S)) at S = 2"
+          "notes": "each mode's Q - the one number every other result here scales with"
         },
         {
           "metric": "truncation_area_ratio",
-          "expr": "1/(2*quality_factor)",
+          "expr": "(c_trunc/L)**2",
           "units_out": "-",
           "depends_on": [
-            "quality_factor"
+            "c_trunc",
+            "L"
           ],
-          "notes": "dS/S, the classic single-feed CP condition. A high-Q patch needs only a tiny cut, which is exactly why single-feed CP is so sensitive to etching tolerance."
+          "notes": "dS/S as actually cut. The classic single-feed CP condition says 1/(2Q); the solved cut is larger (2.8% at Q0 = 59). A high-Q patch still needs only a tiny cut, which is why single-feed CP is so sensitive to etching."
         },
         {
           "metric": "truncation_over_side",
@@ -2165,22 +2238,22 @@
         },
         {
           "metric": "mode_split_hz",
-          "expr": "f0/(2*quality_factor)",
+          "expr": "f0/Q0",
           "units_out": "Hz",
           "depends_on": [
             "f0",
-            "quality_factor"
+            "Q0"
           ],
-          "notes": "The two degenerate modes must be separated by f0/(2Q) for 90 degrees of phase difference at f0"
+          "notes": "Separation of the two diagonal modes for 90 degrees at equal amplitude: f0/Q, with each mode f0/(2Q) either side of the CP centre. This spec used to give f0/(2Q), which is the offset, not the split."
         },
         {
-          "metric": "axial_ratio_bandwidth_estimate",
-          "expr": "0.35*fractional_bandwidth_vswr2",
+          "metric": "axial_ratio_bandwidth_3db",
+          "expr": "0.347107/Q0",
           "units_out": "-",
           "depends_on": [
-            "fractional_bandwidth_vswr2"
+            "Q0"
           ],
-          "notes": "Indicative: the 3 dB axial-ratio band of a single-feed CP patch is typically about a third of its impedance band. A dual-feed patch with a quadrature hybrid is far wider, at the cost of the hybrid."
+          "notes": "3 dB axial-ratio band from the two-mode model: AR = (sqrt(4+x^2) + |x|)/(sqrt(4+x^2) - |x|) in x = 2Q(f-f0)/f0, so the band is 2 rho/sqrt(1-rho^2)/Q = 0.347107/Q with rho = (10^0.15 - 1)/(10^0.15 + 1). The cavity model on the real outline agrees to 4 digits. A quarter of the patch's own VSWR-2 band. Replaces an indicative 0.35 x one mode's band, which was 29% low."
         },
         {
           "metric": "directivity_linear",
@@ -2191,7 +2264,7 @@
             "L",
             "g_pattern"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. For the CP patch the two diagonal modes radiate the same pattern turned 90 degrees and in quadrature, so their cross terms cancel in power and the broadside directivity is the linear square's."
         },
         {
           "metric": "directivity_dbi",
@@ -2205,14 +2278,15 @@
           "metric": "axial_ratio_on_axis_db",
           "expr": "0.0",
           "units_out": "dB",
-          "notes": "by construction at exactly f0, where the mode split gives precisely 90 degrees"
+          "notes": "0 dB at f0 by construction - which now holds: the cavity model gives 0.006 dB at f0 for the 2.4 GHz case, against 7.9 dB with the square sized for f0"
         }
       ],
       "validity": [
-        "the dS/S = 1/(2Q) rule assumes the two modes are otherwise degenerate and equally excited, which requires the feed on a diagonal",
-        "single-feed CP is narrowband in axial ratio - a few tenths of a percent on thin high-permittivity substrates",
-        "sense of rotation is set by WHICH diagonal is cut; this spec does not track handedness",
-        "axial ratio degrades rapidly off boresight and off frequency; only the on-axis, on-frequency value is claimed",
+        "feed on a CENTRELINE of the square, never on a diagonal: a diagonal feed couples to only one of the two diagonal modes and radiates linear polarisation. Feeding the other centreline reverses the sense of rotation",
+        "the cut and the square are cavity-model results (magnetic walls at the physical outline, one loss Q for all modes), fitted for Q0 = 12..1156; outside that is extrapolation, and the cavity model does not see the fringing field change at the cuts",
+        "Q0 comes from a thin-substrate RADIATION bandwidth; conductor and dielectric loss lower the true Q, which needs a BIGGER cut and moves the CP centre. Supply Q0 from a measurement or a full-wave solve to redesign for it",
+        "single-feed CP is narrowband in axial ratio: 0.35/Q, 0.6% at Q = 59 and a few tenths of a percent on thin high-permittivity substrates",
+        "axial ratio degrades rapidly off boresight and off frequency; only the on-axis values are claimed",
         "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
       ],
       "known_cases": [
@@ -2223,11 +2297,82 @@
             "h": 0.0016
           },
           "expect": {
-            "truncation_area_ratio": 0.0084681,
-            "truncation_over_side": 0.0920223
+            "L_m": 0.04178483,
+            "c_trunc_m": 0.003898851,
+            "truncation_over_side": 0.09330779,
+            "truncation_area_ratio": 0.008706344,
+            "quality_factor": 59.04486,
+            "mode_split_hz": 40647060.0,
+            "fractional_bandwidth_vswr2": 0.02395151,
+            "fractional_bandwidth_vswr2_one_mode": 0.01197576,
+            "axial_ratio_bandwidth_3db": 0.005878702,
+            "f_sq_hz": 2380769000.0
           },
-          "tol_pct": 2.0,
-          "source": "1.6 mm on eps_r = 2.2 at 2.4 GHz gives BW = 1.197%, so Q = 59.05 and dS/S = 1/(2Q) = 0.847%. The truncation leg is sqrt(dS/S) = 9.2% of the side. Garg et al., Microstrip Antenna Design Handbook, Ch. 10"
+          "tol_pct": 0.3,
+          "source": "2.4 GHz on 1.6 mm of eps_r = 2.2: Q = 59.045, so the classic cut is c/L = 0.09202; the finite-element cavity model (N = 480, spline in sqrt(1/2Q)) makes it perfectly circular at c/L = 0.09331 and puts its CP centre 0.808% above the uncut square's resonance, so the square is sized for 2.38077 GHz by the transmission-line model. Split f0/Q, AR band 0.347107/Q and VSWR-2 band sqrt(2)/Q from the two-mode model, which the cavity model reproduces to 4 digits."
+        },
+        {
+          "given": {
+            "f0": 1575000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "L_m": 0.04555436,
+            "c_trunc_m": 0.002883004,
+            "truncation_over_side": 0.06328712,
+            "truncation_area_ratio": 0.004005259,
+            "quality_factor": 127.0209,
+            "mode_split_hz": 12399540.0,
+            "fractional_bandwidth_vswr2": 0.01113371,
+            "fractional_bandwidth_vswr2_one_mode": 0.005566855,
+            "axial_ratio_bandwidth_3db": 0.002732678,
+            "f_sq_hz": 1568956000.0
+          },
+          "tol_pct": 0.3,
+          "source": "GPS L1 on 1.6 mm FR-4: Q = 127.021, so the classic cut is c/L = 0.06274; the finite-element cavity model (N = 480, spline in sqrt(1/2Q)) makes it perfectly circular at c/L = 0.06329 and puts its CP centre 0.385% above the uncut square's resonance, so the square is sized for 1.56896 GHz by the transmission-line model. Split f0/Q, AR band 0.347107/Q and VSWR-2 band sqrt(2)/Q from the two-mode model, which the cavity model reproduces to 4 digits."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 2.2,
+            "h": 0.000787
+          },
+          "expect": {
+            "L_m": 0.01724585,
+            "c_trunc_m": 0.00175683,
+            "truncation_over_side": 0.1018697,
+            "truncation_area_ratio": 0.01037744,
+            "quality_factor": 49.67188,
+            "mode_split_hz": 116766300.0,
+            "fractional_bandwidth_vswr2": 0.02847111,
+            "fractional_bandwidth_vswr2_one_mode": 0.01423556,
+            "axial_ratio_bandwidth_3db": 0.006988,
+            "f_sq_hz": 5745340000.0
+          },
+          "tol_pct": 0.3,
+          "source": "5.8 GHz on 0.787 mm of eps_r = 2.2: Q = 49.672, so the classic cut is c/L = 0.10033; the finite-element cavity model (N = 480, spline in sqrt(1/2Q)) makes it perfectly circular at c/L = 0.10187 and puts its CP centre 0.951% above the uncut square's resonance, so the square is sized for 5.74534 GHz by the transmission-line model. Split f0/Q, AR band 0.347107/Q and VSWR-2 band sqrt(2)/Q from the two-mode model, which the cavity model reproduces to 4 digits."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016,
+            "Q0": 30.0
+          },
+          "expect": {
+            "L_m": 0.04208435,
+            "c_trunc_m": 0.005539191,
+            "truncation_over_side": 0.1316212,
+            "truncation_area_ratio": 0.01732413,
+            "quality_factor": 30.0,
+            "mode_split_hz": 80000000.0,
+            "fractional_bandwidth_vswr2": 0.04714045,
+            "axial_ratio_bandwidth_3db": 0.01157024,
+            "f_sq_hz": 2364166000.0
+          },
+          "tol_pct": 0.3,
+          "source": "the 2.4 GHz patch with a supplied Q0 = 30: Q = 30.000, so the classic cut is c/L = 0.12910; the finite-element cavity model (N = 480, spline in sqrt(1/2Q)) makes it perfectly circular at c/L = 0.13162 and puts its CP centre 1.516% above the uncut square's resonance, so the square is sized for 2.36417 GHz by the transmission-line model. Split f0/Q, AR band 0.347107/Q and VSWR-2 band sqrt(2)/Q from the two-mode model, which the cavity model reproduces to 4 digits."
         },
         {
           "given": {
@@ -2246,7 +2391,8 @@
       "references": [
         "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 10",
         "Balanis, Antenna Theory 4th ed., Ch. 14.6"
-      ]
+      ],
+      "notes": "TWO MODES, ONE FEED. Cutting two opposite corners of a square splits its degenerate pair into two DIAGONAL modes: the one polarised along the cut diagonal rises in frequency, the other barely moves. Fed so that both are excited equally, each resonance contributes +-45 degrees of phase at the frequency midway between them, which is circular polarisation. Everything below was checked against a finite-element cavity model of the actual truncated outline (otahub/num/patch_cavity.py: Neumann modes on linear triangles, a probe feed, one loss Q for every mode, the broadside polarisation summed over 30 modes), converged to 0.004% between 240 and 480 cells per side. THE SPLIT is f0/Q, not f0/(2Q) as this spec used to say: 90 degrees at equal amplitude needs the modes at f0(1 -+ 1/(2Q)), so f0/(2Q) is each mode's offset from the centre, not their separation. The cavity model gives perfect CP at Q = 1/split to within 0.5%. THE FEED goes on a CENTRELINE of the square - the line through the midpoints of two opposite sides - not on a diagonal. On either diagonal one of the two modes is identically zero, so a diagonal feed excites one mode and radiates linear polarisation (the cavity model gives an axial ratio of about 3000 dB there). The diagonal feed belongs to the NEARLY-SQUARE patch, whose modes lie along the sides. THE CUT. First-order perturbation gives split = 2 dS/S, hence the classic dS/S = 1/(2Q); the finite-element split falls below 2 dS/S as the cut grows (1.97 at c/L = 0.06, 1.93 at 0.14), so the classic cut is 0.2% short in c at Q = 1150 and 2.6% short at Q = 12. The cut here is the solved one. THE SQUARE. The CP centre sits ABOVE the uncut square's resonance, by 0.5/Q at small cuts and 0.39/Q at Q = 12, because only one mode moves. This spec used to size the square to resonate AT f0, which put the CP centre 0.79% high in its own 2.4 GHz case - outside the +-0.29% axial-ratio band, leaving 7.9 dB of axial ratio at f0. The square is now sized for f_sq, below f0 by exactly that offset. BANDWIDTHS from the same two-mode picture, both confirmed by the cavity model to 4 digits: the 3 dB axial-ratio band is 0.347107/Q and the VSWR-2 band is sqrt(2)/Q - TWICE a single mode's, because the two staggered resonances flatten the impedance. At the CP centre the two-mode impedance is exactly real."
     },
     {
       "key": "stacked_patch",

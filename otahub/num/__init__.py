@@ -6,11 +6,11 @@ confirmed by a route that shares no algebra with it.
 """
 from __future__ import annotations
 
-from . import hallen, loop_modal
+from . import hallen, loop_modal, patch_cavity
 from .mom import (
     Wire, WireModel, MoMSolution, dipole, loop, arc, halo, folded_dipole_wire,
     helix_over_ground, lpda_model, rhombic_model,
-    top_hat_monopole, tl_admittance, NetworkSolution,
+    top_hat_monopole, bicone_cage, tl_admittance, NetworkSolution,
     solve_network,
     impedance_matrix, solve, input_impedance, far_field, pattern_power,
     radiated_power, directivity, directivity_towards,
@@ -18,7 +18,7 @@ from .mom import (
 )
 
 __all__ = [
-    "hallen", "loop_modal",
+    "hallen", "loop_modal", "patch_cavity",
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire", "helix_over_ground", "lpda_model",
     "rhombic_model", "top_hat_monopole", "bicone_cage",
