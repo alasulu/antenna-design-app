@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2194 tests, 636/636 citable
+6,031 lines of Python, 14,835 lines of spec data, 2225 tests, 646/646 citable
 known cases passing.**
 
 ---
@@ -151,7 +151,7 @@ being written into a spec.
 | `dipole_over_ground` | Zenith directivity from image theory with exact mutual impedance | Hemisphere integration agrees to five digits; mutual Z reproduces −12.5 −j29.9 Ω at d = λ/2 |
 | `turnstile_dipole` | On-axis D equals a single dipole's; element plane exactly 3 dB down | Spherical integration of the summed-power pattern |
 | `v_antenna_travelling`, `rhombic` | Axial directivity fitted to a four-leg travelling-wave model | 1.3% max fit error over 1.5–12 λ; axial lobe confirmed to be the global peak at the design angle |
-| `corner_reflector_90`, `corner_reflector_60` | Image array factors | Summed field leaves ~1e-15 tangential E on the plates |
+| `corner_reflector_90`, `corner_reflector_60` | Image array factors; and now the driving-point impedance of the half-wave element, fitted over spacing and radius | Summed field leaves ~1e-15 tangential E on the plates. `otahub/num/corner.py` solves dipole plus images as one MoM problem: directivity within 0.04 dB of the specs everywhere tested, power balance to 1e-5, impedance fit within 2.2 ohm of fresh solves off its grid |
 | `diagonal_horn` | Aperture efficiency 8/π² = 0.8106 | Aperture integration on a 2001² grid: 0.8110 |
 | `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
 | `annular_ring_patch` | Directivity from the TWO edge walls' magnetic ring currents, fitted in (k₀a, k₀b) | Quadrature and an independent 2-D angular grid agree to four decimals; replaces a hard-coded 5.0 that was 5% low at εr = 2.2 and 48% high at εr = 10.2 |
@@ -539,8 +539,10 @@ known case only checks what it asserts.
    turned out not to be buildable (§5). The ranking undercounts archetypes
    already verified another way (`annular_ring_patch`, the inset patch); of the
    ones it rightly flags, the waveguide slot family was next: Stevenson's g1
-   turned out inverted in the spec (§4). `stacked_patch` and the corner
-   reflectors are what the ranking offers after that.
+   turned out inverted in the spec (§4). The corner reflectors followed: their
+   directivity held to 0.04 dB against an exact image solution, but the quoted
+   "input resistance" was an induced-EMF figure the feed never sees. That leaves
+   `stacked_patch`, which needs a full-wave solve this toolkit does not have.
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.

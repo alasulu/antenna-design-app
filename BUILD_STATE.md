@@ -1808,9 +1808,50 @@ levels is Taylor's own - the old taper did it in 78 of 252 cases, this one in
 77 - and the docstring now says so. Chebyshev remains the more efficient of the
 two for N >= 20.
 
+## Corner reflectors: the directivity was right, the feed impedance was not the feed's
+
+Next on the coverage ranking were the two corner reflectors, 3 of 12 quantities
+asserted each. They are the one family on that list the solver can reach
+exactly: a dipole in an infinite PEC corner IS its image set, and solving the
+set as one method-of-moments problem - every dipole driven with its image sign -
+gives the real current rather than an assumed sinusoid. That is now
+`otahub/num/corner.py`. Its images conserve power to 1e-5: the image system
+radiates exactly as many times the real feed's power as it has wedges.
+
+**The directivity held.** Array factor times dipole directivity times a
+resistance ratio, with induced-EMF mutual terms, agrees with the exact solution
+to 0.01-0.04 dB from S = 0.1 to 0.75 lambda in the 90-degree corner and 0.35 to
+0.8 in the 60-degree one, and the validity note's "nearly flat, 12.6 down to
+11.8 dBi" is right with the real current too. Worth recording, because it is
+the number most people take from a corner reflector.
+
+**The impedance did not.** The quoted "input resistance" was the induced-EMF
+resistance of a sinusoid on an exactly half-wave element: what the directivity
+formula needs, and exactly right for that, but not what the feed sees. The
+real element presents 6 to 41% more resistance - 151 ohm where the spec said
+126, at S = lambda/2 - and a reactance the spec never reported: +49 ohm there,
++107 at S = 0.25 lambda, and at S = 0.1 lambda about 1 ohm of resistance under
+40 of reactance. The element that would resonate in the corner is anywhere from
+0.42 to 0.52 lambda long depending on spacing and radius.
+
+A closed-form repair was tried first and failed honestly: the isolated MoM
+dipole plus induced-EMF image terms, even with a fitted complex scale, is 9-79%
+off at its worst point depending on radius and corner - close-range coupling
+with the real current does not follow the sinusoidal formulas. So the impedance is solved: 444 image-MoM
+solves over S = 0.1..1.0 lambda and element radius 1e-4..5e-3 lambda, fitted
+in spacing to degree 12 and log-radius to degree 3. Grid residual under
+1.3 ohm; within 2.2 ohm of fresh solves at radii and spacings the fit never saw,
+which is inside the solver's own 2-3 ohm mesh uncertainty on the fattest wire.
+Degree 10 in spacing had left 5 ohm; degree 14 bought nothing.
+
+Both specs now carry `input_resistance_ohm` and `input_reactance_ohm` from that
+fit, with a new `aw_over_lambda` (default 1e-3); the old figure survives as
+`induced_emf_resistance_ohm`, named for what it is, and still feeds the
+directivity. Known cases come from direct solves, not the fit.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2194 tests, 636/636 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2225 tests, 646/646 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -547,6 +547,26 @@
           "name": "plate side length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "aw_over_lambda",
+          "name": "driven element radius / lambda",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1e-3",
+          "description": "radius of the half-wave dipole; sets its driving-point impedance, not the directivity"
+        },
+        {
+          "symbol": "cz_s",
+          "name": "normalised spacing",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "cz_t",
+          "name": "normalised thickness",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -576,6 +596,23 @@
             "S"
           ],
           "notes": "plates of about twice the vertex spacing; beyond that the extra gain is marginal"
+        },
+        {
+          "output": "cz_s",
+          "expr": "(S*f0/c - 0.55)/0.45",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0"
+          ]
+        },
+        {
+          "output": "cz_t",
+          "expr": "(log10(1/aw_over_lambda) - 3.15)/0.85",
+          "units_out": "-",
+          "depends_on": [
+            "aw_over_lambda"
+          ]
         }
       ],
       "analysis": [
@@ -630,7 +667,7 @@
           "notes": "to the positive double-reflection image, at spacing 2*S"
         },
         {
-          "metric": "input_resistance_ohm",
+          "metric": "induced_emf_resistance_ohm",
           "expr": "self_resistance_ohm - 2*mutual_resistance_adjacent_ohm + mutual_resistance_opposite_ohm",
           "units_out": "ohm",
           "depends_on": [
@@ -638,17 +675,37 @@
             "mutual_resistance_adjacent_ohm",
             "mutual_resistance_opposite_ohm"
           ],
-          "notes": "Signs follow the image currents. This is the figure that actually limits how close to the vertex the dipole can go: at S = 0.25 lambda it is 27 ohm, at 0.1 lambda under 1 ohm."
+          "notes": "Signs follow the image currents. This is the figure that actually limits how close to the vertex the dipole can go: at S = 0.25 lambda it is 27 ohm, at 0.1 lambda under 1 ohm. This is the INDUCED-EMF resistance: an assumed sinusoid on an exactly half-wave element. It is what the directivity formula needs, and there it is right - the directivity below is within 0.04 dB of the exact image solution everywhere tested. It is NOT what the feed sees; input_resistance_ohm is."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "(141.470174) + (-7.94615163)*cz_t**1 + (2.77049078)*cz_t**2 + (-0.103950769)*cz_t**3 + (-117.879574)*cz_s**1 + (41.218919)*cz_s**1*cz_t**1 + (-32.2140465)*cz_s**1*cz_t**2 + (16.1563104)*cz_s**1*cz_t**3 + (-416.12073)*cz_s**2 + (-46.8900272)*cz_s**2*cz_t**1 + (97.3245337)*cz_s**2*cz_t**2 + (-72.7636588)*cz_s**2*cz_t**3 + (528.158875)*cz_s**3 + (-198.267141)*cz_s**3*cz_t**1 + (51.2390277)*cz_s**3*cz_t**2 + (20.4926872)*cz_s**3*cz_t**3 + (309.443968)*cz_s**4 + (395.997773)*cz_s**4*cz_t**1 + (-524.771702)*cz_s**4*cz_t**2 + (339.215704)*cz_s**4*cz_t**3 + (-940.508288)*cz_s**5 + (377.407773)*cz_s**5*cz_t**1 + (262.530666)*cz_s**5*cz_t**2 + (-378.710332)*cz_s**5*cz_t**3 + (607.550423)*cz_s**6 + (-1060.67622)*cz_s**6*cz_t**1 + (1074.82472)*cz_s**6*cz_t**2 + (-586.174875)*cz_s**6*cz_t**3 + (1056.80015)*cz_s**7 + (-366.350664)*cz_s**7*cz_t**1 + (-830.7865)*cz_s**7*cz_t**2 + (909.252546)*cz_s**7*cz_t**3 + (-1279.71114)*cz_s**8 + (1379.62407)*cz_s**8*cz_t**1 + (-1032.47512)*cz_s**8*cz_t**2 + (398.228071)*cz_s**8*cz_t**3 + (-652.711228)*cz_s**9 + (165.527749)*cz_s**9*cz_t**1 + (861.674879)*cz_s**9*cz_t**2 + (-867.429997)*cz_s**9*cz_t**3 + (932.98542)*cz_s**10 + (-905.473804)*cz_s**10*cz_t**1 + (458.546629)*cz_s**10*cz_t**2 + (-42.0325803)*cz_s**10*cz_t**3 + (165.424491)*cz_s**11 + (-24.3397286)*cz_s**11*cz_t**1 + (-307.709148)*cz_s**11*cz_t**2 + (297.386377)*cz_s**11*cz_t**3 + (-255.267731)*cz_s**12 + (240.486378)*cz_s**12*cz_t**1 + (-71.3789808)*cz_s**12*cz_t**2 + (-39.2961347)*cz_s**12*cz_t**3",
+          "units_out": "ohm",
+          "depends_on": [
+            "cz_s",
+            "cz_t"
+          ],
+          "notes": "Driving-point resistance of the half-wave element in the corner. Solved, not assumed: the dipole and its image set as one method-of-moments problem (otahub.num.corner), exact for infinite plates and using the real current. Fitted over S = 0.1..1.0 lambda and aw = 1e-4..5e-3 lambda (444 solves): grid residual under 1.3 ohm, and within 2.2 ohm of fresh solves at radii and spacings the fit never saw. The solver's own mesh uncertainty on the fattest wire is 2-3 ohm."
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "(23.7915203) + (7.74185595)*cz_t**1 + (-10.4129949)*cz_t**2 + (6.88005176)*cz_t**3 + (-222.784457)*cz_s**1 + (-4.0596186)*cz_s**1*cz_t**1 + (23.0458002)*cz_s**1*cz_t**2 + (-19.6014937)*cz_s**1*cz_t**3 + (303.296362)*cz_s**2 + (-105.166943)*cz_s**2*cz_t**1 + (53.8668114)*cz_s**2*cz_t**2 + (-14.5213547)*cz_s**2*cz_t**3 + (492.586452)*cz_s**3 + (156.403092)*cz_s**3*cz_t**1 + (-264.329289)*cz_s**3*cz_t**2 + (188.595809)*cz_s**3*cz_t**3 + (-755.148745)*cz_s**4 + (280.28497)*cz_s**4*cz_t**1 + (137.213284)*cz_s**4*cz_t**2 + (-225.408778)*cz_s**4*cz_t**3 + (-4.39962858)*cz_s**5 + (-628.752751)*cz_s**5*cz_t**1 + (841.388909)*cz_s**5*cz_t**2 + (-549.871621)*cz_s**5*cz_t**3 + (1097.59326)*cz_s**6 + (-320.025146)*cz_s**6*cz_t**1 + (-998.884618)*cz_s**6*cz_t**2 + (1045.79162)*cz_s**6*cz_t**3 + (-741.293294)*cz_s**7 + (1020.97499)*cz_s**7*cz_t**1 + (-1176.433)*cz_s**7*cz_t**2 + (706.534655)*cz_s**7*cz_t**3 + (-995.584832)*cz_s**8 + (93.1664118)*cz_s**8*cz_t**1 + (1927.41999)*cz_s**8*cz_t**2 + (-1833.06388)*cz_s**8*cz_t**3 + (730.188464)*cz_s**9 + (-771.448917)*cz_s**9*cz_t**1 + (774.029919)*cz_s**9*cz_t**2 + (-418.942)*cz_s**9*cz_t**3 + (485.693144)*cz_s**10 + (100.755444)*cz_s**10*cz_t**1 + (-1607.29902)*cz_s**10*cz_t**2 + (1464.31488)*cz_s**10*cz_t**3 + (-230.11524)*cz_s**11 + (225.701617)*cz_s**11*cz_t**1 + (-197.736083)*cz_s**11*cz_t**2 + (93.6812226)*cz_s**11*cz_t**3 + (-96.692526)*cz_s**12 + (-60.9424598)*cz_s**12*cz_t**1 + (498.963771)*cz_s**12*cz_t**2 + (-443.643272)*cz_s**12*cz_t**3",
+          "units_out": "ohm",
+          "depends_on": [
+            "cz_s",
+            "cz_t"
+          ],
+          "notes": "Driving-point reactance of the same element - large and inductive over most of the range, because a half-wave element is longer than resonant and the corner's images add reactance of their own. Resonating it means shortening it, to anywhere from 0.42 to 0.52 lambda depending on spacing and radius. Solved, not assumed: the dipole and its image set as one method-of-moments problem (otahub.num.corner), exact for infinite plates and using the real current. Fitted over S = 0.1..1.0 lambda and aw = 1e-4..5e-3 lambda (444 solves): grid residual under 1.3 ohm, and within 2.2 ohm of fresh solves at radii and spacings the fit never saw. The solver's own mesh uncertainty on the fattest wire is 2-3 ohm."
         },
         {
           "metric": "directivity_linear",
-          "expr": "array_factor_field**2 * 1.64092 * 73.0790/input_resistance_ohm",
+          "expr": "array_factor_field**2 * 1.64092 * 73.0790/induced_emf_resistance_ohm",
           "units_out": "-",
           "depends_on": [
             "array_factor_field",
-            "input_resistance_ohm"
+            "induced_emf_resistance_ohm"
           ],
-          "notes": "D = |AF|^2 * D_dipole * R_isolated/R_in. The mutual-coupling term is what brings the answer to the measured ~12 dBi; omitting it overstates the gain by 2 dB at S = lambda/2."
+          "notes": "D = |AF|^2 * D_dipole * R_isolated/R_in. The mutual-coupling term is what brings the answer to the measured ~12 dBi; omitting it overstates the gain by 2 dB at S = lambda/2. Checked against the exact image-MoM solution: within 0.04 dB from S = 0.1 to 0.75 lambda (90 deg) and 0.35 to 0.8 (60 deg)."
         },
         {
           "metric": "directivity_dbi",
@@ -671,7 +728,8 @@
         "plates assumed INFINITE and perfectly conducting. Real plates of about 2S truncate the images, and that - not the array factor - is what makes very small spacings perform poorly",
         "with infinite plates the directivity is nearly flat from S = 0.05 to 0.5 lambda (12.6 down to 11.8 dBi); the feed resistance, not the pattern, chooses the spacing",
         "S = lambda is a true boresight null, where all four images cancel",
-        "half-wave driven element assumed by the mutual-impedance formula"
+        "half-wave driven element assumed by the mutual-impedance formula",
+        "input_resistance_ohm and input_reactance_ohm hold for S = 0.1..1.0 lambda and element radius 1e-4..5e-3 lambda, for the exactly half-wave element this spec designs, with infinite plates. Near the vertex the resistance is a few ohms under 40-100 ohm of reactance: that, not the pattern, is what makes close spacing hard to feed"
       ],
       "known_cases": [
         {
@@ -681,8 +739,8 @@
           },
           "expect": {
             "array_factor_field": 4.0,
-            "input_resistance_ohm": 126.337,
-            "directivity_dbi": 11.81
+            "directivity_dbi": 11.81,
+            "induced_emf_resistance_ohm": 126.337
           },
           "tol_pct": 1.0,
           "source": "S = lambda/2 maximises the boresight array factor at 4.0 (NOT a null). With the mutual terms the feed sees 126 ohm and the directivity is 15.19 (11.81 dBi), the textbook ~12 dBi for a 90-degree corner. Image sum verified to leave 1e-15 of tangential E on the plates."
@@ -705,11 +763,50 @@
           },
           "expect": {
             "array_factor_field": 2.0,
-            "input_resistance_ohm": 27.222,
-            "directivity_dbi": 12.46
+            "directivity_dbi": 12.46,
+            "induced_emf_resistance_ohm": 27.222
           },
           "tol_pct": 1.0,
           "source": "Quarter-wave spacing: |AF| = 2*(1-cos(pi/2)) = 2. The feed resistance has fallen to 27 ohm, which is the practical reason not to go closer."
+        },
+        {
+          "given": {
+            "f0": 299792458.0,
+            "S_over_lambda": 0.5,
+            "aw_over_lambda": 0.001
+          },
+          "expect": {
+            "input_resistance_ohm": 151.26,
+            "input_reactance_ohm": 49.283
+          },
+          "tol_pct": 2.5,
+          "source": "Direct method-of-moments solve of the dipole and its image set (otahub.num.corner, exact kernel, 40 segments), not the fit: 151.3 + j49.3 ohm at S = 0.5 lambda, radius 0.001 lambda. The fit it checks is good to 2.2 ohm on points it never saw."
+        },
+        {
+          "given": {
+            "f0": 299792458.0,
+            "S_over_lambda": 0.25,
+            "aw_over_lambda": 0.001
+          },
+          "expect": {
+            "input_resistance_ohm": 35.689,
+            "input_reactance_ohm": 107.03
+          },
+          "tol_pct": 2.5,
+          "source": "Direct method-of-moments solve of the dipole and its image set (otahub.num.corner, exact kernel, 40 segments), not the fit: 35.7 + j107.0 ohm at S = 0.25 lambda, radius 0.001 lambda. The fit it checks is good to 2.2 ohm on points it never saw."
+        },
+        {
+          "given": {
+            "f0": 299792458.0,
+            "S_over_lambda": 0.3,
+            "aw_over_lambda": 0.0003
+          },
+          "expect": {
+            "input_resistance_ohm": 58.821,
+            "input_reactance_ohm": 114.55
+          },
+          "tol_pct": 2.5,
+          "source": "Direct method-of-moments solve of the dipole and its image set (otahub.num.corner, exact kernel, 40 segments), not the fit: 58.8 + j114.6 ohm at S = 0.3 lambda, radius 0.0003 lambda. The fit it checks is good to 2.2 ohm on points it never saw."
         }
       ],
       "references": [
@@ -757,6 +854,26 @@
           "name": "plate side length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "aw_over_lambda",
+          "name": "driven element radius / lambda",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "1e-3",
+          "description": "radius of the half-wave dipole; sets its driving-point impedance, not the directivity"
+        },
+        {
+          "symbol": "cz_s",
+          "name": "normalised spacing",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "cz_t",
+          "name": "normalised thickness",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -783,6 +900,23 @@
           "units_out": "m",
           "depends_on": [
             "S"
+          ]
+        },
+        {
+          "output": "cz_s",
+          "expr": "(S*f0/c - 0.55)/0.45",
+          "units_out": "-",
+          "depends_on": [
+            "S",
+            "f0"
+          ]
+        },
+        {
+          "output": "cz_t",
+          "expr": "(log10(1/aw_over_lambda) - 3.15)/0.85",
+          "units_out": "-",
+          "depends_on": [
+            "aw_over_lambda"
           ]
         }
       ],
@@ -816,7 +950,7 @@
           ]
         },
         {
-          "metric": "input_resistance_ohm",
+          "metric": "induced_emf_resistance_ohm",
           "expr": "self_resistance_ohm - 2*(eta0/(4*pi))*(2*Ci(k0*S) - Ci(k0*(sqrt((S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((S)**2 + Ld**2) - Ld))) + 2*(eta0/(4*pi))*(2*Ci(k0*sqrt(3)*S) - Ci(k0*(sqrt((sqrt(3)*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((sqrt(3)*S)**2 + Ld**2) - Ld))) - (eta0/(4*pi))*(2*Ci(k0*2*S) - Ci(k0*(sqrt((2*S)**2 + Ld**2) + Ld)) - Ci(k0*(sqrt((2*S)**2 + Ld**2) - Ld)))",
           "units_out": "ohm",
           "depends_on": [
@@ -825,16 +959,37 @@
             "S",
             "Ld"
           ],
-          "notes": "Images sit at 60-degree steps on a circle of radius S, so the spacings to the driven element are S, sqrt(3)*S and 2*S, with signs -, + and - following the image currents."
+          "notes": "Images sit at 60-degree steps on a circle of radius S, so the spacings to the driven element are S, sqrt(3)*S and 2*S, with signs -, + and - following the image currents. This is the INDUCED-EMF resistance: an assumed sinusoid on an exactly half-wave element. It is what the directivity formula needs, and there it is right - the directivity below is within 0.04 dB of the exact image solution everywhere tested. It is NOT what the feed sees; input_resistance_ohm is."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "(128.541245) + (-21.3377515)*cz_t**1 + (22.5900087)*cz_t**2 + (-14.0004012)*cz_t**3 + (277.202533)*cz_s**1 + (-27.1872557)*cz_s**1*cz_t**1 + (-4.49930628)*cz_s**1*cz_t**2 + (13.8026342)*cz_s**1*cz_t**3 + (-243.670609)*cz_s**2 + (149.711009)*cz_s**2*cz_t**1 + (-239.108986)*cz_s**2*cz_t**2 + (171.700137)*cz_s**2*cz_t**3 + (-824.943357)*cz_s**3 + (206.051182)*cz_s**3*cz_t**1 + (11.5773656)*cz_s**3*cz_t**2 + (-89.9744969)*cz_s**3*cz_t**3 + (306.505145)*cz_s**4 + (-476.681926)*cz_s**4*cz_t**1 + (1073.53789)*cz_s**4*cz_t**2 + (-835.799975)*cz_s**4*cz_t**3 + (1384.72511)*cz_s**5 + (-633.253352)*cz_s**5*cz_t**1 + (-33.3561732)*cz_s**5*cz_t**2 + (290.216593)*cz_s**5*cz_t**3 + (-376.723146)*cz_s**6 + (886.697532)*cz_s**6*cz_t**1 + (-2629.24139)*cz_s**6*cz_t**2 + (2146.46899)*cz_s**6*cz_t**3 + (-1546.50115)*cz_s**7 + (972.11051)*cz_s**7*cz_t**1 + (80.7394249)*cz_s**7*cz_t**2 + (-492.349846)*cz_s**7*cz_t**3 + (351.371973)*cz_s**8 + (-998.696454)*cz_s**8*cz_t**1 + (3594.67194)*cz_s**8*cz_t**2 + (-3015.11597)*cz_s**8*cz_t**3 + (1012.45216)*cz_s**9 + (-740.127452)*cz_s**9*cz_t**1 + (-86.5912622)*cz_s**9*cz_t**2 + (409.395085)*cz_s**9*cz_t**3 + (-185.512996)*cz_s**10 + (622.512269)*cz_s**10*cz_t**1 + (-2546.32763)*cz_s**10*cz_t**2 + (2169.71784)*cz_s**10*cz_t**3 + (-280.661835)*cz_s**11 + (221.797339)*cz_s**11*cz_t**1 + (32.4227037)*cz_s**11*cz_t**2 + (-131.178269)*cz_s**11*cz_t**3 + (41.7963258)*cz_s**12 + (-162.836916)*cz_s**12*cz_t**1 + (724.187501)*cz_s**12*cz_t**2 + (-623.063523)*cz_s**12*cz_t**3",
+          "units_out": "ohm",
+          "depends_on": [
+            "cz_s",
+            "cz_t"
+          ],
+          "notes": "Driving-point resistance of the half-wave element in the corner. Solved, not assumed: the dipole and its image set as one method-of-moments problem (otahub.num.corner), exact for infinite plates and using the real current. Fitted over S = 0.1..1.0 lambda and aw = 1e-4..5e-3 lambda (444 solves): grid residual under 1.3 ohm, and within 2.2 ohm of fresh solves at radii and spacings the fit never saw. The solver's own mesh uncertainty on the fattest wire is 2-3 ohm."
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "(130.186732) + (-6.32233093)*cz_t**1 + (-3.59437771)*cz_t**2 + (5.24398942)*cz_t**3 + (-150.4213)*cz_s**1 + (60.8956608)*cz_s**1*cz_t**1 + (-81.1701474)*cz_s**1*cz_t**2 + (55.0564781)*cz_s**1*cz_t**3 + (-535.716803)*cz_s**2 + (89.1719078)*cz_s**2*cz_t**1 + (9.4811472)*cz_s**2*cz_t**2 + (-42.2788078)*cz_s**2*cz_t**3 + (281.73517)*cz_s**3 + (-281.046909)*cz_s**3*cz_t**1 + (511.676865)*cz_s**3*cz_t**2 + (-379.727185)*cz_s**3*cz_t**3 + (1170.58945)*cz_s**4 + (-440.973248)*cz_s**4*cz_t**1 + (-32.9373544)*cz_s**4*cz_t**2 + (210.866794)*cz_s**4*cz_t**3 + (-329.494837)*cz_s**5 + (630.558631)*cz_s**5*cz_t**1 + (-1501.58818)*cz_s**5*cz_t**2 + (1179.24949)*cz_s**5*cz_t**3 + (-1767.0385)*cz_s**6 + (1071.71627)*cz_s**6*cz_t**1 + (126.954503)*cz_s**6*cz_t**2 + (-587.228337)*cz_s**6*cz_t**3 + (344.346682)*cz_s**7 + (-805.753683)*cz_s**7*cz_t**1 + (2328.32628)*cz_s**7*cz_t**2 + (-1889.009)*cz_s**7*cz_t**3 + (1854.83565)*cz_s**8 + (-1419.09094)*cz_s**8*cz_t**1 + (-246.37998)*cz_s**8*cz_t**2 + (882.90818)*cz_s**8*cz_t**3 + (-212.073142)*cz_s**9 + (550.274942)*cz_s**9*cz_t**1 + (-1812.55325)*cz_s**9*cz_t**2 + (1498.91931)*cz_s**9*cz_t**3 + (-1136.57463)*cz_s**10 + (975.278859)*cz_s**10*cz_t**1 + (216.084773)*cz_s**10*cz_t**2 + (-666.72869)*cz_s**10*cz_t**3 + (54.1286156)*cz_s**11 + (-154.518658)*cz_s**11*cz_t**1 + (554.853719)*cz_s**11*cz_t**2 + (-464.207635)*cz_s**11*cz_t**3 + (296.143633)*cz_s**12 + (-271.069193)*cz_s**12*cz_t**1 + (-70.1148324)*cz_s**12*cz_t**2 + (197.928073)*cz_s**12*cz_t**3",
+          "units_out": "ohm",
+          "depends_on": [
+            "cz_s",
+            "cz_t"
+          ],
+          "notes": "Driving-point reactance of the same element - large and inductive over most of the range, because a half-wave element is longer than resonant and the corner's images add reactance of their own. Resonating it means shortening it, to anywhere from 0.42 to 0.52 lambda depending on spacing and radius. Solved, not assumed: the dipole and its image set as one method-of-moments problem (otahub.num.corner), exact for infinite plates and using the real current. Fitted over S = 0.1..1.0 lambda and aw = 1e-4..5e-3 lambda (444 solves): grid residual under 1.3 ohm, and within 2.2 ohm of fresh solves at radii and spacings the fit never saw. The solver's own mesh uncertainty on the fattest wire is 2-3 ohm."
         },
         {
           "metric": "directivity_linear",
-          "expr": "array_factor_field**2 * 1.64092 * 73.0790/input_resistance_ohm",
+          "expr": "array_factor_field**2 * 1.64092 * 73.0790/induced_emf_resistance_ohm",
           "units_out": "-",
           "depends_on": [
             "array_factor_field",
-            "input_resistance_ohm"
-          ]
+            "induced_emf_resistance_ohm"
+          ],
+          "notes": "Checked against the exact image-MoM solution: within 0.04 dB from S = 0.1 to 0.75 lambda (90 deg) and 0.35 to 0.8 (60 deg)."
         },
         {
           "metric": "directivity_dbi",
@@ -866,7 +1021,8 @@
         "infinite perfectly conducting plates, as for the 90-degree case",
         "the corner angle must divide 180 exactly for the image construction to close; 60, 45 and 36 degrees do, 70 does not",
         "S = lambda is again a boresight null",
-        "narrower corners need physically longer plates for the same truncation error, which is why 90 degrees remains the common choice"
+        "narrower corners need physically longer plates for the same truncation error, which is why 90 degrees remains the common choice",
+        "input_resistance_ohm and input_reactance_ohm hold for S = 0.1..1.0 lambda and element radius 1e-4..5e-3 lambda, for the exactly half-wave element this spec designs, with infinite plates. Near the vertex the resistance is a few ohms under 40-100 ohm of reactance: that, not the pattern, is what makes close spacing hard to feed"
       ],
       "known_cases": [
         {
@@ -876,8 +1032,8 @@
           },
           "expect": {
             "array_factor_field": 5.1382,
-            "input_resistance_ohm": 147.197,
-            "directivity_dbi": 13.33
+            "directivity_dbi": 13.33,
+            "induced_emf_resistance_ohm": 147.197
           },
           "tol_pct": 1.0,
           "source": "Numerical sum over the six image sources gives |AF| = 5.1382 at S = 0.7 lambda, and the image set leaves 2e-15 of tangential E on the plates. With mutual coupling the directivity is 21.51 (13.33 dBi)."
@@ -904,6 +1060,32 @@
           },
           "tol_abs": 0.02,
           "source": "sin(2*pi) - 2*sin(pi) = 0: the same S = lambda null as the 90-degree corner"
+        },
+        {
+          "given": {
+            "f0": 299792458.0,
+            "S_over_lambda": 0.7,
+            "aw_over_lambda": 0.001
+          },
+          "expect": {
+            "input_resistance_ohm": 173.91,
+            "input_reactance_ohm": 38.853
+          },
+          "tol_pct": 2.5,
+          "source": "Direct method-of-moments solve of the dipole and its image set (otahub.num.corner, exact kernel, 40 segments), not the fit: 173.9 + j38.9 ohm at S = 0.7 lambda, radius 0.001 lambda. The fit it checks is good to 2.2 ohm on points it never saw."
+        },
+        {
+          "given": {
+            "f0": 299792458.0,
+            "S_over_lambda": 0.5,
+            "aw_over_lambda": 0.002
+          },
+          "expect": {
+            "input_resistance_ohm": 111.31,
+            "input_reactance_ohm": 148.0
+          },
+          "tol_pct": 2.5,
+          "source": "Direct method-of-moments solve of the dipole and its image set (otahub.num.corner, exact kernel, 40 segments), not the fit: 111.3 + j148.0 ohm at S = 0.5 lambda, radius 0.002 lambda. The fit it checks is good to 2.2 ohm on points it never saw."
         }
       ],
       "references": [
