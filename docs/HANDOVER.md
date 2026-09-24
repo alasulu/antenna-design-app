@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1845 tests, 506/506 citable
+6,031 lines of Python, 14,835 lines of spec data, 1872 tests, 521/521 citable
 known cases passing.**
 
 ---
@@ -155,6 +155,7 @@ being written into a spec.
 | `folded_dipole` | Resonant length, resistance, directivity and a COMPUTED VSWR bandwidth | Bandwidth found twice, directly and via the Yaghjian–Best antenna Q, agreeing to 2%; the 4:1 step-up confirmed to 3.949–4.021 between resonances, and shown NOT to hold at fixed frequency |
 | Loop family bandwidth and Q | VSWR-2 windows and antenna Q for the full-wave circular loop, the quad and the halo | Three routes on the circular loop — MoM walk, MoM Q-derivative, and the independent modal solver's own walk — agreeing to under 1%; replaces four asserted Q values, three of which were 23–67% wrong |
 | `alford_loop` | Equal-area circle equivalence, and the true ripple of a uniform-current square | Within 0.73% on resistance and 0.08% on directivity, far better than the “few percent” claimed; ideal ripple 0.01 dB against an asserted 0.5 |
+| `resonant_dipole`, `half_wave_dipole` | Driving-point impedance, bandwidth, Q and directivity of the real wire, BESIDE the induced-EMF closed forms | Handing the MoM the assumed sinusoidal current reproduces the closed form to 0.3%, so the 6–28% gap is the current's shape, not the mesh; the canonical 73.08 Ω is kept and pinned as a definition |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -320,6 +321,13 @@ were not enough on their own:
 
 `test_delta_gap_impedance_is_not_the_induced_emf_value` pins this so the next
 reader does not spend the same afternoon on it.
+
+That lesson has now been carried back to the two archetypes it came from.
+`half_wave_dipole` keeps 73.08 + j42.52 exactly, because it is the definition
+dBd rests on, and gains driving-point metrics beside it. `resonant_dipole` had
+been presenting the closed form as what the antenna presents — "55-68 ohm
+across practical thicknesses" — when a real resonant wire sits at about 72 ohm
+whatever its gauge. Its 50 ohm VSWR moved from about 1.26:1 to 1.46:1.
 
 ### Errors found in already-shipped specs during session 5
 

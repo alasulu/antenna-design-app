@@ -167,6 +167,16 @@
             "f0"
           ],
           "notes": "exactly lambda/2; see resonant_dipole for the length that actually resonates"
+        },
+        {
+          "output": "t",
+          "expr": "log10(c/f0/aw)",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "aw"
+          ],
+          "notes": "log10(lambda/aw), the same thickness variable resonant_dipole uses"
         }
       ],
       "analysis": [
@@ -174,7 +184,7 @@
           "metric": "radiation_resistance_ohm",
           "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
           "units_out": "ohm",
-          "notes": "exact Balanis 4-70; 73.08 ohm with eta0 = 376.73 (textbooks quoting 73.13 use 120*pi)",
+          "notes": "exact Balanis 4-70; 73.08 ohm with eta0 = 376.73 (textbooks quoting 73.13 use 120*pi). This is the INDUCED-EMF radiation resistance of an ASSUMED sinusoidal current on a vanishingly thin wire, and it is independent of wire radius by construction. It is the canonical reference value and stays exactly that. It is NOT what a real wire presents at its terminals - see input_resistance_driving_point_ohm.",
           "depends_on": [
             "k0",
             "L"
@@ -184,7 +194,7 @@
           "metric": "input_reactance_ohm",
           "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
           "units_out": "ohm",
-          "notes": "exact Balanis 4-79; +42.5 ohm at exactly lambda/2, which is why real dipoles are cut short",
+          "notes": "exact Balanis 4-79; +42.5 ohm at exactly lambda/2, which is why real dipoles are cut short. Induced-EMF, like the resistance beside it.",
           "depends_on": [
             "k0",
             "L",
@@ -198,13 +208,14 @@
           "depends_on": [
             "radiation_resistance_ohm",
             "input_reactance_ohm"
-          ]
+          ],
+          "notes": "The induced-EMF pair 73.08 + j42.52 - the number every textbook quotes and the reference dBd rests on. A delta-gap-fed wire of finite radius presents something else, and the difference grows with the wire: see the driving_point metrics."
         },
         {
           "metric": "directivity_linear",
           "expr": "1.6409",
           "units_out": "-",
-          "notes": "numerically integrated; see otahub.core.pattern.finite_dipole(0.5)"
+          "notes": "numerically integrated for the sinusoidal current; see otahub.core.pattern.finite_dipole(0.5). The definitional value dBd is measured against, and kept as such. The solved current is slightly fatter near the ends and gives 1.645 to 1.657 - 0.25 to 1.0% higher, growing with the wire."
         },
         {
           "metric": "directivity_dbi",
@@ -225,12 +236,40 @@
           "depends_on": [
             "L"
           ]
+        },
+        {
+          "metric": "input_resistance_driving_point_ohm",
+          "expr": "(1.3593262)*t**4 + (-22.795029)*t**3 + (143.56654)*t**2 + (-405.4805)*t**1 + (516.13305)",
+          "units_out": "ohm",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "What a real wire presents at exactly half a wavelength: 78.0 ohm on 1e-5 lambda wire rising to 94.7 on 2.7e-3 - 7% to 30% above the canonical 73.08, because the real current is fatter than a sinusoid near the ends. It tends to 73.08 only as the wire vanishes, and slowly, logarithmically. Worst fit error 0.25%. Method of moments (otahub/num/mom.py), delta-gap fed. The INDUCED-EMF closed forms this archetype also carries are exact for an ASSUMED sinusoidal current on a vanishingly thin wire; they are a different quantity from what a real wire presents at its terminals, which is what this is. The difference is not mesh error: an independent Hallen solve agrees with the MoM, and feeding the MoM the sinusoidal current instead reproduces the induced-EMF value to 0.3%."
+        },
+        {
+          "metric": "input_reactance_driving_point_ohm",
+          "expr": "(-0.67143032)*t**4 + (10.800342)*t**3 + (-64.147905)*t**2 + (165.46905)*t**1 + (-109.7717)",
+          "units_out": "ohm",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "44.3 to 46.6 ohm over the fitted range, against the canonical 42.52. Worst fit error 0.34%."
+        },
+        {
+          "metric": "input_impedance_driving_point_ohm",
+          "expr": "input_resistance_driving_point_ohm + 1j*input_reactance_driving_point_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "input_resistance_driving_point_ohm",
+            "input_reactance_driving_point_ohm"
+          ]
         }
       ],
       "validity": [
         "free space, no ground plane or nearby structure",
         "thin wire: the reactance formula assumes aw << L",
-        "at exactly lambda/2 the antenna is NOT resonant (X = +42.5 ohm)"
+        "at exactly lambda/2 the antenna is NOT resonant (X = +42.5 ohm)",
+        "the driving-point metrics cover aw from 1e-5 to 2.7e-3 wavelengths; beyond that the resistance turns up sharply (110 ohm at 5e-3) where thin-wire theory itself starts to strain, so it is not extrapolated"
       ],
       "known_cases": [
         {
@@ -257,6 +296,32 @@
           },
           "tol_pct": 0.5,
           "source": "lambda/2 at 2.4 GHz = 62.44 mm"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 9.993081933333333e-05
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 80.38132,
+            "input_reactance_driving_point_ohm": 45.07376,
+            "radiation_resistance_ohm": 73.0796
+          },
+          "tol_pct": 1.0,
+          "source": "Both at once, deliberately: the canonical induced-EMF 73.08 ohm, which does not depend on the wire, beside the driving-point resistance of a real aw = 0.0001 lambda wire from the method of moments, which does. The two differ by 10% here, and an independent Hallen solve sides with the MoM."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "aw": 0.0020533730000000003
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 86.43004,
+            "input_reactance_driving_point_ohm": 46.52769,
+            "radiation_resistance_ohm": 73.0796
+          },
+          "tol_pct": 1.0,
+          "source": "Both at once, deliberately: the canonical induced-EMF 73.08 ohm, which does not depend on the wire, beside the driving-point resistance of a real aw = 0.001 lambda wire from the method of moments, which does. The two differ by 18% here, and an independent Hallen solve sides with the MoM."
         }
       ],
       "references": [
@@ -334,17 +399,26 @@
           "metric": "radiation_resistance_ohm",
           "expr": "(eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
           "units_out": "ohm",
-          "notes": "55-68 ohm across practical thicknesses, always below the 73 ohm lambda/2 value",
+          "notes": "INDUCED-EMF radiation resistance (Balanis 4-70) for an assumed sinusoidal current at this length: 58.7 to 67.1 ohm. This spec used to present it as what the antenna presents - '55-68 ohm across practical thicknesses' - and it is not. The driving-point resistance is input_resistance_ohm, and it is 6 to 28% higher, worst on thick wire. Kept because it is the textbook quantity, now named for what it is.",
           "depends_on": [
             "k0",
             "L"
           ]
         },
         {
+          "metric": "input_resistance_ohm",
+          "expr": "(-1.1600283)*t**3 + (13.113005)*t**2 + (-48.593749)*t**1 + (131.86517)",
+          "units_out": "ohm",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "What a real wire presents at its terminals at this length: 71.9 to 75.6 ohm, and remarkably flat - within 2 ohm of 72.5 from aw = 1e-5 to 2.7e-3 wavelengths, turning up only for the fattest conductors. The folk figure 'a resonant dipole is about 72 ohm' is right; the closed form this spec used to quote in its place was 6 to 22% low, worst on thick wire. Worst fit error 0.46%. Method of moments (otahub/num/mom.py), delta-gap fed. The INDUCED-EMF closed forms this archetype also carries are exact for an ASSUMED sinusoidal current on a vanishingly thin wire; they are a different quantity from what a real wire presents at its terminals, which is what this is. The difference is not mesh error: an independent Hallen solve agrees with the MoM, and feeding the MoM the sinusoidal current instead reproduces the induced-EMF value to 0.3%."
+        },
+        {
           "metric": "input_reactance_ohm",
           "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
           "units_out": "ohm",
-          "notes": "zero by construction, to within the fit error",
+          "notes": "The INDUCED-EMF reactance, which is zero at this length by construction of the length fit. A real wire at the same length is not quite resonant: the solver finds -3.1 to +6.2 ohm of residual reactance, because the length was tuned to the closed form rather than to the wire. Small, but 'zero by construction' was a statement about the model, not the antenna. Not fitted: a quantity that crosses zero has no meaningful relative error.",
           "depends_on": [
             "k0",
             "L",
@@ -353,24 +427,55 @@
         },
         {
           "metric": "vswr_in_50_ohm",
-          "expr": "(max(radiation_resistance_ohm,50.0)/min(radiation_resistance_ohm,50.0))",
+          "expr": "max(input_resistance_ohm,50.0)/min(input_resistance_ohm,50.0)",
           "units_out": "-",
-          "notes": "resistive-only estimate, valid because X ~ 0 at resonance",
           "depends_on": [
-            "radiation_resistance_ohm"
-          ]
+            "input_resistance_ohm"
+          ],
+          "notes": "Resistive-only estimate against 50 ohm, now from the DRIVING-POINT resistance. It used the induced-EMF value, which put a thin resonant dipole at about 1.26:1 in 50 ohm when a real one sits nearer 1.45:1 - optimistic in the one number a builder is most likely to check first."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "(-0.001222607)*t**3 + (0.013249245)*t**2 + (-0.045789697)*t**1 + (1.6870919)",
+          "units_out": "-",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "Integrated from the solved current at this length: 1.635 to 1.639, a whisker below the half-wave 1.6409 this spec used to borrow. Its own note was right that the shortening barely changes the pattern; it just used the wrong antenna's number to say so. Worst fit error 0.020%."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(1.6409)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "the 1-2% shortening barely changes the pattern"
+          "depends_on": [
+            "directivity_linear"
+          ]
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(0.0042389648)*t**4 + (-0.069829059)*t**3 + (0.43482986)*t**2 + (-1.2365332)*t**1 + (1.4487941)",
+          "units_out": "-",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "Computed: the VSWR = 2 window about the wire's own resonance, referenced to its own resonant resistance. 5.7% on 1e-5 lambda wire to 17.4% on 5e-3 - a factor of three across the gauges, which is the quantitative form of 'fat dipoles are broadband'. Cross-checked against the Yaghjian-Best Q. Worst fit error 1.01%."
+        },
+        {
+          "metric": "quality_factor",
+          "expr": "(0.047802158)*t**3 + (-0.5782353)*t**2 + (5.2755655)*t**1 + (-5.5082742)",
+          "units_out": "-",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "From |dZ/dw| at resonance: 12.4 on the thinnest wire down to 4.1 on the fattest. Worst fit error 0.63%."
         }
       ],
       "validity": [
         "1e-5 < aw/lambda < 1e-2; outside this the length fit is untested",
         "thin-wire theory: no insulation, no end capacitance from hardware",
-        "free space; height above ground shifts resonance by more than this correction"
+        "free space; height above ground shifts resonance by more than this correction",
+        "input_resistance_ohm, bandwidth, Q and directivity are full-wave values for a delta-gap-fed wire in free space; radiation_resistance_ohm and input_reactance_ohm are the induced-EMF closed forms and describe an assumed sinusoidal current, not the wire",
+        "the fits cover aw from 1e-5 to 5e-3 wavelengths"
       ],
       "known_cases": [
         {
@@ -408,6 +513,45 @@
           },
           "tol_pct": 1.5,
           "source": "exact zero at a/lambda = 1e-2 is L = 0.45738 lambda, Rr = 55.74 ohm"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 9.993081933333333e-05
+          },
+          "expect": {
+            "input_resistance_ohm": 73.05645,
+            "fractional_bandwidth_vswr2": 0.07605417,
+            "quality_factor": 9.401561
+          },
+          "tol_pct": 2.0,
+          "source": "Method of moments at aw = 0.0001 lambda on the spec's own length: the nearest solved point, aw = 0.00012, gives R = 73.09 ohm against the induced-EMF closed form's lower figure, a 7.75% VSWR = 2 window and Q = 9.16. The closed form reproduces itself exactly when the MoM is handed the sinusoidal current, which is how the gap was traced to the current shape rather than to the mesh."
+        },
+        {
+          "given": {
+            "f0": 146000000.0,
+            "aw": 0.0020533730000000003
+          },
+          "expect": {
+            "input_resistance_ohm": 72.78021,
+            "fractional_bandwidth_vswr2": 0.1106347,
+            "quality_factor": 6.404963
+          },
+          "tol_pct": 2.0,
+          "source": "Method of moments at aw = 0.001 lambda on the spec's own length: the nearest solved point, aw = 0.000775, gives R = 72.71 ohm against the induced-EMF closed form's lower figure, a 10.57% VSWR = 2 window and Q = 6.74. The closed form reproduces itself exactly when the MoM is handed the sinusoidal current, which is how the gap was traced to the current shape rather than to the mesh."
+        },
+        {
+          "given": {
+            "f0": 14200000.0,
+            "aw": 0.0633364347887324
+          },
+          "expect": {
+            "input_resistance_ohm": 74.10459,
+            "fractional_bandwidth_vswr2": 0.1472474,
+            "quality_factor": 4.888521
+          },
+          "tol_pct": 2.0,
+          "source": "Method of moments at aw = 0.003 lambda on the spec's own length: the nearest solved point, aw = 0.00269, gives R = 73.56 ohm against the induced-EMF closed form's lower figure, a 14.11% VSWR = 2 window and Q = 5.08. The closed form reproduces itself exactly when the MoM is handed the sinusoidal current, which is how the gap was traced to the current shape rather than to the mesh."
         }
       ],
       "references": [

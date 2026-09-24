@@ -1099,9 +1099,57 @@ What CAN be checked about it was, and both results were worth having:
   it only turned up because the ideal case was computed rather than assumed to
   be roughly the real one.
 
+## The reference dipoles: which numbers are definitions and which are the wire
+
+`half_wave_dipole` and `resonant_dipole` are what everything else is measured
+against, and both were built entirely on Balanis 4-70 and 4-79. Those are
+exact - for an ASSUMED sinusoidal current on a vanishingly thin wire - and this
+build had already found, twice, that such a current is not what a delta-gap-fed
+wire of finite radius carries. This round took the lesson back to the source.
+
+The decisive check was a one-liner. Hand the MoM the sinusoidal current at the
+resonant dipole's own length and it reproduces the spec's resistance to 0.3%.
+So the disagreement with the driving point is the real current's shape and
+nothing else - not mesh, not quadrature, not the gap model.
+
+What was found:
+
+- `resonant_dipole` presented the induced-EMF radiation resistance as what the
+  antenna presents: "55-68 ohm across practical thicknesses". A real resonant
+  wire sits at about 72 ohm and stays there - within about an ohm of 72.5 from
+  aw = 1e-5 to 2.7e-3 wavelengths. The closed form is 6% low on the thinnest
+  wire and 22% low on the fattest, because it falls away with thickness and the
+  wire does not. The folk figure "a resonant dipole is about 72 ohm" was right
+  all along; the formula quoted in its place was not.
+- Its `vswr_in_50_ohm` inherited the error: about 1.26:1 at aw = 1e-3 where a
+  real one sits at 1.46:1. Optimistic in the first number a builder checks.
+- Its reactance was "zero by construction", which was true of the model: the
+  length fit was tuned to the closed-form reactance. A real wire at that length
+  shows -3 to +6 ohm. Recorded, and bounded in a test, but deliberately NOT
+  fitted - a quantity that crosses zero has no meaningful relative error.
+- It borrowed the half-wave directivity 1.6409. The shortened dipole's own is
+  1.636 to 1.638. Its note had the physics right and the number from the wrong
+  antenna.
+- Bandwidth is now computed: 5.8% on 1e-5 lambda wire to 17.4% on 5e-3, a
+  factor of three - the quantitative form of "fat dipoles are broadband".
+
+`half_wave_dipole` was handled differently, on purpose. Its 73.08 + j42.52 is
+the definition dBd rests on and half the field quotes, and replacing it would
+break that. So it stays exactly as it was, now named for what it is, and a test
+pins it. The driving-point impedance sits beside it: 78.1 + j44.3 ohm on
+1e-5 lambda wire rising to 94.7 + j45.8 on 2.7e-3, tending to 73.08 only as the
+wire vanishes - and slowly, logarithmically.
+
+One correction to my own work before committing. The notes first said the
+driving point was "7 to 22% higher" - a range copied from the resonance
+comparison. Evaluated at the spec's actual length it is 6 to 28% higher, which
+is also to say the closed form is 6 to 22% LOW: the two percentages measure
+the same gap from opposite ends, and I had conflated them. Caught by printing
+what the spec produces before writing the tests, rather than after.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1845 tests, 506/506 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1872 tests, 521/521 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
