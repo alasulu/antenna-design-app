@@ -1701,9 +1701,46 @@ In passing: `otahub.num.__all__` promised `bicone_cage` without importing it, so
 discrepancies" in the handover were stale - the helix gain and the LPDA
 directivity were both solved in earlier rounds - and now say so.
 
+## A horn that could not be fitted to its waveguide
+
+Next on the coverage ranking was `pyramidal_horn`, 4 of 18 quantities asserted.
+Its efficiency had been rebuilt on exact Fresnel theory two sessions ago, so the
+question was what else it claimed. The answer: a1, b1 and ONE apex distance,
+and no feed waveguide anywhere in the spec.
+
+A pyramidal horn is buildable only if its E-plane and H-plane flares reach the
+feed guide at the same axial length. With one apex for both planes that needs
+a guide shaped like the aperture, a/b = sqrt(3/2); every standard guide is
+about 2:1. On WR-90 at 20 dBi the old design's two flares met the guide 15 mm
+apart - 172.8 mm and 157.7 mm behind the aperture. Two smaller errors rode
+along: the note called the single distance a slant length while every formula
+used it as the axial one, and the validity blamed the single apex for a
+0.037 dB gain offset that was really the 0.51 sizing efficiency.
+
+The textbook fix (Balanis's design procedure) was checked before adopting it,
+and not adopted. It writes the optimum proportions in slant lengths and sizes
+with an implied efficiency of 0.5105; solved exactly and integrated over the
+aperture, its horns come in 0.04-0.19 dB short at 20-25 dBi and 0.8 dB short at
+15. Written instead in the AXIAL apex distances the aperture phase depends on,
+with the optimum's exact efficiency, the same condition is a quartic in
+sqrt(rho1/lambda), and the horn is on target: s = 1/4, t = 3/8 exactly.
+`np.roots` joined the expression whitelist so the spec solves it directly; the
+root nearest the point-feed limit is the physical one, checked real.
+
+Checks, none using the spec's algebra: the flares rebuilt as straight lines
+from the output dimensions meet the guide together to 1e-9 m; direct 2-D
+aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on
+WR-90, WR-28 and WR-187; the quartic root matches bisection on the unsquared
+condition to 1e-9; a guide shaped like the aperture recovers the old single
+apex exactly. The beamwidth constants 54.1 and 78.1, marked indicative, were
+integrated too: 53.9-54.4 and 78.0-78.9 from 15 to 25 dBi, drifting 2% by
+12 dBi. The feed guide defaults to WR-90's proportions scaled to lambda, and
+`axial_length_m` is now the horn's machined length rather than the apex
+distance.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2033 tests, 603/603 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2068 tests, 627/627 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

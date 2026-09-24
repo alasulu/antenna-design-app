@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2033 tests, 603/603 citable
+6,031 lines of Python, 14,835 lines of spec data, 2068 tests, 627/627 citable
 known cases passing.**
 
 ---
@@ -169,6 +169,7 @@ being written into a spec.
 | `biconical`, `conical_monopole` | Directivity at the band edge against flare, and across the band; the biconical's angle convention | 16-wire cages, directivity converged to 0.2%; the biconical used the full-angle impedance formula on a half-angle input (188 Ω for a cone that presents 100) |
 | `half_wave_slot`, `folded_slot` | Resonant length and resonant resistance from the complementary dipole of radius w/4, through `resonant_dipole`'s laws: 0.4637λ and 468 Ω at the default w/L = 0.05, replacing a thin dipole's 0.4785λ and a flat-67-Ω 529.6 | Exact-kernel MoM and Hallén's equation, each on meshes it has converged on: 0.4645–0.4654λ and a 471–479 Ω slot; at w/L = 0.02 the law is inside 0.1% on length |
 | `truncated_corner_cp_patch` | Corner cut, the frequency the square is sized for, mode split, and the axial-ratio and VSWR bands, all from a cavity model of the real outline | `otahub/num/patch_cavity.py`: Neumann modes on linear triangles, probe feed, broadside polarisation over 30 modes, converged to 0.004% between 240 and 480 cells per side; fits hold to 0.03% on meshes they never saw. The old design had 7.9 dB of axial ratio at its own f0 |
+| `pyramidal_horn` | Two apex distances solved so both flares meet a real feed guide at one length (a quartic in √(ρ₁/λ)), with the optimum proportions in axial distances and the exact optimum efficiency | Flare geometry rebuilt from the output meets the guide to 1e-9 m; direct 2-D aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on three guides; root matches bisection on the unsquared condition |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -349,6 +350,23 @@ mode's; and the axial-ratio band, 0.347/Q exactly in the two-mode model, was an
 "indicative" figure 29% low. Every one was checked in the cavity model, which
 assumes none of the rules it checks.
 
+### A horn that could not be fitted to its waveguide
+
+`pyramidal_horn` produced a1, b1 and one apex distance, and no feed guide at
+all. One apex for both planes fits only a guide with the aperture's own
+sqrt(3/2) aspect ratio; standard guides are about 2:1, so on WR-90 at 20 dBi its
+two flares reached the guide 15 mm apart. Its note also called that distance a
+slant length while every formula used it as an axial one, and blamed the
+single apex for a gain offset that was really the 0.51 sizing efficiency.
+
+The design now takes the guide (default WR-90 proportions scaled to lambda)
+and solves for two apex distances so the flares meet it together. Written in
+axial distances with the exact optimum efficiency, the condition is a quartic
+and the gain lands on target. The textbook procedure writes the same condition
+in slant lengths with an implied 0.5105 efficiency; integrated over the
+aperture, its horns fall 0.04-0.19 dB short at 20-25 dBi and 0.8 dB at 15 dBi.
+`np.roots` joined the expression whitelist to solve the quartic in the spec.
+
 ### The reference that was not what it looked like
 
 73.08 + j42.52 Ω is quoted everywhere as "the" half-wave dipole impedance, and
@@ -464,7 +482,9 @@ known case only checks what it asserts.
    right; the "direct integration" that disagreed with it was wrong. See §4.
 3. **Add geometry builders** for horns, which need a loft or truncated-pyramid
    primitive — the one shape where I would be guessing at the API's structure
-   rather than just its parameter names, so it has been left alone. The loop
+   rather than just its parameter names, so it has been left alone. The
+   pyramidal horn's geometry is at least fully determined now: guide, aperture
+   and a length at which both flares meet the guide. The loop
    family is now done (a torus turned out to be a direct primitive in both
    tools). Yagi-Uda remains blocked for a different reason: the
    spec gives boom length, reflector and driven lengths and a director count,
@@ -498,8 +518,11 @@ known case only checks what it asserts.
    confidently for four sessions. The archetypes carrying a single known case
    are the place to start. Ranked by quantities asserted over quantities
    produced, the bottom was `truncated_corner_cp_patch` (3 of 16), and auditing
-   it found three design-breaking errors (§5). Next by the same ranking:
-   `pyramidal_horn` (4 of 18) and `stacked_patch` (3 of 13).
+   it found three design-breaking errors (§5). `pyramidal_horn` was next and
+   turned out not to be buildable (§5). The ranking undercounts archetypes
+   already verified another way (`annular_ring_patch`, the inset patch); of the
+   ones it rightly flags, `waveguide_slot_array_travelling_wave` (3 of 12) is
+   the natural next, since it also rests on the unchecked Stevenson g1.
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.

@@ -56,7 +56,7 @@ _NP_WHITELIST = frozenset("""
     sqrt exp log log10 log2 sin cos tan arcsin arccos arctan arctan2 sinh cosh tanh
     abs pi e inf deg2rad rad2deg degrees radians power maximum minimum clip
     real imag angle conj sign floor ceil round where array linspace arange
-    sum prod mean max min argmax argmin interp trapezoid
+    sum prod mean max min argmax argmin interp trapezoid roots
 """.split())
 
 #: Constants and functions every spec expression may use unqualified.
