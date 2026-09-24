@@ -2307,6 +2307,14 @@
           "name": "overall width",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "1e-3",
+          "description": "The parameter the spec used to leave out. It sets the termination, and how much power that termination eats, while barely touching the directivity."
         }
       ],
       "synthesis": [
@@ -2359,13 +2367,22 @@
           ]
         },
         {
-          "metric": "directivity_linear",
+          "metric": "directivity_travelling_wave_model",
           "expr": "9.2038*L_over_lambda**1.0404",
           "units_out": "-",
           "depends_on": [
             "L_over_lambda"
           ],
-          "notes": "Power-law fit to the axial directivity of the exact four-leg model at the alignment angle, 1.5 to 12 lambda, maximum error 1.3%. The exponent being essentially 1 says the rhombic's directivity is very nearly proportional to leg length."
+          "notes": "The idealised four-leg model this spec was built on: an unattenuated travelling wave on every leg and a perfect termination. Kept because the V antenna beside it still uses the same model, so gain_over_v_antenna_db stays like-for-like."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "exp((-0.03381732)*log(L_over_lambda)**2 + (1.1340451)*log(L_over_lambda) + (2.090791))",
+          "units_out": "-",
+          "depends_on": [
+            "L_over_lambda"
+          ],
+          "notes": "Solved, at the alignment angle and the termination that maximises front-to-back, on a/lambda = 1e-4 wire. The idealised model is 0.24 to 0.45 dB high over leg lengths 2 to 12 lambda: the real current decays as it radiates, which the idealised model ignores. Wire radius moves it only 0.33 dB across 1e-5 to 3e-3 lambda. Fitted in ln(L), worst error 0.33% in D. Solved as built: one closed wire of four legs with the feed at one acute vertex and the resistor as a lumped load at the other (otahub.num.mom.rhombic_model), at 28 segments per wavelength - within about 0.05 dB of converged; 12 per wavelength reads 0.35 dB low. Power into the resistor is accounted for exactly: input = radiated + dissipated to 1e-4."
         },
         {
           "metric": "directivity_dbi",
@@ -2377,12 +2394,13 @@
         },
         {
           "metric": "gain_over_v_antenna_db",
-          "expr": "db10(9.2038*L_over_lambda**1.0404) - db10(6.4983*L_over_lambda**0.8837)",
+          "expr": "db10(directivity_travelling_wave_model) - db10(6.4983*L_over_lambda**0.8837)",
           "units_out": "dB",
           "depends_on": [
+            "directivity_travelling_wave_model",
             "L_over_lambda"
           ],
-          "notes": "About 2.4 dB at 4 lambda: doubling a V into a rhombic is worth rather less than the 3 dB doubling the aperture might suggest"
+          "notes": "Like-for-like: both from the idealised travelling-wave model. The V cannot be solved in free space - its terminations need a return path to ground that free space does not have - so comparing a solved rhombic against an idealised V would measure the models, not the antennas."
         },
         {
           "metric": "site_area_m2",
@@ -2396,15 +2414,41 @@
         },
         {
           "metric": "termination_resistance_ohm",
-          "expr": "600.0",
+          "expr": "(106.242)*log(c/f0/aw) + (-345.417)",
           "units_out": "ohm",
-          "notes": "Indicative. 600-800 ohm is usual; it must absorb roughly half the transmitter power, so it is a real dissipative component, not a token resistor."
+          "depends_on": [
+            "aw",
+            "f0"
+          ],
+          "notes": "Solved: the resistance that maximises front-to-back, which is the one that best absorbs the forward wave. It is set by the WIRE: 878 ohm at a = 1e-5 lambda, 633 at 1e-4, 387 at 1e-3 - linear in ln(lambda/a) at about 106 ohm per neper, the way a two-wire line's impedance goes. Leg length barely matters (596-635 ohm from 2 to 12 lambda at 1e-4). The flat 600 ohm this spec carried matches the optimum at about a = 1e-4 lambda, typical HF wire, where it is -5%; it is -32% on the thinnest wire and +55% at 1e-3. Worst fit error 0.6%. Solved as built: one closed wire of four legs with the feed at one acute vertex and the resistor as a lumped load at the other (otahub.num.mom.rhombic_model), at 28 segments per wavelength - within about 0.05 dB of converged; 12 per wavelength reads 0.35 dB low. Power into the resistor is accounted for exactly: input = radiated + dissipated to 1e-4."
+        },
+        {
+          "metric": "radiation_efficiency",
+          "expr": "(0.00435143)*log(c/f0/aw)**2 + (-0.126588)*log(c/f0/aw) + (1.32636)",
+          "units_out": "-",
+          "depends_on": [
+            "aw",
+            "f0"
+          ],
+          "notes": "Fraction of the input power that is radiated rather than burned in the termination: 0.44 at a = 1e-5 lambda, 0.53 at 1e-4, 0.66 at 1e-3. So the old 'about half' holds for thin HF wire and not for fat wire. Worst fit error 0.4%. Solved as built: one closed wire of four legs with the feed at one acute vertex and the resistor as a lumped load at the other (otahub.num.mom.rhombic_model), at 28 segments per wavelength - within about 0.05 dB of converged; 12 per wavelength reads 0.35 dB low. Power into the resistor is accounted for exactly: input = radiated + dissipated to 1e-4."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(directivity_linear*radiation_efficiency)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_linear",
+            "radiation_efficiency"
+          ],
+          "notes": "Directivity less the power the termination absorbs."
         }
       ],
       "validity": [
-        "1.5 <= l/lambda <= 12, the range of the directivity fit",
+        "1.5 <= l/lambda <= 12 for the directivity; the solved fit covers 2 to 12",
+        "wire radius 1e-5 to 3e-3 wavelengths for the termination and efficiency, which were measured on a 4-wavelength leg and barely depend on length",
         "free space; a real rhombic is horizontal above earth, which adds up to 6 dB and sets the elevation angle",
-        "terminated, so about half the input power is dissipated and the GAIN is some 3 dB below the directivity",
+        "terminated: the termination takes 26% of the input power on fat wire and 56% on the thinnest, so the gain sits 1.3 to 3.5 dB below the directivity",
+        "the alignment angle is not the best angle: at 4 lambda the axial directivity peaks near 27 degrees, 0.3 dB above the alignment angle's figure - a wider diamond, not a tighter one",
         "planar rhombic; the alignment angle assumes all four legs are coplanar"
       ],
       "known_cases": [
@@ -2415,11 +2459,10 @@
           },
           "expect": {
             "half_angle_deg": 24.87,
-            "directivity_linear": 39.21,
-            "directivity_dbi": 15.93
+            "directivity_travelling_wave_model": 39.21
           },
           "tol_pct": 2.0,
-          "source": "Axial directivity from spherical integration of the exact four-leg model: 39.210 (15.93 dBi). The axial lobe is the global maximum, which is the whole point of the alignment angle."
+          "source": "Axial directivity from spherical integration of the exact four-leg model: 39.210 (15.93 dBi). The axial lobe is the global maximum, which is the whole point of the alignment angle. [Now asserted against directivity_travelling_wave_model: this is the idealised model's figure, and directivity_linear is the solved one.]"
         },
         {
           "given": {
@@ -2427,17 +2470,66 @@
             "L_over_lambda": 6.0
           },
           "expect": {
-            "directivity_dbi": 17.75,
-            "gain_over_v_antenna_db": 2.72
+            "gain_over_v_antenna_db": 2.72,
+            "directivity_travelling_wave_model": 59.368
           },
           "tol_pct": 2.0,
-          "source": "6 lambda legs give 59.619 (17.75 dBi) against the V's 31.853 (15.03 dBi), a 2.72 dB advantage - both from the same integration"
+          "source": "6 lambda legs give 59.619 (17.75 dBi) against the V's 31.853 (15.03 dBi), a 2.72 dB advantage - both from the same integration [Now asserted against directivity_travelling_wave_model: this is the idealised model's figure, and directivity_linear is the solved one.]"
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "L_over_lambda": 4.0
+          },
+          "expect": {
+            "directivity_linear": 36.522
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments, 4-wavelength legs, a/lambda = 1e-4, termination 633 ohm: 15.61 dBi axially, against 15.90 from the idealised travelling-wave model."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "L_over_lambda": 8.0
+          },
+          "expect": {
+            "directivity_linear": 73.902
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments, 8-wavelength legs, a/lambda = 1e-4, termination 633 ohm: 18.68 dBi axially, against 19.04 from the idealised travelling-wave model."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "L_over_lambda": 4.0,
+            "aw": 0.00299792458
+          },
+          "expect": {
+            "termination_resistance_ohm": 633.11,
+            "radiation_efficiency": 0.52957
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments at a/lambda = 0.0001, 4-wavelength legs: front-to-back peaks at 633 ohm, where 53.1% of the input is radiated and the rest burned in the termination."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "L_over_lambda": 4.0,
+            "aw": 0.0299792458
+          },
+          "expect": {
+            "termination_resistance_ohm": 388.48,
+            "radiation_efficiency": 0.65956
+          },
+          "tol_pct": 1.0,
+          "source": "Method of moments at a/lambda = 0.001, 4-wavelength legs: front-to-back peaks at 387 ohm, where 65.7% of the input is radiated and the rest burned in the termination."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 10.3.2",
         "Bruce, Beck & Lowry, Horizontal rhombic antennas, Proc. IRE 23(1), 1935",
-        "Directivity computed here from the exact four-leg travelling-wave model"
+        "Directivity computed here from the exact four-leg travelling-wave model",
+        "Directivity, optimal termination and efficiency solved here by method of moments with the terminating resistor as a lumped load"
       ]
     },
     {

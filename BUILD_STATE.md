@@ -1333,9 +1333,69 @@ quoted as that. The tau = 0.95 point is the least converged - a high-tau array
 has a wide active region, and enlarging the solved structure moved it 0.6 dB -
 and the validity block says so.
 
+## The rhombic, and the parameter it was missing
+
+The rhombic's and V's directivities were marked "derived here" in session 5,
+from an idealised model: an unattenuated travelling wave on every leg and a
+perfect termination. Of the travelling-wave family, only the rhombic can be
+solved faithfully in free space. A V's and a long wire's terminations need a
+return path to ground that free space does not have, but a rhombic closes on
+itself: four legs, the feed at one acute vertex, the resistor at the other. It
+went in as one closed wire with the resistor as a lumped load, and power into
+the resistor balances to 1e-4.
+
+Mesh mattered more here than anywhere before. At 12 segments per wavelength
+the axial directivity read 0.35 dB low, which first made the idealised model
+look 0.6 to 1.2 dB optimistic. At 28 per wavelength it is within about 0.05 dB
+of converged, and the real gap is much smaller:
+
+- The idealised model is 0.24 to 0.45 dB HIGH across leg lengths 2 to 12
+  lambda, growing slowly with length, because the real current decays as it
+  radiates and the model's does not. Modest, but systematic.
+
+The bigger finding was a parameter the spec did not have. The wire radius sets
+three things while barely touching the directivity (0.33 dB across 2.5
+decades):
+
+- The optimal termination - the resistance that maximises front-to-back - runs
+  from 878 ohm at a = 1e-5 lambda to 273 at 3e-3, linear in ln(lambda/a) at
+  about 106 ohm per neper, which is how a two-wire line's impedance goes. It
+  hardly depends on leg length (596 to 635 ohm from 2 to 12 lambda). The flat
+  600 ohm the spec carried is right to 5% at a = 1e-4, typical HF wire, but 32%
+  low on the thinnest wire and 55% high at 1e-3.
+- The share of power the termination burns runs from 26% on fat wire to 56% on
+  the thinnest. The old "about half" is right for HF wire and wrong for fat
+  wire, and the gain sits 1.3 to 3.5 dB below the directivity, not a flat 3.
+- `aw` is now a parameter, and the termination, radiation efficiency and gain
+  follow it.
+
+And the leg angle: the alignment angle, where each leg's cone lines up with the
+axis, is right for an unattenuated wave. With the real current the axial
+directivity peaks near 27 degrees at 4 lambda, 0.34 dB above the alignment
+angle's 24.9 - a WIDER diamond. The V antenna's spec says its own optimum is "a
+few degrees tighter"; that could not be checked, since the V cannot be solved
+in free space, and the rhombic points the other way. Worth solving the V over
+ground one day before trusting either claim.
+
+The idealised directivity is kept as `directivity_travelling_wave_model`,
+because the V still uses the same model and `gain_over_v_antenna_db` should
+compare like with like. The old known cases asserted the idealised figure under
+`directivity_linear` and now assert it under its own name. Two of those had
+been passing only because a relative tolerance on a dB value is loose: 15.93
+against 15.63 dBi is under 2%. They were moved to the right metric rather than
+left passing by accident.
+
+A first draft of the termination note said 600 ohm was "right to within about
+7% for thin wire". That was true only at a = 1e-4; on the thinnest wire it is
+32% low. The note now computes those percentages from the solved data rather
+than paraphrasing them - the same correction as the last three rounds.
+
+The suite has grown to 105 seconds, from 77, mostly the rhombic's fine-mesh
+checks. Worth marking the heaviest MoM tests slow if it keeps climbing.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1929 tests, 542/542 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1950 tests, 547/547 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

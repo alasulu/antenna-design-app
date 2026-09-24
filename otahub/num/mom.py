@@ -55,7 +55,7 @@ from ..core.constants import ETA0
 
 __all__ = [
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
-    "folded_dipole_wire", "helix_over_ground", "lpda_model",
+    "folded_dipole_wire", "helix_over_ground", "lpda_model", "rhombic_model",
     "tl_admittance", "NetworkSolution", "solve_network",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
@@ -651,3 +651,33 @@ def lpda_model(tau: float, sigma: float, longest: float, elements: int,
         idx = [k, k + 1]
         y[np.ix_(idx, idx)] += tl_admittance(feeder_z0, 2.0 * math.pi * d, transposed)
     return WireModel(wires), ports, y, elements - 1
+
+
+def rhombic_model(leg: float, half_angle_deg: float | None = None,
+                  radius: float = 1e-4, seg_per_lambda: int = 28):
+    """Free-space planar rhombic, in wavelengths. Returns (model, feed, term).
+
+    One closed wire of four legs in the x-y plane: the feed at the acute vertex
+    on the origin, the terminating resistor's basis function at the far acute
+    vertex on +x, towards which the antenna fires. Pass the resistor to
+    `solve` as `loads={term: R}`. The default half-angle is the alignment
+    angle, acos(1 - 0.371/leg), where each leg's cone lines up with the axis.
+
+    Mesh matters here more than on a dipole: at 12 segments per wavelength the
+    axial directivity reads 0.35 dB low on a 4-wavelength leg, and 28 is
+    within about 0.05 dB of converged.
+    """
+    if half_angle_deg is None:
+        half_angle_deg = math.degrees(math.acos(max(0.0, 1.0 - 0.371 / leg)))
+    th = math.radians(half_angle_deg)
+    p0 = np.zeros(3)
+    p1 = np.array([leg * math.cos(th), leg * math.sin(th), 0.0])
+    p2 = np.array([2.0 * leg * math.cos(th), 0.0, 0.0])
+    p3 = np.array([leg * math.cos(th), -leg * math.sin(th), 0.0])
+    n = max(8, int(round(seg_per_lambda * leg)))
+    pts = [a + (j / n) * (b - a)
+           for a, b in ((p0, p1), (p1, p2), (p2, p3), (p3, p0)) for j in range(n)]
+    model = WireModel([Wire(np.array(pts), radius, closed=True)])
+    nodes = np.array([model.node_of(k) for k in range(model.n_basis)])
+    return (model, int(np.argmin(np.linalg.norm(nodes - p0, axis=1))),
+            int(np.argmin(np.linalg.norm(nodes - p2, axis=1))))
