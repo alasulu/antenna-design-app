@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2068 tests, 627/627 citable
+6,031 lines of Python, 14,835 lines of spec data, 2109 tests, 636/636 citable
 known cases passing.**
 
 ---
@@ -170,6 +170,7 @@ being written into a spec.
 | `half_wave_slot`, `folded_slot` | Resonant length and resonant resistance from the complementary dipole of radius w/4, through `resonant_dipole`'s laws: 0.4637λ and 468 Ω at the default w/L = 0.05, replacing a thin dipole's 0.4785λ and a flat-67-Ω 529.6 | Exact-kernel MoM and Hallén's equation, each on meshes it has converged on: 0.4645–0.4654λ and a 471–479 Ω slot; at w/L = 0.02 the law is inside 0.1% on length |
 | `truncated_corner_cp_patch` | Corner cut, the frequency the square is sized for, mode split, and the axial-ratio and VSWR bands, all from a cavity model of the real outline | `otahub/num/patch_cavity.py`: Neumann modes on linear triangles, probe feed, broadside polarisation over 30 modes, converged to 0.004% between 240 and 480 cells per side; fits hold to 0.03% on meshes they never saw. The old design had 7.9 dB of axial ratio at its own f0 |
 | `pyramidal_horn` | Two apex distances solved so both flares meet a real feed guide at one length (a quartic in √(ρ₁/λ)), with the optimum proportions in axial distances and the exact optimum efficiency | Flare geometry rebuilt from the output meets the guide to 1e-9 m; direct 2-D aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on three guides; root matches bisection on the unsquared condition |
+| `waveguide_longitudinal_slot`, `waveguide_slot_array_resonant` | Stevenson's shunt conductance with the wavelength ratio the right way up, and the array offsets it sets | `otahub/num/waveguide_slot.py` derives g by reciprocity, a half-space radiation integral and power balance, all by quadrature: +0.03% (the rounding of 2.09) from 8.2 to 40 GHz on two guides; twelve slots at the new offset sum to unity by that model |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -242,8 +243,16 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
 - ~~**Axial-mode helix gain.**~~ **Resolved** by a full-wave solve (§3): the
   shipped gain is fitted to the solved helix, within 0.35 dB over the design
   core, and the Kraus formula is kept beside it with its measured error.
-- **Stevenson's g1** for the waveguide shunt slot should be cross-checked
-  against the source before committing an array to fabrication.
+- ~~**Stevenson's g1**~~ **Resolved, and it was wrong.** The spec's
+  expression carried the wavelength ratio inverted, lambda/lambda_g, while its
+  own note quoted lambda_g/lambda. A first-principles derivation by quadrature
+  (`otahub/num/waveguide_slot.py`: reciprocity for the TE10 the slot excites,
+  its one-sided radiation over a half space, power balance for a shunt element)
+  reproduces lambda_g/lambda to the rounding of the 2.09 across WR-90 and WR-28.
+  The inverted form was 28-64% low; the resonant array's WR-90 offsets were
+  3.06 mm where 2.28 mm is right, and the old ones summed to a conductance of
+  1.76 - VSWR 1.76 at a feed meant to be matched. Stevenson's model itself
+  (half-wave cosine slot, thin wall) is still not checked against a real guide.
 - **LPDA directivity** collapses a two-dimensional Carrel chart onto the
   optimum-σ line. Checked since against a full-wave solve of every element: the
   reading holds to ±0.6 dB of the log-period mean, and the periodic ripple
@@ -521,8 +530,9 @@ known case only checks what it asserts.
    it found three design-breaking errors (§5). `pyramidal_horn` was next and
    turned out not to be buildable (§5). The ranking undercounts archetypes
    already verified another way (`annular_ring_patch`, the inset patch); of the
-   ones it rightly flags, `waveguide_slot_array_travelling_wave` (3 of 12) is
-   the natural next, since it also rests on the unchecked Stevenson g1.
+   ones it rightly flags, the waveguide slot family was next: Stevenson's g1
+   turned out inverted in the spec (§4). `stacked_patch` and the corner
+   reflectors are what the ranking offers after that.
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.

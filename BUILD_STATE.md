@@ -1738,9 +1738,46 @@ integrated too: 53.9-54.4 and 78.0-78.9 from 15 to 25 dBi, drifting 2% by
 `axial_length_m` is now the horn's machined length rather than the apex
 distance.
 
+## Stevenson's slot conductance was upside down
+
+The handover had carried "Stevenson's g1 should be cross-checked against the
+source" since session 5, and `waveguide_longitudinal_slot`'s own note said
+its wavelength ratio "is inverted relative to some printings". Reading the
+spec against itself settled which way round it had gone: the note quoted
+g1 = 2.09 (lambda_g/lambda)(a/b) cos^2(pi lambda/(2 lambda_g)), and the
+expression computed 2.09 (lambda/lambda_g)... - a factor (lambda_g/lambda)^2,
+1.76 on WR-90 at 10 GHz. `waveguide_slot_array_resonant` used the same
+expression and derived its slot offsets from it.
+
+Picking a printing would not have been a check, so the conductance was derived
+instead, by quadrature, in `otahub/num/waveguide_slot.py`. The slot's aperture
+field is a magnetic current; reciprocity gives the TE10 waves it launches, which
+are equal both ways because it couples through H_z - a shunt element. The same
+current, doubled by the ground plane, radiates into the half space outside, and
+that integral is the slot's one-sided conductance (2 x 73.08/eta^2, to 1e-5).
+Power balance for a shunt conductance closes it: g = 2 E_s^2 a b/(Z_TE V^2 G_ext).
+Nothing in that uses Stevenson's algebra. It reproduces the lambda_g/lambda form
+to +0.03% - the rounding of 2.09 against the derived 2.0893 - at every
+frequency and offset tried, 8.2 to 12.4 GHz on WR-90 and 26.5 to 40 GHz on
+WR-28, and a real 1.5 mm slot width changes it by 0.35%. The inverted form was
+28% low at 12.4 GHz, 43% at 10 and 64% at 8.2, and went to zero toward cutoff
+where the right one rises with the guide's wave impedance.
+
+What it did to a design: the twelve-slot WR-90 array at 10 GHz placed its slots
+3.06 mm off the centreline. By the first-principles model those slots sum to a
+conductance of 1.76, not 1 - VSWR 1.76, 7.5% of the power reflected, at a feed
+the spec called matched. The offsets are now 2.28 mm and sum to 1.0000.
+
+Both specs now write g1 as it is derived, 4 eta0/(pi^2 x 73.08) = 2.0893, with
+lambda_g/lambda expressed as 1/sqrt(1 - (lambda/2a)^2) so the ratio cannot be
+turned over by a typo again. `waveguide_longitudinal_slot` stays low
+confidence, and says why: the formula is now right, but Stevenson's model -
+a half-wave cosine slot in a thin wall, blind to the guide's evanescent modes -
+has still not been checked against a real guide.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2068 tests, 627/627 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2109 tests, 636/636 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

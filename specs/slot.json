@@ -562,18 +562,18 @@
         },
         {
           "metric": "g1_normalised",
-          "expr": "2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2",
+          "expr": "(4*eta0/(pi**2*73.0796))*(a_wg/b_wg)/sqrt(1 - (c/(2*a_wg*f0))**2)*cos(pi*sqrt(1 - (c/(2*a_wg*f0))**2)/2)**2",
           "units_out": "-",
           "depends_on": [
             "f0",
             "a_wg",
             "b_wg"
           ],
-          "notes": "Stevenson's peak normalised conductance: g1 = 2.09*(lambda_g/lambda)*(a/b)*cos^2(pi*lambda/(2*lambda_g)) - note this is the value at maximum offset, and the leading lambda ratio is inverted relative to some printings, so cross-check against the source before building an array."
+          "notes": "Stevenson's normalised conductance at full offset (x1 = a/2). g1 = 2.09 (lambda_g/lambda)(a/b) cos^2(pi lambda/(2 lambda_g)) - with lambda_g/lambda, which the expression writes as 1/sqrt(1 - (lambda/2a)^2) so the ratio cannot be turned over by a typo again. This spec used lambda/lambda_g, the inverted printing its own note warned about, which is 28% low at 12.4 GHz, 43% at 10 GHz and 64% at 8.2 GHz on WR-90. Settled from first principles, not from a printing: otahub.num.waveguide_slot excites TE10 with the slot's magnetic current by reciprocity, integrates the slot's one-sided radiation conductance over the half space, and closes with power balance for a shunt element, all by quadrature. It reproduces this form to +0.03% - the rounding of 2.09 - from 8.2 to 12.4 GHz on WR-90 and 26.5 to 40 GHz on WR-28. The coefficient is written as it is derived, 4 eta0/(pi^2 * 73.08) = 2.0893: 73.08 ohm is the induced-EMF resistance that belongs with Stevenson's assumed cosine slot field. It rises toward cutoff, where the guide's wave impedance does - the inverted form went to zero there instead."
         },
         {
           "metric": "normalised_conductance",
-          "expr": "(2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2)*np.sin(pi*x1/a_wg)**2",
+          "expr": "((4*eta0/(pi**2*73.0796))*(a_wg/b_wg)/sqrt(1 - (c/(2*a_wg*f0))**2)*cos(pi*sqrt(1 - (c/(2*a_wg*f0))**2)/2)**2)*sin(pi*x1/a_wg)**2",
           "units_out": "-",
           "depends_on": [
             "f0",
@@ -594,7 +594,7 @@
         },
         {
           "metric": "slots_for_unity_total",
-          "expr": "1/((2.09*((c/f0)/((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*np.cos(pi*(c/f0)/(2*((c/f0)/np.sqrt(1 - (c/(2*a_wg*f0))**2))))**2)*np.sin(pi*x1/a_wg)**2)",
+          "expr": "1/(((4*eta0/(pi**2*73.0796))*(a_wg/b_wg)/sqrt(1 - (c/(2*a_wg*f0))**2)*cos(pi*sqrt(1 - (c/(2*a_wg*f0))**2)/2)**2)*sin(pi*x1/a_wg)**2)",
           "units_out": "-",
           "depends_on": [
             "f0",
@@ -610,7 +610,7 @@
         "Stevenson's theory assumes a thin wall and a narrow slot",
         "single-mode TE10 operation",
         "mutual coupling between adjacent slots is NOT modelled and matters in real arrays",
-        "the g1 expression should be cross-checked against the source before committing an array design to fabrication"
+        "g1 is now derived and checked from first principles within Stevenson's model. What is NOT checked here is the model itself against a real guide: a half-wave slot with a cosine field, a thin wall and no interaction with the guide's evanescent modes. Real resonant slots are a little shorter and their conductance departs from the sin^2 law at large offsets, which is why array designs are iterated full-wave"
       ],
       "known_cases": [
         {
@@ -652,6 +652,51 @@
           },
           "tol_pct": 1.0,
           "source": "WR-90 at 10 GHz: TE10 cutoff 6.556 GHz, guide wavelength 39.73 mm. Pozar, Microwave Engineering 4th ed., Ch. 3"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.003
+          },
+          "expect": {
+            "g1_normalised": 0.877448,
+            "normalised_conductance": 0.140885,
+            "slots_for_unity_total": 7.09801
+          },
+          "tol_pct": 0.1,
+          "source": "WR-90 at 10 GHz, offset 3.000 mm: computed from first principles by otahub.num.waveguide_slot - TE10 excited by the slot's magnetic current through reciprocity, the slot's one-sided radiation conductance integrated over the half space, and power balance for a shunt element - all by quadrature. It matches Stevenson with lambda_g/lambda to the rounding of his 2.09; the printing with the ratio inverted, which this spec used, gives 43% less."
+        },
+        {
+          "given": {
+            "f0": 8200000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.005715
+          },
+          "expect": {
+            "g1_normalised": 2.69934,
+            "normalised_conductance": 1.34967,
+            "slots_for_unity_total": 0.740922
+          },
+          "tol_pct": 0.1,
+          "source": "WR-90 at 8.2 GHz, offset 5.715 mm: computed from first principles by otahub.num.waveguide_slot - TE10 excited by the slot's magnetic current through reciprocity, the slot's one-sided radiation conductance integrated over the half space, and power balance for a shunt element - all by quadrature. It matches Stevenson with lambda_g/lambda to the rounding of his 2.09; the printing with the ratio inverted, which this spec used, gives 64% less."
+        },
+        {
+          "given": {
+            "f0": 12400000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "x1": 0.003
+          },
+          "expect": {
+            "g1_normalised": 0.306812,
+            "normalised_conductance": 0.0492623,
+            "slots_for_unity_total": 20.2995
+          },
+          "tol_pct": 0.1,
+          "source": "WR-90 at 12.4 GHz, offset 3.000 mm: computed from first principles by otahub.num.waveguide_slot - TE10 excited by the slot's magnetic current through reciprocity, the slot's one-sided radiation conductance integrated over the half space, and power balance for a shunt element - all by quadrature. It matches Stevenson with lambda_g/lambda to the rounding of his 2.09; the printing with the ratio inverted, which this spec used, gives 28% less."
         }
       ],
       "references": [
@@ -739,7 +784,7 @@
         },
         {
           "output": "offset",
-          "expr": "(a_wg/pi)*asin(sqrt(1/(N*(2.09*((c/f0)/((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*cos(pi*(c/f0)/(2*((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2))))**2))))",
+          "expr": "(a_wg/pi)*asin(sqrt(1/(N*((4*eta0/(pi**2*73.0796))*(a_wg/b_wg)/sqrt(1 - (c/(2*a_wg*f0))**2)*cos(pi*sqrt(1 - (c/(2*a_wg*f0))**2)/2)**2))))",
           "units_out": "m",
           "depends_on": [
             "a_wg",
@@ -747,7 +792,7 @@
             "f0",
             "b_wg"
           ],
-          "notes": "Each slot takes 1/N of the guide conductance, from g = g1*sin^2(pi*x/a). Larger offsets couple harder, so a short array needs slots further out."
+          "notes": "sin^2(pi x/a) = 1/(N g1), so the N shunt conductances sum to one. With g1 corrected the WR-90 offsets shrink from 3.06 to 2.28 mm at 10 GHz; the old offsets summed to 1.76, a VSWR of 1.76 at a feed meant to be matched."
         }
       ],
       "analysis": [
@@ -770,14 +815,14 @@
         },
         {
           "metric": "g1_normalised",
-          "expr": "2.09*((c/f0)/((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2)))*(a_wg/b_wg)*cos(pi*(c/f0)/(2*((c/f0)/sqrt(1 - (c/(2*a_wg*f0))**2))))**2",
+          "expr": "(4*eta0/(pi**2*73.0796))*(a_wg/b_wg)/sqrt(1 - (c/(2*a_wg*f0))**2)*cos(pi*sqrt(1 - (c/(2*a_wg*f0))**2)/2)**2",
           "units_out": "-",
           "depends_on": [
             "f0",
             "a_wg",
             "b_wg"
           ],
-          "notes": "conductance of a slot at the guide wall, before the sin^2 offset factor"
+          "notes": "Stevenson's conductance at full offset, the same as waveguide_longitudinal_slot's. g1 = 2.09 (lambda_g/lambda)(a/b) cos^2(pi lambda/(2 lambda_g)) - with lambda_g/lambda, which the expression writes as 1/sqrt(1 - (lambda/2a)^2) so the ratio cannot be turned over by a typo again. This spec used lambda/lambda_g, the inverted printing its own note warned about, which is 28% low at 12.4 GHz, 43% at 10 GHz and 64% at 8.2 GHz on WR-90. Settled from first principles, not from a printing: otahub.num.waveguide_slot excites TE10 with the slot's magnetic current by reciprocity, integrates the slot's one-sided radiation conductance over the half space, and closes with power balance for a shunt element, all by quadrature. It reproduces this form to +0.03% - the rounding of 2.09 - from 8.2 to 12.4 GHz on WR-90 and 26.5 to 40 GHz on WR-28. The coefficient is written as it is derived, 4 eta0/(pi^2 * 73.08) = 2.0893: 73.08 ohm is the induced-EMF resistance that belongs with Stevenson's assumed cosine slot field. It rises toward cutoff, where the guide's wave impedance does - the inverted form went to zero there instead."
         },
         {
           "metric": "conductance_per_slot",
@@ -870,12 +915,12 @@
             "N": 12
           },
           "expect": {
-            "g1_normalised": 0.49936,
-            "offset": 0.0030624,
-            "offset_fraction": 0.13396
+            "g1_normalised": 0.877448,
+            "offset": 0.00227957,
+            "offset_fraction": 0.0997185
           },
-          "tol_pct": 1.0,
-          "source": "g1 = 2.09*(lambda0/lambda_g)*(a/b)*cos^2(pi*lambda0/2*lambda_g) = 0.499 for WR-90 at 10 GHz. Solving sin^2(pi*x/a) = 1/(12*g1) puts the slots 3.06 mm off the centreline, 13.4% of the broad wall."
+          "tol_pct": 0.1,
+          "source": "g1 = 0.8774 for WR-90 at 10 GHz from the first-principles slot model (Stevenson with lambda_g/lambda). Twelve slots each taking 1/12 sit 2.280 mm off the centreline, and the model's own conductance summed at that offset is 1.0000. The old 3.06 mm, from the inverted ratio, sums to 1.76: VSWR 1.76 at a feed meant to be matched."
         },
         {
           "given": {
