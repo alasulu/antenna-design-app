@@ -1929,9 +1929,40 @@ One tolerance lesson on the way: a near-zero dB difference (-0.043 dB) failed a
 1% relative check by 0.001 dB. Those expectations now sit in their own case
 with an absolute tolerance, as the house rule for zeros already says.
 
+## The parabolic cylinder, one dimension down
+
+`cylindrical_parabolic` asserted taper and spillover of 0.81 and 0.88 and
+borrowed the dish's 70 lambda/W for its focusing-plane beamwidth. It is the
+dish's analysis one dimension down: a line feed launches a CYLINDRICAL wave,
+spreading as 1/sqrt(r) rather than 1/r, so the aperture field across the
+focusing plane is sqrt(cos^n(theta)/r). The taper efficiency is then
+[int cos^(n/2)/sqrt(1 + cos) dtheta]^2 / (tan(theta0/2) int cos^n dtheta),
+which the spec evaluates in its own expression, and the spillover is the
+fraction of the feed's transverse power the reflector intercepts. A direct
+integration over the aperture coordinate agrees to six figures, and the nearly
+uniform limit reproduces the uniform line source's 50.8 lambda/W and -13.3 dB.
+
+Two things came out that the dish did not predict. The old budget understated
+the cylinder by a full decibel - the product reaches 0.900 at f/W = 0.4 against
+the asserted 0.713. And the dish's -11 dB rule does not carry over: a line
+aperture wants a LIGHTER taper, -6.5 to -8.5 dB for f/W 0.3-0.7, so the default
+is -8 dB. There the focusing-plane beam is 57.9 lambda/W, and the default fan
+beam 3.4:1 rather than 4.1:1.
+
+The sidelobe needed the same care as the dish's, for a different reason. Under
+heavy taper the FIRST sidelobe does not merely fall; it collapses, to -51 dB and
+-61 dB, as its two nulls merge and the lobe between them vanishes. That is real,
+but it is not what a radar designer needs and it will not fit. The spec reports
+the PEAK sidelobe instead, which a later lobe takes over smoothly: fitted to
+0.3 dB at the corner where the lobes hand over and within 0.08 dB elsewhere on
+held-out points.
+
+The dual reflectors are what is left of the efficiency-pair family; they need
+a subreflector model before the same derivation applies.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2278 tests, 677/677 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2303 tests, 693/693 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

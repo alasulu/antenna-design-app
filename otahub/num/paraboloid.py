@@ -21,7 +21,8 @@ from scipy.optimize import brentq, minimize_scalar
 from scipy.special import j0
 
 __all__ = ["half_angle", "feed_exponent", "efficiencies", "far_field", "beam",
-           "offset_geometry", "offset_rim_angles", "offset_taper", "offset_beamwidths"]
+           "offset_geometry", "offset_rim_angles", "offset_taper", "offset_beamwidths",
+           "cylinder_feed_exponent", "cylinder_efficiencies", "cylinder_beam"]
 
 
 def half_angle(f_over_d: float) -> float:
@@ -137,3 +138,55 @@ def offset_beamwidths(f_over_d_parent: float, h0_over_d: float, n: float) -> tup
         p = lambda u: abs((aw * np.exp(1j * u * c)).sum() / total) ** 2 - 0.5
         widths.append(math.degrees(brentq(p, 0.1, 20.0) - brentq(p, -20.0, -0.1)) / (2.0 * math.pi))
     return widths[0], widths[1]
+
+
+# ------------------------------------------------------- parabolic cylinder
+
+def cylinder_feed_exponent(edge_taper_db: float, f_over_w: float) -> float:
+    """n for a line feed whose transverse power pattern is cos^n: the rim sits
+    edge_taper_db below the centre, cylindrical spreading sqrt((1+cos)/2) included."""
+    t0 = half_angle(f_over_w)
+    if t0 >= math.pi / 2:
+        raise ValueError("f/W must exceed 0.25 for a finite edge taper")
+    return 2.0 * (edge_taper_db / 20.0 - 0.5 * math.log10((1 + math.cos(t0)) / 2)) / math.log10(math.cos(t0))
+
+
+def _cylinder_aperture(n: float, f_over_w: float, m: int = 1500):
+    """A(y) = sqrt(cos^n(theta)/r) over y in [-1/2, 1/2] (W = 1): a cylindrical wave."""
+    x, w = np.polynomial.legendre.leggauss(m)
+    y, wy = 0.5 * x, 0.5 * w
+    t = 2.0 * np.arctan(y / (2.0 * f_over_w))
+    r = 2.0 * f_over_w / (1.0 + np.cos(t))
+    return y, wy, np.sqrt(np.cos(t) ** n / r)
+
+
+def cylinder_efficiencies(n: float, f_over_w: float) -> tuple[float, float]:
+    """(taper, spillover): taper from the aperture field along y, spillover by
+    quadrature of the feed's transverse pattern."""
+    y, wy, A = _cylinder_aperture(n, f_over_w)
+    taper = float((A * wy).sum() ** 2 / (A * A * wy).sum())
+    t0 = half_angle(f_over_w)
+    x, w = np.polynomial.legendre.leggauss(400)
+    inside = (np.cos(0.5 * t0 * (x + 1)) ** n * w).sum() * 0.5 * t0
+    whole = (np.cos(0.25 * math.pi * (x + 1)) ** n * w).sum() * 0.25 * math.pi
+    return taper, float(inside / whole)
+
+
+def cylinder_beam(n: float, f_over_w: float) -> tuple[float, float]:
+    """(HPBW in units of lambda/W degrees, PEAK sidelobe in dB) in the focusing plane.
+    The peak, not the first: under heavy taper the first sidelobe collapses as its
+    two nulls merge, and a later lobe carries the peak."""
+    y, wy, A = _cylinder_aperture(n, f_over_w)
+    aw = A * wy
+    f0 = aw.sum()
+    us = np.arange(0.0, 60.0, 0.005)
+    v = np.cos(np.outer(us, y)) @ aw / f0
+    F = lambda u: float(np.cos(u * y) @ aw / f0)
+    i3 = int(np.argmax(v ** 2 < 0.5))
+    u3 = brentq(lambda u: F(u) ** 2 - 0.5, us[i3 - 1], us[i3])
+    flips = np.nonzero(np.sign(v[1:]) != np.sign(v[:-1]))[0]
+    n1 = brentq(F, us[flips[0]], us[flips[0] + 1])
+    k = int(np.argmax(np.abs(v) * (us > n1)))
+    r = minimize_scalar(lambda u: -abs(F(u)), bounds=(us[k] - 0.01, us[k] + 0.01),
+                        method="bounded", options={"xatol": 1e-10})
+    return 2.0 * math.degrees(u3) / (2.0 * math.pi), 20.0 * math.log10(abs(F(r.x)))

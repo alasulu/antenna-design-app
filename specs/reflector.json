@@ -2004,15 +2004,15 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.81"
+          "role": "derived",
+          "description": "Taper efficiency across the focusing plane. DERIVED from the edge taper and f/W; supply it to override."
         },
         {
           "symbol": "eta_spill",
           "name": "spillover efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.88"
+          "role": "derived",
+          "description": "Spillover efficiency of the line feed. DERIVED from the edge taper and f/W; supply it to override."
         },
         {
           "symbol": "eps_rms",
@@ -2026,6 +2026,39 @@
           "name": "focal length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "edge_taper_db",
+          "name": "edge taper",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-8",
+          "description": "total illumination at the rims relative to the centre, cylindrical spreading included"
+        },
+        {
+          "symbol": "cyl_theta0",
+          "name": "feed half-angle",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "cyl_n",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived",
+          "description": "n in the line feed's transverse power pattern cos^n"
+        },
+        {
+          "symbol": "cyl_e",
+          "name": "normalised edge taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "cyl_q",
+          "name": "normalised W/F",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -2036,6 +2069,60 @@
           "depends_on": [
             "f_over_W",
             "W"
+          ]
+        },
+        {
+          "output": "cyl_theta0",
+          "expr": "2*atan(1/(4*f_over_W))",
+          "units_out": "rad",
+          "depends_on": [
+            "f_over_W"
+          ]
+        },
+        {
+          "output": "cyl_n",
+          "expr": "2*(edge_taper_db/20 - 0.5*log10((1 + cos(cyl_theta0))/2))/log10(cos(cyl_theta0))",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db",
+            "cyl_theta0"
+          ],
+          "notes": "edge taper = cos^(n/2)(theta0) sqrt((1 + cos theta0)/2) in amplitude, solved for n"
+        },
+        {
+          "output": "eta_spill",
+          "expr": "np.trapezoid(np.cos(np.linspace(0, cyl_theta0, 4001))**cyl_n, np.linspace(0, cyl_theta0, 4001))/np.trapezoid(np.cos(np.linspace(0, pi/2, 4001))**cyl_n, np.linspace(0, pi/2, 4001))",
+          "units_out": "-",
+          "depends_on": [
+            "cyl_theta0",
+            "cyl_n"
+          ],
+          "notes": "the fraction of the line feed's transverse power the reflector intercepts"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "np.trapezoid(np.cos(np.linspace(0, cyl_theta0, 4001))**(cyl_n/2)/np.sqrt(1 + np.cos(np.linspace(0, cyl_theta0, 4001))), np.linspace(0, cyl_theta0, 4001))**2/(np.tan(cyl_theta0/2)*np.trapezoid(np.cos(np.linspace(0, cyl_theta0, 4001))**cyl_n, np.linspace(0, cyl_theta0, 4001)))",
+          "units_out": "-",
+          "depends_on": [
+            "cyl_theta0",
+            "cyl_n"
+          ],
+          "notes": "taper efficiency of the cylindrical-wave aperture field across the focusing plane"
+        },
+        {
+          "output": "cyl_e",
+          "expr": "(edge_taper_db + 11.5)/8.5",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db"
+          ]
+        },
+        {
+          "output": "cyl_q",
+          "expr": "(1/f_over_W - 2.15)/1.18",
+          "units_out": "-",
+          "depends_on": [
+            "f_over_W"
           ]
         }
       ],
@@ -2099,13 +2186,25 @@
         },
         {
           "metric": "hpbw_focusing_plane_deg",
-          "expr": "70.0*(c/f0)/W",
+          "expr": "((61.4320039) + (-0.218968748)*cyl_q**1 + (-0.276495908)*cyl_q**2 + (-0.152458884)*cyl_q**3 + (-8.63361752)*cyl_e**1 + (0.303146198)*cyl_e**1*cyl_q**1 + (0.366553118)*cyl_e**1*cyl_q**2 + (0.194707357)*cyl_e**1*cyl_q**3 + (0.450348572)*cyl_e**2 + (-0.0723479157)*cyl_e**2*cyl_q**1 + (-0.0723700309)*cyl_e**2*cyl_q**2 + (-0.031336917)*cyl_e**2*cyl_q**3 + (0.091159137)*cyl_e**3 + (-0.00458193186)*cyl_e**3*cyl_q**1 + (-0.00726415227)*cyl_e**3*cyl_q**2 + (-0.00463046751)*cyl_e**3*cyl_q**3 + (-0.0041129277)*cyl_e**4 + (0.00218551303)*cyl_e**4*cyl_q**1 + (0.00186617123)*cyl_e**4*cyl_q**2 + (0.000623626076)*cyl_e**4*cyl_q**3 + (-0.00175137354)*cyl_e**5 + (0.000136577063)*cyl_e**5*cyl_q**1 + (0.000239265716)*cyl_e**5*cyl_q**2 + (0.0001590281)*cyl_e**5*cyl_q**3 + (4.33008445e-05)*cyl_e**6 + (-5.93971112e-05)*cyl_e**6*cyl_q**1 + (-4.25684709e-05)*cyl_e**6*cyl_q**2 + (-8.70102141e-06)*cyl_e**6*cyl_q**3)*(c/f0)/W",
           "units_out": "deg",
           "depends_on": [
+            "cyl_e",
+            "cyl_q",
             "f0",
             "W"
           ],
-          "notes": "tapered illumination, as for a dish"
+          "notes": "From the Fourier transform of the focusing-plane aperture field, fitted over edge taper -20..-3 dB and f/W 0.3..1.0 to 0.03 lambda/W. 57.9 lambda/W at the default -8 dB, 60.8 at -11: not the dish's 70."
+        },
+        {
+          "metric": "peak_sidelobe_focusing_plane_db",
+          "expr": "(-23.9543521) + (0.670363432)*cyl_q**1 + (0.552925078)*cyl_q**2 + (0.166425731)*cyl_q**3 + (12.1879215)*cyl_e**1 + (-1.29273844)*cyl_e**1*cyl_q**1 + (-1.72804064)*cyl_e**1*cyl_q**2 + (-0.845704399)*cyl_e**1*cyl_q**3 + (-5.10194987)*cyl_e**2 + (-1.50601326)*cyl_e**2*cyl_q**1 + (2.18970625)*cyl_e**2*cyl_q**2 + (2.82224273)*cyl_e**2*cyl_q**3 + (-4.64148307)*cyl_e**3 + (3.72828783)*cyl_e**3*cyl_q**1 + (2.83994882)*cyl_e**3*cyl_q**2 + (0.182645714)*cyl_e**3*cyl_q**3 + (9.31507756)*cyl_e**4 + (0.631343934)*cyl_e**4*cyl_q**1 + (-6.31636511)*cyl_e**4*cyl_q**2 + (-5.87956718)*cyl_e**4*cyl_q**3 + (1.79487016)*cyl_e**5 + (-2.62015508)*cyl_e**5*cyl_q**1 + (-1.40008711)*cyl_e**5*cyl_q**2 + (0.494975247)*cyl_e**5*cyl_q**3 + (-5.07481838)*cyl_e**6 + (0.309783265)*cyl_e**6*cyl_q**1 + (3.84880975)*cyl_e**6*cyl_q**2 + (3.08968201)*cyl_e**6*cyl_q**3",
+          "units_out": "dB",
+          "depends_on": [
+            "cyl_e",
+            "cyl_q"
+          ],
+          "notes": "PEAK sidelobe in the focusing plane, from the same transform: -19.8 dB at the default. The peak rather than the first, because under heavy taper the first sidelobe collapses as its two nulls merge and a later lobe takes over; the fit rounds that corner to 0.3 dB and is within 0.08 dB elsewhere on points it never saw."
         },
         {
           "metric": "hpbw_axial_plane_deg",
@@ -2132,7 +2231,8 @@
         "line feed assumed uniformly excited along the axis; tapering it widens the axial beam and lowers those sidelobes",
         "the feed line itself blocks the aperture, and that blockage is not modelled here",
         "single curvature, so there is no focus in the axial plane - the antenna forms a fan beam, never a pencil beam",
-        "ray optics: both dimensions must be many wavelengths"
+        "ray optics: both dimensions must be many wavelengths",
+        "eta_ill, eta_spill, the focusing-plane beamwidth and sidelobe follow a line feed with transverse power pattern cos^n and scalar aperture theory, for edge tapers -20..-3 dB and f/W 0.3..1.0. The line feed's own blockage is not in them - supply measured efficiencies to override"
       ],
       "known_cases": [
         {
@@ -2157,18 +2257,77 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "hpbw_focusing_plane_deg": 6.9953,
-            "hpbw_axial_plane_deg": 1.6921,
-            "fan_beam_ratio": 4.1339
+            "hpbw_axial_plane_deg": 1.6921
           },
           "tol_pct": 0.5,
-          "source": "70*lambda/W against 50.8*lambda/L: a 4.1:1 fan beam. The 50.8 factor is the uniform line source's, confirmed independently by this toolkit's own pattern module."
+          "source": "The axial plane is the uniform line feed's 50.8 lambda/L, confirmed independently by this toolkit's own pattern module."
+        },
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "W": 1.0,
+            "Lc": 3.0,
+            "f_over_W": 0.4,
+            "edge_taper_db": -8.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.942372,
+            "eta_spill": 0.955378,
+            "hpbw_focusing_plane_deg": 5.78721,
+            "peak_sidelobe_focusing_plane_db": -19.7809,
+            "gain_dbi": 35.3133,
+            "fan_beam_ratio": 3.42001
+          },
+          "tol_pct": 0.5,
+          "source": "f/W 0.4, -8 dB edge taper (a cos^1.833 line feed): taper by integration over the aperture coordinate, spillover by Gauss quadrature of the feed pattern, beamwidth and peak sidelobe by Fourier transform (otahub.num.paraboloid) - not the spec's trapezoid or its fits."
+        },
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "W": 1.0,
+            "Lc": 3.0,
+            "f_over_W": 0.5,
+            "edge_taper_db": -11.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.902145,
+            "eta_spill": 0.977376,
+            "hpbw_focusing_plane_deg": 6.08998,
+            "peak_sidelobe_focusing_plane_db": -23.3345,
+            "gain_dbi": 35.2227,
+            "fan_beam_ratio": 3.59894
+          },
+          "tol_pct": 0.5,
+          "source": "f/W 0.5, -11 dB edge taper (a cos^4.522 line feed): taper by integration over the aperture coordinate, spillover by Gauss quadrature of the feed pattern, beamwidth and peak sidelobe by Fourier transform (otahub.num.paraboloid) - not the spec's trapezoid or its fits."
+        },
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "W": 1.0,
+            "Lc": 3.0,
+            "f_over_W": 0.3,
+            "edge_taper_db": -6.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.96653,
+            "eta_spill": 0.956978,
+            "hpbw_focusing_plane_deg": 5.58512,
+            "peak_sidelobe_focusing_plane_db": -17.7264,
+            "gain_dbi": 35.4305,
+            "fan_beam_ratio": 3.30058
+          },
+          "tol_pct": 0.5,
+          "source": "f/W 0.3, -6 dB edge taper (a cos^0.499 line feed): taper by integration over the aperture coordinate, spillover by Gauss quadrature of the feed pattern, beamwidth and peak sidelobe by Fourier transform (otahub.num.paraboloid) - not the spec's trapezoid or its fits."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 15.4",
         "Milligan, Modern Antenna Design 2nd ed., Ch. 8"
-      ]
+      ],
+      "notes": "FROM THE LINE FEED, ONE DIMENSION DOWN FROM THE DISH. Across the focusing plane the line feed launches a cylindrical wave with transverse power pattern cos^n(theta); it spreads as 1/sqrt(r), not 1/r, so the aperture field is sqrt(cos^n(theta)/r) with r = 2F/(1 + cos theta). The taper efficiency is then [int cos^(n/2)/sqrt(1 + cos) dtheta]^2 / (tan(theta0/2) int cos^n dtheta), evaluated in the spec; the spillover is the fraction of the feed's transverse power the reflector intercepts. A direct integration over the aperture coordinate agrees to six figures, and the uniform limit reproduces the uniform line source's 50.8 lambda/W and -13.3 dB. WHAT CHANGED. The old budget, 0.81 x 0.88 = 0.713, understated a line-fed cylinder by about 1 dB: at f/W = 0.4 the product peaks at 0.900. And the dish's -11 dB rule does not carry over - a line aperture wants a LIGHTER taper, -6.5 to -8.5 dB for f/W 0.3-0.7, so the default is -8 dB. The focusing-plane beamwidth there is 57.9 lambda/W, not the dish's 70, which makes the default fan beam 3.4:1 rather than 4.1:1."
     }
   ]
 }
