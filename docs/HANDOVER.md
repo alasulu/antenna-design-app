@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1979 tests, 553/553 citable
+6,031 lines of Python, 14,835 lines of spec data, 1999 tests, 559/559 citable
 known cases passing.**
 
 ---
@@ -160,6 +160,7 @@ being written into a spec.
 | `lpda` | Directivity and its periodic ripple over one log-period; input resistance and the feeder that sets it | Every element solved, feeder as a transposed transmission line; the spec's Carrel reading holds to ±0.6 dB, and the missing feeder design relation is added and checked to within 11% |
 | `rhombic` | Directivity, the optimal termination and the power it burns, solved with the resistor in circuit | The idealised travelling-wave model is 0.24–0.45 dB high; the termination is set by the wire radius (878 Ω at a = 10⁻⁵λ to 273 at 3×10⁻³), which the spec had left out |
 | `top_loaded_monopole` | The top-current ratio derived from the hat geometry, which the spec used to take as an unrelated input | Junction-connected radial hat over image ground; fitted to 0.017 in beta (0.027 held out); the reactance ships as a solved table because no fit was good enough to size a coil |
+| `biconical`, `conical_monopole` | Directivity at the band edge against flare, and across the band; the biconical's angle convention | 16-wire cages, directivity converged to 0.2%; the biconical used the full-angle impedance formula on a half-angle input (188 Ω for a cone that presents 100) |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -332,6 +333,18 @@ dBd rests on, and gains driving-point metrics beside it. `resonant_dipole` had
 been presenting the closed form as what the antenna presents — "55-68 ohm
 across practical thicknesses" — when a real resonant wire sits at about 72 ohm
 whatever its gauge. Its 50 ohm VSWR moved from about 1.26:1 to 1.46:1.
+
+### Two cross-checks written to agree instead of to check
+
+`biconical` documented `theta_h` as the half angle and computed its impedance
+with cot(theta_h/4) - Kraus's formula for the FULL cone angle - so it reported
+the impedance of a cone half as wide: 188 ohm for the 47 degree cone that
+presents 100, 243 for a 30 degree cone that presents 158. Its siblings
+`conical_monopole` and `discone` used the half angle correctly. Two
+cross-consistency tests existed to catch exactly this kind of disagreement,
+and both had been written with a doubled angle on the biconical side - 10
+against 5, 60 against 30 - which made them pass. A cross-check is only a check
+if it compares like with like; these compared whatever made the numbers match.
 
 ### The helix "correction" went the wrong way
 

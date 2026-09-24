@@ -21,7 +21,7 @@ __all__ = [
     "hallen", "loop_modal",
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire", "helix_over_ground", "lpda_model",
-    "rhombic_model", "top_hat_monopole",
+    "rhombic_model", "top_hat_monopole", "bicone_cage",
     "tl_admittance", "NetworkSolution", "solve_network",
     "impedance_matrix", "solve", "input_impedance", "far_field",
     "pattern_power", "radiated_power", "directivity", "directivity_towards",

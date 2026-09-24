@@ -58,7 +58,7 @@ from ..core.constants import ETA0
 __all__ = [
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire", "helix_over_ground", "lpda_model", "rhombic_model",
-    "top_hat_monopole",
+    "top_hat_monopole", "bicone_cage",
     "tl_admittance", "NetworkSolution", "solve_network",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
@@ -801,3 +801,30 @@ def top_hat_monopole(height: float, hat_radius: float, radials: int,
     model = WireModel(wires)
     top = model.junction_at([0.0, 0.0, height]) if model.junctions else ()
     return model, segments // 2 - 1, top
+
+
+def bicone_cage(slant: float, half_angle_deg: float, wires: int = 16,
+                radius: float = 0.002, gap: float = 0.01, seg: float = 0.03):
+    """Biconical antenna as a wire cage, in wavelengths. Returns (model, feed).
+
+    Two cones of `wires` wires each, half angle measured from the axis, joined
+    at their apexes to a short feed wire of length 2*gap that carries the delta
+    gap. A conical monopole on an infinite PEC plane is half of it: half the
+    impedance, twice the directivity.
+
+    Directivity converges quickly in the wire count - 0.2% between 16 and 24 -
+    but the IMPEDANCE of a cage does not: it was still moving 3-5% between 24
+    and 32 wires. Use a cage for patterns, not for the input impedance of a
+    solid cone.
+    """
+    th = math.radians(half_angle_deg)
+    parts = [Wire(np.array([[0.0, 0.0, -gap], [0.0, 0.0, 0.0], [0.0, 0.0, gap]]), radius)]
+    ns = max(4, int(math.ceil(slant / seg)))
+    t = np.linspace(0.0, slant, ns + 1)
+    for sgn in (1.0, -1.0):
+        for k in range(wires):
+            ph = 2.0 * math.pi * k / wires
+            parts.append(Wire(np.stack([t * math.sin(th) * math.cos(ph),
+                                        t * math.sin(th) * math.sin(ph),
+                                        sgn * (gap + t * math.cos(th))], axis=1), radius))
+    return WireModel(parts), 0

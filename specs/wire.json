@@ -940,19 +940,29 @@
       "analysis": [
         {
           "metric": "characteristic_impedance_ohm",
-          "expr": "eta0/pi * log(1/tan(theta_h/4))",
+          "expr": "eta0/pi * log(1/tan(theta_h/2))",
           "units_out": "ohm",
-          "notes": "Zc = (eta0/pi)*ln(cot(theta_h/4)), exact for the INFINITE biconical (Balanis 10-20). A finite cone departs from this near the low-frequency end.",
+          "notes": "Zc = (eta0/pi) ln cot(theta_h/2) with theta_h the HALF angle, exact for the infinite biconical. This spec used cot(theta_h/4) - the same formula written for the FULL cone angle, as Kraus gives it - while documenting theta_h as the half angle, so every figure was the impedance of a cone half as wide: 243 ohm for a 30 degree cone that presents 158, and 188 for the classic 47 degree cone that presents 100. Two cross-consistency tests had been written with doubled angles to make this spec agree with its half-angle siblings, instead of catching the difference.",
           "depends_on": [
             "theta_h"
           ]
         },
         {
+          "metric": "directivity_linear",
+          "expr": "(-0.17258789)*theta_h**4 + (0.8463745)*theta_h**3 + (-1.2264273)*theta_h**2 + (0.24408963)*theta_h**1 + (1.683607)",
+          "units_out": "-",
+          "depends_on": [
+            "theta_h"
+          ],
+          "notes": "At the lowest design frequency, where the slant is a quarter wavelength. A narrow cone is a fat half-wave dipole and slightly exceeds 1.6409 (1.70 at 5 degrees); a wide one falls well below it (1.45 at 47, 1.33 at 65). The flat 1.6409 this spec carried was up to 23% high. Across the band it does not stay put: the tables field has it rising to 1.82 at 0.6 lambda slant for a 30 degree cone and falling to 1.22 for a 47 degree one. Fitted over 5 to 65 degrees, worst error 0.05%. Solved as a wire cage by method of moments: two cones of sixteen wires each, joined at their apexes to a short feed wire through wire junctions (the conical monopole is half of it by image theory). Directivity is converged to 0.2% in both wire count and segment length; the input IMPEDANCE of a cage is not - it was still moving 3-5% between 24 and 32 wires - so no impedance figure here comes from the solver."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(1.6409)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "close to a dipole for narrow cones; widens as theta_h grows. Indicative only.",
-          "depends_on": []
+          "depends_on": [
+            "directivity_linear"
+          ]
         },
         {
           "metric": "bandwidth_ratio",
@@ -963,8 +973,9 @@
       ],
       "validity": [
         "characteristic impedance is exact only for an infinite structure",
-        "theta_h between about 1 and 60 degrees",
-        "directivity and bandwidth entries are indicative, not derived"
+        "theta_h is the HALF angle from the axis, between about 5 and 65 degrees",
+        "directivity is the value at the lowest design frequency; it moves across the band, and not in the same direction for every flare",
+        "bandwidth entry is indicative, not derived: a thin-wire cage cannot represent a solid cone at the top of a decade, where the gap between wires stops being small against the wavelength"
       ],
       "known_cases": [
         {
@@ -973,28 +984,151 @@
             "theta_h": 0.5235988
           },
           "expect": {
-            "characteristic_impedance_ohm": 243.14,
             "Lc_m": 0.0749481
           },
           "tol_pct": 1.0,
-          "source": "theta_h = 30 deg: Zc = (eta0/pi)*ln(cot(7.5 deg)) = 243.2 ohm. Balanis, Antenna Theory 4th ed., Ch. 4"
+          "source": "theta_h = 30 deg: Zc = (eta0/pi)*ln(cot(7.5 deg)) = 243.2 ohm. Balanis, Antenna Theory 4th ed., Ch. 4 [Its impedance figure used the full-angle form against a half-angle input and was removed; the corrected values follow in their own cases.]"
         },
         {
           "given": {
             "f0": 1000000000.0,
-            "theta_h": 0.1745329
+            "theta_h": 0.5235987755982988
           },
           "expect": {
-            "characteristic_impedance_ohm": 375.5
+            "characteristic_impedance_ohm": 157.926,
+            "directivity_linear": 1.5837
           },
-          "tol_pct": 1.0,
-          "source": "theta_h = 10 deg: theta_h/4 = 2.5 deg, cot = 22.9038, Zc = (eta0/pi)*ln(22.9038) = 375.50 ohm. Balanis, Antenna Theory 4th ed., Ch. 10.3"
+          "tol_pct": 0.5,
+          "source": "Half angle 30 degrees: Zc = (eta0/pi) ln cot(15.0 deg) = 157.9 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.5835."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.17453292519943295
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 292.147,
+            "directivity_linear": 1.6932
+          },
+          "tol_pct": 0.5,
+          "source": "Half angle 10 degrees: Zc = (eta0/pi) ln cot(5.0 deg) = 292.1 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.6940."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.8203047484373349
+          },
+          "expect": {
+            "characteristic_impedance_ohm": 99.8717,
+            "directivity_linear": 1.4476
+          },
+          "tol_pct": 0.5,
+          "source": "Half angle 47 degrees: Zc = (eta0/pi) ln cot(23.5 deg) = 99.9 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.4478. The classic cone for a 100 ohm bicone and a 50 ohm monopole."
         }
       ],
       "references": [
-        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 10.3 (eq. 10-20)"
+        "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 10.3 (eq. 10-20)",
+        "Directivity solved here by method of moments on a wire cage; angle convention corrected to the half angle the parameter always documented"
       ],
-      "confidence": "normal"
+      "confidence": "normal",
+      "tables": {
+        "mom_directivity_across_band": {
+          "columns": [
+            "half_angle_deg",
+            "slant_over_lambda",
+            "d_peak",
+            "d_horizon"
+          ],
+          "rows": [
+            [
+              30.0,
+              0.2,
+              1.5529,
+              1.5547
+            ],
+            [
+              30.0,
+              0.25,
+              1.5835,
+              1.5854
+            ],
+            [
+              30.0,
+              0.3,
+              1.6208,
+              1.623
+            ],
+            [
+              30.0,
+              0.4,
+              1.7097,
+              1.7124
+            ],
+            [
+              30.0,
+              0.5,
+              1.7922,
+              1.7954
+            ],
+            [
+              30.0,
+              0.6,
+              1.8184,
+              1.8219
+            ],
+            [
+              30.0,
+              0.75,
+              1.565,
+              1.5681
+            ],
+            [
+              47.0,
+              0.2,
+              1.4702,
+              1.4715
+            ],
+            [
+              47.0,
+              0.25,
+              1.4478,
+              1.449
+            ],
+            [
+              47.0,
+              0.3,
+              1.4177,
+              1.4187
+            ],
+            [
+              47.0,
+              0.4,
+              1.3332,
+              1.3336
+            ],
+            [
+              47.0,
+              0.5,
+              1.2357,
+              1.2236
+            ],
+            [
+              47.0,
+              0.6,
+              1.2236,
+              1.1172
+            ],
+            [
+              47.0,
+              0.75,
+              1.2845,
+              1.2887
+            ]
+          ],
+          "source": "Method of moments, 16-wire cages, free space",
+          "note": "slant_over_lambda = 0.25 * f / f_low"
+        }
+      }
     },
     {
       "key": "dipole_arbitrary_length",

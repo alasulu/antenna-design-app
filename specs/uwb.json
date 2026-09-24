@@ -1045,17 +1045,28 @@
           "notes": "Indicative: a decade is routine for a well-proportioned cone over a large ground plane"
         },
         {
+          "metric": "directivity_linear",
+          "expr": "2*((-0.17258789)*rad(cone_half_angle_deg)**4 + (0.8463745)*rad(cone_half_angle_deg)**3 + (-1.2264273)*rad(cone_half_angle_deg)**2 + (0.24408963)*rad(cone_half_angle_deg)**1 + (1.683607))",
+          "units_out": "-",
+          "depends_on": [
+            "cone_half_angle_deg"
+          ],
+          "notes": "At the lowest design frequency, and exactly twice the biconical of the same flare, since the ground plane supplies the other half by imaging and it radiates into the upper half-space only. 3.39 for a narrow cone, 2.90 at the 47 degrees that matches 50 ohm, 2.66 at 65. The flat 3.0 this spec carried is the SHORT monopole's figure and landed near the 47 degree value by coincidence. Wide cones lose directivity as frequency rises - 2.47 by twice the band-edge frequency - because the beam lifts off the horizon. Solved as a wire cage by method of moments: two cones of sixteen wires each, joined at their apexes to a short feed wire through wire junctions (the conical monopole is half of it by image theory). Directivity is converged to 0.2% in both wire count and segment length; the input IMPEDANCE of a cage is not - it was still moving 3-5% between 24 and 32 wires - so no impedance figure here comes from the solver."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(3.0)",
+          "expr": "db10(directivity_linear)",
           "units_out": "dBi",
-          "notes": "Indicative. At the low end it behaves as a fat monopole over a perfect plane, whose directivity is 3.0; the beam tilts up as the cone becomes electrically large."
+          "depends_on": [
+            "directivity_linear"
+          ]
         }
       ],
       "validity": [
         "infinite perfect ground plane assumed; a finite plane tilts the pattern upward and raises the low-frequency VSWR",
         "the impedance formula is for an INFINITE cone - truncation adds a reactive end effect that oscillates with frequency and is not modelled",
         "quarter-wavelength slant is the usual low-frequency rule, not an exact result",
-        "directivity is indicative"
+        "directivity is the value at the lowest design frequency; for a wide cone it falls across the band"
       ],
       "known_cases": [
         {
@@ -1081,12 +1092,117 @@
           },
           "tol_pct": 0.5,
           "source": "The 50 ohm flare angle, inverted from Zc = (eta0/2pi)*ln(cot(theta/2)): theta = 2*atan(exp(-50*2*pi/eta0)) = 46.96 degrees"
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "cone_half_angle_deg": 47.0
+          },
+          "expect": {
+            "directivity_linear": 2.8952
+          },
+          "tol_pct": 0.5,
+          "source": "Twice the solved biconical directivity at the quarter-wave slant for a 47 degree flare."
+        },
+        {
+          "given": {
+            "f_low": 1000000000.0,
+            "cone_half_angle_deg": 30.0
+          },
+          "expect": {
+            "directivity_linear": 3.1674
+          },
+          "tol_pct": 0.5,
+          "source": "Twice the solved biconical directivity at the quarter-wave slant for a 30 degree flare."
         }
       ],
       "references": [
         "Schelkunoff, Theory of antennas of arbitrary size and shape, Proc. IRE 29(9), 1941",
         "Balanis, Antenna Theory 4th ed., Ch. 9.5"
-      ]
+      ],
+      "tables": {
+        "mom_directivity_across_band": {
+          "columns": [
+            "half_angle_deg",
+            "slant_over_lambda",
+            "d_peak_over_ground"
+          ],
+          "rows": [
+            [
+              30.0,
+              0.2,
+              3.1058
+            ],
+            [
+              30.0,
+              0.25,
+              3.167
+            ],
+            [
+              30.0,
+              0.3,
+              3.2416
+            ],
+            [
+              30.0,
+              0.4,
+              3.4194
+            ],
+            [
+              30.0,
+              0.5,
+              3.5844
+            ],
+            [
+              30.0,
+              0.6,
+              3.6368
+            ],
+            [
+              30.0,
+              0.75,
+              3.13
+            ],
+            [
+              47.0,
+              0.2,
+              2.9404
+            ],
+            [
+              47.0,
+              0.25,
+              2.8956
+            ],
+            [
+              47.0,
+              0.3,
+              2.8354
+            ],
+            [
+              47.0,
+              0.4,
+              2.6664
+            ],
+            [
+              47.0,
+              0.5,
+              2.4714
+            ],
+            [
+              47.0,
+              0.6,
+              2.4472
+            ],
+            [
+              47.0,
+              0.75,
+              2.569
+            ]
+          ],
+          "source": "Method of moments, 16-wire biconical cage, doubled for the image",
+          "note": "slant_over_lambda = 0.25 * f / f_low"
+        }
+      }
     },
     {
       "key": "planar_monopole_rectangular",

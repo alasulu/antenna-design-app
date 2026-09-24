@@ -1496,9 +1496,61 @@ vertical's segment length gave a wide hat on a short whip several thousand
 segments. Capping at 12 per radial keeps the length ratio across the junction
 at 5 or less and moved beta by 0.0002.
 
+## The cones: an angle bug hidden by its own cross-checks
+
+The plan was to use the new junctions on the cone family - a biconical, and a
+conical monopole as half of one by image theory - built as wire cages: two
+cones of radial wires joined at their apexes to a short feed wire. Reading the
+existing cross-check between the two first turned up something better than the
+directivity.
+
+`test_conical_monopole_is_half_a_biconical` compared a biconical at theta_h =
+10 degrees with a conical monopole at 5. The discone check paired a 30 degree
+discone with a 60 degree biconical. The reason: `biconical` documents theta_h as
+the HALF angle ("half angle measured from the axis; 30 deg = 0.5236 rad") and
+computes Zc = (eta0/pi) ln cot(theta_h/4) - Kraus's formula for the FULL cone
+angle. So it reported the impedance of a cone half as wide as the one described:
+243 ohm for a 30 degree cone that presents 158, and 188 for the classic 47
+degree cone - the one that gives a 50 ohm monopole and a 100 ohm bicone - that
+presents 100. Its siblings used the half angle correctly. The two
+cross-consistency tests existed to catch exactly this, and had been written
+with a doubled angle on one side so that they passed. They now compare cones of
+the same half angle, and the formula is fixed. The solver agrees on the
+direction: a 47 degree cage's resistance oscillates between 82 and 177 ohm over
+the band sampled, mean 128 - nowhere near 188.
+
+That impedance is only an ordering, though, because a wire cage's impedance does
+not converge at affordable wire counts: it was still moving 3 to 5% between 24
+and 32 wires, and 32 already costs minutes. Directivity does converge - 0.2%
+between 16 and 24 wires and between two segment lengths - so directivity is
+what the cages were used for:
+
+- `biconical` carried the half-wave dipole's 1.6409 as a flat constant. At the
+  band edge (slant = lambda/4) a narrow cone slightly exceeds it (1.70 at 5
+  degrees) and a wide one falls well below (1.45 at 47, 1.33 at 65): up to 23%
+  high. Its note had the right idea - "close to a dipole for narrow cones" -
+  and now has numbers. Fitted over 5 to 65 degrees to 0.05%.
+- `conical_monopole` carried 3.0, which is the SHORT monopole's value. A
+  quarter-wave cone is 3.39 when narrow and 2.66 when wide; at the default 47
+  degrees it is 2.90, close to 3.0 by coincidence. It is now exactly twice the
+  biconical, as image theory requires, and the cross-check asserts that too.
+- Across the band the two flares go opposite ways: a 30 degree cone GAINS
+  directivity up to 0.6 lambda slant, a 47 degree cone LOSES it (2.47 over
+  ground by twice the band-edge frequency) as its beam lifts off the horizon.
+  Both specs carry the solved values as a table rather than pretend to a
+  single number.
+
+The bandwidth ratios stay indicative, now with the reason stated: a thin-wire
+cage cannot represent a solid cone at the top of a decade, where the gap
+between wires stops being small against the wavelength.
+
+The suite now takes 132 seconds, from 107 two rounds ago, and the growth is
+all solver tests. The next housekeeping item is a slow marker on the heaviest
+of them, so the default run stays quick.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1979 tests, 553/553 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1999 tests, 559/559 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -139,16 +139,30 @@ def test_folding_a_slot_divides_where_folding_a_dipole_multiplies(syn):
 
 # ----------------------------------------------------------------------- cones
 
-def test_conical_monopole_is_half_a_biconical(syn):
-    bic = syn("biconical", f0=1e9, theta_h=math.radians(10.0))
-    con = syn("conical_monopole", f_low=1e9, cone_half_angle_deg=5.0)
+@pytest.mark.parametrize("half", [5.0, 30.0, 47.0])
+def test_conical_monopole_is_half_a_biconical(syn, half):
+    """Same physical cone, same HALF angle.
+
+    This used to compare a biconical at theta_h = 10 degrees with a conical
+    monopole at 5 - doubled on one side, because the biconical spec was using
+    the full-angle form cot(theta/4) against a half-angle input. The test had
+    been written to make the two specs agree rather than to catch that they
+    disagreed. Both now use the half angle, and the test compares like with
+    like - impedance halved and directivity doubled by the image.
+    """
+    bic = syn("biconical", f0=1e9, theta_h=math.radians(half))
+    con = syn("conical_monopole", f_low=1e9, cone_half_angle_deg=half)
     assert con.metrics["characteristic_impedance_ohm"] == pytest.approx(
         bic.metrics["characteristic_impedance_ohm"] / 2, rel=1e-9)
+    assert con.metrics["directivity_linear"] == pytest.approx(
+        2 * bic.metrics["directivity_linear"], rel=1e-9)
 
 
 def test_discone_quotes_the_same_biconical_impedance_as_the_biconical_spec(syn):
+    """Same half angle on both sides now; it used to pair a 30 degree discone
+    with a 60 degree biconical to cover the biconical spec's angle error."""
     dis = syn("discone", f_low=100e6, cone_half_angle_deg=30.0)
-    bic = syn("biconical", f0=1e9, theta_h=math.radians(60.0))
+    bic = syn("biconical", f0=1e9, theta_h=math.radians(30.0))
     assert dis.metrics["biconical_impedance_ohm"] == pytest.approx(
         bic.metrics["characteristic_impedance_ohm"], rel=1e-9)
 
