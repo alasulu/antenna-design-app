@@ -1147,9 +1147,75 @@ is also to say the closed form is 6 to 22% LOW: the two percentages measure
 the same gap from opposite ends, and I had conflated them. Caught by printing
 what the spec produces before writing the tests, rather than after.
 
+## A ten-fold error in the loaded whip, from one missing division
+
+The loaded monopole's entire design chain - reactance, then the coil that
+cancels it, then that coil's loss, then the efficiency - hangs on one number:
+the reactance of a short wire. Image theory lets the ground-plane-free solver
+reach it exactly, since a monopole on an infinite PEC plane has half a
+dipole's impedance.
+
+At h = 0.05 lambda the spec said -j92 ohm. The method of moments said -j931,
+Hallen's equation -j920, and Schelkunoff's transmission-line model - cruder -
+-j1091. Three independent routes an order of magnitude from the spec.
+
+The cause was diagnosable exactly, not just detectable. Balanis 4-79 is
+referred to the current MAXIMUM of the assumed sinusoid, and on a short wire
+that maximum lies far outside the antenna. The feed-point reactance is the
+current-maximum one divided by sin^2(kL/2), which at L = 0.1 lambda is 0.0955 -
+a factor of 10.5. Dividing the spec's value by it lands within 0.7 to 5.7% of
+the MoM at every length and radius tried.
+
+And the omission had a paper trail. `dipole_arbitrary_length` already carried
+`input_resistance_ohm = radiation_resistance_current_max_ohm / sin(k0*L/2)**2`
+- correctly referred - with `input_reactance_ohm` on the very next line NOT
+referred. Its R and X described two different points on the same antenna. The
+loaded monopole then copied the reactance, and even its own known case recorded
+the feed-referred RESISTANCE (0.9994 ohm) as a cross-check while asserting the
+unreferred reactance beside it. The half-wave dipole and quarter-wave monopole
+were never affected, because at exactly lambda/2 the referral is the identity -
+which is presumably how it survived. A test now asserts that R and X carry the
+identical 1/sin^2 factor, so the two cannot drift apart again.
+
+The consequence for a builder, 1.5 m whip at 10 MHz:
+
+- reactance -j1163 ohm, not -j111 (the MoM says -j1140, within 2%);
+- loading coil 18.5 uH, not 1.77 - wound to the old figure, the whip would
+  still be strongly capacitive, a hundred half-bandwidths off resonance;
+- coil loss 5.81 ohm, 5.9 times the radiation resistance, not the 0.555 ohm
+  "over half the radiation resistance" the case used to teach;
+- radiation efficiency 14% (-8.4 dB), not 61% (-2.1 dB). The spec overstated
+  a short loaded whip's efficiency by a factor of 4.3.
+
+`turnstile_dipole` had the same omission for both R and X; at its default
+0.4788 lambda it moves the impedance only 0.45%, but it would not have stayed
+small at any other length, so it was fixed too.
+
+## Knowing where the solver stops
+
+Checking the whip's RESISTANCE turned up a limit of the solver rather than of
+the spec, and it is recorded in `mom.py` because the next person needs it. On a
+short wire the delta gap puts a local current excess on the feed node - about
+8% at 0.1 lambda, 17% at 0.04 - over the smooth distribution, and it grows as
+the mesh resolves it. That is the whole of the resistance drift seen under
+refinement: referencing the radiated power to the smooth current instead gives
+a mesh-independent answer. But that smooth answer lands 6-8% ABOVE the
+triangular closed form rather than on it - which could be the genuine
+finite-radius correction or could be the extrapolation. So the solver
+brackets short-wire resistance at roughly -10% / +7% and cannot settle it.
+
+The closed form sits inside the bracket and agrees with the sinusoidal-current
+input resistance to 1.3%, so it stays, and the spec says why. The reactance,
+which the gap barely touches, was the 10x error and is unambiguous by every
+method. Claiming the resistance was wrong as well would have been easy and
+unsupported.
+
+Hallen's solver moved into `otahub/num/hallen.py`, beside the MoM and the modal
+loop solver, now that two test files arbitrate with it.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1872 tests, 521/521 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1896 tests, 526/526 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

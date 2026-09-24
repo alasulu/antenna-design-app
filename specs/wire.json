@@ -1069,7 +1069,7 @@
           "notes": "Referred to the FEED current, which for L != lambda/2 differs from the current maximum by sin(kL/2). The two coincide only at the half-wave point. Diverges as L approaches lambda, where the idealised sinusoid puts a current null at the feed; a real full-wave dipole shows a few kilohms, not infinity."
         },
         {
-          "metric": "input_reactance_ohm",
+          "metric": "reactance_current_max_ohm",
           "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
           "units_out": "ohm",
           "depends_on": [
@@ -1077,7 +1077,18 @@
             "L",
             "aw"
           ],
-          "notes": "Balanis 4-79; the only place wire radius enters"
+          "notes": "Balanis 4-79, referred to the current maximum - the companion of radiation_resistance_current_max_ohm."
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "reactance_current_max_ohm / sin(k0*L/2)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "reactance_current_max_ohm",
+            "k0",
+            "L"
+          ],
+          "notes": "Referred to the FEED. Balanis 4-79 is referred to the current MAXIMUM of the assumed sinusoid; for any length but lambda/2 that point is not the feed, and the feed-point value is the current-maximum one divided by sin^2(kL/2) - the same referral this catalogue already applied to the resistance. This spec carried the current-maximum value under this name while its resistance, one line up, was already referred to the feed - so its R and X described different points on the same antenna. At a quarter wavelength the error was a factor of two, at a tenth of a wavelength a factor of ten. Diverges near L = lambda exactly as the resistance does, for the same reason."
         },
         {
           "metric": "pattern_factor_broadside",
@@ -1170,6 +1181,32 @@
           },
           "tol_pct": 0.3,
           "source": "Quarter-wave dipole, independently reproduced by numerical integration of the sinusoidal-current pattern. The factor-of-two gap between the two resistances is the sin^2(kL/2) referral."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.1,
+            "aw": 9.993081933333333e-05
+          },
+          "expect": {
+            "reactance_current_max_ohm": -183.366,
+            "input_reactance_ohm": -1920.24
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis 4-79 at L = 0.1 lambda, aw = 1e-4 lambda: -183.37 ohm at the current maximum, -1920.24 ohm at the feed after dividing by sin^2(kL/2) = 0.09549. The method of moments gives -1857.38 ohm at the feed, within 3.4% of the referred value and nowhere near the unreferred one."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "L_over_lambda": 0.25,
+            "aw": 9.993081933333333e-05
+          },
+          "expect": {
+            "reactance_current_max_ohm": -361.398,
+            "input_reactance_ohm": -722.797
+          },
+          "tol_pct": 0.5,
+          "source": "Balanis 4-79 at L = 0.25 lambda, aw = 1e-4 lambda: -361.40 ohm at the current maximum, -722.80 ohm at the feed after dividing by sin^2(kL/2) = 0.50000. The method of moments gives -709.53 ohm at the feed, within 1.9% of the referred value and nowhere near the unreferred one."
         }
       ],
       "references": [
@@ -1783,18 +1820,19 @@
           "depends_on": [
             "h_eff",
             "lambda0"
-          ]
+          ],
+          "notes": "Left as the triangular-current result on purpose. The method of moments cannot referee it better than about 10% on a wire this short: its delta gap puts an 8-17% excess on the feed node that grows with mesh refinement, reading R 10% low, while referencing the power to the smooth current instead reads 6% high. The closed form sits inside that bracket and agrees with the sinusoidal-current input resistance to 1.3%."
         },
         {
           "metric": "input_reactance_unloaded_ohm",
-          "expr": "0.5*(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))",
+          "expr": "0.5*(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))/sin(k0*L/2)**2",
           "units_out": "ohm",
           "depends_on": [
             "k0",
             "L",
             "aw"
           ],
-          "notes": "Half the exact Balanis 4-79 dipole reactance, because the monopole sees half the dipole's impedance. Strongly capacitive: a 1.5 m whip at 10 MHz shows about -j111 ohm."
+          "notes": "Half the dipole's FEED-POINT reactance, because a monopole on an infinite ground plane sees half the dipole's impedance. Balanis 4-79 is referred to the current MAXIMUM of the assumed sinusoid; for any length but lambda/2 that point is not the feed, and the feed-point value is the current-maximum one divided by sin^2(kL/2) - the same referral this catalogue already applied to the resistance. This spec used the current-maximum value, which for a short whip is catastrophic: at h = 0.05 lambda sin^2(kL/2) = 0.0955, so the reactance, the loading inductance and the coil loss were all about ten times too small. A 1.5 m whip at 10 MHz shows about -j1163 ohm, not -j111. Independently: the method of moments and Hallen's equation both land within 4% of the corrected value, and Schelkunoff's transmission-line model, cruder, within 20%."
         },
         {
           "metric": "loading_inductance_H",
@@ -1804,7 +1842,7 @@
             "input_reactance_unloaded_ohm",
             "f0"
           ],
-          "notes": "series inductance that cancels the antenna reactance at f0"
+          "notes": "series inductance that cancels the antenna reactance at f0. Was about ten times too small before the feed referral: a coil wound to the old figure leaves the whip still strongly capacitive, a hundred half-bandwidths from resonance at h = 0.05 lambda."
         },
         {
           "metric": "coil_loss_resistance_ohm",
@@ -1814,7 +1852,7 @@
             "input_reactance_unloaded_ohm",
             "coil_q"
           ],
-          "notes": "R = |X|/Q. This is the dominant loss in most loaded whips, and it grows as the antenna shortens - exactly where Rr is collapsing."
+          "notes": "R = |X|/Q. This is the dominant loss in most loaded whips, and it grows as the antenna shortens - exactly where Rr is collapsing. With the reactance referred correctly it is about SIX times the radiation resistance for a 0.05 lambda whip and a Q-200 coil, not 'over half' as this spec used to say."
         },
         {
           "metric": "surface_resistance_ohm",
@@ -1909,10 +1947,10 @@
           },
           "expect": {
             "radiation_resistance_ohm": 0.98696,
-            "input_reactance_unloaded_ohm": -111.03
+            "input_reactance_unloaded_ohm": -1162.72
           },
           "tol_pct": 1.0,
-          "source": "A 1.5 m whip at 10 MHz: Rr = 0.987 ohm from the short-monopole formula, and -j111 ohm from the exact Balanis 4-79 reactance halved. The two formulas are independent, and the exact input resistance 0.9994 ohm confirms the 0.987 approximation to 1.3%."
+          "source": "A 1.5 m whip at 10 MHz: Rr = 0.9870 ohm from the short-monopole formula, and X = -1162.7 ohm from Balanis 4-79 halved AND referred to the feed by sin^2(kL/2) = 0.09549. The method of moments gives -1140.2 ohm by image theory, within 2.0%. This case used to assert -111.03 ohm, the current-maximum value - ten times too small."
         },
         {
           "given": {
@@ -1924,11 +1962,27 @@
             "r_ground": 0.0
           },
           "expect": {
-            "loading_inductance_H": 1.767e-06,
-            "coil_loss_resistance_ohm": 0.5551
+            "loading_inductance_H": 1.85053e-05,
+            "coil_loss_resistance_ohm": 5.81361
           },
           "tol_pct": 1.0,
-          "source": "L = |X|/omega = 111.03/(2*pi*10e6) = 1.77 uH; R_coil = |X|/Q = 0.555 ohm, over half the radiation resistance. This is why short loaded whips are inefficient."
+          "source": "L = |X|/omega = 1162.7/(2*pi*10e6) = 18.51 uH, and R_coil = |X|/Q = 5.814 ohm - 5.9 times the radiation resistance. This case used to give 1.77 uH and 0.555 ohm, 'over half the radiation resistance'; a coil wound to that figure leaves the whip still strongly capacitive."
+        },
+        {
+          "given": {
+            "f0": 10000000.0,
+            "h_over_lambda": 0.05,
+            "beta_top": 0.0,
+            "coil_q": 200,
+            "aw": 0.001,
+            "r_ground": 0.0,
+            "sigma": 58000000.0
+          },
+          "expect": {
+            "radiation_efficiency": 0.143742
+          },
+          "tol_pct": 1.0,
+          "source": "Rr/(Rr + R_coil + R_rod) = 0.9870/(0.9870 + 5.8136 + 0.0656) = 0.1437, i.e. -8.4 dB. With the reactance at its old current-maximum value the same sum gave 0.6139 (-2.1 dB): the old spec overstated a short loaded whip's efficiency by a factor of 4.3."
         }
       ],
       "references": [
@@ -2077,14 +2131,14 @@
         },
         {
           "metric": "feed_impedance_each_element_ohm",
-          "expr": "(eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))*1j + (eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L)))",
+          "expr": "((eta0/(4*pi))*(2*Si(k0*L) + cos(k0*L)*(2*Si(k0*L) - Si(2*k0*L)) - sin(k0*L)*(2*Ci(k0*L) - Ci(2*k0*L) - Ci(2*k0*aw**2/L)))*1j + (eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L))))/sin(k0*L/2)**2",
           "units_out": "ohm",
           "depends_on": [
             "k0",
             "L",
             "aw"
           ],
-          "notes": "each element behaves essentially as an isolated dipole"
+          "notes": "each element behaves essentially as an isolated dipole. Now referred to the FEED - both parts divided by sin^2(kL/2). At the default 0.4788 lambda that moves the impedance by only 0.45%, but it was the same omission as its neighbours and would not have stayed small at any other length."
         }
       ],
       "validity": [

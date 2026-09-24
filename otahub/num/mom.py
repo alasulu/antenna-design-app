@@ -34,6 +34,15 @@ What it does not do. No ground plane, no dielectric, no loss, no junctions of
 more than two wires, and the reduced kernel rather than the exact one. Each of
 those is a real limit, not an approximation that washes out, so the validation
 suite pins the cases where they do not bite.
+
+A limit of the delta gap specifically, measured rather than assumed: on an
+electrically SHORT wire the feed node carries a local current excess over the
+smooth distribution - about 8% at 0.1 lambda and 17% at 0.04 lambda - and it
+grows as the mesh resolves it. Reactance barely notices (about 0.6% per mesh
+doubling), but the resistance referred to that node reads roughly 10% low and
+keeps drifting. For short-antenna RESISTANCE, trust the closed form over this
+solver; for reactance, impedance of anything near resonance, patterns and
+power, the delta gap is fine.
 """
 from __future__ import annotations
 

@@ -6,7 +6,7 @@ confirmed by a route that shares no algebra with it.
 """
 from __future__ import annotations
 
-from . import loop_modal
+from . import hallen, loop_modal
 from .mom import (
     Wire, WireModel, MoMSolution, dipole, loop, arc, halo, folded_dipole_wire,
     impedance_matrix, solve, input_impedance, far_field, pattern_power,
@@ -15,7 +15,7 @@ from .mom import (
 )
 
 __all__ = [
-    "loop_modal",
+    "hallen", "loop_modal",
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire",
     "impedance_matrix", "solve", "input_impedance", "far_field",

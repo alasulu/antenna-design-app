@@ -30,8 +30,8 @@ import math
 import numpy as np
 import pytest
 
-from otahub.core.constants import ETA0
 from otahub.num import mom
+from otahub.num.hallen import hallen_dipole as _hallen_dipole
 
 EMF_R, EMF_X = 73.0796, 42.5152      # induced-EMF half-wave dipole [ohm]
 
@@ -145,35 +145,6 @@ def test_folded_dipole_steps_the_impedance_up_four_times():
 
 
 # ------------------------------------------ 7. what 73 ohm actually refers to
-
-def _hallen_dipole(length, a, n=120, nq=64):
-    """Hallen's equation, solved by point matching with a triangular basis.
-
-    Deliberately shares nothing with the EFIE: a different integral equation,
-    an extra scalar unknown instead of a divergence term, and collocation
-    instead of Galerkin.
-    """
-    h = 0.5 * length
-    z = np.linspace(-h, h, n + 1)
-    d = z[1] - z[0]
-    nb = n - 1
-    zm = np.concatenate([z[1:n], [h]])
-    x, w = np.polynomial.legendre.leggauss(nq)
-    A = np.zeros((nb + 1, nb + 1), dtype=complex)
-    for j in range(nb):
-        c = z[j + 1]
-        for lo, hi, rise in ((c - d, c, True), (c, c + d, False)):
-            s = 0.5 * (hi - lo) * (x + 1.0) + lo
-            f = (s - (c - d)) / d if rise else ((c + d) - s) / d
-            R = np.sqrt((zm[:, None] - s[None, :]) ** 2 + a * a)
-            A[:, j] += (0.5 * (hi - lo)) * (
-                (np.exp(-1j * mom.K * R) / (4 * math.pi * R))
-                * f[None, :] * w[None, :]).sum(axis=1)
-    A[:, nb] = (1j / ETA0) * np.cos(mom.K * zm)
-    rhs = -(1j / ETA0) * 0.5 * np.sin(mom.K * np.abs(zm))
-    sol = np.linalg.solve(A, rhs)
-    return 1.0 / np.concatenate([[0.0], sol[:nb], [0.0]])[n // 2]
-
 
 def test_delta_gap_impedance_is_not_the_induced_emf_value():
     """The trap this solver walked into, recorded so nobody walks into it twice.
