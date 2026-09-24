@@ -139,21 +139,21 @@
             "N",
             "pitch_deg"
           ],
-          "notes": "The classic Kraus formula. It is WELL DOCUMENTED to overestimate: measurements diverge progressively above about N = 10 and the error reaches several dB for long helices. Use gain_corrected_dbi for design and verify in a solver."
+          "notes": "The classic Kraus formula, kept because it is the one everyone quotes - and now measured rather than merely suspected. Against a full-wave solve its error grows with BOTH length and circumference. At C = lambda and 13 degrees it is 1.6 dB high at 3 turns, 2.8 at 5, 3.8 at 10 and 4.4 at 20; across the whole design core (C/lambda 0.9 to 1.1, pitch 12 to 14 degrees) it is 0.9 to 5.4 dB high from five turns up. It is roughly right only in the short, small corner - 3 turns at C/lambda = 0.9. This is the progressive divergence this spec's note always claimed, now with a size on it. It goes further wrong at the band edges: up to 8.7 dB high at C/lambda = 1.2 on a long helix, where the axial mode collapses but C^3 keeps climbing, and slightly LOW at C/lambda = 0.8 with few turns. Use gain_dbi."
         },
         {
-          "metric": "gain_corrected_dbi",
-          "expr": "8.3 + db10(C_over_lambda**2 * N * C_over_lambda*np.tan(rad(pitch_deg))) + 2*db10(1 + N/10)",
+          "metric": "gain_dbi",
+          "expr": "(7.062857) + (-0.0072544405)*(pitch_deg - 13.0)**1 + (-6.741096)*(C_over_lambda - 1.0)**1 + (-2.58226)*(C_over_lambda - 1.0)**1*(pitch_deg - 13.0)**1 + (32.569964)*(C_over_lambda - 1.0)**2 + (8.9177485)*(C_over_lambda - 1.0)**2*(pitch_deg - 13.0)**1 + (0.41629685)*log(N)**1 + (-0.39510761)*log(N)**1*(pitch_deg - 13.0)**1 + (6.5774343)*log(N)**1*(C_over_lambda - 1.0)**1 + (1.2345182)*log(N)**1*(C_over_lambda - 1.0)**1*(pitch_deg - 13.0)**1 + (-7.1220803)*log(N)**1*(C_over_lambda - 1.0)**2 + (0.85675658)*log(N)**2 + (0.079516905)*log(N)**2*(pitch_deg - 13.0)**1 + (-0.28359524)*log(N)**2*(C_over_lambda - 1.0)**1 + (-0.077982364)*log(N)**3",
           "units_out": "dBi",
           "depends_on": [
-            "C_over_lambda",
             "N",
+            "C_over_lambda",
             "pitch_deg"
           ],
-          "notes": "King & Wong / Emerson style correction: a lower constant with a sub-linear term in N, which tracks measured helices far better than Kraus for N > 10. Marked approximate; the literature offers several competing corrections that disagree by 1-2 dB."
+          "notes": "Solved, not assumed. Fitted over the design core only - C/lambda 0.9 to 1.1, N 3 to 20, pitch 12 to 14 degrees - where the surface is smooth; worst fit error 0.35 dB. Outside that the gain has a cliff a polynomial cannot follow, so the full grid is in this spec's tables instead. Directivity equals gain here: the conductor is lossless. Note the pitch dependence runs the OPPOSITE way to Kraus: steeper pitch lengthens the helix and Kraus rises, but it moves the phase velocity off the end-fire optimum and the real gain falls, about 0.5 dB per degree. Method of moments on the helix over an infinite PEC ground plane by image theory (otahub.num.mom.helix_over_ground), wire radius 0.005 lambda. Checked by a second computational path - directivity by reciprocity from the open-circuit voltage under plane-wave illumination, which never touches the pattern integral - agreeing to 0.02 dB at N = 10; power balance holds to 1e-4 and the image structure's far field is mirror-symmetric to 1e-7."
         },
         {
-          "metric": "hpbw_deg",
+          "metric": "hpbw_kraus_deg",
           "expr": "52/(C_over_lambda*np.sqrt(N*C_over_lambda*np.tan(rad(pitch_deg))))",
           "units_out": "deg",
           "depends_on": [
@@ -161,7 +161,18 @@
             "N",
             "pitch_deg"
           ],
-          "notes": "HPBW = 52/(C/lambda * sqrt(N*S/lambda)) deg"
+          "notes": "Kraus: 52/(C/lambda * sqrt(N*S/lambda)). Too narrow by the same token that his gain is too high - 34 degrees for the canonical helix where the solver finds 46."
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "exp((4.6324597) + (0.041742198)*(pitch_deg - 13.0)**1 + (1.1396763)*(C_over_lambda - 1.0)**1 + (-0.042720952)*(C_over_lambda - 1.0)**1*(pitch_deg - 13.0)**1 + (-2.9926625)*(C_over_lambda - 1.0)**2 + (-0.13986058)*log(N)**1 + (-0.010781308)*log(N)**1*(pitch_deg - 13.0)**1 + (-1.1022885)*log(N)**1*(C_over_lambda - 1.0)**1 + (-0.087913803)*log(N)**2)",
+          "units_out": "deg",
+          "depends_on": [
+            "N",
+            "C_over_lambda",
+            "pitch_deg"
+          ],
+          "notes": "Half-power beamwidth in a plane through the axis, solved. Design core only; worst fit error 6.0%. Method of moments on the helix over an infinite PEC ground plane by image theory (otahub.num.mom.helix_over_ground), wire radius 0.005 lambda. Checked by a second computational path - directivity by reciprocity from the open-circuit voltage under plane-wave illumination, which never touches the pattern integral - agreeing to 0.02 dB at N = 10; power balance holds to 1e-4 and the image structure's far field is mirror-symmetric to 1e-7."
         },
         {
           "metric": "axial_ratio",
@@ -170,7 +181,7 @@
           "depends_on": [
             "N"
           ],
-          "notes": "AR = (2N+1)/(2N) for the increased-directivity condition; tends to 1 (perfect circular polarisation) as N grows"
+          "notes": "AR = (2N+1)/(2N): the Hansen-Woodyard ideal, and a lower bound rather than a prediction. An untapered helix solved here shows 1.01 to 1.24 on axis for N >= 6 in the design core, varying irregularly with the standing wave off the open end - too irregular to fit honestly, which is why real helices taper the last turn."
         },
         {
           "metric": "input_resistance_ohm",
@@ -179,7 +190,7 @@
           "depends_on": [
             "C_over_lambda"
           ],
-          "notes": "Kraus: Rin ~ 140*(C/lambda), nearly real. Needs a matching section to reach 50 ohm."
+          "notes": "INDICATIVE: Kraus's Rin ~ 140*(C/lambda). It describes one feed, not the helix. The solver shows the helix body barely cares how it is fed - gain moves 0.1 dB between feed heights of 0.01 and 0.05 lambda - but the terminal impedance swings from about 70 to 150 ohm over that range and from 40 to 180 ohm across wire gauges, with -50 to -90 ohm of reactance. Matching is set by the feed geometry, which this spec does not describe."
         },
         {
           "metric": "pitch_check_deg",
@@ -192,10 +203,11 @@
       ],
       "validity": [
         "axial mode requires 0.75 < C/lambda < 1.33; outside this the helix reverts to normal mode or breaks into higher-order radiation",
-        "pitch angle between 12 and 14 degrees",
-        "N >= 3 for a well-formed end-fire beam",
-        "gain formulas are empirical: Kraus overestimates for large N and the published corrections disagree by 1-2 dB. Treat any helix gain figure as provisional.",
-        "assumes an adequate ground plane and a matched feed"
+        "gain_dbi and hpbw_deg are fitted over the design core C/lambda 0.9 to 1.1, N 3 to 20, pitch 12 to 14 degrees; the tables field carries the solved values out to 0.8 and 1.2, where long helices lose several dB",
+        "solved for a wire radius of 0.005 lambda on an infinite ground plane. Wire size genuinely matters: 0.002 lambda reads about 1 dB lower and 0.01 about 0.8 dB higher at N = 10, by shifting the phase velocity",
+        "mesh: 16 segments per turn sits about 0.15 dB below the converged value",
+        "input resistance and axial ratio remain indicative: both are governed by feed and end details this spec does not describe",
+        "N >= 3 for a well-formed end-fire beam"
       ],
       "known_cases": [
         {
@@ -208,9 +220,9 @@
           "expect": {
             "S_over_lambda": 0.236,
             "gain_kraus_dbi": 15.529,
-            "hpbw_deg": 33.85,
             "axial_ratio": 1.05,
-            "input_resistance_ohm": 140.0
+            "input_resistance_ohm": 140.0,
+            "hpbw_kraus_deg": 33.85
           },
           "tol_pct": 1.0,
           "source": "Canonical Kraus helix: C = lambda, 10 turns, 13.3 deg pitch gives S = 0.236 lambda, G = 11.8 + 10*log10(1*10*0.236) = 15.53 dBi, HPBW = 52/sqrt(2.36) = 33.85 deg, AR = 21/20, Rin = 140 ohm. Kraus, Antennas 2nd ed., Ch. 7"
@@ -228,14 +240,1035 @@
           },
           "tol_pct": 0.5,
           "source": "C = lambda = 299.79 mm at 1 GHz, so D = C/pi = 95.44 mm. Kraus, Antennas 2nd ed., Ch. 7"
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 1.0,
+            "N": 10,
+            "pitch_deg": 13.0
+          },
+          "expect": {
+            "gain_dbi": 11.612,
+            "hpbw_deg": 46.73,
+            "gain_kraus_dbi": 15.434
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments, 10 turns, C = 1.0 lambda, 13 degrees: 11.62 dBi and a 46.2 degree beam. Kraus's formula gives 15.43 dBi, +3.8 dB off; the 'corrected' formula this spec used to recommend for design gave 17.95 dBi, +6.3 dB off."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 0.9,
+            "N": 6,
+            "pitch_deg": 12.0
+          },
+          "expect": {
+            "gain_dbi": 10.229,
+            "hpbw_deg": 61.96,
+            "gain_kraus_dbi": 11.484
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments, 6 turns, C = 0.9 lambda, 12 degrees: 10.33 dBi and a 61.3 degree beam. Kraus's formula gives 11.48 dBi, +1.2 dB off; the 'corrected' formula this spec used to recommend for design gave 12.07 dBi, +1.7 dB off."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 1.1,
+            "N": 15,
+            "pitch_deg": 14.0
+          },
+          "expect": {
+            "gain_dbi": 13.628,
+            "hpbw_deg": 30.05,
+            "gain_kraus_dbi": 18.77
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments, 15 turns, C = 1.1 lambda, 14 degrees: 13.65 dBi and a 30.0 degree beam. Kraus's formula gives 18.77 dBi, +5.1 dB off; the 'corrected' formula this spec used to recommend for design gave 23.23 dBi, +9.6 dB off."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "C_over_lambda": 1.0,
+            "N": 20,
+            "pitch_deg": 13.0
+          },
+          "expect": {
+            "gain_dbi": 13.902,
+            "hpbw_deg": 30.71,
+            "gain_kraus_dbi": 18.444
+          },
+          "tol_pct": 0.5,
+          "source": "Method of moments, 20 turns, C = 1.0 lambda, 13 degrees: 14.04 dBi and a 30.5 degree beam. Kraus's formula gives 18.44 dBi, +4.4 dB off; the 'corrected' formula this spec used to recommend for design gave 24.49 dBi, +10.4 dB off."
         }
       ],
       "references": [
         "Kraus, Antennas 2nd ed., Ch. 7",
         "Balanis, Antenna Theory 4th ed., Ch. 10 (10.3)",
-        "King & Wong, Characteristics of 1 to 8 wavelength uniform helical antennas, IEEE Trans. AP-28, 1980"
+        "King & Wong, Characteristics of 1 to 8 wavelength uniform helical antennas, IEEE Trans. AP-28, 1980",
+        "Gain and beamwidth solved here by method of moments over an infinite ground plane by image theory, cross-checked by receive-mode reciprocity"
       ],
-      "confidence": "normal"
+      "confidence": "normal",
+      "tables": {
+        "mom_gain": {
+          "columns": [
+            "N",
+            "C_over_lambda",
+            "pitch_deg",
+            "gain_dbi",
+            "hpbw_deg"
+          ],
+          "rows": [
+            [
+              3,
+              0.8,
+              12.0,
+              8.38,
+              80.2
+            ],
+            [
+              3,
+              0.8,
+              13.0,
+              8.47,
+              75.8
+            ],
+            [
+              3,
+              0.8,
+              14.0,
+              8.55,
+              72.5
+            ],
+            [
+              3,
+              0.9,
+              12.0,
+              8.54,
+              78.8
+            ],
+            [
+              3,
+              0.9,
+              13.0,
+              8.5,
+              77.8
+            ],
+            [
+              3,
+              0.9,
+              14.0,
+              8.41,
+              77.8
+            ],
+            [
+              3,
+              1.0,
+              12.0,
+              8.76,
+              76.8
+            ],
+            [
+              3,
+              1.0,
+              13.0,
+              8.58,
+              78.2
+            ],
+            [
+              3,
+              1.0,
+              14.0,
+              8.28,
+              81.0
+            ],
+            [
+              3,
+              1.1,
+              12.0,
+              9.18,
+              73.0
+            ],
+            [
+              3,
+              1.1,
+              13.0,
+              8.82,
+              76.0
+            ],
+            [
+              3,
+              1.1,
+              14.0,
+              8.3,
+              81.0
+            ],
+            [
+              3,
+              1.2,
+              12.0,
+              9.83,
+              67.5
+            ],
+            [
+              3,
+              1.2,
+              13.0,
+              9.25,
+              71.8
+            ],
+            [
+              3,
+              1.2,
+              14.0,
+              8.51,
+              77.2
+            ],
+            [
+              4,
+              0.8,
+              12.0,
+              10.02,
+              60.3
+            ],
+            [
+              4,
+              0.8,
+              13.0,
+              9.84,
+              63.0
+            ],
+            [
+              4,
+              0.8,
+              14.0,
+              9.57,
+              66.0
+            ],
+            [
+              4,
+              0.9,
+              12.0,
+              9.7,
+              66.0
+            ],
+            [
+              4,
+              0.9,
+              13.0,
+              9.36,
+              69.2
+            ],
+            [
+              4,
+              0.9,
+              14.0,
+              8.97,
+              72.8
+            ],
+            [
+              4,
+              1.0,
+              12.0,
+              9.56,
+              68.5
+            ],
+            [
+              4,
+              1.0,
+              13.0,
+              9.13,
+              71.8
+            ],
+            [
+              4,
+              1.0,
+              14.0,
+              8.69,
+              74.5
+            ],
+            [
+              4,
+              1.1,
+              12.0,
+              9.74,
+              66.5
+            ],
+            [
+              4,
+              1.1,
+              13.0,
+              9.33,
+              67.5
+            ],
+            [
+              4,
+              1.1,
+              14.0,
+              8.99,
+              67.5
+            ],
+            [
+              4,
+              1.2,
+              12.0,
+              10.27,
+              58.2
+            ],
+            [
+              4,
+              1.2,
+              13.0,
+              10.14,
+              56.2
+            ],
+            [
+              4,
+              1.2,
+              14.0,
+              10.04,
+              55.2
+            ],
+            [
+              5,
+              0.8,
+              12.0,
+              10.18,
+              64.2
+            ],
+            [
+              5,
+              0.8,
+              13.0,
+              9.91,
+              66.5
+            ],
+            [
+              5,
+              0.8,
+              14.0,
+              9.67,
+              68.0
+            ],
+            [
+              5,
+              0.9,
+              12.0,
+              9.81,
+              67.2
+            ],
+            [
+              5,
+              0.9,
+              13.0,
+              9.53,
+              69.0
+            ],
+            [
+              5,
+              0.9,
+              14.0,
+              9.22,
+              71.0
+            ],
+            [
+              5,
+              1.0,
+              12.0,
+              9.97,
+              64.2
+            ],
+            [
+              5,
+              1.0,
+              13.0,
+              9.67,
+              65.5
+            ],
+            [
+              5,
+              1.0,
+              14.0,
+              9.23,
+              68.2
+            ],
+            [
+              5,
+              1.1,
+              12.0,
+              10.65,
+              57.0
+            ],
+            [
+              5,
+              1.1,
+              13.0,
+              10.26,
+              59.0
+            ],
+            [
+              5,
+              1.1,
+              14.0,
+              9.68,
+              61.8
+            ],
+            [
+              5,
+              1.2,
+              12.0,
+              11.57,
+              50.3
+            ],
+            [
+              5,
+              1.2,
+              13.0,
+              11.04,
+              52.0
+            ],
+            [
+              5,
+              1.2,
+              14.0,
+              10.6,
+              52.0
+            ],
+            [
+              6,
+              0.8,
+              12.0,
+              10.57,
+              59.3
+            ],
+            [
+              6,
+              0.8,
+              13.0,
+              10.47,
+              59.3
+            ],
+            [
+              6,
+              0.8,
+              14.0,
+              10.27,
+              60.8
+            ],
+            [
+              6,
+              0.9,
+              12.0,
+              10.33,
+              61.3
+            ],
+            [
+              6,
+              0.9,
+              13.0,
+              10.02,
+              63.2
+            ],
+            [
+              6,
+              0.9,
+              14.0,
+              9.57,
+              66.5
+            ],
+            [
+              6,
+              1.0,
+              12.0,
+              10.52,
+              59.3
+            ],
+            [
+              6,
+              1.0,
+              13.0,
+              9.99,
+              62.2
+            ],
+            [
+              6,
+              1.0,
+              14.0,
+              9.48,
+              64.2
+            ],
+            [
+              6,
+              1.1,
+              12.0,
+              11.0,
+              54.5
+            ],
+            [
+              6,
+              1.1,
+              13.0,
+              10.57,
+              54.2
+            ],
+            [
+              6,
+              1.1,
+              14.0,
+              10.3,
+              52.8
+            ],
+            [
+              6,
+              1.2,
+              12.0,
+              11.79,
+              44.8
+            ],
+            [
+              6,
+              1.2,
+              13.0,
+              11.82,
+              43.5
+            ],
+            [
+              6,
+              1.2,
+              14.0,
+              11.5,
+              45.2
+            ],
+            [
+              8,
+              0.8,
+              12.0,
+              11.21,
+              55.2
+            ],
+            [
+              8,
+              0.8,
+              13.0,
+              10.91,
+              56.8
+            ],
+            [
+              8,
+              0.8,
+              14.0,
+              10.66,
+              57.5
+            ],
+            [
+              8,
+              0.9,
+              12.0,
+              10.87,
+              56.5
+            ],
+            [
+              8,
+              0.9,
+              13.0,
+              10.59,
+              57.0
+            ],
+            [
+              8,
+              0.9,
+              14.0,
+              10.15,
+              59.3
+            ],
+            [
+              8,
+              1.0,
+              12.0,
+              11.37,
+              50.8
+            ],
+            [
+              8,
+              1.0,
+              13.0,
+              10.88,
+              53.0
+            ],
+            [
+              8,
+              1.0,
+              14.0,
+              10.33,
+              54.2
+            ],
+            [
+              8,
+              1.1,
+              12.0,
+              12.11,
+              45.2
+            ],
+            [
+              8,
+              1.1,
+              13.0,
+              11.68,
+              45.0
+            ],
+            [
+              8,
+              1.1,
+              14.0,
+              11.39,
+              44.5
+            ],
+            [
+              8,
+              1.2,
+              12.0,
+              12.82,
+              36.2
+            ],
+            [
+              8,
+              1.2,
+              13.0,
+              12.88,
+              36.8
+            ],
+            [
+              8,
+              1.2,
+              14.0,
+              12.33,
+              38.5
+            ],
+            [
+              10,
+              0.8,
+              12.0,
+              11.76,
+              50.5
+            ],
+            [
+              10,
+              0.8,
+              13.0,
+              11.38,
+              52.8
+            ],
+            [
+              10,
+              0.8,
+              14.0,
+              11.0,
+              54.5
+            ],
+            [
+              10,
+              0.9,
+              12.0,
+              11.41,
+              52.0
+            ],
+            [
+              10,
+              0.9,
+              13.0,
+              11.06,
+              52.2
+            ],
+            [
+              10,
+              0.9,
+              14.0,
+              10.67,
+              53.2
+            ],
+            [
+              10,
+              1.0,
+              12.0,
+              12.04,
+              45.2
+            ],
+            [
+              10,
+              1.0,
+              13.0,
+              11.62,
+              46.2
+            ],
+            [
+              10,
+              1.0,
+              14.0,
+              11.04,
+              47.5
+            ],
+            [
+              10,
+              1.1,
+              12.0,
+              12.95,
+              39.2
+            ],
+            [
+              10,
+              1.1,
+              13.0,
+              12.5,
+              39.0
+            ],
+            [
+              10,
+              1.1,
+              14.0,
+              12.21,
+              39.0
+            ],
+            [
+              10,
+              1.2,
+              12.0,
+              13.39,
+              30.8
+            ],
+            [
+              10,
+              1.2,
+              13.0,
+              13.44,
+              32.0
+            ],
+            [
+              10,
+              1.2,
+              14.0,
+              13.01,
+              32.2
+            ],
+            [
+              12,
+              0.8,
+              12.0,
+              12.05,
+              48.0
+            ],
+            [
+              12,
+              0.8,
+              13.0,
+              11.78,
+              49.0
+            ],
+            [
+              12,
+              0.8,
+              14.0,
+              11.34,
+              51.2
+            ],
+            [
+              12,
+              0.9,
+              12.0,
+              11.97,
+              47.2
+            ],
+            [
+              12,
+              0.9,
+              13.0,
+              11.49,
+              48.5
+            ],
+            [
+              12,
+              0.9,
+              14.0,
+              11.11,
+              48.5
+            ],
+            [
+              12,
+              1.0,
+              12.0,
+              12.6,
+              41.2
+            ],
+            [
+              12,
+              1.0,
+              13.0,
+              12.24,
+              41.5
+            ],
+            [
+              12,
+              1.0,
+              14.0,
+              11.63,
+              42.8
+            ],
+            [
+              12,
+              1.1,
+              12.0,
+              13.62,
+              34.8
+            ],
+            [
+              12,
+              1.1,
+              13.0,
+              13.19,
+              34.5
+            ],
+            [
+              12,
+              1.1,
+              14.0,
+              12.86,
+              35.0
+            ],
+            [
+              12,
+              1.2,
+              12.0,
+              13.63,
+              26.8
+            ],
+            [
+              12,
+              1.2,
+              13.0,
+              13.69,
+              28.2
+            ],
+            [
+              12,
+              1.2,
+              14.0,
+              13.68,
+              27.8
+            ],
+            [
+              15,
+              0.8,
+              12.0,
+              12.52,
+              44.8
+            ],
+            [
+              15,
+              0.8,
+              13.0,
+              12.2,
+              45.5
+            ],
+            [
+              15,
+              0.8,
+              14.0,
+              11.75,
+              47.2
+            ],
+            [
+              15,
+              0.9,
+              12.0,
+              12.56,
+              42.8
+            ],
+            [
+              15,
+              0.9,
+              13.0,
+              12.17,
+              42.8
+            ],
+            [
+              15,
+              0.9,
+              14.0,
+              11.65,
+              43.8
+            ],
+            [
+              15,
+              1.0,
+              12.0,
+              13.47,
+              35.8
+            ],
+            [
+              15,
+              1.0,
+              13.0,
+              12.92,
+              37.0
+            ],
+            [
+              15,
+              1.0,
+              14.0,
+              12.49,
+              36.8
+            ],
+            [
+              15,
+              1.1,
+              12.0,
+              14.26,
+              29.5
+            ],
+            [
+              15,
+              1.1,
+              13.0,
+              14.07,
+              30.2
+            ],
+            [
+              15,
+              1.1,
+              14.0,
+              13.65,
+              30.0
+            ],
+            [
+              15,
+              1.2,
+              12.0,
+              13.29,
+              23.8
+            ],
+            [
+              15,
+              1.2,
+              13.0,
+              13.96,
+              23.0
+            ],
+            [
+              15,
+              1.2,
+              14.0,
+              13.97,
+              23.8
+            ],
+            [
+              20,
+              0.8,
+              12.0,
+              13.14,
+              40.5
+            ],
+            [
+              20,
+              0.8,
+              13.0,
+              12.82,
+              40.8
+            ],
+            [
+              20,
+              0.8,
+              14.0,
+              12.34,
+              41.8
+            ],
+            [
+              20,
+              0.9,
+              12.0,
+              13.48,
+              36.8
+            ],
+            [
+              20,
+              0.9,
+              13.0,
+              13.04,
+              36.5
+            ],
+            [
+              20,
+              0.9,
+              14.0,
+              12.45,
+              37.5
+            ],
+            [
+              20,
+              1.0,
+              12.0,
+              14.51,
+              30.2
+            ],
+            [
+              20,
+              1.0,
+              13.0,
+              14.04,
+              30.5
+            ],
+            [
+              20,
+              1.0,
+              14.0,
+              13.45,
+              31.3
+            ],
+            [
+              20,
+              1.1,
+              12.0,
+              15.16,
+              24.0
+            ],
+            [
+              20,
+              1.1,
+              13.0,
+              14.98,
+              24.2
+            ],
+            [
+              20,
+              1.1,
+              14.0,
+              14.6,
+              25.0
+            ],
+            [
+              20,
+              1.2,
+              12.0,
+              11.81,
+              19.2
+            ],
+            [
+              20,
+              1.2,
+              13.0,
+              13.04,
+              18.5
+            ],
+            [
+              20,
+              1.2,
+              14.0,
+              13.85,
+              18.8
+            ]
+          ],
+          "source": "Method of moments, otahub.num.mom.helix_over_ground, wire radius 0.005 lambda, infinite PEC ground, 16 segments per turn",
+          "note": "The whole grid, including the band edges the fitted metrics leave out. Read the C/lambda = 1.2 column for long helices: gain falls several dB as the axial mode gives out, which no formula here reproduces."
+        }
+      }
     },
     {
       "key": "normal_mode_helix",

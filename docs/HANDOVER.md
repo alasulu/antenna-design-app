@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 1896 tests, 526/526 citable
+6,031 lines of Python, 14,835 lines of spec data, 1916 tests, 538/538 citable
 known cases passing.**
 
 ---
@@ -156,6 +156,7 @@ being written into a spec.
 | Loop family bandwidth and Q | VSWR-2 windows and antenna Q for the full-wave circular loop, the quad and the halo | Three routes on the circular loop — MoM walk, MoM Q-derivative, and the independent modal solver's own walk — agreeing to under 1%; replaces four asserted Q values, three of which were 23–67% wrong |
 | `alford_loop` | Equal-area circle equivalence, and the true ripple of a uniform-current square | Within 0.73% on resistance and 0.08% on directivity, far better than the “few percent” claimed; ideal ripple 0.01 dB against an asserted 0.5 |
 | `resonant_dipole`, `half_wave_dipole` | Driving-point impedance, bandwidth, Q and directivity of the real wire, BESIDE the induced-EMF closed forms | Handing the MoM the assumed sinusoidal current reproduces the closed form to 0.3%, so the 6–28% gap is the current's shape, not the mesh; the canonical 73.08 Ω is kept and pinned as a definition |
+| `axial_mode_helix` | Gain and beamwidth over (turns, C/λ, pitch), plus the full solved grid as a table | Image-theory helix, mirror-symmetric to 1e-7; directivity by reciprocity agrees with the pattern integral to 0.02 dB; replaces a “correction” that was worse than the formula it corrected |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -328,6 +329,21 @@ dBd rests on, and gains driving-point metrics beside it. `resonant_dipole` had
 been presenting the closed form as what the antenna presents — "55-68 ohm
 across practical thicknesses" — when a real resonant wire sits at about 72 ohm
 whatever its gauge. Its 50 ohm VSWR moved from about 1.26:1 to 1.46:1.
+
+### The helix "correction" went the wrong way
+
+`axial_mode_helix` knew Kraus's gain formula overestimates and told designers to
+use `gain_corrected_dbi` instead: 8.3 + 10 log10(C^2 N S) + 20 log10(1 + N/10).
+Its note called that "sub-linear in N". It is super-linear, and it exceeds
+Kraus for every N >= 5 — by 2.5 dB at ten turns, 6 at twenty, 8.5 at thirty,
+rating a 30-turn helix at 28.75 dBi — in exactly the regime where Kraus is
+already too high. That needed arithmetic, not a solver. The metric is removed.
+
+The replacement is solved: a helix over an infinite ground plane by image
+theory (`mom.helix_over_ground`), cross-checked by receive-mode reciprocity to
+0.02 dB. At C = lambda and 13 degrees Kraus is 1.6 dB high at 3 turns, 3.8 at
+10 and 4.4 at 20. Kraus's gain and beamwidth stay, under `_kraus` names, as the
+figures everyone quotes.
 
 ### A ten-fold error in the loaded whip, from a missing referral
 

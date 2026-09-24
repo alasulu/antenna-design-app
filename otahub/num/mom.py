@@ -55,7 +55,7 @@ from ..core.constants import ETA0
 
 __all__ = [
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
-    "folded_dipole_wire",
+    "folded_dipole_wire", "helix_over_ground",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
 
@@ -510,3 +510,39 @@ def vswr_bandwidth(z_of_scale, scale0: float, z0: float, target: float = 2.0,
                 hi = mid
         edges.append(hi)
     return (edges[1] - edges[0]) / scale0, (edges[0], edges[1])
+
+
+def helix_over_ground(circumference: float = 1.0, pitch_deg: float = 13.0,
+                      turns: int = 10, radius: float = 0.005,
+                      feed_height: float = 0.02, seg_per_turn: int = 16):
+    """Axial-mode helix on an infinite PEC ground plane, by image theory.
+
+    Returns (model, feed index). The model is ONE continuous open wire: the
+    image helix below the plane, a short vertical feed wire straddling z = 0,
+    and the real helix above. Current continuity through the bends produces
+    exactly the image-current rules - horizontal components reversed, vertical
+    ones not - so nothing special is needed, and the far field of the result is
+    mirror-symmetric about z = 0 to about 1e-7, which is how that was checked.
+
+    Two consequences for the caller, both factors of two:
+      - the physical antenna sees HALF the full structure's input impedance;
+      - it radiates into the upper half-space only, so its directivity is
+        TWICE the full structure's free-space directivity.
+
+    The ground plane is infinite; a real helix sits on a finite disc or cup,
+    which mostly changes the back lobe rather than the forward gain.
+    """
+    R = circumference / (2.0 * math.pi)
+    S = circumference * math.tan(math.radians(pitch_deg))
+    t = np.linspace(0.0, 2.0 * math.pi * turns, turns * seg_per_turn + 1)
+    up = np.stack([R * np.cos(t), R * np.sin(t),
+                   feed_height + S * t / (2.0 * math.pi)], axis=1)
+    down = up[::-1].copy()
+    down[:, 2] *= -1.0
+    zf = np.linspace(-feed_height, feed_height, 5)[1:-1]
+    feed = np.stack([np.full_like(zf, R), np.zeros_like(zf), zf], axis=1)
+    model = WireModel([Wire(np.vstack([down, feed, up]), radius)])
+    nodes = np.array([model.node_of(n) for n in range(model.n_basis)])
+    idx = int(np.argmin(np.abs(nodes[:, 2]) + 10.0 * np.abs(nodes[:, 0] - R)
+                        + 10.0 * np.abs(nodes[:, 1])))
+    return model, idx

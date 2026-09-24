@@ -1213,9 +1213,72 @@ unsupported.
 Hallen's solver moved into `otahub/num/hallen.py`, beside the MoM and the modal
 loop solver, now that two test files arbitrate with it.
 
+## The helix: a correction worse than the formula it corrected
+
+The previous round's lesson was that a textbook formula can be badly wrong
+outside the conditions it was derived for, while still looking textbook-correct.
+The travelling-wave family carries two formulas the literature has long called
+optimistic, Kraus's helix gain and Carrel's LPDA curves, so they were next. The
+LPDA needs a transmission-line feeder network the solver does not have yet. The
+helix did not.
+
+The spec already knew Kraus overestimates, and said so plainly. It then told
+designers to "use gain_corrected_dbi for design": 8.3 + 10 log10(C^2 N S) +
+20 log10(1 + N/10), which its note described as "a lower constant with a
+sub-linear term in N". The added term is super-linear. The formula exceeds
+Kraus for every N >= 5, by 2.5 dB at ten turns, 6 at twenty and 8.5 at thirty,
+where it rates a 30-turn helix at 28.75 dBi, and all of that is in exactly the
+regime where the same note says Kraus is already too high. No solver was needed
+for that, only arithmetic on the spec's own words. The metric is gone rather
+than relabelled: the spec had been recommending it for design.
+
+What the right answer IS needed the solver. A helix over an infinite PEC ground
+plane is one continuous wire by image theory: image helix, short vertical feed
+straddling the plane, real helix. Current continuity through the bends produces
+the image-current rules with nothing special, and the far field comes out
+mirror-symmetric to 1e-7, which is the check that the construction is right.
+The directivity was then found a second way that never touches the pattern
+integral: illuminate with a circularly polarised plane wave, take the
+open-circuit voltage, and use reciprocity. The two agree to 0.02 dB at ten
+turns. Power balance holds to 1e-4.
+
+What was found:
+
+- Kraus's error grows with BOTH length and circumference. At C = lambda and 13
+  degrees: 1.6 dB high at 3 turns, 3.8 at 10, 4.4 at 20. Across the design core
+  it is 0.9 to 5.4 dB high from five turns up, and roughly right only in the
+  short, small corner (3 turns at C = 0.9 lambda).
+- Pitch runs the OPPOSITE way. Steeper pitch lengthens the helix, so Kraus
+  rises. But it moves the phase velocity off the end-fire optimum, so the real
+  gain falls, by about 0.5 dB per degree.
+- At the band edge long helices fall off a cliff: 11.8 dBi at 20 turns and
+  C = 1.2 lambda, where Kraus says 20.5. No polynomial here follows that cliff,
+  so the fit covers only the smooth design core (C 0.9 to 1.1) and the whole
+  135-point grid ships in the spec's tables instead, so the edge stays visible.
+- Kraus's beamwidth is too narrow for the same reason: 34 degrees for the
+  canonical helix where the solver finds 46.
+- Input resistance and axial ratio are NOT fitted, deliberately. Feed height
+  barely moves the gain (0.1 dB) but swings the terminal resistance from 70 to
+  150 ohm, and the axial ratio varies irregularly with the standing wave off
+  the open end. Both remain indicative, now saying why.
+
+Two corrections to my own work before committing, both of the same kind. The
+first draft of the Kraus note read "-0.1 to 5.4 dB HIGH", a range taken
+blindly from a min and max over the whole core, and it contradicted itself.
+The second draft claimed Kraus was "about right for a three-turn helix", which
+holds only at C = 0.9 lambda: at C = lambda a 3-turn helix is already 1.6 dB
+high. Both were caught by a test that asserted the claim. The note now quotes
+the grid directly rather than paraphrasing it. Three rounds running, a range
+written into a note has needed checking against the numbers it summarises,
+which is a good enough reason to keep doing it.
+
+Wire size matters more than expected: about 1 dB lower at a = 0.002 lambda and
+0.8 dB higher at 0.01, at ten turns, by moving the phase velocity. The fit is at
+0.005 lambda and the validity block says so.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1896 tests, 526/526 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1916 tests, 538/538 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
