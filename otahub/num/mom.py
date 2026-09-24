@@ -32,7 +32,8 @@ is scaled by the caller.
 
 What it does not do. No ground plane (image theory stands in, exactly, for an
 infinite PEC plane), no dielectric, no distributed loss, and the reduced kernel
-rather than the exact one. Junctions of any number of wires ARE supported, but
+by default (the exact one is opt-in, for straight runs - see below). Junctions
+of any number of wires ARE supported, but
 only at wire end points. Each of
 those is a real limit, not an approximation that washes out, so the validation
 suite pins the cases where they do not bite.
@@ -53,6 +54,17 @@ and reads 115 ohm - with the resonance moved 6% - at 0.8 radii. A fine mesh on a
 fat wire is not more accurate; it is outside the approximation. WireModel warns
 when any segment is shorter than its own radius, which is the clearly broken
 end of that range.
+
+`exact=True` lifts that limit on straight runs. It puts the exact kernel -
+current and observer both spread round the circumference - on every self and
+near collinear pair, and the same 0.006-wavelength wire then holds its
+resonance from 3.7 radii per segment down to 0.8 (reactance within 0.6 ohm at a
+fixed length, where the reduced kernel falls 16 ohm), its resistance creeping 3%
+as the delta gap sharpens. Bends and junctions keep the reduced kernel. It is
+off by default so every result derived with the reduced kernel reproduces bit
+for bit; on thin wire the two differ by about 0.35%. What it does NOT cure is
+the delta gap itself on a very fat wire: at a = 0.015 lambda neither kernel
+converges, and that needs a finite-gap feed model this module does not have.
 """
 from __future__ import annotations
 
@@ -171,7 +183,8 @@ class WireModel:
             warnings.warn(
                 f"{int(short.sum())} segment(s) shorter than their wire radius: the "
                 f"reduced thin-wire kernel is not valid there and results can be "
-                f"badly wrong. Keep segments at least ~3 radii long.",
+                f"badly wrong. Keep segments at least ~3 radii long, or solve a "
+                f"straight wire with exact=True.",
                 UserWarning, stacklevel=2)
 
         # group coincident open-wire ends into junctions
@@ -227,7 +240,46 @@ class WireModel:
 
 # ---------------------------------------------------------------- kernels
 
-def _segment_moments(model: WireModel):
+_GL_PHI = np.polynomial.legendre.leggauss(24)
+
+
+def _inner_exact(u0: np.ndarray, L: float, a: float):
+    """Inner integrals over a straight source segment with the EXACT kernel.
+
+    The reduced kernel puts the source current on the axis and the observer
+    on the surface, R = sqrt(v^2 + a^2). The exact kernel spreads both round
+    the circumference, and after one integration by symmetry that is
+    R(phi) = sqrt(v^2 + 4 a^2 sin^2(phi/2)) averaged over phi. It only differs
+    from the reduced one where the axial separation is a few radii or less -
+    the self and near terms of a fat wire - and there it is the difference
+    between a converged answer and one that runs away as the mesh is refined.
+
+    The phi average has a log singularity at phi = 0 when observer and source
+    coincide; phi = pi t^2 turns it into t log t, which Gauss-Legendre handles.
+    `u0` are the observers' axial positions measured from the segment's start.
+    Returns (integral of G, integral of s' G), each averaged over phi.
+    """
+    xt, wt = _GL_PHI
+    tt = 0.5 * (xt + 1.0)
+    wphi = wt * tt                   # (1/pi) int_0^pi d phi -> int_0^1 2t dt, GL on [0,1]
+    phi = math.pi * tt ** 2
+    rho2 = (2.0 * a * np.sin(0.5 * phi)) ** 2                         # (F,)
+    rho = np.sqrt(rho2)
+    xi, wi = _GL_INNER
+    si = 0.5 * L * (xi + 1.0)
+    v1 = -u0[:, None]                                                 # (P,1)
+    v2 = L - u0[:, None]
+    asinh = np.arcsinh(v2 / rho[None, :]) - np.arcsinh(v1 / rho[None, :])      # (P,F)
+    root = np.sqrt(v2 ** 2 + rho2[None, :]) - np.sqrt(v1 ** 2 + rho2[None, :])
+    v = si[None, None, :] - u0[:, None, None]                         # (P,1,G)
+    R = np.sqrt(v ** 2 + rho2[None, :, None])                         # (P,F,G)
+    rem = ((np.exp(-1j * K * R) - 1.0) / R) * wi[None, None, :] * (0.5 * L)
+    in0 = asinh + rem.sum(axis=2)
+    in1 = (u0[:, None] * asinh + root) + (rem * si[None, None, :]).sum(axis=2)
+    return in0 @ wphi, in1 @ wphi
+
+
+def _segment_moments(model: WireModel, exact: bool = False):
     """M[a][b][p, q] = double integral of s^a s'^b exp(-jkR)/R over segments p, q.
 
     Every basis function's weight on a segment is linear in the arc length, so
@@ -264,6 +316,23 @@ def _segment_moments(model: WireModel):
 
         inner0 = asinh + rem.sum(axis=1)                        # weight 1
         inner1 = (u0 * asinh + root) + (rem * si[None, :]).sum(axis=1)   # weight s'
+        if exact:
+            aq = model.seg_rad[q]
+            mid_q = A + 0.5 * L * u
+            for p in range(ns):
+                if abs(float(model.seg_t[p] @ u)) < 1.0 - 1e-9:
+                    continue
+                mid_p = 0.5 * (model.seg_a[p] + model.seg_b[p])
+                off = mid_p - mid_q
+                if np.linalg.norm(off - (off @ u) * u) > 1e-9 * L:
+                    continue                      # parallel but not on the same axis
+                if abs(off @ u) > 0.5 * (L + model.seg_len[p]) + 6.0 * aq:
+                    continue                      # far enough for the reduced kernel
+                rows = slice(p * len(xo), (p + 1) * len(xo))
+                e0, e1 = _inner_exact(u0[rows], L, aq)
+                inner0 = inner0.copy()
+                inner1 = inner1.copy()
+                inner0[rows], inner1[rows] = e0, e1
         for b, inner in ((0, inner0), (1, inner1)):
             g = inner.reshape(ns, -1)                                    # (ns, no)
             M[0, b, :, q] = (0.5 * model.seg_len) * (g * wo[None, :]).sum(axis=1)
@@ -296,9 +365,15 @@ def _half_weights(model: WireModel, n: int):
     return out
 
 
-def impedance_matrix(model: WireModel) -> np.ndarray:
-    """The Galerkin EFIE matrix [ohm]."""
-    M = _segment_moments(model)
+def impedance_matrix(model: WireModel, exact: bool = False) -> np.ndarray:
+    """The Galerkin EFIE matrix [ohm].
+
+    `exact` switches the self and near collinear terms to the exact kernel,
+    which is what a FAT wire needs; for thin wire it changes nothing that
+    matters, and it is off by default so that every result already derived
+    with the reduced kernel reproduces exactly.
+    """
+    M = _segment_moments(model, exact)
     halves = [_half_weights(model, n) for n in range(model.n_basis)]
     dot = model.seg_t @ model.seg_t.T
     nb = model.n_basis
@@ -343,7 +418,8 @@ class MoMSolution:
 
 
 def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
-          loads: dict[int, complex] | None = None) -> MoMSolution:
+          loads: dict[int, complex] | None = None,
+          exact: bool = False) -> MoMSolution:
     """Delta-gap excitation of one basis function; 1 V across the gap.
 
     `loads` puts a SERIES lumped impedance at a basis function, the way a real
@@ -360,7 +436,7 @@ def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
     for f in feeds:
         if not 0 <= f < nb:
             raise ValueError(f"feed index {f} outside 0..{nb - 1}")
-    Z = impedance_matrix(model)
+    Z = impedance_matrix(model, exact)
     for m, zl in (loads or {}).items():
         if not 0 <= m < nb:
             raise ValueError(f"load index {m} outside 0..{nb - 1}")
@@ -372,8 +448,9 @@ def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
 
 
 def input_impedance(model: WireModel, feed: int | None = None,
-                    loads: dict[int, complex] | None = None) -> complex:
-    return solve(model, feed, loads).input_impedance
+                    loads: dict[int, complex] | None = None,
+                    exact: bool = False) -> complex:
+    return solve(model, feed, loads, exact).input_impedance
 
 
 # ---------------------------------------------------------------- radiation

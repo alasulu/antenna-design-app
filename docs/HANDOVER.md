@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2000 tests, 559/559 citable
+6,031 lines of Python, 14,835 lines of spec data, 2015 tests, 566/566 citable
 known cases passing.**
 
 ---
@@ -24,7 +24,7 @@ known cases passing.**
 | Interfaces | `otahub/cli/`, `otahub/gui/` | 12 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
 
 ```bash
-python -m pytest -m "not slow"      # the quick loop, ~25 s
+python -m pytest -m "not slow"      # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py gui
 python OTA_Hub_AntennaToolkit.py --help
 python -m pytest tests/ -q
@@ -87,8 +87,13 @@ It is validated by six independent checks, in `tests/test_mom.py`:
 | Small loop Rr vs 20π²(C/λ)⁴ | ratio → 0.998 at C = 0.025λ |
 | Folded dipole vs plain dipole at resonance | 4.014 against the classic 4 |
 
-**Limits that bite:** no ground plane, no dielectric, no loss, no junction of
-more than two wires, and the reduced rather than the exact kernel.
+**Limits that bite:** no ground plane (image theory stands in), no
+dielectric, no loss, junctions only at wire ends, a delta-gap feed only, and
+the exact kernel only on straight runs and only on request (`exact=True`).
+The module docstring records the measured edge of each: the delta gap reads
+short-wire resistance ~10% low; the reduced kernel needs segments of at least
+~3 radii, which the exact kernel lifts; and on a wire fatter than ~0.01 lambda
+the delta gap itself has no converged answer with either kernel.
 
 ### Independent first-principles checks
 
@@ -162,6 +167,7 @@ being written into a spec.
 | `rhombic` | Directivity, the optimal termination and the power it burns, solved with the resistor in circuit | The idealised travelling-wave model is 0.24–0.45 dB high; the termination is set by the wire radius (878 Ω at a = 10⁻⁵λ to 273 at 3×10⁻³), which the spec had left out |
 | `top_loaded_monopole` | The top-current ratio derived from the hat geometry, which the spec used to take as an unrelated input | Junction-connected radial hat over image ground; fitted to 0.017 in beta (0.027 held out); the reactance ships as a solved table because no fit was good enough to size a coil |
 | `biconical`, `conical_monopole` | Directivity at the band edge against flare, and across the band; the biconical's angle convention | 16-wire cages, directivity converged to 0.2%; the biconical used the full-angle impedance formula on a half-angle input (188 Ω for a cone that presents 100) |
+| `half_wave_slot`, `folded_slot` | Resonant length and resonant resistance from the complementary dipole of radius w/4, through `resonant_dipole`'s laws: 0.4637λ and 468 Ω at the default w/L = 0.05, replacing a thin dipole's 0.4785λ and a flat-67-Ω 529.6 | Exact-kernel MoM and Hallén's equation, each on meshes it has converged on: 0.4645–0.4654λ and a 471–479 Ω slot; at w/L = 0.02 the law is inside 0.1% on length |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -205,15 +211,17 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
 
 ### Known open discrepancies
 
-**`half_wave_slot` resonates at a thin dipole's length.** By Babinet a slot
-resonates where its complementary dipole does, and that dipole's radius is a
-quarter of the slot width - 0.006 lambda at the default width. A dipole that
-fat resonates near 0.464 lambda (the catalogue's own `resonant_dipole` fit and
-the method of moments agree), not the 0.4785 the slot uses, and presents about
-74 ohm rather than the 67 the slot borrows, which would move the resonant slot
-from 530 ohm toward 480. It is held as a strict expected failure in
-`test_cross_consistency.py` and flagged in the spec. Fixing it needs the dipole
-fits extended to fatter wire, inside the solver's segment-length limit.
+- ~~**`half_wave_slot` resonates at a thin dipole's length.**~~ **Resolved.**
+  By Babinet a slot resonates where its complementary dipole does, and that
+  dipole's radius is a quarter of the slot width. The slot carried a thin
+  dipole's 0.4785 lambda and a flat 67 ohm whatever its width; it now takes
+  both from `resonant_dipole` at radius w/4 - 0.4637 lambda and a 468 ohm
+  resonant slot at the default w/L = 0.05, against the old 529.6, which was
+  13% high. `folded_slot` follows, so its two-slot figure drops from 132 to
+  117 ohm. Checking the complementary dipole needed an exact kernel first:
+  at that radius the reduced kernel's answer depended on the mesh. Exact-kernel
+  MoM and Hallen's equation agree with the laws to 0.4% on length and 2.5% on
+  resistance. Past w/L = 0.05 it is extrapolation, and the spec says so.
 
 - ~~**Inset patch mutual conductance.**~~ **Resolved — and the discrepancy was
   never real.** Direct quadrature of eqs. 14-12 and 14-18a reproduces Balanis
@@ -468,6 +476,13 @@ known case only checks what it asserts.
    Deriving it needs the DWM field expressions for the stored energy and the
    equivalent magnetic dipole moment, which is a genuine piece of work and the
    place to be most careful about sign and normalisation conventions.
+
+9. **A finite-gap feed for the MoM.** The delta gap on a wire fatter than
+   about 0.01 lambda has no converged answer with either kernel - its
+   capacitance diverges as the mesh refines. That is what now caps the slot
+   family at w/L = 0.05 and the fat-dipole checks at a = 0.006 lambda. A
+   magnetic-frill or finite-gap source would lift it; the exact kernel is
+   already in place for it to stand on.
 
 ---
 

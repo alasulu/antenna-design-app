@@ -1599,10 +1599,57 @@ default run still includes everything. The solver's own licensing tests - the
 MoM validation, junctions, reference dipoles, feed referral - stay in the quick
 set, because everything else rests on them.
 
+## The slot's resonance, and the kernel it needed
+
+Last round left `half_wave_slot` held open: it resonated at a thin dipole's
+0.4785 lambda whatever its width, when Babinet says it resonates where its
+complementary dipole does - a wire of radius w/4, 0.0058 lambda at the default
+w/L = 0.05. Closing it needed that fat dipole solved honestly first, and the
+reduced kernel could not do it: its answer depended on the mesh.
+
+**The exact kernel.** `mom` now carries it as an option, `exact=True`: current
+and observer both spread round the circumference, R(phi) = sqrt(v^2 + 4a^2
+sin^2(phi/2)) averaged over phi, applied to the self and near collinear pairs
+where the reduced kernel goes wrong. The log singularity at phi = 0 is removed
+by phi = pi t^2; 24 nodes are converged to 1 part in 10^6 (74.9224 against
+74.9225 ohm at 48). On the 0.006 lambda wire the resonance now holds from 3.7
+radii per segment down to 0.8 - reactance within 0.6 ohm at a fixed length,
+where the reduced kernel falls 16 ohm - and the remaining 3% creep in
+resistance is the delta gap's, not the kernel's. On thin wire the two kernels
+differ by 0.35%. It is OFF by default, and the default path is pinned bit for
+bit, so nothing derived with the reduced kernel moves. What it does not cure:
+at a = 0.015 lambda the delta gap itself diverges with either kernel. That is
+the next solver limit, and it is recorded as a next step, a finite-gap feed.
+
+**The slot, fixed.** Length and resonant resistance now come from
+`resonant_dipole`'s laws at the complementary radius, and `Rd_res` becomes
+derived (supplying it still overrides, and a known case pins that the old 67
+reproduces the old 529.6). At the default width: 0.4637 lambda and a 468 ohm
+slot, against the old 0.4785 and 529.6 - the old resistance was 13% high. The
+laws were fitted only to 5e-3 lambda, so they were checked past that against
+two solvers that share nothing, each at meshes it has converged on: exact-kernel
+MoM (42 segments up; 22 is still 0.1% out) and Hallen (two radii per segment
+or more, which its own docstring sets). They give 0.4645-0.4654 lambda and a
+471-479 ohm slot; the law is 0.2-0.4% short on length and 0.6-2.5% high on
+resistance. At w/L = 0.02 it is inside 0.1% on length. An honest first pass
+claimed "within 0.4%" off a coarse mesh; the convergence scan put the worst
+case at 0.44% on that mesh and 0.38% on converged ones, and the spec text was
+rewritten from the scan, not the first pass.
+
+What the old constants hid was the DIRECTION: a wider slot has a fatter
+complement, which resonates shorter at MORE resistance, so the slot - its
+inverse - sits LOWER. The spec now shows 482 ohm at w/L = 0.02 and 468 at 0.05,
+and a cross-check asserts that ordering. `folded_slot` follows the plain slot,
+so its two-slot figure drops from 132 to 117 ohm and three slots reach 52.
+
+The strict expected failure is now an ordinary pass at two widths, on length
+and resistance both. Past w/L = 0.05 the spec says it is extrapolating: there
+the complementary wire is too fat for a delta gap to be solved honestly, and
+Hallen already drifts at 0.05 under a fine mesh.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2000 tests (one strict expected
-failure held open deliberately), 559/559 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2015 tests, 566/566 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

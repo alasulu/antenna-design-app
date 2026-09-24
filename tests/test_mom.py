@@ -190,3 +190,37 @@ def test_segments_shorter_than_a_few_radii_leave_the_approximation():
     with pytest.warns(UserWarning, match="shorter than their wire radius"):
         broken = res_r(100)                        # 0.8 radii
     assert broken > 1.3 * ok[1]
+
+
+# ------------------------------------------------------------ exact kernel
+
+def test_the_exact_kernel_is_off_by_default():
+    """Every result derived with the reduced kernel must reproduce bit for bit."""
+    m = mom.dipole(0.47, 1e-3, 40)
+    assert mom.input_impedance(m) == mom.input_impedance(m, exact=False)
+    assert mom.input_impedance(m) == complex(69.06656211407594, -10.49855834396867)
+
+
+def test_the_exact_kernel_changes_little_on_thin_wire():
+    m = mom.dipole(0.47, 1e-3, 41)
+    reduced, exact = mom.input_impedance(m), mom.input_impedance(m, exact=True)
+    assert abs(exact - reduced) / abs(reduced) < 0.005
+
+
+def test_the_exact_kernel_holds_a_fat_wire_the_reduced_kernel_loses():
+    """The same 0.006-wavelength wire, meshed from 3.7 radii per segment down to
+    0.8. With the exact kernel the resonance stays put and the resistance creeps
+    about 3% (the delta gap, not the kernel); with the reduced kernel the finest
+    mesh knocks the reactance 16 ohm off resonance."""
+    exact = []
+    for n in (21, 41, 61, 97):
+        if n < 97:
+            m = mom.dipole(0.465, 0.006, n)
+        else:
+            with pytest.warns(UserWarning, match="exact=True"):
+                m = mom.dipole(0.465, 0.006, n)
+        exact.append(mom.input_impedance(m, exact=True))
+    assert all(abs(z.imag) < 1.5 for z in exact), exact
+    rs = [z.real for z in exact]
+    assert max(rs) / min(rs) < 1.045, rs
+    assert mom.input_impedance(m).imag < -10.0

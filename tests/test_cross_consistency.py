@@ -595,16 +595,30 @@ def test_shorting_a_patch_costs_less_than_three_db_and_varies_with_substrate(syn
         f"the cost must fall as the slots crowd together: {losses}")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "OPEN: half_wave_slot's resonant length 0.4785*lambda is a THIN dipole's. "
-    "By Babinet a slot resonates where its complementary dipole does, and that "
-    "dipole has radius w/4 - 0.006 lambda at the default width, where "
-    "resonant_dipole (and the solver) say 0.463-0.465 lambda. Fixing it needs "
-    "the dipole fits extended to fatter wire first."))
-def test_a_slot_resonates_where_its_complementary_dipole_does(syn):
-    slot = syn("half_wave_slot", f0=F)
+@pytest.mark.parametrize("w_over_L", [0.02, 0.05])
+def test_a_slot_resonates_where_its_complementary_dipole_does(syn, w_over_L):
+    """Babinet, on the one thing it fixes exactly: the resonance.
+
+    Held open as a strict expected failure for a round, because the slot used a
+    thin dipole's 0.4785 lambda whatever its width. The complementary dipole has
+    radius w/4, and the slot now takes its length AND its resonant resistance
+    from resonant_dipole at that radius, so both sides must agree.
+    """
+    slot = syn("half_wave_slot", f0=F, w_over_L=w_over_L)
     lam = 2.99792458e8 / F
-    a = slot.parameters["w"] / 4
-    dip = syn("resonant_dipole", f0=F, aw=a)
+    dip = syn("resonant_dipole", f0=F, aw=slot.parameters["w"] / 4)
     assert slot.parameters["L"] / lam == pytest.approx(
-        dip.metrics["length_over_lambda"], rel=0.01)
+        dip.metrics["length_over_lambda"], rel=0.005)
+    assert slot.metrics["resonant_resistance_ohm"] == pytest.approx(
+        376.730313412 ** 2 / (4 * dip.metrics["input_resistance_ohm"]), rel=0.005)
+
+
+def test_a_wider_slot_is_shorter_and_lower_in_resistance(syn):
+    """The direction the old flat constants could not show: a wider slot has a
+    fatter complement, which resonates shorter and at MORE resistance - so the
+    slot, its inverse, sits at LESS."""
+    narrow = syn("half_wave_slot", f0=F, w_over_L=0.02)
+    wide = syn("half_wave_slot", f0=F, w_over_L=0.05)
+    assert wide.parameters["L"] < narrow.parameters["L"]
+    assert (wide.metrics["resonant_resistance_ohm"]
+            < narrow.metrics["resonant_resistance_ohm"])

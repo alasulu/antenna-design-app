@@ -10,7 +10,7 @@
         300000000000.0
       ],
       "confidence": "high",
-      "notes": "BABINET/BOOKER DERIVATION. Babinet's optical principle states that the fields of a screen and of its complement sum to the incident field. Booker (1946) extended it to vector electromagnetics: the complementary structure of a perfectly conducting screen is obtained by interchanging metal and aperture AND interchanging E and H. Write the slot problem as an equivalent magnetic-current sheet: the tangential E across the aperture, E_t = -n x M, drives a magnetic current M. The complementary electric-current dipole radiates with the same pattern shape but with E and H exchanged. Enforcing the duality transformation E -> H, H -> -E, eta0 -> 1/eta0 on the terminal quantities gives V_slot proportional to eta0*I_dipole/2 and I_slot proportional to 2*V_dipole/eta0, hence Z_slot = V_slot/I_slot = (eta0^2/4)*(I_dipole/V_dipole) = eta0^2/(4*Z_dipole). The factor of 4 (not 1) is the whole content of Booker's correction and comes from the two-sided radiation of a zero-thickness screen: the slot radiates into BOTH half spaces, so each side sees half the terminal current. Numerically eta0^2/4 = 376.730313412^2/4 = 35481.43 ohm^2. SIGN OF THE REACTANCE. With the classic thin half-wave dipole Z_d = 73.1 + j42.5 ohm (Balanis eq. 4-93, l = lambda/2 exactly, which is slightly LONGER than resonance, hence inductive), Z_s = 35481.43/(73.1 + j42.5) = 35481.43*(73.1 - j42.5)/(73.1^2 + 42.5^2) = 362.8 - j210.9 ohm. The slot is CAPACITIVE exactly where its complementary dipole is inductive, because Z_s is proportional to 1/Z_d and inversion conjugates the reactance sign. The magnitude 363 + j211 is very widely quoted (including in lecture notes and several handbooks) with a POSITIVE reactance; that printed sign is inconsistent with the +j42.5 dipole it is derived from. This spec returns the algebraically correct 362.8 - j210.9 ohm and exposes |Z| = 419.6 ohm and the 363/211 magnitudes separately so a user chasing the textbook numbers still finds them. The physical consequence is real: to tune a slot to resonance you SHORTEN it, exactly as for a dipole, because X_slot and X_dipole cross zero at the same electrical length (~0.475 lambda for a moderately wide slot). RESTRICTION -- READ THIS BEFORE USING Z = 363 - j211. The relation Z_slot*Z_dipole = eta0^2/4 holds ONLY for (a) an INFINITE screen, (b) a PERFECTLY CONDUCTING screen, (c) a ZERO-THICKNESS screen, (d) free space on both sides, and (e) a complementary dipole that is the exact metal/aperture inverse of the slot (a STRIP dipole of width w, not a round wire; the equivalent round-wire radius is a = w/4). This is the single most misapplied result in the whole slot family. A slot in a finite ground plane, a slot with a cavity or a dielectric behind it, a slot in a thick wall, or a slot fed by a transmission line that loads one side, does NOT obey it. Closing off one half space (cavity backing, or a half-space mount) removes half the radiated power for the same aperture voltage, halving the radiation conductance and DOUBLING the impedance to ~726 - j422 ohm; that case is the cavity_backed_slot archetype. Finite screens ripple the impedance by +/-20% with screen size and add a rear lobe. PATTERN. Duality also fixes the pattern: the slot's far-field pattern SHAPE is identical to the complementary dipole's with E and H interchanged, so the directivity of the two-sided slot equals the dipole's, D0 = 1.643 (2.155 dBi). The plane containing the slot's long axis carries the 78 deg figure-of-eight cut (the dipole's E-plane, which for the slot is the H-plane); the plane perpendicular to the slot axis is uniform. Radiated E is PERPENDICULAR to the slot's long axis: a vertical slot radiates HORIZONTAL polarisation, the opposite of a vertical dipole, and this catches people out in practice. BANDWIDTH. Because Z_s = k/Z_d, the slot's Q equals the complementary strip dipole's, so the VSWR-2 fractional bandwidth about resonance is that of a strip dipole of width w. The returned bandwidth is a two-point engineering interpolation (8.5% at w/L = 0.02, 20.5% at w/L = 0.10) and is good to about +/-30%.",
+      "notes": "BABINET/BOOKER DERIVATION. Babinet's optical principle states that the fields of a screen and of its complement sum to the incident field. Booker (1946) extended it to vector electromagnetics: the complementary structure of a perfectly conducting screen is obtained by interchanging metal and aperture AND interchanging E and H. Write the slot problem as an equivalent magnetic-current sheet: the tangential E across the aperture, E_t = -n x M, drives a magnetic current M. The complementary electric-current dipole radiates with the same pattern shape but with E and H exchanged. Enforcing the duality transformation E -> H, H -> -E, eta0 -> 1/eta0 on the terminal quantities gives V_slot proportional to eta0*I_dipole/2 and I_slot proportional to 2*V_dipole/eta0, hence Z_slot = V_slot/I_slot = (eta0^2/4)*(I_dipole/V_dipole) = eta0^2/(4*Z_dipole). The factor of 4 (not 1) is the whole content of Booker's correction and comes from the two-sided radiation of a zero-thickness screen: the slot radiates into BOTH half spaces, so each side sees half the terminal current. Numerically eta0^2/4 = 376.730313412^2/4 = 35481.43 ohm^2. SIGN OF THE REACTANCE. With the classic thin half-wave dipole Z_d = 73.1 + j42.5 ohm (Balanis eq. 4-93, l = lambda/2 exactly, which is slightly LONGER than resonance, hence inductive), Z_s = 35481.43/(73.1 + j42.5) = 35481.43*(73.1 - j42.5)/(73.1^2 + 42.5^2) = 362.8 - j210.9 ohm. The slot is CAPACITIVE exactly where its complementary dipole is inductive, because Z_s is proportional to 1/Z_d and inversion conjugates the reactance sign. The magnitude 363 + j211 is very widely quoted (including in lecture notes and several handbooks) with a POSITIVE reactance; that printed sign is inconsistent with the +j42.5 dipole it is derived from. This spec returns the algebraically correct 362.8 - j210.9 ohm and exposes |Z| = 419.6 ohm and the 363/211 magnitudes separately so a user chasing the textbook numbers still finds them. The physical consequence is real: to tune a slot to resonance you SHORTEN it, exactly as for a dipole, because X_slot and X_dipole cross zero at the same electrical length (0.464 lambda at the default w/L = 0.05). RESTRICTION -- READ THIS BEFORE USING Z = 363 - j211. The relation Z_slot*Z_dipole = eta0^2/4 holds ONLY for (a) an INFINITE screen, (b) a PERFECTLY CONDUCTING screen, (c) a ZERO-THICKNESS screen, (d) free space on both sides, and (e) a complementary dipole that is the exact metal/aperture inverse of the slot (a STRIP dipole of width w, not a round wire; the equivalent round-wire radius is a = w/4). This is the single most misapplied result in the whole slot family. A slot in a finite ground plane, a slot with a cavity or a dielectric behind it, a slot in a thick wall, or a slot fed by a transmission line that loads one side, does NOT obey it. Closing off one half space (cavity backing, or a half-space mount) removes half the radiated power for the same aperture voltage, halving the radiation conductance and DOUBLING the impedance to ~726 - j422 ohm; that case is the cavity_backed_slot archetype. Finite screens ripple the impedance by +/-20% with screen size and add a rear lobe. PATTERN. Duality also fixes the pattern: the slot's far-field pattern SHAPE is identical to the complementary dipole's with E and H interchanged, so the directivity of the two-sided slot equals the dipole's, D0 = 1.643 (2.155 dBi). The plane containing the slot's long axis carries the 78 deg figure-of-eight cut (the dipole's E-plane, which for the slot is the H-plane); the plane perpendicular to the slot axis is uniform. Radiated E is PERPENDICULAR to the slot's long axis: a vertical slot radiates HORIZONTAL polarisation, the opposite of a vertical dipole, and this catches people out in practice. BANDWIDTH. Because Z_s = k/Z_d, the slot's Q equals the complementary strip dipole's, so the VSWR-2 fractional bandwidth about resonance is that of a strip dipole of width w. The returned bandwidth is a two-point engineering interpolation (8.5% at w/L = 0.02, 20.5% at w/L = 0.10) and is good to about +/-30%.",
       "parameters": [
         {
           "symbol": "f0",
@@ -26,7 +26,7 @@
           "unit": "m",
           "role": "geometry",
           "description": "Long dimension of the slot, end to end",
-          "typical": "0.4785*lambda0"
+          "typical": "0.46*lambda0 .. 0.486*lambda0, set by the width"
         },
         {
           "symbol": "w",
@@ -64,29 +64,54 @@
           "symbol": "Rd_res",
           "name": "complementary_dipole_resonant_resistance",
           "unit": "ohm",
-          "role": "material",
-          "description": "Input resistance of the complementary strip dipole at ITS resonance (X = 0), where the slot is also resonant. Auto-defaults to 67 ohm, appropriate for a moderately thick (w/L ~ 0.05) radiator.",
-          "typical": "67.0"
+          "role": "derived",
+          "description": "Resistance of the complementary dipole at ITS resonance (X = 0), where the slot is also resonant. DERIVED from the slot width through resonant_dipole's fit (75.8 ohm at the default w/L = 0.05); supply it to override."
+        },
+        {
+          "symbol": "slot_t",
+          "name": "complementary thickness parameter",
+          "unit": "-",
+          "role": "derived",
+          "description": "log10(lambda0/a) of the complementary dipole, a = w/4"
         }
       ],
       "synthesis": [
         {
-          "output": "L",
-          "expr": "0.4785*c/f0",
-          "units_out": "m",
-          "notes": "Nominal resonant slot length. Exactly as for a dipole, the resonant length is a few percent below lambda/2 and shortens as the slot widens: 0.49*lambda0 for a very thin slot (L/w > 1000), 0.4785*lambda0 near w/L = 0.05, 0.455*lambda0 for w/L ~ 0.2 (King's dipole resonant-length data, transferred through Babinet with equivalent round-wire radius a = w/4). Accurate to about +/-2% in length, which is +/-2% in f0.",
+          "output": "slot_t",
+          "expr": "log10(4.0/(0.47*w_over_L))",
+          "units_out": "-",
           "depends_on": [
+            "w_over_L"
+          ],
+          "notes": "log10(lambda0/a) of the complementary dipole, a = w/4. The width is taken on a nominal 0.47*lambda0 length rather than on L itself, which would make the definition circular; solving it self-consistently moves L by 0.03% and Rd_res by 0.06%."
+        },
+        {
+          "output": "Rd_res",
+          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "units_out": "ohm",
+          "depends_on": [
+            "slot_t"
+          ],
+          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override."
+        },
+        {
+          "output": "L",
+          "expr": "(-0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411) * c / f0",
+          "units_out": "m",
+          "notes": "Resonant slot length. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Wider slots resonate shorter, exactly as fatter dipoles do.",
+          "depends_on": [
+            "slot_t",
             "f0"
           ]
         },
         {
           "output": "w",
-          "expr": "w_over_L*0.4785*c/f0",
+          "expr": "w_over_L*L",
           "units_out": "m",
           "notes": "Slot gap from the width ratio. w barely affects the pattern; it sets bandwidth and the resonant-length correction.",
           "depends_on": [
             "w_over_L",
-            "f0"
+            "L"
           ]
         },
         {
@@ -100,12 +125,12 @@
         },
         {
           "output": "A_slot",
-          "expr": "0.4785*w_over_L*(c/f0)**2*0.4785",
+          "expr": "L*w",
           "units_out": "m^2",
           "notes": "Physical aperture area L*w. Of no use for directivity (the slot is not an aperture-limited radiator) but needed for mechanical work.",
           "depends_on": [
-            "w_over_L",
-            "f0"
+            "L",
+            "w"
           ]
         }
       ],
@@ -161,7 +186,7 @@
           "metric": "resonant_resistance_ohm",
           "expr": "eta0**2/(4.0*Rd_res)",
           "units_out": "ohm",
-          "notes": "Purely real slot impedance at the length where X = 0 (about 0.4785*lambda0 for w/L = 0.05). With Rd_res = 67 ohm this is 529.6 ohm. The usual engineering shorthand 'a resonant slot is about 500 ohm' comes from here. Ranges 500-530 ohm over any realistic slot width.",
+          "notes": "Purely real slot impedance where X = 0, eta0^2/(4*Rd_res): 467.9 ohm at the default w/L = 0.05 and 481.7 at 0.02. The old flat Rd_res = 67 ohm gave 529.6, about 13% high. The shorthand 'a resonant slot is about 500 ohm' survives; the direction of the error does not - a wider slot has a fatter complement with MORE resistance, so it sits LOWER, not higher.",
           "depends_on": [
             "Rd_res"
           ]
@@ -170,7 +195,7 @@
           "metric": "resonant_resistance_one_sided_ohm",
           "expr": "eta0**2/(2.0*Rd_res)",
           "units_out": "ohm",
-          "notes": "Same slot with one half space closed off (cavity backing or a half-space mount): the radiation conductance halves so the resistance doubles, 1059 ohm. This is why cavity-backed slots are nearly always fed off-centre or through a transformer.",
+          "notes": "Same slot with one half space closed off (cavity backing or a half-space mount): the radiation conductance halves so the resistance doubles, 936 ohm at the default width. This is why cavity-backed slots are nearly always fed off-centre or through a transformer.",
           "depends_on": [
             "Rd_res"
           ]
@@ -248,7 +273,7 @@
         "quoted Z assumes the feed is at the slot CENTRE. Feeding off-centre multiplies the impedance by cos^2(pi*x/L) (see cavity_backed_slot)",
         "wall thickness t must satisfy t << w, otherwise the slot behaves as a short length of below-cutoff waveguide and its resonant length grows",
         "the 78 deg / omnidirectional beamwidths apply to a lambda/2 slot; longer slots break up into multiple lobes exactly as a long dipole does",
-        "OPEN INCONSISTENCY, not yet corrected: by Babinet the slot resonates where its complementary dipole does, and that dipole's radius is w/4 - 0.006 lambda at the default w/L = 0.05. A dipole that fat resonates near 0.464 lambda (resonant_dipole's own fit and the method of moments agree), not the 0.4785 used here, which is a THIN dipole's resonant length. Its resonant resistance is also nearer 74 ohm than the 67 carried in Rd_res, which would put the resonant slot near 480 ohm rather than 530. Correcting it needs the dipole fits extended to fatter wire; tests/test_cross_consistency.py holds it as a strict expected failure until then"
+        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0). Wider slots are extrapolation: their complementary wire is too fat for a delta-gap feed to be solved honestly here, and the reduced-kernel Hallen solution already drifts at 0.05 under a fine mesh"
       ],
       "known_cases": [
         {
@@ -256,12 +281,28 @@
             "f0": 300000000.0
           },
           "expect": {
-            "L_m": 0.478169,
+            "L_m": 0.463467,
             "L_half_wave_m": 0.4996541,
-            "w_m": 0.02390847
+            "w_m": 0.02317335,
+            "Rd_res": 75.7966,
+            "resonant_resistance_ohm": 468.1138,
+            "resonant_resistance_one_sided_ohm": 936.2276
           },
           "tol_pct": 0.5,
-          "source": "L = 0.4785*lambda0 resonant-length rule (King/Balanis dipole resonant lengths carried through Babinet); lambda0 = c/f0 = 0.99930819 m at 300 MHz"
+          "source": "Complementary dipole of radius a = w/4 = 0.00580 lambda0 at the default w/L = 0.05, with the slot length solved self-consistently: resonant_dipole's length law gives 0.46379 lambda0 and its solved resistance 75.80 ohm, so the resonant slot is 468.1 ohm. Exact-kernel MoM and Hallen's equation independently give 0.4645-0.4654 lambda0 and 74.0-75.4 ohm, a 471-479 ohm slot. lambda0 = 0.99930819 m at 300 MHz."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "w_over_L": 0.02
+          },
+          "expect": {
+            "L_m": 0.4705482,
+            "w_m": 0.009410964,
+            "resonant_resistance_ohm": 481.6312
+          },
+          "tol_pct": 0.5,
+          "source": "Narrower slot, thinner complement (a = 0.00235 lambda0): resonant_dipole gives 0.47087 lambda0 and 73.67 ohm, so the slot is LONGER and HIGHER in resistance, 481.6 ohm. Exact-kernel MoM and Hallen give 0.4704-0.4711 lambda0 and 72.2-72.6 ohm."
         },
         {
           "given": {},
@@ -293,7 +334,7 @@
             "resonant_resistance_one_sided_ohm": 1059.15
           },
           "tol_pct": 1.0,
-          "source": "Resonant slot ~500 ohm rule of thumb; Balanis Ch. 12, and the one-sided doubling used in every cavity-backed slot design"
+          "source": "Rd_res supplied, so the derived value is overridden: 67 ohm, the flat figure this spec used to assume, reproduces its old 529.6 ohm and the one-sided doubling used in every cavity-backed slot design"
         },
         {
           "given": {},
@@ -1134,9 +1175,8 @@
           "symbol": "Rd_res",
           "name": "dual dipole resonant resistance",
           "unit": "ohm",
-          "role": "material",
-          "typical": "67.0",
-          "description": "resistance of the complementary dipole at ITS resonance"
+          "role": "derived",
+          "description": "Resistance of the complementary dipole at ITS resonance (X = 0), where the slot is also resonant. DERIVED from the slot width through resonant_dipole's fit (75.8 ohm at the default w/L = 0.05); supply it to override."
         },
         {
           "symbol": "L",
@@ -1149,25 +1189,51 @@
           "name": "slot width",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "slot_t",
+          "name": "complementary thickness parameter",
+          "unit": "-",
+          "role": "derived",
+          "description": "log10(lambda0/a) of the complementary dipole, a = w/4"
         }
       ],
       "synthesis": [
         {
+          "output": "slot_t",
+          "expr": "log10(4.0/(0.47*w_over_L))",
+          "units_out": "-",
+          "depends_on": [
+            "w_over_L"
+          ],
+          "notes": "log10(lambda0/a) of the complementary dipole, a = w/4. The width is taken on a nominal 0.47*lambda0 length rather than on L itself, which would make the definition circular; solving it self-consistently moves L by 0.03% and Rd_res by 0.06%."
+        },
+        {
+          "output": "Rd_res",
+          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "units_out": "ohm",
+          "depends_on": [
+            "slot_t"
+          ],
+          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override."
+        },
+        {
           "output": "L",
-          "expr": "0.4785*c/f0",
+          "expr": "(-0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411) * c / f0",
           "units_out": "m",
           "depends_on": [
+            "slot_t",
             "f0"
           ],
-          "notes": "same resonant length as a plain slot; folding changes the impedance, not the resonance"
+          "notes": "Same resonant length as a plain slot of the same width - folding changes the impedance, not the resonance. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default."
         },
         {
           "output": "w",
-          "expr": "w_over_L*0.4785*c/f0",
+          "expr": "w_over_L*L",
           "units_out": "m",
           "depends_on": [
             "w_over_L",
-            "f0"
+            "L"
           ]
         }
       ],
@@ -1179,7 +1245,7 @@
           "depends_on": [
             "Rd_res"
           ],
-          "notes": "Babinet: Z_slot * Z_dipole = eta0^2/4. A resonant slot in an infinite screen sits near 530 ohm - far too high to feed directly."
+          "notes": "Babinet: Z_slot * Z_dipole = eta0^2/4. A resonant slot in an infinite screen sits near 468 ohm at the default width - far too high to feed directly."
         },
         {
           "metric": "impedance_step_ratio",
@@ -1198,7 +1264,7 @@
             "Rd_res",
             "N"
           ],
-          "notes": "132 ohm for the usual two-slot case, against 530 for a single slot. This is why folded slots and coplanar waveguide go together."
+          "notes": "117 ohm for the usual two-slot case, against 468 for a single slot. This is why folded slots and coplanar waveguide go together."
         },
         {
           "metric": "input_resistance_one_sided_ohm",
@@ -1241,8 +1307,9 @@
       "validity": [
         "infinite, perfectly conducting, zero-thickness screen - the Babinet condition. A real folded slot on a finite substrate reads lower and complex",
         "the N^2 law assumes equal slot widths and close spacing, exactly as the folded dipole's does",
-        "Rd_res is an input: it is the complementary DIPOLE's resistance at its own resonance, so changing it moves every impedance here",
-        "substrate loading shortens the resonant length, which this free-space form does not model"
+        "Rd_res is derived from the slot width through the complementary dipole and can be supplied to override; it moves every impedance here",
+        "substrate loading shortens the resonant length, which this free-space form does not model",
+        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0). Wider slots are extrapolation: their complementary wire is too fat for a delta-gap feed to be solved honestly here, and the reduced-kernel Hallen solution already drifts at 0.05 under a fine mesh"
       ],
       "known_cases": [
         {
@@ -1251,12 +1318,12 @@
             "N": 1
           },
           "expect": {
-            "single_slot_resistance_ohm": 529.572,
-            "input_resistance_ohm": 529.572,
+            "single_slot_resistance_ohm": 468.114,
+            "input_resistance_ohm": 468.114,
             "impedance_step_ratio": 1.0
           },
           "tol_pct": 0.5,
-          "source": "N = 1 must reduce to the plain slot: eta0^2/(4*67) = 529.6 ohm, matching this family's half_wave_slot exactly"
+          "source": "N = 1 must reduce to the plain slot: eta0^2/(4*75.80) = 468.1 ohm at the default w/L = 0.05, matching this family's half_wave_slot exactly"
         },
         {
           "given": {
@@ -1264,11 +1331,11 @@
             "N": 2
           },
           "expect": {
-            "input_resistance_ohm": 132.393,
+            "input_resistance_ohm": 117.028,
             "impedance_step_ratio": 0.25
           },
           "tol_pct": 0.5,
-          "source": "Two slots quarter the impedance: 529.6/4 = 132.4 ohm. The dual of the folded dipole, which QUADRUPLES 73 ohm to 292 - the same factor, the other way up."
+          "source": "Two slots quarter the impedance: 468.1/4 = 117.0 ohm. The dual of the folded dipole, which QUADRUPLES its resistance - the same factor, the other way up."
         },
         {
           "given": {
@@ -1276,10 +1343,22 @@
             "N": 3
           },
           "expect": {
-            "input_resistance_ohm": 58.841
+            "input_resistance_ohm": 52.0126
           },
           "tol_pct": 0.5,
-          "source": "Three slots give 529.6/9 = 58.8 ohm, close to a direct 50 ohm feed"
+          "source": "Three slots give 468.1/9 = 52.0 ohm, close to a direct 50 ohm feed"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "N": 2,
+            "Rd_res": 67.0
+          },
+          "expect": {
+            "input_resistance_ohm": 132.393
+          },
+          "tol_pct": 0.5,
+          "source": "Rd_res supplied overrides the derived value: the old flat 67 ohm gives 529.6/4 = 132.4 ohm, as this spec used to quote"
         }
       ],
       "references": [

@@ -173,8 +173,8 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2000 tests, ~2 min
-python -m pytest -m "not slow"            # the quick loop, ~25 s
+python -m pytest tests/ -q                # 2015 tests, ~2.5 min
+python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
