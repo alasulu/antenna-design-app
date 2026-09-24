@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2225 tests, 646/646 citable
+6,031 lines of Python, 14,835 lines of spec data, 2250 tests, 660/660 citable
 known cases passing.**
 
 ---
@@ -172,6 +172,7 @@ being written into a spec.
 | `pyramidal_horn` | Two apex distances solved so both flares meet a real feed guide at one length (a quartic in √(ρ₁/λ)), with the optimum proportions in axial distances and the exact optimum efficiency | Flare geometry rebuilt from the output meets the guide to 1e-9 m; direct 2-D aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on three guides; root matches bisection on the unsquared condition |
 | `waveguide_longitudinal_slot`, `waveguide_slot_array_resonant` | Stevenson's shunt conductance with the wavelength ratio the right way up, and the array offsets it sets | `otahub/num/waveguide_slot.py` derives g by reciprocity, a half-space radiation integral and power balance, all by quadrature: +0.03% (the rounding of 2.09) from 8.2 to 40 GHz on two guides; twelve slots at the new offset sum to unity by that model |
 | Taylor taper (`otahub.arrays`) | Villeneuve's discrete n̄ distribution by zero placement, replacing a sampled line source that overshot its sidelobe level by up to 2.3 dB | Realised sidelobes by dense array-factor evaluation over 357 designs; nulls land where placed to 1e-12; equals the separate Dolph-Chebyshev implementation past the last zero pair to 1e-12; converges to Taylor's textbook line source (5e-6 at N = 400) |
+| `prime_focus_parabolic` | Taper and spillover efficiency, beamwidth and first sidelobe from the edge taper and f/D (Silver's cos^n feed), replacing four separately asserted numbers | `otahub/num/paraboloid.py` integrates the aperture field directly: efficiencies to 1e-5, beamwidth to 0.03 lambda/D and first sidelobe to 0.1 dB off the fit grid; a cos^2 feed reproduces the classic 0.829 optimum at 66 deg |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -367,6 +368,17 @@ mode's; and the axial-ratio band, 0.347/Q exactly in the two-mode model, was an
 "indicative" figure 29% low. Every one was checked in the cavity model, which
 assumes none of the rules it checks.
 
+### A dish budget that counted spillover twice
+
+`prime_focus_parabolic` asserted illumination efficiency 0.82, spillover 0.85,
+beamwidth 70 lambda/D and first sidelobe -24 dB, separately - though all four
+follow from one feed pattern and f/D. Worse, 0.82 is the classic optimum of the
+PRODUCT of taper and spillover, so multiplying it by 0.85 counted spillover
+twice: 0.74 dB of gain lost at the default design. At f/D = 0.4 and -11 dB edge
+taper Silver's cos^n model gives taper 0.886 and spillover 0.933 (product
+0.827), beamwidth 66.5 lambda/D and first sidelobe -25.2 dB. All four are now
+derived from the edge taper, and a cos^2 feed reproduces the textbook 0.829.
+
 ### A horn that could not be fitted to its waveguide
 
 `pyramidal_horn` produced a1, b1 and one apex distance, and no feed guide at
@@ -543,6 +555,11 @@ known case only checks what it asserts.
    directivity held to 0.04 dB against an exact image solution, but the quoted
    "input resistance" was an induced-EMF figure the feed never sees. That leaves
    `stacked_patch`, which needs a full-wave solve this toolkit does not have.
+   After it, the "indicative" list: `prime_focus_parabolic` was done from it
+   (§5). `offset_parabolic` carries the same 0.82 x 0.85 defaults and should
+   get the same treatment - an offset dish with its feed aimed at the rim
+   centre needs the offset geometry's own edge-taper relation, so it is not a
+   copy. The dual reflectors and the cylindrical dish assert their own pairs.
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.

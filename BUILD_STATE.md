@@ -1849,9 +1849,49 @@ fit, with a new `aw_over_lambda` (default 1e-3); the old figure survives as
 `induced_emf_resistance_ohm`, named for what it is, and still feeds the
 directivity. Known cases come from direct solves, not the fit.
 
+## A dish budget that counted spillover twice
+
+With the coverage ranking run down to archetypes that need a full-wave solver,
+the next source of work was the list of metrics the specs themselves label
+"indicative", read for any the arbiters built since could now derive. The
+prime-focus dish was the most used of them.
+
+Its efficiency budget asserted illumination efficiency 0.82, spillover 0.85,
+a beamwidth of 70 lambda/D and a first sidelobe of -24 dB - four numbers that
+all follow from one feed pattern and one f/D. And the first two did not fit
+together: 0.82 is the textbook optimum of the PRODUCT of taper and spillover
+efficiency for a cos^n feed, so multiplying it by a further 0.85 counted
+spillover twice. At the default design that cost 0.74 dB of gain.
+
+They are now derived, from the edge taper (a new input, default -11 dB) and
+f/D, through Silver's model: a feed with power pattern 2(n+1)cos^n, n set so
+the rim sits at the edge taper including spreading loss. Spillover is exactly
+1 - cos^(n+1) of the rim angle. The taper efficiency is the feed-angle integral
+evaluated in the spec itself, on 4001 points. Beamwidth and first sidelobe are
+fitted to the Hankel transform of the aperture field over edge taper -20..-3 dB
+and f/D 0.3..1.0. At f/D = 0.4 and -11 dB: taper 0.886, spillover 0.933,
+beamwidth 66.5 lambda/D rather than 70, first sidelobe -25.2 dB rather than -24.
+
+The arbiter, `otahub/num/paraboloid.py`, works from the aperture field directly
+and shares no algebra with the feed-angle form; the two agree to five figures,
+and a cos^2 feed reproduces the classic 0.829 at a 66-degree rim angle and
+-10.9 dB. The "-11 dB optimum" holds for f/D 0.4 to 0.6 (best edge taper -10.4
+to -10.9 dB) and moves to about -9 dB at f/D = 0.3.
+
+One measurement bug of my own on the way: the first sidelobe fit would not
+converge below 1.3 dB, because the search window caught the second sidelobe
+once heavy taper had pushed the first below it. Measured properly - the lobe
+between the first and second nulls - it fits to 0.06 dB. Past about -17 dB of
+edge taper the second sidelobe really is the higher one at larger f/D, and the
+spec now says so.
+
+`offset_parabolic` carries the same 0.82 x 0.85 defaults. It needs the offset
+geometry's own edge-taper relation rather than a copy, so it is recorded as the
+next step rather than patched in passing.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2225 tests, 646/646 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2250 tests, 660/660 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

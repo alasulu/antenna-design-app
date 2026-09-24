@@ -35,15 +35,15 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.82"
+          "role": "derived",
+          "description": "Taper (illumination) efficiency. DERIVED from the edge taper and f/D; supply it to override."
         },
         {
           "symbol": "eta_spill",
           "name": "spillover efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.85"
+          "role": "derived",
+          "description": "Spillover efficiency. DERIVED from the edge taper and f/D; supply it to override."
         },
         {
           "symbol": "eta_xpol",
@@ -72,6 +72,39 @@
           "unit": "m",
           "role": "assumption",
           "typical": "0.1"
+        },
+        {
+          "symbol": "edge_taper_db",
+          "name": "edge taper",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-11",
+          "description": "total illumination at the rim relative to the centre, spreading loss included"
+        },
+        {
+          "symbol": "feed_theta0",
+          "name": "feed half-angle",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "feed_n",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived",
+          "description": "n in 2(n+1)cos^n(theta)"
+        },
+        {
+          "symbol": "dish_e",
+          "name": "normalised edge taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dish_q",
+          "name": "normalised D/f",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -82,6 +115,60 @@
           "depends_on": [
             "f_over_D",
             "D"
+          ]
+        },
+        {
+          "output": "feed_theta0",
+          "expr": "2*np.arctan(1/(4*f_over_D))",
+          "units_out": "rad",
+          "depends_on": [
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "feed_n",
+          "expr": "2*(edge_taper_db/20 - log10((1 + cos(feed_theta0))/2))/log10(cos(feed_theta0))",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db",
+            "feed_theta0"
+          ],
+          "notes": "edge taper = cos^(n/2)(theta0) (1 + cos theta0)/2 in amplitude, solved for n"
+        },
+        {
+          "output": "eta_spill",
+          "expr": "1 - cos(feed_theta0)**(feed_n + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "feed_theta0",
+            "feed_n"
+          ],
+          "notes": "the fraction of a 2(n+1)cos^n feed's power the dish intercepts - exact"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "(1/np.tan(feed_theta0/2))**2*2*(feed_n + 1)*np.trapezoid(np.cos(np.linspace(0, feed_theta0, 4001))**(feed_n/2)*np.tan(np.linspace(0, feed_theta0, 4001)/2), np.linspace(0, feed_theta0, 4001))**2/(1 - cos(feed_theta0)**(feed_n + 1))",
+          "units_out": "-",
+          "depends_on": [
+            "feed_theta0",
+            "feed_n"
+          ],
+          "notes": "Taper efficiency: the aperture efficiency cot^2(theta0/2) |int sqrt(G) tan(theta/2) dtheta|^2 divided by the spillover, integrated here on 4001 points. It does not use eta_spill, so overriding one leaves the other derived."
+        },
+        {
+          "output": "dish_e",
+          "expr": "(edge_taper_db + 11.5)/8.5",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db"
+          ]
+        },
+        {
+          "output": "dish_q",
+          "expr": "(1/f_over_D - 2.15)/1.18",
+          "units_out": "-",
+          "depends_on": [
+            "f_over_D"
           ]
         }
       ],
@@ -159,19 +246,25 @@
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D",
+          "expr": "((66.9776682) + (-0.0795703397)*dish_q**1 + (-0.104839967)*dish_q**2 + (-0.0598922481)*dish_q**3 + (-6.72122939)*dish_e**1 + (0.137403579)*dish_e**1*dish_q**1 + (0.191178474)*dish_e**1*dish_q**2 + (0.113349579)*dish_e**1*dish_q**3 + (0.541975994)*dish_e**2 + (-0.0599664534)*dish_e**2*dish_q**1 + (-0.0670295611)*dish_e**2*dish_q**2 + (-0.032942099)*dish_e**2*dish_q**3 + (0.0444787584)*dish_e**3 + (0.00345918812)*dish_e**3*dish_q**1 + (0.0011790638)*dish_e**3*dish_q**2 + (-0.000779706915)*dish_e**3*dish_q**3 + (-0.00758887466)*dish_e**4 + (0.00140272494)*dish_e**4*dish_q**1 + (0.00162782664)*dish_e**4*dish_q**2 + (0.000823296614)*dish_e**4*dish_q**3 + (-0.000654292791)*dish_e**5 + (-0.000137912755)*dish_e**5*dish_q**1 + (-4.90105578e-05)*dish_e**5*dish_q**2 + (2.92586595e-05)*dish_e**5*dish_q**3)*(c/f0)/D",
           "units_out": "deg",
           "depends_on": [
+            "dish_e",
+            "dish_q",
             "f0",
             "D"
           ],
-          "notes": "70*lambda/D is the figure for a roughly -11 dB edge taper. Uniform illumination gives 58*lambda/D, heavy taper up to 80; the coefficient is not universal."
+          "notes": "From the Hankel transform of the aperture field of the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory, fitted over edge taper -20..-3 dB and f/D 0.3..1.0: within 0.02 lambda/D on the grid and on held-out points. 66.5 lambda/D at -11 dB, where the old spec asserted 70; 61 for a -3 dB taper, 74 for -20."
         },
         {
           "metric": "first_sidelobe_db",
-          "expr": "-24.0",
+          "expr": "(-25.7758047) + (0.169584259)*dish_q**1 + (0.195045118)*dish_q**2 + (0.0997646698)*dish_q**3 + (8.61611686)*dish_e**1 + (-0.576379708)*dish_e**1*dish_q**1 + (-0.608198051)*dish_e**1*dish_q**2 + (-0.284310758)*dish_e**1*dish_q**3 + (-2.60904429)*dish_e**2 + (0.309163658)*dish_e**2*dish_q**1 + (0.404672133)*dish_e**2*dish_q**2 + (0.215205272)*dish_e**2*dish_q**3 + (0.913433246)*dish_e**3 + (-0.118466692)*dish_e**3*dish_q**1 + (-0.213099059)*dish_e**3*dish_q**2 + (-0.125325474)*dish_e**3*dish_q**3 + (-1.12236502)*dish_e**4 + (0.66789993)*dish_e**4*dish_q**1 + (0.280903043)*dish_e**4*dish_q**2 + (-0.0651913196)*dish_e**4*dish_q**3 + (0.74769216)*dish_e**5 + (-0.55715996)*dish_e**5*dish_q**1 + (-0.181566253)*dish_e**5*dish_q**2 + (0.0966661017)*dish_e**5*dish_q**3",
           "units_out": "dB",
-          "notes": "Indicative for a -11 dB edge taper. Uniform illumination would give -17.6 dB for a circular aperture; heavier taper pushes past -30 dB."
+          "notes": "The FIRST sidelobe, between the first and second nulls of the same Hankel transform, fitted to 0.06 dB (0.02 on held-out points). -25.2 dB at -11 dB and f/D = 0.4. Past about -17 dB of edge taper the SECOND sidelobe becomes the higher one at larger f/D, so this stops being the peak sidelobe there.",
+          "depends_on": [
+            "dish_e",
+            "dish_q"
+          ]
         },
         {
           "metric": "focal_length_m",
@@ -196,7 +289,8 @@
         "D > 10*lambda for physical-optics aperture theory to hold",
         "the -11 dB edge taper optimum assumes the feed pattern actually achieves it; illumination and spillover efficiency trade directly against each other and only their product is meaningful",
         "efficiency terms are defaults for a competent design, not measurements",
-        "sidelobe figure is indicative, not derived from the illumination function"
+        "eta_ill, eta_spill, hpbw_deg and first_sidelobe_db follow the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory; they hold for edge tapers -20..-3 dB and f/D 0.3..1.0. A real feed with unequal E- and H-plane patterns, a wandering phase centre or high cross-polarisation does worse than this ideal - supply measured efficiencies to override",
+        "at f/D = 0.25 and below the feed looks at or behind the aperture plane and no cos^n pattern reaches a finite edge taper; the derived terms are meaningless there"
       ],
       "known_cases": [
         {
@@ -236,11 +330,10 @@
             "d_blockage": 0.0
           },
           "expect": {
-            "gain_ideal_dbi": 40.4176,
-            "hpbw_deg": 2.09855
+            "gain_ideal_dbi": 40.4176
           },
           "tol_pct": 0.5,
-          "source": "1 m dish at 10 GHz: (pi*D/lambda)^2 = 40.42 dBi at 100% efficiency, HPBW = 70*lambda/D = 2.10 deg. Balanis, Antenna Theory 4th ed., Ch. 15"
+          "source": "1 m dish at 10 GHz: (pi*D/lambda)^2 = 40.42 dBi at 100% efficiency. Balanis, Antenna Theory 4th ed., Ch. 15"
         },
         {
           "given": {
@@ -284,13 +377,71 @@
           },
           "tol_pct": 0.5,
           "source": "A 10% blockage diameter costs (1-0.01)^2 = 0.9801, i.e. 0.087 dB. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "edge_taper_db": -11.0,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.886246,
+            "eta_spill": 0.932688,
+            "hpbw_deg": 1.99518,
+            "first_sidelobe_db": -25.2121,
+            "gain_dbi": 39.404
+          },
+          "tol_pct": 0.3,
+          "source": "f/D = 0.4, -11 dB edge taper: a cos^2.271 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.6,
+            "edge_taper_db": -14.0,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.828543,
+            "eta_spill": 0.961389,
+            "hpbw_deg": 2.06951,
+            "first_sidelobe_db": -28.6674,
+            "gain_dbi": 39.2432
+          },
+          "tol_pct": 0.3,
+          "source": "f/D = 0.6, -14 dB edge taper: a cos^8.277 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.3,
+            "edge_taper_db": -8.0,
+            "eps_rms": 0.0,
+            "d_blockage": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.936846,
+            "eta_spill": 0.917943,
+            "hpbw_deg": 1.92511,
+            "first_sidelobe_db": -22.6277,
+            "gain_dbi": 39.5759
+          },
+          "tol_pct": 0.3,
+          "source": "f/D = 0.3, -8 dB edge taper: a cos^0.460 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 15 (15.4)",
         "Milligan, Modern Antenna Design 2nd ed., Ch. 8",
         "Ruze, Antenna Tolerance Theory, Proc. IEEE 54(4), 1966"
-      ]
+      ],
+      "notes": "ONE FEED PATTERN, NOT FOUR ASSUMPTIONS. Illumination efficiency, spillover, beamwidth and sidelobe level were four separately asserted numbers, but all four follow from one feed pattern and the dish's f/D. They are now derived from the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory. The edge taper - total, including the path-length spreading (1 + cos theta)/2 - fixes n; spillover is 1 - cos^(n+1)(theta0) exactly; the taper efficiency is the aperture efficiency cot^2(theta0/2) |int sqrt(G) tan(theta/2) dtheta|^2 over the spillover; beamwidth and first sidelobe come from the Hankel transform of the aperture field. Two routes - that feed-angle integral and a direct integration over the aperture - agree to five figures, and a cos^2 feed reproduces the classic optimum, 0.829 at theta0 = 66 deg and -10.9 dB edge taper. WHAT WAS WRONG. The old defaults, eta_ill = 0.82 and eta_spill = 0.85, counted spillover twice: 0.82 is the classic optimum of the PRODUCT of taper and spillover. At f/D = 0.4 and -11 dB the model splits it 0.886 x 0.933 = 0.827, against the old 0.697 - 0.74 dB of gain the old budget lost. The beamwidth coefficient there is 66.5 lambda/D, not 70, and the first sidelobe -25.2 dB, not an indicative -24. The -11 dB optimum holds for f/D from 0.4 to 0.6 (the best edge taper runs -10.4 to -10.9 dB) and moves to about -9 dB at f/D = 0.3."
     },
     {
       "key": "cassegrain",
