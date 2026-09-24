@@ -55,7 +55,8 @@ from ..core.constants import ETA0
 
 __all__ = [
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
-    "folded_dipole_wire", "helix_over_ground",
+    "folded_dipole_wire", "helix_over_ground", "lpda_model",
+    "tl_admittance", "NetworkSolution", "solve_network",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
 ]
 
@@ -546,3 +547,107 @@ def helix_over_ground(circumference: float = 1.0, pitch_deg: float = 13.0,
     idx = int(np.argmin(np.abs(nodes[:, 2]) + 10.0 * np.abs(nodes[:, 0] - R)
                         + 10.0 * np.abs(nodes[:, 1])))
     return model, idx
+
+
+# ------------------------------------------------------- feed networks
+#
+# A non-radiating network - a feeder line, a phasing section, a matching
+# stub - coupled to the wires in admittance form, which is how NEC's TL cards
+# work. With delta-gap voltages V at the port basis functions the antenna's
+# port currents are Y_ant V, Y_ant = (Z^-1)[ports, ports]; the network adds its
+# own admittance over the same nodes plus any internal ones (a generator node
+# that is not on a wire, say); and Kirchhoff's current law at every node gives
+# (Y_net + Y_ant) V = J for injected source currents J.
+#
+# Checked three ways before use: a dipole behind a length of line reproduces
+# the textbook impedance transformation to machine precision; two dipoles tied
+# in parallel through a stiff network match the plain solver driving both gaps
+# at once; and a lossless feeder delivers exactly the power the pattern
+# integral says is radiated.
+
+
+def tl_admittance(z0: float, electrical_length: float,
+                  transposed: bool = False) -> np.ndarray:
+    """2x2 admittance of a lossless line, electrical length beta*l in radians.
+
+    `transposed` reverses the second port - the crisscross an LPDA's feeder
+    makes between neighbouring elements, without which the array fires
+    backwards.
+    """
+    s = 1.0 / (1j * z0 * math.sin(electrical_length))
+    y12 = -s if not transposed else s
+    return np.array([[math.cos(electrical_length) * s, y12],
+                     [y12, math.cos(electrical_length) * s]], dtype=complex)
+
+
+@dataclass(frozen=True)
+class NetworkSolution:
+    solution: MoMSolution
+    node_voltages: np.ndarray
+    source: int
+
+    @property
+    def input_impedance(self) -> complex:
+        """Voltage at the source node for the unit injected current."""
+        return complex(self.node_voltages[self.source])
+
+    @property
+    def generator_power(self) -> float:
+        return 0.5 * self.input_impedance.real
+
+
+def solve_network(model: WireModel, ports: list[int], y_net: np.ndarray,
+                  source: int) -> NetworkSolution:
+    """Drive the network with 1 A injected at node `source`.
+
+    Network nodes 0 .. len(ports)-1 are the antenna ports, in the order given;
+    any further rows of `y_net` are internal nodes. The returned solution's
+    wire currents give patterns and radiated power exactly as a plain solve's
+    do.
+    """
+    P = len(ports)
+    n = y_net.shape[0]
+    if n < P or y_net.shape != (n, n):
+        raise ValueError("y_net must be square and cover every port")
+    Z = impedance_matrix(model)
+    E = np.zeros((model.n_basis, P), dtype=complex)
+    for k, m in enumerate(ports):
+        E[m, k] = 1.0
+    X = np.linalg.solve(Z, E)
+    Y = np.array(y_net, dtype=complex)
+    Y[:P, :P] += X[ports, :]
+    J = np.zeros(n, dtype=complex)
+    J[source] = 1.0
+    V = np.linalg.solve(Y, J)
+    return NetworkSolution(MoMSolution(model, X @ V[:P], ports[0]), V, source)
+
+
+def lpda_model(tau: float, sigma: float, longest: float, elements: int,
+               length_over_diameter: float = 125.0, feeder_z0: float = 100.0,
+               transposed: bool = True, seg_per_lambda: int = 24):
+    """Log-periodic dipole array on Carrel's apex geometry, in wavelengths.
+
+    Returns (model, ports, y_net, source). Elements are z-directed, element 0 is
+    the LONGEST, the apex is at the origin and the array fires towards it
+    (-x). Each element's radius scales with its length, so the structure is
+    truly log-periodic; the feeder is a line of the physical spacing between
+    neighbours, transposed; the generator is at the shortest element.
+    """
+    tan_a = (1.0 - tau) / (4.0 * sigma)
+    lengths = [longest * tau ** k for k in range(elements)]
+    wires, ports, base = [], [], 0
+    for L in lengths:
+        nseg = max(8, int(math.ceil(seg_per_lambda * L)))
+        nseg += nseg % 2
+        z = np.linspace(-0.5 * L, 0.5 * L, nseg + 1)
+        nodes = np.stack([np.full_like(z, L / (2.0 * tan_a)), np.zeros_like(z), z],
+                         axis=1)
+        wires.append(Wire(nodes, L / (2.0 * length_over_diameter)))
+        ports.append(base + nseg // 2 - 1)
+        base += nseg - 1
+    y = np.zeros((elements, elements), dtype=complex)
+    for k in range(elements - 1):
+        d = lengths[k] * (1.0 - tau) / (2.0 * tan_a)
+        idx = [k, k + 1]
+        y[np.ix_(idx, idx)] += tl_admittance(feeder_z0, 2.0 * math.pi * d, transposed)
+    return WireModel(wires), ports, y, elements - 1

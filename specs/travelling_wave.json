@@ -1463,6 +1463,22 @@
           "name": "element count",
           "unit": "-",
           "role": "geometry"
+        },
+        {
+          "symbol": "feeder_z0",
+          "name": "feeder characteristic impedance",
+          "unit": "ohm",
+          "role": "assumption",
+          "typical": "100",
+          "description": "the transposed line joining the elements; it sets the input impedance"
+        },
+        {
+          "symbol": "length_over_diameter",
+          "name": "element length-to-diameter ratio",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "125",
+          "description": "held constant along the array so the structure is truly log-periodic"
         }
       ],
       "synthesis": [
@@ -1532,7 +1548,7 @@
           "depends_on": [
             "tau"
           ],
-          "notes": "APPROXIMATE linear reading of the Carrel directivity chart over 0.8 < tau < 0.95, where D runs from about 7.5 to 10.5 dBi. The real chart is two-dimensional in (tau, sigma); this collapses it along the optimum-sigma line. Expect 1 dB error."
+          "notes": "Linear reading of the Carrel directivity chart along the optimum-sigma line, 0.8 < tau < 0.95. It HOLDS: against the full-wave log-period mean it is within 0.6 dB at every tau, -0.55 to +0.57 dB. What a single number hides is the periodic ripple - the directivity repeats with period tau in frequency and swings 2.0 dB peak-to-peak at tau = 0.8, 0.7 at 0.9 and 0.2 at 0.95; the tables field carries the solved mean, minimum and maximum. Checked against a full-wave solve: method of moments on every element with the feeder as a transmission-line network (otahub.num.mom.lpda_model, solve_network), averaged over one full log-period in frequency with the active region held seven elements from the back and twelve from the front. The feeder coupling is itself checked three ways, including power conservation through the lossless feeder to 1e-4."
         },
         {
           "metric": "shortest_element_m",
@@ -1552,13 +1568,55 @@
             "tau"
           ],
           "notes": "from the apex geometry: the boom spans the two extreme element half-lengths"
+        },
+        {
+          "metric": "element_impedance_za_ohm",
+          "expr": "120*(log(length_over_diameter) - 2.25)",
+          "units_out": "ohm",
+          "depends_on": [
+            "length_over_diameter"
+          ],
+          "notes": "Average characteristic impedance of a dipole of the given length-to-diameter ratio, the element term in the design relation."
+        },
+        {
+          "metric": "sigma_mean",
+          "expr": "sigma/sqrt(tau)",
+          "units_out": "-",
+          "depends_on": [
+            "sigma",
+            "tau"
+          ],
+          "notes": "Mean spacing factor, sigma' = sigma/sqrt(tau)."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "feeder_z0/sqrt(1 + feeder_z0/(4*sigma_mean*element_impedance_za_ohm))",
+          "units_out": "ohm",
+          "depends_on": [
+            "feeder_z0",
+            "sigma_mean",
+            "element_impedance_za_ohm"
+          ],
+          "notes": "R = Z0/sqrt(1 + Z0/(4 sigma' Za)), the standard design relation, and the metric this spec was missing entirely: choosing the feeder is how an LPDA is matched. Against the full-wave solve it is -6% to +11% over feeders of 50 to 200 ohm and element ratios of 60 to 250, reading a few percent low except on the stiffest 50 ohm feeder. The solved input is nearly real: reactance stays within 18 ohm across a period, a small fraction of the resistance. Checked against a full-wave solve: method of moments on every element with the feeder as a transmission-line network (otahub.num.mom.lpda_model, solve_network), averaged over one full log-period in frequency with the active region held seven elements from the back and twelve from the front. The feeder coupling is itself checked three ways, including power conservation through the lossless feeder to 1e-4."
+        },
+        {
+          "metric": "feeder_z0_for_50_ohm",
+          "expr": "50.0**2/(8*sigma_mean*element_impedance_za_ohm) + 50.0*sqrt((50.0/(8*sigma_mean*element_impedance_za_ohm))**2 + 1)",
+          "units_out": "ohm",
+          "depends_on": [
+            "sigma_mean",
+            "element_impedance_za_ohm"
+          ],
+          "notes": "The same relation solved for the feeder that gives a 50 ohm input."
         }
       ],
       "validity": [
         "0.8 < tau < 0.95; below 0.8 the gain collapses, above 0.95 the array grows impractically long for marginal gain",
         "assumes optimum sigma; a design off that line has lower directivity than the chart value",
-        "directivity expression is a 1-D reading of a 2-D chart - expect about 1 dB error",
-        "requires a proper feeder transposition between adjacent elements; without the 180 degree phase reversal the array fires backwards"
+        "directivity is a log-period mean; the real antenna ripples about it by up to 2 dB peak-to-peak at tau = 0.8, far less at high tau",
+        "the tau = 0.95 value is the least converged: a high-tau array has a wide active region, and enlarging the solved structure moved it 0.6 dB",
+        "requires the feeder to be transposed between adjacent elements. Without the reversal the array does NOT reliably fire backwards, as this spec used to say: it loses its front-to-back ratio altogether - within a few dB either way - and its input impedance swings tenfold inside one period. It stops being frequency-independent, which is the point of the design",
+        "input resistance depends on the feeder and element thickness; the design relation is within about 10% of a full-wave solve"
       ],
       "known_cases": [
         {
@@ -1588,13 +1646,115 @@
           },
           "tol_pct": 2.0,
           "source": "A decade of bandwidth with the 1.3 active-region allowance needs 1 + ceil(ln(13)/ln(1/0.9)) = 26 elements."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "f_high": 1000000000.0,
+            "tau": 0.9,
+            "feeder_z0": 100.0,
+            "length_over_diameter": 125.0
+          },
+          "expect": {
+            "input_resistance_ohm": 82.8429,
+            "feeder_z0_for_50_ohm": 56.0392
+          },
+          "tol_pct": 0.5,
+          "source": "R = Z0/sqrt(1 + Z0/(4 sigma' Za)) with sigma' = 0.1677/sqrt(0.9) and Za = 120(ln 125 - 2.25) = 309.4 ohm gives 82.8 ohm on a 100 ohm feeder. The full-wave solve, averaged over a log-period, gives 85.9 ohm. Inverting the same relation, a 50 ohm input needs a 56.0 ohm feeder."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "f_high": 1000000000.0,
+            "tau": 0.9,
+            "feeder_z0": 50.0,
+            "length_over_diameter": 125.0
+          },
+          "expect": {
+            "input_resistance_ohm": 45.1101,
+            "feeder_z0_for_50_ohm": 56.0392
+          },
+          "tol_pct": 0.5,
+          "source": "R = Z0/sqrt(1 + Z0/(4 sigma' Za)) with sigma' = 0.1677/sqrt(0.9) and Za = 120(ln 125 - 2.25) = 309.4 ohm gives 45.1 ohm on a 50 ohm feeder. The full-wave solve, averaged over a log-period, gives 40.6 ohm. Inverting the same relation, a 50 ohm input needs a 56.0 ohm feeder."
         }
       ],
       "references": [
         "Carrel, The Design of Log-Periodic Dipole Antennas, IRE Int. Conv. Rec., 1961",
-        "Balanis, Antenna Theory 4th ed., Ch. 10 (11.5)"
+        "Balanis, Antenna Theory 4th ed., Ch. 10 (11.5)",
+        "Directivity, its periodic ripple and the input resistance checked here by method of moments with the feeder modelled as a transposed transmission line"
       ],
-      "confidence": "normal"
+      "confidence": "normal",
+      "tables": {
+        "mom_directivity": {
+          "columns": [
+            "tau",
+            "sigma",
+            "d_mean_dbi",
+            "d_min_dbi",
+            "d_max_dbi",
+            "front_to_back_min_db",
+            "input_resistance_mean_ohm"
+          ],
+          "rows": [
+            [
+              0.8,
+              0.1434,
+              6.93,
+              5.91,
+              7.93,
+              15.8,
+              84.5
+            ],
+            [
+              0.85,
+              0.1555,
+              8.05,
+              7.2,
+              8.5,
+              18.0,
+              84.8
+            ],
+            [
+              0.875,
+              0.1616,
+              8.91,
+              8.51,
+              9.25,
+              19.0,
+              86.6
+            ],
+            [
+              0.9,
+              0.1677,
+              9.32,
+              9.05,
+              9.74,
+              22.9,
+              85.9
+            ],
+            [
+              0.925,
+              0.1738,
+              9.84,
+              9.51,
+              10.23,
+              19.2,
+              87.2
+            ],
+            [
+              0.95,
+              0.1798,
+              11.05,
+              10.94,
+              11.15,
+              30.0,
+              86.9
+            ]
+          ],
+          "source": "Method of moments with a transposed 100 ohm feeder, L/d = 125, one full log-period sampled at six frequencies",
+          "note": "The ripple is the part the fitted directivity cannot show."
+        }
+      }
     },
     {
       "key": "yagi_uda",

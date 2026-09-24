@@ -1276,9 +1276,66 @@ Wire size matters more than expected: about 1 dB lower at a = 0.002 lambda and
 0.8 dB higher at 0.01, at ten turns, by moving the phase velocity. The fit is at
 0.005 lambda and the validity block says so.
 
+## Feed networks, and an LPDA whose number held up
+
+The LPDA was left over from the helix round: its directivity is a reading of
+Carrel's 1961 chart, a chart the literature has long called optimistic, and it
+could not be checked because the solver had no way to model the feeder line
+joining the elements. That is now in `mom.py`: a non-radiating network coupled
+to the wires in admittance form, the way NEC's TL cards work. At every port the
+antenna draws Y_ant V, with Y_ant taken from the inverse impedance matrix; the
+network adds its own admittance; Kirchhoff's current law closes the system.
+
+Three checks licensed it before it touched an LPDA, each against something that
+shares no code with the coupling:
+
+- a dipole behind a length of line reproduces the textbook impedance
+  transformation to machine precision;
+- two dipoles tied in parallel through a stiff network match the plain solver
+  driving both gaps at once, to 1e-6;
+- a lossless feeder delivers exactly the power the pattern integral says is
+  radiated, to 1e-5 - which would fail at once if the coupling were wrong.
+
+Then the LPDA, with every element solved and the feeder as a transposed line.
+An LPDA repeats in frequency with period tau, so a single frequency samples one
+phase of a ripple; each tau was scanned over a full period, with the active
+region held seven elements from the back and twelve from the front.
+
+**The spec's number held.** I went in expecting Carrel's reported optimism and
+did not find it: along the optimum-sigma line the spec's reading is within
+0.6 dB of the solved log-period mean at every tau, from 0.57 dB high at 0.8 to
+0.55 dB low at 0.95. Like the quad loop's 3.3 dBi, it is worth recording
+plainly that a number was right. What the single number hides is the ripple -
+2.0 dB peak-to-peak at tau = 0.8, 0.7 at 0.9 - so the solved mean, minimum and
+maximum now ship as a table.
+
+**What the spec was missing entirely** was the input resistance, and with it
+the feeder impedance, which is how an LPDA is matched. Directivity also moves
+with the feeder - 0.7 dB between 100 and 200 ohm, 0.9 dB across 50 to 200 - so
+it was never really a function of tau alone. The standard relation R = Z0/sqrt(1 + Z0/(4 sigma' Za))
+is added, with its inverse for the feeder that gives 50 ohm, and checked
+against the solver: -6% to +11% over feeders of 50 to 200 ohm and element
+ratios of 60 to 250.
+
+**One claim in the spec was wrong.** Its validity said that without the feeder
+transposition "the array fires backwards". Solved over a full period, it does
+not do that reliably. It loses its front-to-back ratio altogether - within a
+few dB either way - and its input impedance swings tenfold inside one period,
+37 to 479 ohm at tau = 0.9, against 12 to 33 dB front-to-back and 72 to 99 ohm
+when transposed. So the transposition is what makes it frequency-independent,
+which is the whole point of the design. The test I first wrote asserted the
+spec's version, and failed; it now asserts what the solver shows, as the spec
+does.
+
+Two claims of my own were checked against the data before they went in, as
+has become routine: "reactance under about 15 ohm" was 17.5 at worst, and is
+quoted as that. The tau = 0.95 point is the least converged - a high-tau array
+has a wide active region, and enlarging the solved structure moved it 0.6 dB -
+and the validity block says so.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 1916 tests, 538/538 known cases.
+S1-S5 done. 72 archetypes, 10 families, 1929 tests, 542/542 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
