@@ -1289,15 +1289,15 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.82"
+          "role": "derived",
+          "description": "Taper efficiency. DERIVED from the feed taper and geometry; supply it to override."
         },
         {
           "symbol": "eta_spill",
           "name": "spillover efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.85"
+          "role": "derived",
+          "description": "Spillover efficiency. DERIVED from the feed taper and geometry; supply it to override."
         },
         {
           "symbol": "eps_rms",
@@ -1317,6 +1317,44 @@
           "name": "offset height",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "feed_taper_db",
+          "name": "feed taper at the rim",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-10",
+          "description": "the feed pattern's own level at the rim cone, relative to its axis. Unlike the prime-focus dish's edge taper this excludes spreading loss, which differs between the upper and lower rim"
+        },
+        {
+          "symbol": "theta_star",
+          "name": "rim half-angle",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "feed_n",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "off_e",
+          "name": "normalised feed taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "off_q",
+          "name": "normalised D/F",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "off_g",
+          "name": "normalised offset",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1337,6 +1375,70 @@
             "h0_over_D",
             "D"
           ]
+        },
+        {
+          "output": "theta_star",
+          "expr": "0.5*(2*atan((h0 + D/2)/(2*F)) - 2*atan((h0 - D/2)/(2*F)))",
+          "units_out": "rad",
+          "depends_on": [
+            "h0",
+            "D",
+            "F"
+          ]
+        },
+        {
+          "output": "feed_n",
+          "expr": "2*feed_taper_db/(20*log10(cos(theta_star)))",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db",
+            "theta_star"
+          ]
+        },
+        {
+          "output": "eta_spill",
+          "expr": "1 - cos(theta_star)**(feed_n + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "theta_star",
+            "feed_n"
+          ],
+          "notes": "exact: the rim is a circular cone of half-angle theta* about the feed axis"
+        },
+        {
+          "output": "off_e",
+          "expr": "(feed_taper_db + 11.5)/8.5",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db"
+          ]
+        },
+        {
+          "output": "off_q",
+          "expr": "(1/f_over_D_parent - 2.15)/1.18",
+          "units_out": "-",
+          "depends_on": [
+            "f_over_D_parent"
+          ]
+        },
+        {
+          "output": "off_g",
+          "expr": "(h0_over_D - 0.875)/0.325",
+          "units_out": "-",
+          "depends_on": [
+            "h0_over_D"
+          ]
+        },
+        {
+          "output": "eta_ill",
+          "expr": "(0.797432642) + (-0.00174106999)*off_g**1 + (0.00757969522)*off_g**2 + (-0.0765148417)*off_q**1 + (0.012326939)*off_q**1*off_g**1 + (0.0101572313)*off_q**1*off_g**2 + (-0.00405298892)*off_q**2 + (0.0113994557)*off_q**2*off_g**1 + (-8.56009168e-05)*off_q**2*off_g**2 + (0.0080910714)*off_q**3 + (-0.000593349557)*off_q**3*off_g**1 + (-0.002828898)*off_q**3*off_g**2 + (0.155452052)*off_e**1 + (-0.00234162179)*off_e**1*off_g**1 + (0.000895496618)*off_e**1*off_g**2 + (-0.00490359772)*off_e**1*off_q**1 + (-0.000547712235)*off_e**1*off_q**1*off_g**1 + (0.00131025883)*off_e**1*off_q**1*off_g**2 + (-0.00177054202)*off_e**1*off_q**2 + (0.0015016685)*off_e**1*off_q**2*off_g**1 + (1.22169225e-05)*off_e**1*off_q**2*off_g**2 + (0.00092773582)*off_e**1*off_q**3 + (0.00024724947)*off_e**1*off_q**3*off_g**1 + (-0.000393637507)*off_e**1*off_q**3*off_g**2 + (-0.0156407918)*off_e**2 + (-0.00232043164)*off_e**2*off_g**1 + (0.000209123851)*off_e**2*off_g**2 + (0.00472093716)*off_e**2*off_q**1 + (-0.00269678857)*off_e**2*off_q**1*off_g**1 + (0.000567110619)*off_e**2*off_q**1*off_g**2 + (-0.000885687477)*off_e**2*off_q**2 + (-0.000292804225)*off_e**2*off_q**2*off_g**1 + (0.000281281673)*off_e**2*off_q**2*off_g**2 + (-0.00016527505)*off_e**2*off_q**3 + (0.000336531542)*off_e**2*off_q**3*off_g**1 + (-6.10152043e-05)*off_e**2*off_q**3*off_g**2 + (-0.0148797358)*off_e**3 + (-0.000322224403)*off_e**3*off_g**1 + (5.6299971e-06)*off_e**3*off_g**2 + (0.00133475106)*off_e**3*off_q**1 + (-0.00058667479)*off_e**3*off_q**1*off_g**1 + (8.64968842e-05)*off_e**3*off_q**1*off_g**2 + (-3.77376601e-05)*off_e**3*off_q**2 + (-0.000208017247)*off_e**3*off_q**2*off_g**1 + (9.51422497e-05)*off_e**3*off_q**2*off_g**2 + (-0.000119078388)*off_e**3*off_q**3 + (6.25552979e-05)*off_e**3*off_q**3*off_g**1 + (1.4882862e-05)*off_e**3*off_q**3*off_g**2 + (-0.00199127828)*off_e**4 + (0.00021406231)*off_e**4*off_g**1 + (-3.93015445e-05)*off_e**4*off_g**2 + (-0.000103529441)*off_e**4*off_q**1 + (0.000164568266)*off_e**4*off_q**1*off_g**1 + (-6.68240391e-05)*off_e**4*off_q**1*off_g**2 + (0.000105981258)*off_e**4*off_q**2 + (-3.86214869e-05)*off_e**4*off_q**2*off_g**1 + (-8.82216482e-06)*off_e**4*off_q**2*off_g**2 + (-2.65487383e-05)*off_e**4*off_q**3 + (-2.39414625e-05)*off_e**4*off_q**3*off_g**1 + (1.71175607e-05)*off_e**4*off_q**3*off_g**2",
+          "units_out": "-",
+          "depends_on": [
+            "off_e",
+            "off_q",
+            "off_g"
+          ],
+          "notes": "Taper efficiency from a 2-D integration of cos^(n/2)(psi)/r over the projected aperture, fitted over feed taper -20..-3 dB, parent f/D 0.3..1.0 and h0/D 0.55..1.2 (864 points): within 0.003 on the grid and 0.0013 on points it never saw."
         }
       ],
       "analysis": [
@@ -1437,25 +1539,43 @@
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D",
+          "expr": "((68.7892805) + (-0.216300996)*off_g**1 + (-0.0871224395)*off_g**2 + (1.53657034)*off_q**1 + (-0.473430203)*off_q**1*off_g**1 + (-0.0904906987)*off_q**1*off_g**2 + (0.0448648678)*off_q**2 + (-0.240924744)*off_q**2*off_g**1 + (0.0404597043)*off_q**2*off_g**2 + (-0.125722453)*off_q**3 + (0.0159490177)*off_q**3*off_g**1 + (0.0483551514)*off_q**3*off_g**2 + (-7.28289307)*off_e**1 + (-0.0103745553)*off_e**1*off_g**1 + (0.0570488365)*off_e**1*off_g**2 + (-0.519356078)*off_e**1*off_q**1 + (0.0793689569)*off_e**1*off_q**1*off_g**1 + (0.085455916)*off_e**1*off_q**1*off_g**2 + (-0.0546779411)*off_e**1*off_q**2 + (0.085683655)*off_e**1*off_q**2*off_g**1 + (0.00771166318)*off_e**1*off_q**2*off_g**2 + (0.0485007449)*off_e**1*off_q**3 + (0.00731346688)*off_e**1*off_q**3*off_g**1 + (-0.0224618689)*off_e**1*off_q**3*off_g**2 + (0.631364062)*off_e**2 + (0.0268549896)*off_e**2*off_g**1 + (-0.0177816791)*off_e**2*off_g**2 + (0.0935377241)*off_e**2*off_q**1 + (0.0114524753)*off_e**2*off_q**1*off_g**1 + (-0.0314330012)*off_e**2*off_q**1*off_g**2 + (0.0222196487)*off_e**2*off_q**2 + (-0.0150135478)*off_e**2*off_q**2*off_g**1 + (-0.00932718816)*off_e**2*off_q**2*off_g**2 + (-0.00963397296)*off_e**2*off_q**3 + (-0.00497263643)*off_e**2*off_q**3*off_g**1 + (0.00468603872)*off_e**2*off_q**3*off_g**2 + (0.0439883775)*off_e**3 + (-0.00272396941)*off_e**3*off_g**1 + (0.000787259597)*off_e**3*off_g**2 + (-0.00110017276)*off_e**3*off_q**1 + (-0.00290951863)*off_e**3*off_q**1*off_g**1 + (0.00186291282)*off_e**3*off_q**1*off_g**2 + (-0.00176838503)*off_e**3*off_q**2 + (-0.000105139718)*off_e**3*off_q**2*off_g**1 + (0.00118759675)*off_e**3*off_q**2*off_g**2 + (-1.80324402e-05)*off_e**3*off_q**3 + (0.000444326927)*off_e**3*off_q**3*off_g**1 + (0.000108329937)*off_e**3*off_q**3*off_g**2 + (-0.00960795094)*off_e**4 + (-0.000599051405)*off_e**4*off_g**1 + (0.000415511588)*off_e**4*off_g**2 + (-0.00210746485)*off_e**4*off_q**1 + (-0.000228512681)*off_e**4*off_q**1*off_g**1 + (0.00072271485)*off_e**4*off_q**1*off_g**2 + (-0.000486486308)*off_e**4*off_q**2 + (0.000368536271)*off_e**4*off_q**2*off_g**1 + (0.000186729831)*off_e**4*off_q**2*off_g**2 + (0.000233458544)*off_e**4*off_q**3 + (0.000118467661)*off_e**4*off_q**3*off_g**1 + (-0.000129837089)*off_e**4*off_q**3*off_g**2)*(c/f0)/D",
           "units_out": "deg",
           "depends_on": [
+            "off_e",
+            "off_q",
+            "off_g",
             "f0",
             "D"
-          ]
+          ],
+          "notes": "Mean of the two principal planes, from the 2-D Fourier transform of the aperture field and fitted to 0.09 lambda/D (0.03 on held-out points); the planes differ by under 2%. 67.4 lambda/D at the default design, not the asserted 70."
+        },
+        {
+          "metric": "taper_penalty_vs_symmetric_db",
+          "expr": "db10(eta_ill/((1/np.tan(theta_star/2))**2*2*(feed_n + 1)*np.trapezoid(np.cos(np.linspace(0, theta_star, 4001))**(feed_n/2)*np.tan(np.linspace(0, theta_star, 4001)/2), np.linspace(0, theta_star, 4001))**2/(1 - cos(theta_star)**(feed_n + 1))))",
+          "units_out": "dB",
+          "depends_on": [
+            "eta_ill",
+            "theta_star",
+            "feed_n"
+          ],
+          "notes": "Taper efficiency against a SYMMETRIC dish with the same feed and rim angle - the cost of the tilted illumination. Negative."
         },
         {
           "metric": "gain_advantage_over_prime_focus_db",
-          "expr": "db10(1/(1 - (0.1)**2)**2)",
+          "expr": "taper_penalty_vs_symmetric_db + db10(1/(1 - (0.1)**2)**2)",
           "units_out": "dB",
-          "notes": "What removing a typical 0.1*D blockage is worth: about 0.09 dB of aperture efficiency. The real prize is sidelobe and noise performance, not gain."
+          "notes": "Against a prime-focus dish with the same feed and rim angle and a 0.1 D blockage: the 0.09 dB of blockage recovered, less the taper penalty. Negative at short and moderate focal lengths - -0.11 dB at the default design, down to -0.75 dB at parent f/D = 0.3 - about even at 0.7-0.8, and at most +0.07 dB for long, gently offset dishes. The offset buys sidelobes and noise temperature, not gain.",
+          "depends_on": [
+            "taper_penalty_vs_symmetric_db"
+          ]
         }
       ],
       "validity": [
         "h0 > D/2, or there is no clearance and the geometry is not actually offset",
         "a linearly polarised feed on an offset reflector generates two cross-polar lobes in the plane of asymmetry; this spec does not quantify them. A circularly polarised feed avoids the cross-pol but squints the beam instead",
-        "efficiencies are inputs, not predictions - illumination and spillover trade against each other through the feed taper",
-        "ray optics: D must be many wavelengths"
+        "ray optics: D must be many wavelengths",
+        "eta_ill, eta_spill and hpbw_deg follow a rotationally symmetric cos^n feed aimed along the rim-cone axis, scalar aperture theory; they hold for feed taper -20..-3 dB, parent f/D 0.3..1.0 and h0/D 0.55..1.2. Depolarisation of a linear feed is not in them - supply measured efficiencies to override"
       ],
       "known_cases": [
         {
@@ -1485,18 +1605,123 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "eta_blockage": 1.0,
-            "gain_dbi": 40.4225
+            "eta_blockage": 1.0
           },
           "tol_pct": 0.5,
-          "source": "1 m at 12 GHz (lambda = 24.983 mm), 0.697 aperture efficiency: G = 0.697*(pi*1/0.024983)^2 = 11022 = 40.42 dBi. Blockage efficiency is exactly 1 by construction."
+          "source": "Blockage efficiency is exactly 1 by construction: the feed sits below the lower rim, out of the reflected beam."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.5,
+            "h0_over_D": 0.6,
+            "feed_taper_db": -10.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.841697,
+            "eta_spill": 0.925704,
+            "hpbw_deg": 1.68463,
+            "gain_dbi": 40.9065
+          },
+          "tol_pct": 1.0,
+          "source": "Parent f/D 0.5, h0/D 0.6, -10 dB feed taper (cos^7.750): taper efficiency and both beamwidths by 2-D integration over the projected aperture (otahub.num.paraboloid), spillover and the symmetric comparison by quadrature of the feed-angle integrals - not the spec's fits."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.5,
+            "h0_over_D": 0.6,
+            "feed_taper_db": -10.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "taper_penalty_vs_symmetric_db": -0.200464,
+            "gain_advantage_over_prime_focus_db": -0.113168
+          },
+          "tol_pct": 1.0,
+          "tol_abs": 0.01,
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.4,
+            "h0_over_D": 0.8,
+            "feed_taper_db": -12.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.764852,
+            "eta_spill": 0.950169,
+            "hpbw_deg": 1.74317,
+            "gain_dbi": 40.604
+          },
+          "tol_pct": 1.0,
+          "source": "Parent f/D 0.4, h0/D 0.8, -12 dB feed taper (cos^11.707): taper efficiency and both beamwidths by 2-D integration over the projected aperture (otahub.num.paraboloid), spillover and the symmetric comparison by quadrature of the feed-angle integrals - not the spec's fits."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.4,
+            "h0_over_D": 0.8,
+            "feed_taper_db": -12.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "taper_penalty_vs_symmetric_db": -0.44964,
+            "gain_advantage_over_prime_focus_db": -0.362344
+          },
+          "tol_pct": 1.0,
+          "tol_abs": 0.01,
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.7,
+            "h0_over_D": 1.0,
+            "feed_taper_db": -8.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.89975,
+            "eta_spill": 0.85919,
+            "hpbw_deg": 1.62631,
+            "gain_dbi": 40.8723
+          },
+          "tol_pct": 1.0,
+          "source": "Parent f/D 0.7, h0/D 1.0, -8 dB feed taper (cos^15.574): taper efficiency and both beamwidths by 2-D integration over the projected aperture (otahub.num.paraboloid), spillover and the symmetric comparison by quadrature of the feed-angle integrals - not the spec's fits."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.7,
+            "h0_over_D": 1.0,
+            "feed_taper_db": -8.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "taper_penalty_vs_symmetric_db": -0.130516,
+            "gain_advantage_over_prime_focus_db": -0.0432203
+          },
+          "tol_pct": 1.0,
+          "tol_abs": 0.01,
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         }
       ],
       "references": [
         "Milligan, Modern Antenna Design 2nd ed., Ch. 8.5 (offset reflectors)",
         "Rusch & Potter, Analysis of Reflector Antennas, Academic Press 1970",
         "Chu & Turrin, Depolarization properties of offset reflector antennas, IEEE T-AP 21(3), 1973"
-      ]
+      ],
+      "notes": "FROM THE FEED, AS FOR THE PRIME-FOCUS DISH. Seen from the focus, the rim of an offset paraboloid is a circular cone about the bisector of the upper and lower rim angles - checked numerically, not assumed: every rim ray sits at theta* from that axis to 1e-14 rad. So a feed aimed along it, with power pattern 2(n+1)cos^n and n set by the feed taper at the rim, has spillover exactly 1 - cos^(n+1)(theta*). The taper efficiency does NOT carry over from the symmetric dish: the lower rim is much closer to the feed than the upper, so the spherical spreading tilts the aperture illumination. The symmetric formula with theta* overstates it by 1% at long focal lengths and up to 20% at f/D = 0.3. It is fitted instead to a 2-D integration over the projected aperture (otahub.num.paraboloid), as is the beamwidth, whose two principal planes differ by under 2%. WHAT CHANGED. The old defaults were the prime-focus ones, 0.82 x 0.85 = 0.697, with spillover counted twice. At the default geometry the best feed taper is -9.6 dB for a product of 0.780; the new default, -10 dB, gives 0.779, and 0.48 dB more gain than the old budget. And the offset's 'gain advantage over prime focus' - the 0.09 dB of a 10% blockage recovered - was never the whole story. Against a symmetric dish with the same feed and rim angle, the tilted illumination costs taper efficiency, and over the fitted range the offset comes out up to 0.75 dB BEHIND at parent f/D = 0.3, 0.09-0.22 dB behind at the default 0.5, about even at 0.7-0.8, and ahead by at most 0.07 dB at f/D = 1. Its prize is the sidelobes and noise temperature, as the old note said; now the numbers say it too."
     },
     {
       "key": "gregorian_dual_reflector",

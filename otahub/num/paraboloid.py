@@ -20,7 +20,8 @@ import numpy as np
 from scipy.optimize import brentq, minimize_scalar
 from scipy.special import j0
 
-__all__ = ["half_angle", "feed_exponent", "efficiencies", "far_field", "beam"]
+__all__ = ["half_angle", "feed_exponent", "efficiencies", "far_field", "beam",
+           "offset_geometry", "offset_rim_angles", "offset_taper", "offset_beamwidths"]
 
 
 def half_angle(f_over_d: float) -> float:
@@ -75,3 +76,64 @@ def beam(n: float, f_over_d: float) -> tuple[float, float]:
     r = minimize_scalar(lambda u: -abs(F(u)), bounds=(n1, n2), method="bounded",
                         options={"xatol": 1e-9})
     return 2.0 * math.degrees(u3) / math.pi, 20.0 * math.log10(abs(F(r.x)))
+
+
+# --------------------------------------------------------------- offset dish
+
+def offset_geometry(f_over_d_parent: float, h0_over_d: float) -> tuple[float, float]:
+    """(feed tilt from the parent axis, rim half-angle theta*) [rad]. The rim of an
+    offset paraboloid is a circular cone as seen from the focus, about the
+    bisector of the upper and lower rim angles - checked in the tests, not assumed."""
+    up = 2.0 * math.atan((h0_over_d + 0.5) / (2.0 * f_over_d_parent))
+    lo = 2.0 * math.atan((h0_over_d - 0.5) / (2.0 * f_over_d_parent))
+    return 0.5 * (up + lo), 0.5 * (up - lo)
+
+
+def _offset_aperture(f_over_d_parent, h0_over_d, n, m=80):
+    """Aperture field A = cos^(n/2)(psi)/r on the projected circle (D = 1), where psi is
+    the angle from the tilted feed axis and r the focus-to-dish distance."""
+    tilt, _ = offset_geometry(f_over_d_parent, h0_over_d)
+    F = f_over_d_parent
+    xr, wr = np.polynomial.legendre.leggauss(m)
+    xp, wp = np.polynomial.legendre.leggauss(2 * m)
+    rr, wrr = 0.25 * (xr + 1.0), 0.25 * wr
+    pp, wpp = math.pi * (xp + 1.0), math.pi * wp
+    R, P = np.meshgrid(rr, pp, indexing="ij")
+    W = np.outer(wrr, wpp) * R
+    xl, yl = R * np.cos(P), R * np.sin(P)
+    x = h0_over_d + xl
+    rho2 = x * x + yl * yl
+    zc = F - rho2 / (4.0 * F)
+    r = np.sqrt(rho2 + zc * zc)
+    cospsi = (x * math.sin(tilt) + zc * math.cos(tilt)) / r
+    return xl, yl, W, np.clip(cospsi, 0.0, None) ** (n / 2.0) / r
+
+
+def offset_rim_angles(f_over_d_parent: float, h0_over_d: float, points: int = 73) -> np.ndarray:
+    """Angle of each rim ray from the tilted feed axis [rad], for the circularity check."""
+    tilt, _ = offset_geometry(f_over_d_parent, h0_over_d)
+    F = f_over_d_parent
+    axis = np.array([math.sin(tilt), 0.0, math.cos(tilt)])
+    out = []
+    for ph in np.linspace(0.0, 2.0 * math.pi, points):
+        x, y = h0_over_d + 0.5 * math.cos(ph), 0.5 * math.sin(ph)
+        v = np.array([x, y, F - (x * x + y * y) / (4.0 * F)])
+        out.append(math.acos(float(np.clip(v @ axis / np.linalg.norm(v), -1.0, 1.0))))
+    return np.array(out)
+
+
+def offset_taper(f_over_d_parent: float, h0_over_d: float, n: float) -> float:
+    """Taper efficiency of the offset dish, by 2-D integration over its aperture."""
+    _, _, W, A = _offset_aperture(f_over_d_parent, h0_over_d, n)
+    return float((A * W).sum() ** 2 / ((math.pi / 4.0) * (A * A * W).sum()))
+
+
+def offset_beamwidths(f_over_d_parent: float, h0_over_d: float, n: float) -> tuple[float, float]:
+    """HPBW in the plane of the offset and across it, in units of lambda/D degrees."""
+    xl, yl, W, A = _offset_aperture(f_over_d_parent, h0_over_d, n)
+    aw, total = (A * W).ravel(), float((A * W).sum())
+    widths = []
+    for c in (xl.ravel(), yl.ravel()):
+        p = lambda u: abs((aw * np.exp(1j * u * c)).sum() / total) ** 2 - 0.5
+        widths.append(math.degrees(brentq(p, 0.1, 20.0) - brentq(p, -20.0, -0.1)) / (2.0 * math.pi))
+    return widths[0], widths[1]

@@ -1889,9 +1889,49 @@ spec now says so.
 geometry's own edge-taper relation rather than a copy, so it is recorded as the
 next step rather than patched in passing.
 
+## The offset dish: same double count, and a gain advantage that was a loss
+
+`offset_parabolic` carried the prime-focus defaults, 0.82 x 0.85 with spillover
+counted twice, plus a 70 lambda/D beamwidth and a "gain advantage over prime
+focus" of +0.09 dB - the value of the 10% blockage it removes, and nothing else.
+
+One geometric fact makes half of it exact. Seen from the focus, the rim of an
+offset paraboloid is a circular cone about the bisector of the upper and lower
+rim angles. That was checked ray by ray, not assumed: every rim ray lies at
+theta* from the axis to 1e-14 rad. So a cos^n feed aimed along it has spillover
+exactly 1 - cos^(n+1)(theta*), as the symmetric dish does.
+
+The other half does not carry over. The lower rim is much closer to the feed
+than the upper, so spherical spreading tilts the aperture illumination, and
+the symmetric formula with theta* overstates the taper efficiency - by 1% at
+long focal lengths and up to 20% at parent f/D = 0.3. The taper efficiency and
+the beamwidth are therefore fitted to a 2-D integration over the projected
+aperture: 864 points over feed taper -20..-3 dB, parent f/D 0.3..1.0 and h0/D
+0.55..1.2, held-out errors 0.0013 and 0.03 lambda/D. The two principal planes
+differ by under 2%. The offset integrator, set to zero offset, reproduces the
+prime-focus arbiter to 1e-9 - two codes written differently agreeing where the
+geometries coincide.
+
+What it changed: the input is now the feed's own taper at the rim (default
+-10 dB, beside a best of -9.6 dB for the default geometry), since a single
+"edge taper including spreading" is ambiguous when the two rims spread
+differently. The default design gains 0.48 dB over the old budget. And the gain
+comparison, done honestly - against a symmetric dish with the same feed and rim
+angle and a 10% blockage - comes out behind wherever the focal length is short
+or moderate: up to 0.75 dB at parent f/D = 0.3, 0.09-0.22 dB at the default
+0.5, about even at 0.7-0.8, and ahead by at most 0.07 dB at f/D = 1. A first
+draft said "negative over the practical range" from three designs; scanning all
+864 showed the long-focal-length exception, and the spec says so now. The old
+note already said the offset's prize is sidelobes and noise temperature, not
+gain; the metric now agrees with its note.
+
+One tolerance lesson on the way: a near-zero dB difference (-0.043 dB) failed a
+1% relative check by 0.001 dB. Those expectations now sit in their own case
+with an absolute tolerance, as the house rule for zeros already says.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2250 tests, 660/660 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2278 tests, 677/677 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
