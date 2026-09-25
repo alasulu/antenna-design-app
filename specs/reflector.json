@@ -484,15 +484,15 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.85"
+          "role": "derived",
+          "description": "Taper efficiency. DERIVED from the edge taper and the equivalent paraboloid; supply it to override."
         },
         {
           "symbol": "eta_spill",
           "name": "spillover efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.90"
+          "role": "derived",
+          "description": "Spillover past the subreflector. DERIVED likewise; supply it to override."
         },
         {
           "symbol": "eps_rms",
@@ -508,19 +508,142 @@
           "role": "assumption",
           "typical": "4.0",
           "description": "equivalent focal length divided by the main reflector's"
+        },
+        {
+          "symbol": "edge_taper_db",
+          "name": "edge taper",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-11",
+          "description": "total illumination at the main rim relative to the centre, spreading included"
+        },
+        {
+          "symbol": "dual_theta_f",
+          "name": "feed rim half-angle",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_theta_b",
+          "name": "blockage half-angle",
+          "unit": "rad",
+          "role": "derived",
+          "description": "feed angle whose ray lands at the edge of the subreflector's shadow"
+        },
+        {
+          "symbol": "dual_n",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_e",
+          "name": "normalised edge taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_q",
+          "name": "normalised D/F_eq",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_b",
+          "name": "Ds/D in tenths",
+          "unit": "-",
+          "role": "derived"
         }
       ],
-      "synthesis": [],
-      "analysis": [
+      "synthesis": [
         {
-          "metric": "eta_blockage",
-          "expr": "(1 - (Ds/D)**2)**2",
+          "output": "dual_theta_f",
+          "expr": "2*atan(1/(4*magnification*f_over_D))",
+          "units_out": "rad",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_theta_b",
+          "expr": "2*atan((Ds/D)/(4*magnification*f_over_D))",
+          "units_out": "rad",
+          "depends_on": [
+            "Ds",
+            "D",
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_n",
+          "expr": "2*(edge_taper_db/20 - log10((1 + cos(dual_theta_f))/2))/log10(cos(dual_theta_f))",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db",
+            "dual_theta_f"
+          ]
+        },
+        {
+          "output": "eta_spill",
+          "expr": "1 - cos(dual_theta_f)**(dual_n + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "feed power the subreflector intercepts, exact for a 2(n+1)cos^n feed"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "(1/np.tan(dual_theta_f/2))**2*2*(dual_n + 1)*np.trapezoid(np.cos(np.linspace(0, dual_theta_f, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_f, 4001)/2), np.linspace(0, dual_theta_f, 4001))**2/(1 - cos(dual_theta_f)**(dual_n + 1))",
+          "units_out": "-",
+          "depends_on": [
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "taper efficiency of the equivalent paraboloid's aperture field"
+        },
+        {
+          "output": "dual_e",
+          "expr": "(edge_taper_db + 11.5)/8.5",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db"
+          ]
+        },
+        {
+          "output": "dual_q",
+          "expr": "(1/(magnification*f_over_D) - 0.77)/0.46",
+          "units_out": "-",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_b",
+          "expr": "Ds/(0.1*D)",
           "units_out": "-",
           "depends_on": [
             "Ds",
             "D"
           ],
-          "notes": "Subreflector blockage is the defining cost of a Cassegrain. The classic minimum-blockage rule sets Ds so that subreflector and feed blockage are equal."
+          "notes": "Ds/D in tenths - 1 at the default. Kept away from zero on purpose: a fit variable that is exactly zero at the default is floating-point noise to the scale audit."
+        }
+      ],
+      "analysis": [
+        {
+          "metric": "eta_blockage",
+          "expr": "(1 - np.trapezoid(np.cos(np.linspace(0, dual_theta_b, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_b, 4001)/2), np.linspace(0, dual_theta_b, 4001))/np.trapezoid(np.cos(np.linspace(0, dual_theta_f, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_f, 4001)/2), np.linspace(0, dual_theta_f, 4001)))**2",
+          "units_out": "-",
+          "depends_on": [
+            "dual_theta_b",
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "Geometric-optics blockage: the square of the fraction of the aperture FIELD outside the subreflector's shadow. The old (1 - (Ds/D)^2)^2 assumed uniform illumination and understated the loss - 0.965 against 0.980 at Ds/D = 0.1. Feed and strut blockage are not included."
         },
         {
           "metric": "eta_ruze",
@@ -533,38 +656,52 @@
         },
         {
           "metric": "aperture_efficiency",
-          "expr": "eta_ill*eta_spill*(1-(Ds/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "expr": "eta_ill*eta_spill*eta_blockage*np.exp(-(4*pi*eps_rms*f0/c)**2)",
           "units_out": "-",
           "depends_on": [
+            "eps_rms",
+            "eta_blockage",
             "eta_ill",
             "eta_spill",
-            "Ds",
-            "D",
-            "eps_rms",
             "f0"
           ]
         },
         {
           "metric": "gain_dbi",
-          "expr": "db10(eta_ill*eta_spill*(1-(Ds/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
+          "expr": "db10(eta_ill*eta_spill*eta_blockage*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
-            "eta_ill",
-            "eta_spill",
-            "Ds",
             "D",
             "eps_rms",
+            "eta_blockage",
+            "eta_ill",
+            "eta_spill",
             "f0"
           ]
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D",
+          "expr": "((66.3321365) + (-1.32851032)*(dual_b - 1)**1 + (-0.606920206)*(dual_b - 1)**2 + (0.0444136474)*(dual_b - 1)**3 + (-0.00163880001)*dual_q**1 + (0.000163812967)*dual_q**1*(dual_b - 1)**1 + (7.62234178e-05)*dual_q**1*(dual_b - 1)**2 + (-4.48777006e-06)*dual_q**1*(dual_b - 1)**3 + (-0.00127420759)*dual_q**2 + (0.000127407698)*dual_q**2*(dual_b - 1)**1 + (5.92683129e-05)*dual_q**2*(dual_b - 1)**2 + (-3.50195047e-06)*dual_q**2*(dual_b - 1)**3 + (-6.44230902)*dual_e**1 + (0.64323895)*dual_e**1*(dual_b - 1)**1 + (0.273714026)*dual_e**1*(dual_b - 1)**2 + (-0.036775254)*dual_e**1*(dual_b - 1)**3 + (0.00265293729)*dual_e**1*dual_q**1 + (-0.00053175082)*dual_e**1*dual_q**1*(dual_b - 1)**1 + (-0.000218957362)*dual_e**1*dual_q**1*(dual_b - 1)**2 + (3.60373198e-05)*dual_e**1*dual_q**1*(dual_b - 1)**3 + (0.00206435757)*dual_e**1*dual_q**2 + (-0.000413230623)*dual_e**1*dual_q**2*(dual_b - 1)**1 + (-0.000170161964)*dual_e**1*dual_q**2*(dual_b - 1)**2 + (2.79991757e-05)*dual_e**1*dual_q**2*(dual_b - 1)**3 + (0.507710445)*dual_e**2 + (-0.110944258)*dual_e**2*(dual_b - 1)**1 + (-0.0404813113)*dual_e**2*(dual_b - 1)**2 + (0.0113097422)*dual_e**2*(dual_b - 1)**3 + (-0.00119156639)*dual_e**2*dual_q**1 + (0.0002236388)*dual_e**2*dual_q**1*(dual_b - 1)**1 + (8.28800454e-05)*dual_e**2*dual_q**1*(dual_b - 1)**2 + (-2.18344669e-05)*dual_e**2*dual_q**1*(dual_b - 1)**3 + (-0.000925684766)*dual_e**2*dual_q**2 + (0.000173663808)*dual_e**2*dual_q**2*(dual_b - 1)**1 + (6.43610272e-05)*dual_e**2*dual_q**2*(dual_b - 1)**2 + (-1.69540015e-05)*dual_e**2*dual_q**2*(dual_b - 1)**3 + (0.0451217321)*dual_e**3 + (0.00351170326)*dual_e**3*(dual_b - 1)**1 + (-0.000286124639)*dual_e**3*(dual_b - 1)**2 + (-0.00147507728)*dual_e**3*(dual_b - 1)**3 + (6.69822879e-05)*dual_e**3*dual_q**1 + (-2.8286314e-05)*dual_e**3*dual_q**1*(dual_b - 1)**1 + (-7.03218776e-06)*dual_e**3*dual_q**1*(dual_b - 1)**2 + (5.18853537e-06)*dual_e**3*dual_q**1*(dual_b - 1)**3 + (5.17621896e-05)*dual_e**3*dual_q**2 + (-2.19278944e-05)*dual_e**3*dual_q**2*(dual_b - 1)**1 + (-5.44695915e-06)*dual_e**3*dual_q**2*(dual_b - 1)**2 + (4.02542344e-06)*dual_e**3*dual_q**2*(dual_b - 1)**3 + (-0.00758913058)*dual_e**4 + (0.00118244611)*dual_e**4*(dual_b - 1)**1 + (0.000605595406)*dual_e**4*(dual_b - 1)**2 + (-5.62073476e-06)*dual_e**4*(dual_b - 1)**3 + (2.89319911e-05)*dual_e**4*dual_q**1 + (-2.34658873e-06)*dual_e**4*dual_q**1*(dual_b - 1)**1 + (-1.70833254e-06)*dual_e**4*dual_q**1*(dual_b - 1)**2 + (-3.34722861e-07)*dual_e**4*dual_q**1*(dual_b - 1)**3 + (2.24911699e-05)*dual_e**4*dual_q**2 + (-1.82754434e-06)*dual_e**4*dual_q**2*(dual_b - 1)**1 + (-1.32776545e-06)*dual_e**4*dual_q**2*(dual_b - 1)**2 + (-2.58882448e-07)*dual_e**4*dual_q**2*(dual_b - 1)**3 + (-0.000631617215)*dual_e**5 + (-7.52094762e-05)*dual_e**5*(dual_b - 1)**1 + (-8.17503222e-06)*dual_e**5*(dual_b - 1)**2 + (2.31287616e-05)*dual_e**5*(dual_b - 1)**3 + (-2.87320621e-06)*dual_e**5*dual_q**1 + (7.98483994e-07)*dual_e**5*dual_q**1*(dual_b - 1)**1 + (2.99588971e-07)*dual_e**5*dual_q**1*(dual_b - 1)**2 + (-8.41260817e-08)*dual_e**5*dual_q**1*(dual_b - 1)**3 + (-2.22148995e-06)*dual_e**5*dual_q**2 + (6.18998313e-07)*dual_e**5*dual_q**2*(dual_b - 1)**1 + (2.32030747e-07)*dual_e**5*dual_q**2*(dual_b - 1)**2 + (-6.53607128e-08)*dual_e**5*dual_q**2*(dual_b - 1)**3)*(c/f0)/D",
           "units_out": "deg",
           "depends_on": [
+            "dual_e",
+            "dual_q",
+            "dual_b",
             "f0",
             "D"
-          ]
+          ],
+          "notes": "From the Hankel transform of the blocked equivalent aperture, fitted over edge taper -20..-3 dB, equivalent f/D 0.8..3.0 and Ds/D 0..0.2. Held-out error under 0.05 lambda/D."
+        },
+        {
+          "metric": "peak_sidelobe_db",
+          "expr": "(-23.1723737) + (4.46396589)*(dual_b - 1)**1 + (1.0469599)*(dual_b - 1)**2 + (-0.854520008)*(dual_b - 1)**3 + (0.00213774429)*dual_q**1 + (4.92959029e-05)*dual_q**1*(dual_b - 1)**1 + (-0.000346748272)*dual_q**1*(dual_b - 1)**2 + (-0.000790630167)*dual_q**1*(dual_b - 1)**3 + (0.00166188499)*dual_q**2 + (3.51250731e-05)*dual_q**2*(dual_b - 1)**1 + (-0.000268435688)*dual_q**2*(dual_b - 1)**2 + (-0.000612694578)*dual_q**2*(dual_b - 1)**3 + (5.78472379)*dual_e**1 + (-4.37042238)*dual_e**1*(dual_b - 1)**1 + (-0.348469108)*dual_e**1*(dual_b - 1)**2 + (1.26326846)*dual_e**1*(dual_b - 1)**3 + (-0.00574554729)*dual_e**1*dual_q**1 + (-0.00246695265)*dual_e**1*dual_q**1*(dual_b - 1)**1 + (-0.00135779679)*dual_e**1*dual_q**1*(dual_b - 1)**2 + (0.00737595703)*dual_e**1*dual_q**1*(dual_b - 1)**3 + (-0.00446540254)*dual_e**1*dual_q**2 + (-0.0019020606)*dual_e**1*dual_q**2*(dual_b - 1)**1 + (-0.00105402098)*dual_e**1*dual_q**2*(dual_b - 1)**2 + (0.00571588087)*dual_e**1*dual_q**2*(dual_b - 1)**3 + (-0.78424196)*dual_e**2 + (2.25859887)*dual_e**2*(dual_b - 1)**1 + (-1.41350297)*dual_e**2*(dual_b - 1)**2 + (0.290484721)*dual_e**2*(dual_b - 1)**3 + (0.00754041349)*dual_e**2*dual_q**1 + (-0.0296124641)*dual_e**2*dual_q**1*(dual_b - 1)**1 + (0.00864234823)*dual_e**2*dual_q**1*(dual_b - 1)**2 + (0.0150814847)*dual_e**2*dual_q**1*(dual_b - 1)**3 + (0.00584753009)*dual_e**2*dual_q**2 + (-0.0229621897)*dual_e**2*dual_q**2*(dual_b - 1)**1 + (0.00669053721)*dual_e**2*dual_q**2*(dual_b - 1)**2 + (0.0117038809)*dual_e**2*dual_q**2*(dual_b - 1)**3 + (-0.131793152)*dual_e**3 + (-0.8312075)*dual_e**3*(dual_b - 1)**1 + (1.94317586)*dual_e**3*(dual_b - 1)**2 + (-1.20323836)*dual_e**3*(dual_b - 1)**3 + (-0.00996457812)*dual_e**3*dual_q**1 + (0.0586480164)*dual_e**3*dual_q**1*(dual_b - 1)**1 + (-0.00347089533)*dual_e**3*dual_q**1*(dual_b - 1)**2 + (-0.0480930017)*dual_e**3*dual_q**1*(dual_b - 1)**3 + (-0.00772173929)*dual_e**3*dual_q**2 + (0.0454567314)*dual_e**3*dual_q**2*(dual_b - 1)**1 + (-0.0026743304)*dual_e**3*dual_q**2*(dual_b - 1)**2 + (-0.0372925027)*dual_e**3*dual_q**2*(dual_b - 1)**3 + (-0.0808160802)*dual_e**4 + (0.681876381)*dual_e**4*(dual_b - 1)**1 + (1.19995341)*dual_e**4*(dual_b - 1)**2 + (-1.85145089)*dual_e**4*(dual_b - 1)**3 + (-0.00430913239)*dual_e**4*dual_q**1 + (0.0287896915)*dual_e**4*dual_q**1*(dual_b - 1)**1 + (-0.0138002715)*dual_e**4*dual_q**1*(dual_b - 1)**2 + (-0.0125031719)*dual_e**4*dual_q**1*(dual_b - 1)**3 + (-0.00334432752)*dual_e**4*dual_q**2 + (0.0223310236)*dual_e**4*dual_q**2*(dual_b - 1)**1 + (-0.0106864185)*dual_e**4*dual_q**2*(dual_b - 1)**2 + (-0.00971405554)*dual_e**4*dual_q**2*(dual_b - 1)**3 + (0.149422408)*dual_e**5 + (-0.428538164)*dual_e**5*(dual_b - 1)**1 + (-1.84676515)*dual_e**5*(dual_b - 1)**2 + (2.19901747)*dual_e**5*(dual_b - 1)**3 + (0.00892481462)*dual_e**5*dual_q**1 + (-0.0562680761)*dual_e**5*dual_q**1*(dual_b - 1)**1 + (0.0104953604)*dual_e**5*dual_q**1*(dual_b - 1)**2 + (0.0401961662)*dual_e**5*dual_q**1*(dual_b - 1)**3 + (0.00692037744)*dual_e**5*dual_q**2 + (-0.0436242099)*dual_e**5*dual_q**2*(dual_b - 1)**1 + (0.00811821264)*dual_e**5*dual_q**2*(dual_b - 1)**2 + (0.0311815444)*dual_e**5*dual_q**2*(dual_b - 1)**3",
+          "units_out": "dB",
+          "depends_on": [
+            "dual_e",
+            "dual_q",
+            "dual_b"
+          ],
+          "notes": "From the Hankel transform of the blocked equivalent aperture, fitted over edge taper -20..-3 dB, equivalent f/D 0.8..3.0 and Ds/D 0..0.2. The PEAK sidelobe: blockage raises the sidelobes and can move the peak off the first lobe. Held-out error under 0.3 dB."
         },
         {
           "metric": "subreflector_fraction",
@@ -618,7 +755,8 @@
         "Ds must be at least several wavelengths or diffraction invalidates ray optics",
         "the feed sees the subreflector, so feed taper is set by the subreflector subtended angle, not the main reflector's",
         "advantage over prime focus is short feed runs and low spillover onto warm ground (lower noise temperature), not raw gain",
-        "magnification is a design input here, not derived from the subreflector position; it previously sat in this spec as a hard-coded 1.0, which was a placeholder rather than a result"
+        "magnification is a design input here, not derived from the subreflector position; it previously sat in this spec as a hard-coded 1.0, which was a placeholder rather than a result",
+        "eta_ill, eta_spill, eta_blockage, hpbw_deg and peak_sidelobe_db are geometric-optics results for a rotationally symmetric cos^n feed: subreflector diffraction, which matters once Ds is only a few wavelengths, and feed and strut blockage are not in them"
       ],
       "known_cases": [
         {
@@ -629,11 +767,11 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "eta_blockage": 0.9801,
+            "eta_blockage": 0.965189,
             "subreflector_fraction": 0.1
           },
           "tol_pct": 0.5,
-          "source": "Ds/D = 0.1 gives (1-0.01)^2 = 0.9801 blockage efficiency. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+          "source": "Ds/D = 0.1 gives (1-0.01)^2 = 0.9801 blockage efficiency. Milligan, Modern Antenna Design 2nd ed., Ch. 8 Blockage now from rays traced through the real subreflector at the default -11 dB edge taper: the shadowed disc holds the brightest field, so 0.9652 rather than the uniform-illumination 0.9801."
         },
         {
           "given": {
@@ -650,13 +788,77 @@
           },
           "tol_pct": 0.3,
           "source": "M = 4 gives e = (4+1)/(4-1) = 1.667 for the hyperboloid and an equivalent f/D of 1.4, so the feed illuminates only 20.25 deg. Hannan, IRE T-AP 9(2), 1961"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "f_over_D": 0.35,
+            "magnification": 4.0,
+            "edge_taper_db": -11.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.8848,
+            "eta_spill": 0.920648,
+            "eta_blockage": 0.965189,
+            "hpbw_deg": 0.659102,
+            "peak_sidelobe_db": -22.8209,
+            "gain_dbi": 48.9045
+          },
+          "tol_pct": 0.5,
+          "source": "M 4.0, f/D 0.35, Ds/D 0.1, -11 dB edge taper: efficiencies from rays TRACED through the real hyperboloid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.45,
+            "f_over_D": 0.4,
+            "magnification": 2.5,
+            "edge_taper_db": -9.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.919214,
+            "eta_spill": 0.874599,
+            "eta_blockage": 0.929922,
+            "hpbw_deg": 0.637343,
+            "peak_sidelobe_db": -19.7101,
+            "gain_dbi": 48.6857
+          },
+          "tol_pct": 0.5,
+          "source": "M 2.5, f/D 0.4, Ds/D 0.15, -9 dB edge taper: efficiencies from rays TRACED through the real hyperboloid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.15,
+            "f_over_D": 0.3,
+            "magnification": 6.0,
+            "edge_taper_db": -14.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.82805,
+            "eta_spill": 0.960204,
+            "eta_blockage": 0.989951,
+            "hpbw_deg": 0.688053,
+            "peak_sidelobe_db": -27.5772,
+            "gain_dbi": 48.9093
+          },
+          "tol_pct": 0.5,
+          "source": "M 6.0, f/D 0.3, Ds/D 0.05, -14 dB edge taper: efficiencies from rays TRACED through the real hyperboloid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 15 (15.5)",
         "Milligan, Modern Antenna Design 2nd ed., Ch. 8"
       ],
-      "confidence": "low"
+      "confidence": "low",
+      "notes": "ONE EQUIVALENT PARABOLOID, VERIFIED BY RAY TRACING. In geometric optics a Cassegrain or Gregorian illuminates its main aperture exactly as a single paraboloid of focal length M*F would, fed by the same feed. That was traced ray by ray through the real hyperboloid and ellipsoid, not assumed: tan(psi/2)/tan(theta/2) equals M = (e+1)/(e-1) or (1+e)/(1-e) to nine figures. So the prime-focus derivation carries over at the feed's rim angle theta_f = 2 atan(1/(4 M f/D)): n from the edge taper, spillover past the subreflector exactly 1 - cos^(n+1)(theta_f), taper efficiency from the feed-angle integral. A direct integration over the traced aperture mapping agrees to five figures. BLOCKAGE. The old (1 - (Ds/D)^2)^2 assumes uniform illumination; the subreflector in fact shadows the brightest part of the aperture. The shadowed field fraction, I(theta_b)/I(theta_f) with I the same field integral, gives 0.965 at Ds/D = 0.1 where the uniform rule gave 0.980, and 0.930 at 0.15 against 0.956. WHAT CHANGED. The old 0.85 x 0.90 taper and spillover were asserted; at the default geometry and -11 dB edge taper they are 0.885 and 0.921, so with the corrected blockage the budget rises 0.21 dB. The beamwidth and PEAK sidelobe now include the blockage, which is what raises a Cassegrain's sidelobes above a prime-focus dish's."
     },
     {
       "key": "corner_reflector_90",
@@ -1772,15 +1974,15 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.85"
+          "role": "derived",
+          "description": "Taper efficiency. DERIVED from the edge taper and the equivalent paraboloid; supply it to override."
         },
         {
           "symbol": "eta_spill",
           "name": "spillover efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.90"
+          "role": "derived",
+          "description": "Spillover past the subreflector. DERIVED likewise; supply it to override."
         },
         {
           "symbol": "eps_rms",
@@ -1794,6 +1996,51 @@
           "name": "main focal length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "edge_taper_db",
+          "name": "edge taper",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-11",
+          "description": "total illumination at the main rim relative to the centre, spreading included"
+        },
+        {
+          "symbol": "dual_theta_f",
+          "name": "feed rim half-angle",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_theta_b",
+          "name": "blockage half-angle",
+          "unit": "rad",
+          "role": "derived",
+          "description": "feed angle whose ray lands at the edge of the subreflector's shadow"
+        },
+        {
+          "symbol": "dual_n",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_e",
+          "name": "normalised edge taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_q",
+          "name": "normalised D/F_eq",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "dual_b",
+          "name": "Ds/D in tenths",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1805,6 +2052,82 @@
             "f_over_D",
             "D"
           ]
+        },
+        {
+          "output": "dual_theta_f",
+          "expr": "2*atan(1/(4*magnification*f_over_D))",
+          "units_out": "rad",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_theta_b",
+          "expr": "2*atan((Ds/D)/(4*magnification*f_over_D))",
+          "units_out": "rad",
+          "depends_on": [
+            "Ds",
+            "D",
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_n",
+          "expr": "2*(edge_taper_db/20 - log10((1 + cos(dual_theta_f))/2))/log10(cos(dual_theta_f))",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db",
+            "dual_theta_f"
+          ]
+        },
+        {
+          "output": "eta_spill",
+          "expr": "1 - cos(dual_theta_f)**(dual_n + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "feed power the subreflector intercepts, exact for a 2(n+1)cos^n feed"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "(1/np.tan(dual_theta_f/2))**2*2*(dual_n + 1)*np.trapezoid(np.cos(np.linspace(0, dual_theta_f, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_f, 4001)/2), np.linspace(0, dual_theta_f, 4001))**2/(1 - cos(dual_theta_f)**(dual_n + 1))",
+          "units_out": "-",
+          "depends_on": [
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "taper efficiency of the equivalent paraboloid's aperture field"
+        },
+        {
+          "output": "dual_e",
+          "expr": "(edge_taper_db + 11.5)/8.5",
+          "units_out": "-",
+          "depends_on": [
+            "edge_taper_db"
+          ]
+        },
+        {
+          "output": "dual_q",
+          "expr": "(1/(magnification*f_over_D) - 0.77)/0.46",
+          "units_out": "-",
+          "depends_on": [
+            "magnification",
+            "f_over_D"
+          ]
+        },
+        {
+          "output": "dual_b",
+          "expr": "Ds/(0.1*D)",
+          "units_out": "-",
+          "depends_on": [
+            "Ds",
+            "D"
+          ],
+          "notes": "Ds/D in tenths - 1 at the default. Kept away from zero on purpose: a fit variable that is exactly zero at the default is floating-point noise to the scale audit."
         }
       ],
       "analysis": [
@@ -1857,12 +2180,14 @@
         },
         {
           "metric": "eta_blockage",
-          "expr": "(1 - (Ds/D)**2)**2",
+          "expr": "(1 - np.trapezoid(np.cos(np.linspace(0, dual_theta_b, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_b, 4001)/2), np.linspace(0, dual_theta_b, 4001))/np.trapezoid(np.cos(np.linspace(0, dual_theta_f, 4001))**(dual_n/2)*np.tan(np.linspace(0, dual_theta_f, 4001)/2), np.linspace(0, dual_theta_f, 4001)))**2",
           "units_out": "-",
           "depends_on": [
-            "Ds",
-            "D"
-          ]
+            "dual_theta_b",
+            "dual_theta_f",
+            "dual_n"
+          ],
+          "notes": "Geometric-optics blockage: the square of the fraction of the aperture FIELD outside the subreflector's shadow. The old (1 - (Ds/D)^2)^2 assumed uniform illumination and understated the loss - 0.965 against 0.980 at Ds/D = 0.1. Feed and strut blockage are not included."
         },
         {
           "metric": "eta_ruze",
@@ -1878,10 +2203,10 @@
           "expr": "eta_ill*eta_spill*eta_blockage*eta_ruze",
           "units_out": "-",
           "depends_on": [
-            "eta_ill",
-            "eta_spill",
             "eta_blockage",
-            "eta_ruze"
+            "eta_ill",
+            "eta_ruze",
+            "eta_spill"
           ]
         },
         {
@@ -1889,19 +2214,35 @@
           "expr": "db10(aperture_efficiency*(pi*D*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
-            "aperture_efficiency",
             "D",
+            "aperture_efficiency",
+            "eta_blockage",
             "f0"
           ]
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D",
+          "expr": "((66.3321365) + (-1.32851032)*(dual_b - 1)**1 + (-0.606920206)*(dual_b - 1)**2 + (0.0444136474)*(dual_b - 1)**3 + (-0.00163880001)*dual_q**1 + (0.000163812967)*dual_q**1*(dual_b - 1)**1 + (7.62234178e-05)*dual_q**1*(dual_b - 1)**2 + (-4.48777006e-06)*dual_q**1*(dual_b - 1)**3 + (-0.00127420759)*dual_q**2 + (0.000127407698)*dual_q**2*(dual_b - 1)**1 + (5.92683129e-05)*dual_q**2*(dual_b - 1)**2 + (-3.50195047e-06)*dual_q**2*(dual_b - 1)**3 + (-6.44230902)*dual_e**1 + (0.64323895)*dual_e**1*(dual_b - 1)**1 + (0.273714026)*dual_e**1*(dual_b - 1)**2 + (-0.036775254)*dual_e**1*(dual_b - 1)**3 + (0.00265293729)*dual_e**1*dual_q**1 + (-0.00053175082)*dual_e**1*dual_q**1*(dual_b - 1)**1 + (-0.000218957362)*dual_e**1*dual_q**1*(dual_b - 1)**2 + (3.60373198e-05)*dual_e**1*dual_q**1*(dual_b - 1)**3 + (0.00206435757)*dual_e**1*dual_q**2 + (-0.000413230623)*dual_e**1*dual_q**2*(dual_b - 1)**1 + (-0.000170161964)*dual_e**1*dual_q**2*(dual_b - 1)**2 + (2.79991757e-05)*dual_e**1*dual_q**2*(dual_b - 1)**3 + (0.507710445)*dual_e**2 + (-0.110944258)*dual_e**2*(dual_b - 1)**1 + (-0.0404813113)*dual_e**2*(dual_b - 1)**2 + (0.0113097422)*dual_e**2*(dual_b - 1)**3 + (-0.00119156639)*dual_e**2*dual_q**1 + (0.0002236388)*dual_e**2*dual_q**1*(dual_b - 1)**1 + (8.28800454e-05)*dual_e**2*dual_q**1*(dual_b - 1)**2 + (-2.18344669e-05)*dual_e**2*dual_q**1*(dual_b - 1)**3 + (-0.000925684766)*dual_e**2*dual_q**2 + (0.000173663808)*dual_e**2*dual_q**2*(dual_b - 1)**1 + (6.43610272e-05)*dual_e**2*dual_q**2*(dual_b - 1)**2 + (-1.69540015e-05)*dual_e**2*dual_q**2*(dual_b - 1)**3 + (0.0451217321)*dual_e**3 + (0.00351170326)*dual_e**3*(dual_b - 1)**1 + (-0.000286124639)*dual_e**3*(dual_b - 1)**2 + (-0.00147507728)*dual_e**3*(dual_b - 1)**3 + (6.69822879e-05)*dual_e**3*dual_q**1 + (-2.8286314e-05)*dual_e**3*dual_q**1*(dual_b - 1)**1 + (-7.03218776e-06)*dual_e**3*dual_q**1*(dual_b - 1)**2 + (5.18853537e-06)*dual_e**3*dual_q**1*(dual_b - 1)**3 + (5.17621896e-05)*dual_e**3*dual_q**2 + (-2.19278944e-05)*dual_e**3*dual_q**2*(dual_b - 1)**1 + (-5.44695915e-06)*dual_e**3*dual_q**2*(dual_b - 1)**2 + (4.02542344e-06)*dual_e**3*dual_q**2*(dual_b - 1)**3 + (-0.00758913058)*dual_e**4 + (0.00118244611)*dual_e**4*(dual_b - 1)**1 + (0.000605595406)*dual_e**4*(dual_b - 1)**2 + (-5.62073476e-06)*dual_e**4*(dual_b - 1)**3 + (2.89319911e-05)*dual_e**4*dual_q**1 + (-2.34658873e-06)*dual_e**4*dual_q**1*(dual_b - 1)**1 + (-1.70833254e-06)*dual_e**4*dual_q**1*(dual_b - 1)**2 + (-3.34722861e-07)*dual_e**4*dual_q**1*(dual_b - 1)**3 + (2.24911699e-05)*dual_e**4*dual_q**2 + (-1.82754434e-06)*dual_e**4*dual_q**2*(dual_b - 1)**1 + (-1.32776545e-06)*dual_e**4*dual_q**2*(dual_b - 1)**2 + (-2.58882448e-07)*dual_e**4*dual_q**2*(dual_b - 1)**3 + (-0.000631617215)*dual_e**5 + (-7.52094762e-05)*dual_e**5*(dual_b - 1)**1 + (-8.17503222e-06)*dual_e**5*(dual_b - 1)**2 + (2.31287616e-05)*dual_e**5*(dual_b - 1)**3 + (-2.87320621e-06)*dual_e**5*dual_q**1 + (7.98483994e-07)*dual_e**5*dual_q**1*(dual_b - 1)**1 + (2.99588971e-07)*dual_e**5*dual_q**1*(dual_b - 1)**2 + (-8.41260817e-08)*dual_e**5*dual_q**1*(dual_b - 1)**3 + (-2.22148995e-06)*dual_e**5*dual_q**2 + (6.18998313e-07)*dual_e**5*dual_q**2*(dual_b - 1)**1 + (2.32030747e-07)*dual_e**5*dual_q**2*(dual_b - 1)**2 + (-6.53607128e-08)*dual_e**5*dual_q**2*(dual_b - 1)**3)*(c/f0)/D",
           "units_out": "deg",
           "depends_on": [
+            "dual_e",
+            "dual_q",
+            "dual_b",
             "f0",
             "D"
-          ]
+          ],
+          "notes": "From the Hankel transform of the blocked equivalent aperture, fitted over edge taper -20..-3 dB, equivalent f/D 0.8..3.0 and Ds/D 0..0.2. Held-out error under 0.05 lambda/D."
+        },
+        {
+          "metric": "peak_sidelobe_db",
+          "expr": "(-23.1723737) + (4.46396589)*(dual_b - 1)**1 + (1.0469599)*(dual_b - 1)**2 + (-0.854520008)*(dual_b - 1)**3 + (0.00213774429)*dual_q**1 + (4.92959029e-05)*dual_q**1*(dual_b - 1)**1 + (-0.000346748272)*dual_q**1*(dual_b - 1)**2 + (-0.000790630167)*dual_q**1*(dual_b - 1)**3 + (0.00166188499)*dual_q**2 + (3.51250731e-05)*dual_q**2*(dual_b - 1)**1 + (-0.000268435688)*dual_q**2*(dual_b - 1)**2 + (-0.000612694578)*dual_q**2*(dual_b - 1)**3 + (5.78472379)*dual_e**1 + (-4.37042238)*dual_e**1*(dual_b - 1)**1 + (-0.348469108)*dual_e**1*(dual_b - 1)**2 + (1.26326846)*dual_e**1*(dual_b - 1)**3 + (-0.00574554729)*dual_e**1*dual_q**1 + (-0.00246695265)*dual_e**1*dual_q**1*(dual_b - 1)**1 + (-0.00135779679)*dual_e**1*dual_q**1*(dual_b - 1)**2 + (0.00737595703)*dual_e**1*dual_q**1*(dual_b - 1)**3 + (-0.00446540254)*dual_e**1*dual_q**2 + (-0.0019020606)*dual_e**1*dual_q**2*(dual_b - 1)**1 + (-0.00105402098)*dual_e**1*dual_q**2*(dual_b - 1)**2 + (0.00571588087)*dual_e**1*dual_q**2*(dual_b - 1)**3 + (-0.78424196)*dual_e**2 + (2.25859887)*dual_e**2*(dual_b - 1)**1 + (-1.41350297)*dual_e**2*(dual_b - 1)**2 + (0.290484721)*dual_e**2*(dual_b - 1)**3 + (0.00754041349)*dual_e**2*dual_q**1 + (-0.0296124641)*dual_e**2*dual_q**1*(dual_b - 1)**1 + (0.00864234823)*dual_e**2*dual_q**1*(dual_b - 1)**2 + (0.0150814847)*dual_e**2*dual_q**1*(dual_b - 1)**3 + (0.00584753009)*dual_e**2*dual_q**2 + (-0.0229621897)*dual_e**2*dual_q**2*(dual_b - 1)**1 + (0.00669053721)*dual_e**2*dual_q**2*(dual_b - 1)**2 + (0.0117038809)*dual_e**2*dual_q**2*(dual_b - 1)**3 + (-0.131793152)*dual_e**3 + (-0.8312075)*dual_e**3*(dual_b - 1)**1 + (1.94317586)*dual_e**3*(dual_b - 1)**2 + (-1.20323836)*dual_e**3*(dual_b - 1)**3 + (-0.00996457812)*dual_e**3*dual_q**1 + (0.0586480164)*dual_e**3*dual_q**1*(dual_b - 1)**1 + (-0.00347089533)*dual_e**3*dual_q**1*(dual_b - 1)**2 + (-0.0480930017)*dual_e**3*dual_q**1*(dual_b - 1)**3 + (-0.00772173929)*dual_e**3*dual_q**2 + (0.0454567314)*dual_e**3*dual_q**2*(dual_b - 1)**1 + (-0.0026743304)*dual_e**3*dual_q**2*(dual_b - 1)**2 + (-0.0372925027)*dual_e**3*dual_q**2*(dual_b - 1)**3 + (-0.0808160802)*dual_e**4 + (0.681876381)*dual_e**4*(dual_b - 1)**1 + (1.19995341)*dual_e**4*(dual_b - 1)**2 + (-1.85145089)*dual_e**4*(dual_b - 1)**3 + (-0.00430913239)*dual_e**4*dual_q**1 + (0.0287896915)*dual_e**4*dual_q**1*(dual_b - 1)**1 + (-0.0138002715)*dual_e**4*dual_q**1*(dual_b - 1)**2 + (-0.0125031719)*dual_e**4*dual_q**1*(dual_b - 1)**3 + (-0.00334432752)*dual_e**4*dual_q**2 + (0.0223310236)*dual_e**4*dual_q**2*(dual_b - 1)**1 + (-0.0106864185)*dual_e**4*dual_q**2*(dual_b - 1)**2 + (-0.00971405554)*dual_e**4*dual_q**2*(dual_b - 1)**3 + (0.149422408)*dual_e**5 + (-0.428538164)*dual_e**5*(dual_b - 1)**1 + (-1.84676515)*dual_e**5*(dual_b - 1)**2 + (2.19901747)*dual_e**5*(dual_b - 1)**3 + (0.00892481462)*dual_e**5*dual_q**1 + (-0.0562680761)*dual_e**5*dual_q**1*(dual_b - 1)**1 + (0.0104953604)*dual_e**5*dual_q**1*(dual_b - 1)**2 + (0.0401961662)*dual_e**5*dual_q**1*(dual_b - 1)**3 + (0.00692037744)*dual_e**5*dual_q**2 + (-0.0436242099)*dual_e**5*dual_q**2*(dual_b - 1)**1 + (0.00811821264)*dual_e**5*dual_q**2*(dual_b - 1)**2 + (0.0311815444)*dual_e**5*dual_q**2*(dual_b - 1)**3",
+          "units_out": "dB",
+          "depends_on": [
+            "dual_e",
+            "dual_q",
+            "dual_b"
+          ],
+          "notes": "From the Hankel transform of the blocked equivalent aperture, fitted over edge taper -20..-3 dB, equivalent f/D 0.8..3.0 and Ds/D 0..0.2. The PEAK sidelobe: blockage raises the sidelobes and can move the peak off the first lobe. Held-out error under 0.3 dB."
         },
         {
           "metric": "subreflector_fraction",
@@ -1917,7 +2258,8 @@
         "Ds must be many wavelengths or ray optics fails and the subreflector diffracts rather than reflects",
         "the ellipsoid sits BEYOND the prime focus, so a Gregorian is physically longer than the equivalent Cassegrain - the trade is an accessible real focus between the mirrors",
         "magnification is a design input here, not derived from the subreflector position",
-        "in offset form the Mizuguchi-Dragone condition can null the cross-polarisation exactly; that condition is not evaluated here"
+        "in offset form the Mizuguchi-Dragone condition can null the cross-polarisation exactly; that condition is not evaluated here",
+        "eta_ill, eta_spill, eta_blockage, hpbw_deg and peak_sidelobe_db are geometric-optics results for a rotationally symmetric cos^n feed: subreflector diffraction, which matters once Ds is only a few wavelengths, and feed and strut blockage are not in them"
       ],
       "known_cases": [
         {
@@ -1949,17 +2291,81 @@
           "expect": {
             "feed_half_angle_deg": 20.2493,
             "main_reflector_half_angle_deg": 71.0754,
-            "eta_blockage": 0.9801
+            "eta_blockage": 0.965189
           },
           "tol_pct": 0.3,
-          "source": "The feed sees 20.25 deg against the main dish's 71.1 deg from the prime focus - the magnification trade that lets a small feed do the job. Blockage (1-0.01)^2 = 0.9801."
+          "source": "The feed sees 20.25 deg against the main dish's 71.1 deg from the prime focus - the magnification trade that lets a small feed do the job. Blockage (1-0.01)^2 = 0.9801. Blockage now from rays traced through the real subreflector at the default -11 dB edge taper: the shadowed disc holds the brightest field, so 0.9652 rather than the uniform-illumination 0.9801."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.3,
+            "f_over_D": 0.35,
+            "magnification": 4.0,
+            "edge_taper_db": -11.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.8848,
+            "eta_spill": 0.920648,
+            "eta_blockage": 0.965189,
+            "hpbw_deg": 0.659102,
+            "peak_sidelobe_db": -22.8209,
+            "gain_dbi": 48.9045
+          },
+          "tol_pct": 0.5,
+          "source": "M 4.0, f/D 0.35, Ds/D 0.1, -11 dB edge taper: efficiencies from rays TRACED through the real ellipsoid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.45,
+            "f_over_D": 0.4,
+            "magnification": 2.5,
+            "edge_taper_db": -9.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.919214,
+            "eta_spill": 0.874599,
+            "eta_blockage": 0.929922,
+            "hpbw_deg": 0.637343,
+            "peak_sidelobe_db": -19.7101,
+            "gain_dbi": 48.6857
+          },
+          "tol_pct": 0.5,
+          "source": "M 2.5, f/D 0.4, Ds/D 0.15, -9 dB edge taper: efficiencies from rays TRACED through the real ellipsoid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 3.0,
+            "Ds": 0.15,
+            "f_over_D": 0.3,
+            "magnification": 6.0,
+            "edge_taper_db": -14.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "eta_ill": 0.82805,
+            "eta_spill": 0.960204,
+            "eta_blockage": 0.989951,
+            "hpbw_deg": 0.688053,
+            "peak_sidelobe_db": -27.5772,
+            "gain_dbi": 48.9093
+          },
+          "tol_pct": 0.5,
+          "source": "M 6.0, f/D 0.3, Ds/D 0.05, -14 dB edge taper: efficiencies from rays TRACED through the real ellipsoid and main dish with power conserved along ray tubes (otahub.num.paraboloid); beamwidth and peak sidelobe by Hankel transform of the blocked aperture - not the spec's feed-angle integrals or its fits."
         }
       ],
       "references": [
         "Milligan, Modern Antenna Design 2nd ed., Ch. 8.3-8.4",
         "Hannan, Microwave antennas derived from the Cassegrain telescope, IRE T-AP 9(2), 1961",
         "Mizuguchi et al., Offset dual reflector antenna, IEEE AP-S 1976"
-      ]
+      ],
+      "notes": "ONE EQUIVALENT PARABOLOID, VERIFIED BY RAY TRACING. In geometric optics a Cassegrain or Gregorian illuminates its main aperture exactly as a single paraboloid of focal length M*F would, fed by the same feed. That was traced ray by ray through the real hyperboloid and ellipsoid, not assumed: tan(psi/2)/tan(theta/2) equals M = (e+1)/(e-1) or (1+e)/(1-e) to nine figures. So the prime-focus derivation carries over at the feed's rim angle theta_f = 2 atan(1/(4 M f/D)): n from the edge taper, spillover past the subreflector exactly 1 - cos^(n+1)(theta_f), taper efficiency from the feed-angle integral. A direct integration over the traced aperture mapping agrees to five figures. BLOCKAGE. The old (1 - (Ds/D)^2)^2 assumes uniform illumination; the subreflector in fact shadows the brightest part of the aperture. The shadowed field fraction, I(theta_b)/I(theta_f) with I the same field integral, gives 0.965 at Ds/D = 0.1 where the uniform rule gave 0.980, and 0.930 at 0.15 against 0.956. WHAT CHANGED. The old 0.85 x 0.90 taper and spillover were asserted; at the default geometry and -11 dB edge taper they are 0.885 and 0.921, so with the corrected blockage the budget rises 0.21 dB. The beamwidth and PEAK sidelobe now include the blockage, which is what raises a Cassegrain's sidelobes above a prime-focus dish's."
     },
     {
       "key": "cylindrical_parabolic",

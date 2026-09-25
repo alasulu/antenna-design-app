@@ -22,7 +22,8 @@ from scipy.special import j0
 
 __all__ = ["half_angle", "feed_exponent", "efficiencies", "far_field", "beam",
            "offset_geometry", "offset_rim_angles", "offset_taper", "offset_beamwidths",
-           "cylinder_feed_exponent", "cylinder_efficiencies", "cylinder_beam"]
+           "cylinder_feed_exponent", "cylinder_efficiencies", "cylinder_beam",
+           "dual_trace", "dual_efficiencies", "blocked_beam"]
 
 
 def half_angle(f_over_d: float) -> float:
@@ -182,6 +183,80 @@ def cylinder_beam(n: float, f_over_w: float) -> tuple[float, float]:
     us = np.arange(0.0, 60.0, 0.005)
     v = np.cos(np.outer(us, y)) @ aw / f0
     F = lambda u: float(np.cos(u * y) @ aw / f0)
+    i3 = int(np.argmax(v ** 2 < 0.5))
+    u3 = brentq(lambda u: F(u) ** 2 - 0.5, us[i3 - 1], us[i3])
+    flips = np.nonzero(np.sign(v[1:]) != np.sign(v[:-1]))[0]
+    n1 = brentq(F, us[flips[0]], us[flips[0] + 1])
+    k = int(np.argmax(np.abs(v) * (us > n1)))
+    r = minimize_scalar(lambda u: -abs(F(u)), bounds=(us[k] - 0.01, us[k] + 0.01),
+                        method="bounded", options={"xatol": 1e-10})
+    return 2.0 * math.degrees(u3) / (2.0 * math.pi), 20.0 * math.log10(abs(F(r.x)))
+
+
+# ----------------------------------------------------------- dual reflectors
+
+def dual_trace(kind: str, magnification: float, theta: float) -> float:
+    """Trace one ray from the feed off the subreflector [rad in, rad out].
+
+    Prime focus at the origin, main dish toward -z, feed at z = -2c (c = 1).
+    Cassegrain: hyperboloid branch nearer the prime focus, |P-F2| - |P-F1| = 2a,
+    the ray leaving as if from the prime focus. Gregorian: ellipsoid beyond it,
+    |P-F1| + |P-F2| = 2a, the ray passing through it. Returns psi, the angle
+    from the prime focus toward the dish, measured from the -z axis.
+    """
+    M = magnification
+    e = (M + 1) / (M - 1) if kind == "cassegrain" else (M - 1) / (M + 1)
+    c = 1.0
+    a = c / e
+    f2 = np.array([0.0, 0.0, -2.0 * c])
+    d = np.array([math.sin(theta), 0.0, math.cos(theta)])
+    if kind == "cassegrain":
+        t = brentq(lambda s: s - np.linalg.norm(f2 + s * d) - 2 * a, 1e-12, 100.0 * c)
+        v = f2 + t * d
+    else:
+        t = brentq(lambda s: s + np.linalg.norm(f2 + s * d) - 2 * a, 1e-12, 2 * a)
+        v = -(f2 + t * d)
+    v = v / np.linalg.norm(v)
+    return math.acos(-v[2])
+
+
+def dual_efficiencies(kind: str, magnification: float, f_over_d: float, ds_over_d: float,
+                      n: float, m: int = 4000) -> tuple[float, float, float]:
+    """(taper, spillover past the subreflector, blockage) from TRACED rays: each
+    feed angle is mapped to an aperture radius through the real subreflector and
+    main dish, and power is conserved along ray tubes. No equivalent paraboloid."""
+    tf = 2.0 * math.atan(1.0 / (4.0 * magnification * f_over_d))    # the feed's rim angle
+    th = np.linspace(1e-7, tf, m)
+    psi = np.array([dual_trace(kind, magnification, t) for t in th])
+    rho = 2.0 * f_over_d * np.tan(psi / 2.0)                         # D = 1
+    drho = np.gradient(rho, th)
+    G = 2.0 * (n + 1.0) * np.cos(th) ** n
+    A = np.sqrt(G * np.sin(th) / (rho * drho))
+    dS = 2.0 * math.pi * rho * drho
+    full = np.trapezoid(A * dS, th)
+    taper = full ** 2 / ((math.pi / 4.0) * np.trapezoid(A * A * dS, th))
+    spill = np.trapezoid(G * np.sin(th), th) / 2.0
+    unblocked = np.trapezoid(np.where(rho >= ds_over_d / 2.0, A, 0.0) * dS, th)
+    return float(taper), float(spill), float((unblocked / full) ** 2)
+
+
+def blocked_beam(edge_taper_db: float, f_over_d: float, ds_over_d: float,
+                 m: int = 1500) -> tuple[float, float]:
+    """(HPBW in lambda/D degrees, PEAK sidelobe dB) of a paraboloid aperture with a
+    central blocked disc - the equivalent paraboloid of a dual reflector. The peak,
+    because blockage raises the sidelobes and can move the highest off the first."""
+    t0 = half_angle(f_over_d)
+    n = 2.0 * (edge_taper_db / 20.0 - math.log10((1 + math.cos(t0)) / 2)) / math.log10(math.cos(t0))
+    rb = ds_over_d / 2.0
+    x, w = np.polynomial.legendre.leggauss(m)
+    rho = rb + (0.5 - rb) * 0.5 * (x + 1.0)
+    wr = (0.5 - rb) * 0.5 * w
+    t = 2.0 * np.arctan(rho / (2.0 * f_over_d))
+    aw = np.cos(t) ** (n / 2.0) * (1.0 + np.cos(t)) / 2.0 * rho * wr
+    f0 = aw.sum()
+    us = np.arange(0.0, 40.0, 0.005)
+    v = j0(np.outer(us, rho)) @ aw / f0
+    F = lambda u: float(j0(u * rho) @ aw / f0)
     i3 = int(np.argmax(v ** 2 < 0.5))
     u3 = brentq(lambda u: F(u) ** 2 - 0.5, us[i3 - 1], us[i3])
     flips = np.nonzero(np.sign(v[1:]) != np.sign(v[:-1]))[0]

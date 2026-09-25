@@ -1960,9 +1960,49 @@ held-out points.
 The dual reflectors are what is left of the efficiency-pair family; they need
 a subreflector model before the same derivation applies.
 
+## The dual reflectors, through a traced equivalent paraboloid
+
+The last reflectors with asserted efficiency pairs were the Cassegrain and the
+Gregorian: taper 0.85 and spillover 0.90, blockage from the uniform-illumination
+(1 - (Ds/D)^2)^2, beamwidth 70 lambda/D. Both specs already described
+themselves through an equivalent paraboloid of focal length M*F; nothing had
+checked that the equivalence holds. It was checked first, by tracing rays from
+the feed off the real hyperboloid and ellipsoid and out through the prime focus:
+tan(psi/2)/tan(theta/2) equals M = (e+1)/(e-1) or (1+e)/(1-e) to nine figures,
+at M from 1.5 to 9. In geometric optics the dual reflector illuminates its
+aperture exactly as the equivalent paraboloid would.
+
+That licensed the prime-focus derivation at the feed's rim angle: n from the
+edge taper, spillover past the subreflector exactly 1 - cos^(n+1)(theta_f), taper
+efficiency from the feed-angle integral. It also exposed the blockage. The
+uniform rule understates it, because the subreflector shadows the brightest
+part of a tapered aperture; the geometric-optics blockage is the square of the
+unshadowed fraction of the aperture FIELD - 0.965 at Ds/D = 0.1 where the rule
+said 0.980, 0.930 at 0.15 against 0.956. Two existing known cases asserted the
+uniform 0.9801 and now carry the traced value. The default budget rises 0.21 dB
+net: better taper and spillover, worse blockage.
+
+The arbiter works from the traced rays rather than the equivalence: each feed
+angle mapped to an aperture radius through the real mirrors, power conserved
+along ray tubes. It agrees with the spec's integrals to five figures, the
+blockage to 1e-4. Beamwidth and PEAK sidelobe are fitted to the Hankel
+transform of the blocked aperture over edge taper, equivalent f/D 0.8-3.0 and
+Ds/D 0-0.2 (0.002 lambda/D; the sidelobe to 0.21 dB on held-out points, 0.65 at
+the corners where the peak hops between lobes). With no blockage that transform
+reproduces the prime-focus arbiter's, and Cassegrain and Gregorian give the same
+numbers, as geometric optics says they must.
+
+The scale-invariance audit caught one thing of mine on the way: the
+blockage fit variable was centred to be exactly zero at the default Ds/D, and
+the audit, rightly, will not accept floating-point noise as a dimensionless
+quantity that should not change. It is now Ds/D in tenths, 1 at the default.
+
+That closes the reflector family's asserted efficiencies. The lenses carry
+theirs still, and are the next place for the same method.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2303 tests, 693/693 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2340 tests, 729/729 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

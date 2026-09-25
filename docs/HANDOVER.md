@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-6,031 lines of Python, 14,835 lines of spec data, 2303 tests, 693/693 citable
+6,031 lines of Python, 14,835 lines of spec data, 2340 tests, 729/729 citable
 known cases passing.**
 
 ---
@@ -175,6 +175,7 @@ being written into a spec.
 | `prime_focus_parabolic` | Taper and spillover efficiency, beamwidth and first sidelobe from the edge taper and f/D (Silver's cos^n feed), replacing four separately asserted numbers | `otahub/num/paraboloid.py` integrates the aperture field directly: efficiencies to 1e-5, beamwidth to 0.03 lambda/D and first sidelobe to 0.1 dB off the fit grid; a cos^2 feed reproduces the classic 0.829 optimum at 66 deg |
 | `offset_parabolic` | Taper and spillover efficiency and beamwidth from the feed taper and offset geometry; the gain comparison with a prime-focus dish, honestly signed | The rim-cone circularity that makes spillover exact checked ray by ray (1e-14 rad); taper and beamwidth by 2-D integration over the projected aperture, held-out errors 0.0013 and 0.03 lambda/D; the offset integrator reproduces the prime-focus one at zero offset to 1e-9 |
 | `cylindrical_parabolic` | Taper and spillover under a line feed (cylindrical spreading), focusing-plane beamwidth and peak sidelobe, from the edge taper and f/W | `otahub/num/paraboloid.py` integrates over the aperture coordinate: efficiencies to 1e-5, beamwidth to 0.05 lambda/W and peak sidelobe to 0.15 dB off the fit grid; the uniform limit reproduces 50.8 lambda/W and -13.3 dB |
+| `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hemispherical_dra` | k₀a = 2.900 εr^−0.484, Q = 0.380 εr^1.321 | First peak of the Mie magnetic-dipole coefficient; Q exponent independently reproduces the published εr^1.3 |
 | `rectangular_dra` | kz·h from the dielectric-waveguide transcendental, fitted | Roots by bisection; the corrected size brings the brick from 1.41× to 1.06× the other two DRA shapes' volume |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
@@ -561,10 +562,12 @@ known case only checks what it asserts.
    (§5), and `offset_parabolic` after it - which needed its own 2-D
    integration, because the tilted spreading loss makes the symmetric formula
    up to 20% optimistic. `cylindrical_parabolic` followed, with a line feed's
-   cylindrical wave. The dual reflectors (`cassegrain`, `gregorian_dual_reflector`)
-   still assert their efficiency pairs; they need a subreflector model -
-   blockage by the subreflector and spillover past it - before the same
-   derivation applies.
+   cylindrical wave, and the dual reflectors after it, through an equivalent
+   paraboloid verified by ray tracing. That closes the reflector family's
+   asserted efficiency pairs. The lenses still carry theirs (`eta_ill` 0.80,
+   0.65, 0.75 on the hyperbolic, Luneburg and metal-plate lenses); a lens's
+   illumination follows its feed the same way, and would be the next place to
+   apply the method.
 8. **Replace `rectangular_dra`'s borrowed Q** with a proper solve — the
    resonance half of this is now done (the dielectric-waveguide transcendental
    replaced the magnetic-wall model), but Q still comes from the hemisphere.
