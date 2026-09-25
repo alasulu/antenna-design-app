@@ -1,0 +1,565 @@
+{
+ "about": "3-D FDTD ringdowns of a dielectric puck on an infinite ground plane, HE11 mode, from otahub.num.dra.cylinder. aspect = a/h; k0a = k0*radius at resonance; Q = Re/(2 Im). Air margin 14 cells, CPML 12, float32. 'train' made the cylindrical_dra fits; 'test' was held out (other permittivities and aspects, and three points re-run on a grid half as fine again). 'outside' holds the flat pucks beyond a/h = 4, which the fits do not cover. At eps_r 12 and below their HE11 mode has Q under 2, gone before the ringdown window opens, and the solver reports a higher mode instead; at eps_r 15 and above the ringdowns are sound, but the fit domain was kept rectangular. Kept so that the limit is on record, not fitted.",
+ "tolerance": {
+  "k0a": 0.004,
+  "Q": 0.006
+ },
+ "train": [
+  {
+   "eps": 50,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.331665,
+   "Q": 37.9071
+  },
+  {
+   "eps": 50,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 0.947051,
+   "Q": 23.73151
+  },
+  {
+   "eps": 32,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 1.162536,
+   "Q": 13.58971
+  },
+  {
+   "eps": 32,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.409026,
+   "Q": 21.17617
+  },
+  {
+   "eps": 50,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.338168,
+   "Q": 45.29641
+  },
+  {
+   "eps": 50,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 0.749921,
+   "Q": 33.35503
+  },
+  {
+   "eps": 50,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.36182,
+   "Q": 57.92715
+  },
+  {
+   "eps": 32,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.417642,
+   "Q": 25.26563
+  },
+  {
+   "eps": 50,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 0.393025,
+   "Q": 62.64172
+  },
+  {
+   "eps": 20,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 1.432008,
+   "Q": 7.75174
+  },
+  {
+   "eps": 20,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.507295,
+   "Q": 11.75281
+  },
+  {
+   "eps": 32,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.44797,
+   "Q": 32.19289
+  },
+  {
+   "eps": 32,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 0.923537,
+   "Q": 18.92657
+  },
+  {
+   "eps": 50,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 0.470865,
+   "Q": 58.47665
+  },
+  {
+   "eps": 50,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 0.559181,
+   "Q": 49.04982
+  },
+  {
+   "eps": 20,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.519098,
+   "Q": 14.04662
+  },
+  {
+   "eps": 32,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 0.487093,
+   "Q": 34.77377
+  },
+  {
+   "eps": 12,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 1.771072,
+   "Q": 4.28309
+  },
+  {
+   "eps": 12,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.63535,
+   "Q": 6.33793
+  },
+  {
+   "eps": 20,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 1.143199,
+   "Q": 10.74167
+  },
+  {
+   "eps": 20,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.558962,
+   "Q": 17.87398
+  },
+  {
+   "eps": 32,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 0.583239,
+   "Q": 32.56677
+  },
+  {
+   "eps": 32,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 0.691372,
+   "Q": 27.48638
+  },
+  {
+   "eps": 12,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.652646,
+   "Q": 7.65719
+  },
+  {
+   "eps": 20,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 0.608734,
+   "Q": 19.28942
+  },
+  {
+   "eps": 8,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 2.04823,
+   "Q": 2.67102
+  },
+  {
+   "eps": 8,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.751298,
+   "Q": 3.90357
+  },
+  {
+   "eps": 20,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 0.7283,
+   "Q": 18.1358
+  },
+  {
+   "eps": 12,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.707562,
+   "Q": 9.79597
+  },
+  {
+   "eps": 12,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 1.427519,
+   "Q": 5.99362
+  },
+  {
+   "eps": 6,
+   "aspect": 4,
+   "height_cells": 8,
+   "radius_cells": 32,
+   "k0a": 2.198746,
+   "Q": 1.95182
+  },
+  {
+   "eps": 8,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.776557,
+   "Q": 4.81851
+  },
+  {
+   "eps": 20,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 0.860964,
+   "Q": 15.41466
+  },
+  {
+   "eps": 6,
+   "aspect": 0.4,
+   "height_cells": 40,
+   "radius_cells": 16.0,
+   "k0a": 0.835551,
+   "Q": 2.75252
+  },
+  {
+   "eps": 12,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 0.772632,
+   "Q": 10.57674
+  },
+  {
+   "eps": 8,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 1.682692,
+   "Q": 3.83925
+  },
+  {
+   "eps": 8,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.849694,
+   "Q": 6.24597
+  },
+  {
+   "eps": 6,
+   "aspect": 0.5,
+   "height_cells": 32,
+   "radius_cells": 16.0,
+   "k0a": 0.872421,
+   "Q": 3.49394
+  },
+  {
+   "eps": 12,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 0.92321,
+   "Q": 9.99003
+  },
+  {
+   "eps": 6,
+   "aspect": 0.75,
+   "height_cells": 22,
+   "radius_cells": 16.5,
+   "k0a": 0.965086,
+   "Q": 4.59499
+  },
+  {
+   "eps": 6,
+   "aspect": 3,
+   "height_cells": 8,
+   "radius_cells": 24,
+   "k0a": 1.869268,
+   "Q": 2.82173
+  },
+  {
+   "eps": 8,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 0.93095,
+   "Q": 6.75943
+  },
+  {
+   "eps": 12,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 1.086423,
+   "Q": 8.54784
+  },
+  {
+   "eps": 8,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 1.11069,
+   "Q": 6.40664
+  },
+  {
+   "eps": 8,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 1.299607,
+   "Q": 5.49887
+  },
+  {
+   "eps": 6,
+   "aspect": 1,
+   "height_cells": 16,
+   "radius_cells": 16,
+   "k0a": 1.061078,
+   "Q": 4.98828
+  },
+  {
+   "eps": 6,
+   "aspect": 1.5,
+   "height_cells": 11,
+   "radius_cells": 16.5,
+   "k0a": 1.263968,
+   "Q": 4.73816
+  },
+  {
+   "eps": 6,
+   "aspect": 2,
+   "height_cells": 8,
+   "radius_cells": 16,
+   "k0a": 1.470014,
+   "Q": 4.06871
+  }
+ ],
+ "test": [
+  {
+   "eps": 40,
+   "aspect": 0.6,
+   "height_cells": 27,
+   "radius_cells": 16.2,
+   "k0a": 0.385572,
+   "Q": 38.21689
+  },
+  {
+   "eps": 20,
+   "aspect": 3,
+   "height_cells": 12,
+   "radius_cells": 36,
+   "k0a": 1.143945,
+   "Q": 10.74919
+  },
+  {
+   "eps": 40,
+   "aspect": 2.5,
+   "height_cells": 8,
+   "radius_cells": 20.0,
+   "k0a": 0.726028,
+   "Q": 30.21523
+  },
+  {
+   "eps": 50,
+   "aspect": 1,
+   "height_cells": 24,
+   "radius_cells": 24,
+   "k0a": 0.393174,
+   "Q": 62.82702
+  },
+  {
+   "eps": 40,
+   "aspect": 1.25,
+   "height_cells": 13,
+   "radius_cells": 16.25,
+   "k0a": 0.479151,
+   "Q": 46.04415
+  },
+  {
+   "eps": 6,
+   "aspect": 0.5,
+   "height_cells": 48,
+   "radius_cells": 24.0,
+   "k0a": 0.873781,
+   "Q": 3.49918
+  },
+  {
+   "eps": 15,
+   "aspect": 0.6,
+   "height_cells": 27,
+   "radius_cells": 16.2,
+   "k0a": 0.608751,
+   "Q": 11.27427
+  },
+  {
+   "eps": 15,
+   "aspect": 2.5,
+   "height_cells": 8,
+   "radius_cells": 20.0,
+   "k0a": 1.138759,
+   "Q": 9.20763
+  },
+  {
+   "eps": 7,
+   "aspect": 2.5,
+   "height_cells": 8,
+   "radius_cells": 20.0,
+   "k0a": 1.575561,
+   "Q": 3.9997
+  },
+  {
+   "eps": 15,
+   "aspect": 1.25,
+   "height_cells": 13,
+   "radius_cells": 16.25,
+   "k0a": 0.762587,
+   "Q": 13.57498
+  },
+  {
+   "eps": 7,
+   "aspect": 0.6,
+   "height_cells": 27,
+   "radius_cells": 16.2,
+   "k0a": 0.852096,
+   "Q": 4.77217
+  },
+  {
+   "eps": 7,
+   "aspect": 1.25,
+   "height_cells": 13,
+   "radius_cells": 16.25,
+   "k0a": 1.083352,
+   "Q": 5.83465
+  }
+ ],
+ "outside": [
+  {
+   "eps": 20,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 2.021076,
+   "Q": 4.56018
+  },
+  {
+   "eps": 32,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 1.647038,
+   "Q": 8.09697
+  },
+  {
+   "eps": 50,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 1.34609,
+   "Q": 14.00233
+  },
+  {
+   "eps": 12,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 2.86,
+   "Q": 13.55236
+  },
+  {
+   "eps": 8,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 3.368901,
+   "Q": 8.00538
+  },
+  {
+   "eps": 6,
+   "aspect": 6,
+   "height_cells": 8,
+   "radius_cells": 48,
+   "k0a": 3.751683,
+   "Q": 5.85606
+  },
+  {
+   "eps": 40,
+   "aspect": 5,
+   "height_cells": 8,
+   "radius_cells": 40,
+   "k0a": 1.26934,
+   "Q": 13.48843
+  },
+  {
+   "eps": 15,
+   "aspect": 5,
+   "height_cells": 8,
+   "radius_cells": 40,
+   "k0a": 1.941337,
+   "Q": 4.12752
+  },
+  {
+   "eps": 7,
+   "aspect": 5,
+   "height_cells": 8,
+   "radius_cells": 40,
+   "k0a": 2.273881,
+   "Q": 1.47602
+  }
+ ]
+}

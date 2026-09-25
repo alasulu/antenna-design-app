@@ -5,7 +5,7 @@
       "key": "cylindrical_dra",
       "name": "Cylindrical dielectric resonator antenna (HE11)",
       "family": "dielectric",
-      "summary": "Low-loss dielectric puck on a ground plane, radiating in the broadside HE11 mode.",
+      "summary": "Low-loss dielectric puck on a ground plane, radiating in the broadside HE11 mode; resonance and Q fitted to 3-D FDTD ringdowns rather than to the published curve fits.",
       "freq_range_hz": [
         500000000.0,
         100000000000.0
@@ -48,18 +48,46 @@
           "name": "normalised frequency",
           "unit": "-",
           "role": "derived"
+        },
+        {
+          "symbol": "s_eps",
+          "name": "1/sqrt(eps_r)",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "ln_asp",
+          "name": "ln(a/h)",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "k0a",
-          "expr": "(6.324/np.sqrt(eps_r+2))*(0.27 + 0.36*(aspect/2) + 0.02*(aspect/2)**2)",
+          "output": "s_eps",
+          "expr": "1/sqrt(eps_r)",
           "units_out": "-",
           "depends_on": [
-            "eps_r",
+            "eps_r"
+          ]
+        },
+        {
+          "output": "ln_asp",
+          "expr": "log(aspect)",
+          "units_out": "-",
+          "depends_on": [
             "aspect"
+          ]
+        },
+        {
+          "output": "k0a",
+          "expr": "s_eps*exp((1.02304) + (0.350236)*ln_asp + (0.271024)*ln_asp**2 + (0.00205262)*ln_asp**3 + (-0.017396)*ln_asp**4 + (-0.00182836)*ln_asp**5 + (0.290705)*s_eps + (0.144353)*s_eps*ln_asp + (-0.634742)*s_eps*ln_asp**2 + (0.172021)*s_eps*ln_asp**3 + (-0.008381)*s_eps*ln_asp**4 + (-2.71456)*s_eps**2 + (-1.32213)*s_eps**2*ln_asp + (2.25359)*s_eps**2*ln_asp**2 + (-0.39462)*s_eps**2*ln_asp**3 + (4.85059)*s_eps**3 + (4.24017)*s_eps**3*ln_asp + (-3.55151)*s_eps**3*ln_asp**2 + (-0.962347)*s_eps**4 + (-3.70871)*s_eps**4*ln_asp + (-3.27732)*s_eps**5)",
+          "units_out": "-",
+          "depends_on": [
+            "s_eps",
+            "ln_asp"
           ],
-          "notes": "Mongia & Bhartia curve fit for the HE11 mode of a cylindrical DRA on a ground plane, in terms of a/(2h). Stated accuracy about 2% over 0.4 < a/h < 6 and 8 < eps_r < 50."
+          "notes": "FITTED TO FDTD. ln(sqrt(eps_r)*k0*a) as a polynomial in 1/sqrt(eps_r) and ln(a/h), fitted to 48 ringdowns of the puck on an infinite ground plane (otahub.num.dra.cylinder, at least 16 cells of radius, 8 of height) over eps_r 6-50 and a/h 0.4-6. Fit error 0.34% worst, 0.16% on 12 held-out ringdowns. The same solver reproduces the exact hemisphere pole to 0.15%, and refining the grid by half again moves k0*a by 0.1%. Replaces Mongia & Bhartia's published fit, which the ringdowns put from 9.4% low to 8.8% high: 6-9% low on every tall puck (a/h 0.5 and below) whatever the permittivity, and within 3% only for a/h 0.75-4 at eps_r >= 20."
         },
         {
           "output": "a",
@@ -94,23 +122,44 @@
         },
         {
           "metric": "radiation_q",
-          "expr": "0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))",
+          "expr": "exp((-1.84771) + (0.181958)*ln_asp + (-0.85526)*ln_asp**2 + (-0.0894566)*ln_asp**3 + (0.131825)*ln_asp**4 + (-0.00636239)*ln_asp**5 + (-0.940714)*s_eps + (-1.52259)*s_eps*ln_asp + (2.25578)*s_eps*ln_asp**2 + (0.14311)*s_eps*ln_asp**3 + (-0.296489)*s_eps*ln_asp**4 + (16.9062)*s_eps**2 + (9.09575)*s_eps**2*ln_asp + (-5.71571)*s_eps**2*ln_asp**2 + (0.262267)*s_eps**2*ln_asp**3 + (-33.9519)*s_eps**3 + (-23.2135)*s_eps**3*ln_asp + (4.38235)*s_eps**3*ln_asp**2 + (21.5858)*s_eps**4 + (22.0365)*s_eps**4*ln_asp + (3.84854)*s_eps**5)/s_eps**3",
           "units_out": "-",
           "depends_on": [
-            "eps_r",
-            "aspect"
+            "s_eps",
+            "ln_asp"
           ],
-          "notes": "Mongia & Bhartia radiation-Q fit. Q rises steeply with eps_r, which is the central trade: high permittivity shrinks the puck and narrows the bandwidth."
+          "notes": "FITTED TO FDTD: Q = Re/(2 Im) of the same ringdowns, ln(Q/eps_r^1.5) fitted in the same two variables, 0.42% worst on the fitting set and 0.49% held out. The published fit it replaces runs from 26% low to 16% high: 6-26% low at eps_r 12 and below for a/h 0.75-4, where its eps_r^1.3 scaling no longer holds, and up to 16% high on the tallest pucks at high permittivity. It holds to about 3% only for a/h 0.75-2 at eps_r >= 20."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "(2-1)/(0.01007*eps_r**1.3*(aspect)*(1 + 100*np.exp(-2.05*(aspect/2 - (aspect**2)/80)))*np.sqrt(2))",
+          "expr": "(2-1)/(radiation_q*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_q"
+          ],
+          "notes": "BW = (S-1)/(Q*sqrt(S)) with S = 2"
+        },
+        {
+          "metric": "resonant_frequency_published_fit_hz",
+          "expr": "f0*(6.324/sqrt(eps_r + 2))*(0.27 + 0.36*(aspect/2) + 0.02*(aspect/2)**2)/k0a",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "eps_r",
+            "aspect",
+            "k0a"
+          ],
+          "notes": "What Mongia & Bhartia's curve fit, k0*a = (6.324/sqrt(eps_r+2))*(0.27 + 0.36*(a/2h) + 0.02*(a/2h)^2), predicts for THIS puck - the formula the literature sizes pucks with, kept for comparison. 6-9% LOW on tall pucks (a/h <= 0.5) at every permittivity; within 3% for a/h 0.75-4 at eps_r >= 20."
+        },
+        {
+          "metric": "radiation_q_published_fit",
+          "expr": "0.01007*eps_r**1.3*aspect*(1 + 100*exp(-2.05*(aspect/2 - aspect**2/80)))",
           "units_out": "-",
           "depends_on": [
             "eps_r",
             "aspect"
           ],
-          "notes": "BW = (S-1)/(Q*sqrt(S)) with S = 2"
+          "notes": "Mongia & Bhartia's Q fit for comparison. Holds to about 3% only for a/h 0.75-2 at eps_r >= 20; 6-26% low at eps_r <= 12, up to 16% high on the tallest pucks."
         },
         {
           "metric": "directivity_dbi",
@@ -129,10 +178,11 @@
         }
       ],
       "validity": [
-        "8 < eps_r < 50 and 0.4 < a/h < 6, the range the fits were derived over",
-        "infinite ground plane assumed",
+        "resonance and Q are fitted to FDTD over 6 <= eps_r <= 50 and 0.4 <= a/h <= 6; outside that the polynomials extrapolate",
+        "infinite perfect ground plane",
+        "isolated resonator: a probe, slot or microstrip feed pulls the resonance by a few percent and is not modelled",
         "no conductor loss and no dielectric loss: real bandwidth is wider and efficiency lower than these figures suggest",
-        "feed coupling (probe, slot or microstrip) perturbs the resonance by a few percent and is not modelled"
+        "HE11 only; the TM01 mode, which radiates like a monopole, and higher modes are not tracked"
       ],
       "known_cases": [
         {
@@ -142,10 +192,11 @@
             "aspect": 1.0
           },
           "expect": {
+            "k0a": 0.841,
             "resonant_frequency_check_hz": 10000000000.0
           },
           "tol_pct": 0.5,
-          "source": "Self-consistency between the synthesis fit and the forward resonance relation. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+          "source": "FDTD ringdown (otahub.num.dra.cylinder, 20 cells of radius and height) of the default puck at eps_r = 10: k0*a = 0.84100. Mongia & Bhartia's fit gives 0.83064, 1.2% low, which the previous version of this case asserted to 2%."
         },
         {
           "given": {
@@ -154,10 +205,10 @@
             "aspect": 1.0
           },
           "expect": {
-            "k0a": 0.83066
+            "radiation_q": 8.6327
           },
-          "tol_pct": 2.0,
-          "source": "eps_r = 10, a/h = 1: k0*a = (6.324/sqrt(12))*(0.27+0.18+0.005) = 0.8307. Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994"
+          "tol_pct": 1.5,
+          "source": "Same ringdown: Q = 8.633. The published fit gives 7.597, 12% low, overstating the VSWR 2 bandwidth by 14%. The hemisphere's exact pole gives 9.15 at the same permittivity."
         },
         {
           "given": {
@@ -166,15 +217,56 @@
             "aspect": 1.0
           },
           "expect": {
-            "radiation_q": 18.7062
+            "k0a": 0.60902,
+            "radiation_q": 19.3277
           },
-          "tol_pct": 2.0,
-          "source": "eps_r = 20, a/h = 1: Q = 18.71, against 7.60 at eps_r = 10. Q scales as eps_r^1.3, so doubling permittivity raises Q by 2.46x and narrows the bandwidth correspondingly. Mongia & Bhartia, IJMWCAE 4(3), 1994"
+          "tol_pct": 1.5,
+          "source": "eps_r = 20, a/h = 1, 24 cells: k0*a = 0.60902, Q = 19.328, where the published fits hold (0.7% high and 3.2% low). Doubling eps_r from 10 raises Q 2.24 times, not the 2^1.3 = 2.46 the fit's exponent says."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 0.5
+          },
+          "expect": {
+            "k0a": 0.70683,
+            "resonant_frequency_published_fit_hz": 9330326895.6
+          },
+          "tol_pct": 0.5,
+          "source": "A tall puck, a/h = 0.5, eps_r = 10 (24 cells of height): k0*a = 0.70683. The published fit puts this puck at 9.330 GHz, 6.7% low - it is 6-9% low on every puck this tall."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect": 4.0
+          },
+          "expect": {
+            "k0a": 1.90008,
+            "radiation_q": 3.4663
+          },
+          "tol_pct": 1.5,
+          "source": "A flat puck, a/h = 4, eps_r = 10 (12 cells of height, 48 of radius): k0*a = 1.90008, Q = 3.466. The published Q fit gives 2.811, 19% low."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 50.0,
+            "aspect": 1.0
+          },
+          "expect": {
+            "k0a": 0.39317,
+            "radiation_q": 62.827
+          },
+          "tol_pct": 1.5,
+          "source": "eps_r = 50, a/h = 1, 24 cells: k0*a = 0.39317, Q = 62.83 (published fits 1.5% high and 2.0% low)."
         }
       ],
       "references": [
-        "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
+        "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994 (the published fits, kept for comparison)",
         "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007",
+        "Resonances and Q computed here by 3-D FDTD ringdown (otahub.num.dra), validated against the exact hemisphere pole, and fitted",
         "Directivity of 3.0 derived from magnetic-dipole image theory; cross-checked against the exact hemispherical solution in this family, which gives the same 3.0"
       ]
     },

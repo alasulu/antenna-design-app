@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-15,998 lines of Python, 22,074 lines of spec data, 2408 tests, 766/766 citable
+16,083 lines of Python, 22,166 lines of spec data, 2420 tests, 774/774 citable
 known cases passing.**
 
 ---
@@ -108,15 +108,20 @@ a hemisphere 10-12 cells in radius lands on the pole to 0.15% in frequency
 and 0.9% in Q at εr = 10 and 50, and the air margin and excitation move
 nothing in the fourth figure. A grid-aligned brick has no staircasing at all;
 refining it from 12 to 16 or 18 cells per height moves k₀d by 0.1% and Q by
-0.2% at most. `tests/data/rectangular_dra_fdtd.json` holds the 183 ringdowns
-the brick's fits came from and were checked against.
+0.2% at most; a staircased puck 16 cells in radius, by 0.16% and 0.3%.
+`tests/data/` holds the 183 brick and 69 puck ringdowns the fits came from and
+were checked against.
 
 **Limits that bite:** 10-60 s a run in numpy, so fits are made offline and the
-suite runs six live checks; only modes with a horizontal magnetic dipole;
+suite runs eight live checks; only modes with a horizontal magnetic dipole;
 lossless dielectric; infinite ground; no feed. It reports the LOWEST mode with
 real amplitude at the probe, because on long narrow bars a higher-order mode
 can ring louder - the first survey took that mode on seven bars before the
-selection rule was fixed.
+selection rule was fixed. And it cannot see a mode with Q below about 2: the
+ringdown is read from six pulse widths on, by which time such a mode has gone,
+and a shorter pulse rings so many higher modes that they bury it instead. On a
+flat low-permittivity puck (a/h = 6, εr <= 12) it therefore reports a higher
+mode; `tests/data/cylindrical_dra_fdtd.json` keeps those runs, unfitted.
 
 ### Independent first-principles checks
 
@@ -201,6 +206,7 @@ being written into a spec.
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
 | `hemispherical_dra` | k₀a and Q from the exact complex TE₁ pole of the equivalent sphere, fitted to 0.23% over εr 6–100 | Newton on the characteristic equation; `otahub/num/dra.py`'s FDTD ringdown of a staircased hemisphere lands on the pole to 0.15% in frequency and 0.9% in Q; Mongia & Bhartia's published fit is within 1.04%. The peak of the Mie coefficient b₁ on the real axis, used before, was 1.2% high and its half-power Q 12% low at εr = 10 |
+| `cylindrical_dra` | k₀a and radiation Q of the HE₁₁ mode over εr 6–50 and a/h 0.4–4 | Fitted to 48 FDTD ringdowns (`otahub/num/dra.py`): 0.34% in k₀a, 0.42% in Q; 0.16% / 0.49% on 12 held out. Mongia & Bhartia's published fits kept as a comparison: 9.4% low to 8.8% high in resonance, 26% low to 16% high in Q |
 | `rectangular_dra` | k₀d and radiation Q of the broadside mode (magnetic dipole along L), the other mode's frequency | Fitted to 150 FDTD ringdowns (`otahub/num/dra.py`) over εr 6–50 and both aspects 1–3: 0.15% in k₀d, 0.7% in Q, and within 0.13% / 0.65% on 33 held-out ones. The DWM, run the right way round, is kept as a reported comparison: 10.6% high to 6.2% low |
 | `rectangular_patch_inset` | G1 exact in Si(X); G12/G1 fitted to eq. 14-18a | Quadrature reproduces Balanis Example 14.2 to 0.05% |
 | Sectoral and pyramidal horns | Aperture efficiency exact in Fresnel integrals | Closed form, Balanis 13-19/13-41 as published, and direct aperture integration all agree to 1e-14 |
@@ -295,15 +301,12 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   zeros: within 0.05 dB above design for N >= 10 (0.36 dB in one 9-element
   case), the uniform array's nulls exactly from the nbar-th on, exactly
   Dolph-Chebyshev past the last zero pair, and the line source again as N grows.
-- **`cylindrical_dra` still rests on published curve fits** (Mongia & Bhartia
-  for k₀a and Q), and a first look with the FDTD - five single runs, not a
-  survey - says they are not as good as their stated 2% at εr = 10: Q 12% low
-  at a/h = 1 and 2 and 19% low at a/h = 4, the resonance 6.4% off at a/h = 0.5.
-  At εr = 30, a/h = 1 both hold (1.2%, 0.7%). **This is now the substantive
-  approximation left in the dielectric family**; `otahub/num/dra.py` can check
-  it directly (the ringdown needs a cylinder's permittivity map, nothing else). The
-  rectangular DRA's borrowed Q, which this item used to name, is gone —
-  it was anywhere from 18% low to 78% high.
+- **The DRA family models the isolated resonator.** All three shapes are now
+  backed by an exact pole or by FDTD ringdowns, so what remains unverified is
+  what none of them models: the feed (probe, slot or microstrip, which pulls
+  the resonance a few percent and sets the match), a finite ground plane, and
+  dielectric loss. The cylinder's fits stop at a/h = 4: flatter, low-εr pucks
+  have Q under 2, which the ringdown cannot isolate.
 - **`discone` and `conical_monopole` rest on engineering conventions** — the
   quarter-wavelength slant and the decade bandwidth figure — not on derivations.
 - **Fresnel zone plate efficiencies** (1/π², 4/π², 8/π²) are the standard
@@ -601,10 +604,11 @@ known case only checks what it asserts.
    fields was tried and rejected: against a 3-D FDTD ringdown
    (`otahub/num/dra.py`, itself checked on the exact hemisphere pole) the DWM
    Q runs from 33% low to 26% high, and the DWM resonance from 10.6% high to
-   6.2% low. Both are now fitted to 150 ringdowns. **Next in the same vein:
-   `cylindrical_dra`**, whose published fits the same FDTD puts 12-19% low in
-   Q at εr = 10 (§4). A cylinder is a permittivity map away; the hemisphere
-   test already shows the staircasing is harmless at 10 cells of radius.
+   6.2% low. Both are now fitted to 150 ringdowns. `cylindrical_dra` followed:
+   its published Mongia & Bhartia fits are 6-9% low in resonance on every
+   puck with a/h <= 0.5 and 6-26% low in Q at εr <= 12, and are now replaced
+   by fits to 48 ringdowns, kept as a reported comparison. The DRA family has
+   no curve-fit physics left in it.
 
 9. **A finite-gap feed for the MoM.** The delta gap on a wire fatter than
    about 0.01 lambda has no converged answer with either kernel - its

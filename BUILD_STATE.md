@@ -2099,11 +2099,49 @@ published Mongia & Bhartia fits: five single runs put its Q 12-19% low at
 eps_r = 10 and its resonance 6.4% off at a/h = 0.5, while holding at
 eps_r = 30. That is the next item - a cylinder is one permittivity map away.
 
+## The cylinder's published fits, and a limit of the ringdown
+
+`cylindrical_dra` was the last DRA resting on someone else's numbers: Mongia &
+Bhartia's curve fits for k0*a and Q, "about 2%" over 0.4 < a/h < 6. The FDTD
+that checked the brick needed only a cylinder's permittivity map (area
+fractions across the axis, the top face grid-aligned); at 16 cells of radius a
+finer grid moves k0*a by 0.16% and Q by 0.3% at most.
+
+Sixty-nine ringdowns over eps_r 6-50 and a/h 0.4-6 say the fits hold where they
+were presumably made - within about 3% for a/h 0.75-2 at eps_r >= 20 - and
+nowhere else. The resonance fit is 6-9% LOW on every puck with a/h <= 0.5, at every
+permittivity, so a tall puck built to it resonates that much high. The Q fit
+is 6-26% low at eps_r 12 and below, where its eps_r^1.3 scaling has run out,
+and up to 16% high on the tallest pucks. At the default, eps_r = 10 and a/h =
+1, it read 7.60 against 8.63, overstating the bandwidth by 14%. Both are now
+fitted to 48 ringdowns (0.34% and 0.42%; 0.16% and 0.49% on 12 held out), with
+the published fits kept as reported comparisons. The three DRA shapes now
+agree on how Q scales from eps_r = 10 to 20 - 2.23-2.25 times, exact pole,
+brick and puck alike - where the old test allowed 15% around the 2^1.3 the
+published fit assumed; it now holds them to 2% of each other.
+
+The survey also found where the ringdown stops. On flat pucks at low
+permittivity (a/h = 6, eps_r <= 12) the HE11 mode has Q under 2, and by the
+time the window opens - six pulse widths after excitation - it has gone; the
+solver reported a higher mode, about 9% off in k0*a with Q of 6-14 where the
+published fit says 1.0-2.3. A shorter pulse does not rescue it: it rings every
+higher mode and they bury the one it was meant to catch. So the fit stops at
+a/h = 4, where the lowest Q in the domain is 1.9 and extraction still holds to
+a few percent; the runs beyond are kept in the test data, unfitted, so the
+limit is on record. At eps_r >= 15 the flat pucks ring cleanly and the
+published fit is within 2.3% in k0*a there, but the domain was kept
+rectangular rather than stitched.
+
+The DRA family has no curve-fit physics left: exact pole for the hemisphere,
+ringdowns for the brick and the puck. What none of them models is the feed,
+a finite ground and dielectric loss.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2408 tests, 766/766 known cases.
-The DRA family now has a full-wave arbiter of its own (`otahub/num/dra.py`, FDTD);
-`cylindrical_dra`'s published fits are the next thing to put through it.
+S1-S5 done. 72 archetypes, 10 families, 2420 tests, 774/774 known cases.
+The DRA family is backed end to end by `otahub/num/dra.py` (exact pole and FDTD);
+next candidates: the finite-gap MoM feed (HANDOVER §6), the discone's conventions
+and the Fresnel zone plate (§4).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

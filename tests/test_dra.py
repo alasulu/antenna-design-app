@@ -168,3 +168,62 @@ def test_brick_fdtd_reproduces_live(registry, eps_r, A, B, height):
     k0d, q = dra.brick(eps_r, int(A * height / 2), int(B * height / 2), height, d.get("k0d"))
     assert d.get("k0d") == pytest.approx(k0d, rel=4e-3)
     assert d.metrics["radiation_q"] == pytest.approx(q, rel=0.02)
+
+
+# ------------------------------------------------------------- the puck
+
+CYL = json.loads((Path(__file__).parent / "data" / "cylindrical_dra_fdtd.json").read_text())
+
+
+def _puck(registry, eps_r, aspect):
+    return registry["cylindrical_dra"].synthesize(f0=F0, eps_r=eps_r, aspect=aspect)
+
+
+def _mongia_bhartia(eps_r, aspect):
+    k0a = 6.324 / math.sqrt(eps_r + 2) * (0.27 + 0.36 * aspect / 2 + 0.02 * (aspect / 2) ** 2)
+    q = 0.01007 * eps_r ** 1.3 * aspect * (1 + 100 * math.exp(-2.05 * (aspect / 2 - aspect ** 2 / 80)))
+    return k0a, q
+
+
+@pytest.mark.parametrize("group", ["train", "test"])
+def test_puck_resonance_and_q_are_the_recorded_fdtd_ringdowns(registry, group):
+    worst_k = worst_q = 0.0
+    for r in CYL[group]:
+        d = _puck(registry, r["eps"], r["aspect"])
+        worst_k = max(worst_k, abs(d.get("k0a") / r["k0a"] - 1))
+        worst_q = max(worst_q, abs(d.metrics["radiation_q"] / r["Q"] - 1))
+    assert worst_k < CYL["tolerance"]["k0a"], worst_k
+    assert worst_q < CYL["tolerance"]["Q"], worst_q
+
+
+def test_published_fits_are_reported_as_published(registry):
+    for eps_r, aspect in ((10.0, 1.0), (10.0, 0.5), (35.0, 2.7), (6.0, 4.0)):
+        d = _puck(registry, eps_r, aspect)
+        k0a, q = _mongia_bhartia(eps_r, aspect)
+        assert d.metrics["resonant_frequency_published_fit_hz"] == pytest.approx(F0 * k0a / d.get("k0a"), rel=1e-12)
+        assert d.metrics["radiation_q_published_fit"] == pytest.approx(q, rel=1e-12)
+
+
+def test_published_fits_fail_on_tall_pucks_and_at_low_permittivity():
+    """Where the ringdowns part company with Mongia & Bhartia. On every puck
+    with a/h <= 0.5 the resonance fit is 6-9% low whatever the permittivity;
+    at eps_r <= 12 its Q is 6-26% low, the eps_r^1.3 scaling having run out;
+    for a/h 0.75-2 at eps_r >= 20 both hold to about 3%."""
+    for r in CYL["train"] + CYL["test"]:
+        k0a, q = _mongia_bhartia(r["eps"], r["aspect"])
+        dk, dq = k0a / r["k0a"] - 1, q / r["Q"] - 1
+        if r["aspect"] <= 0.5:
+            assert -0.095 < dk < -0.06, r
+        if r["eps"] <= 12 and r["aspect"] >= 0.75:
+            assert -0.27 < dq < -0.06, r
+        if r["eps"] >= 20 and 0.75 <= r["aspect"] <= 2:
+            assert abs(dk) < 0.035 and abs(dq) < 0.035, r
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("eps_r,aspect,height", [(10.0, 1.0, 12), (30.0, 0.5, 24)])
+def test_puck_fdtd_reproduces_live(registry, eps_r, aspect, height):
+    d = _puck(registry, eps_r, aspect)
+    k0a, q = dra.cylinder(eps_r, aspect * height, height, d.get("k0a"))
+    assert d.get("k0a") == pytest.approx(k0a, rel=4e-3)
+    assert d.metrics["radiation_q"] == pytest.approx(q, rel=0.015)

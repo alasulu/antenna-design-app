@@ -7,7 +7,7 @@ the resonance is the real part and the radiation Q is Re/(2 Im):
                  which by image theory is the hemispherical DRA's TE111 mode.
                  Elementary functions and a complex Newton iteration.
 
-``brick`` and ``hemisphere``
+``brick``, ``cylinder`` and ``hemisphere``
                  a small 3-D FDTD solver: Yee grid, one quarter of the upper
                  half space, CPML on the outer faces, a pulse to ring the
                  resonator and a matrix pencil fitted to the ringdown. The
@@ -26,7 +26,7 @@ import math
 
 import numpy as np
 
-__all__ = ["sphere_pole", "sphere_resonance", "matrix_pencil", "ringdown", "brick", "hemisphere"]
+__all__ = ["sphere_pole", "sphere_resonance", "matrix_pencil", "ringdown", "brick", "cylinder", "hemisphere"]
 
 
 # --------------------------------------------------------------- exact sphere
@@ -185,16 +185,21 @@ def matrix_pencil(y, dt: float, modes: int = 16):
 
 
 def ringdown(eps_cell, body: tuple[int, int, int], f_guess: float, source_z: int,
-             air: int = 14, npml: int = 12, periods: float = 45.0) -> tuple[float, float]:
-    """(frequency, Q) of the dominant x-dipole mode of the body.
+             air: int = 14, npml: int = 12, periods: float = 45.0, pulse: float = 1.0,
+             dtype=np.float32, debug: bool = False) -> tuple[float, float]:
+    """(frequency, Q) of the lowest x-dipole mode of the body.
 
     body is the resonator's extent in cells along x, y, z from the symmetry
     planes; f_guess (cycles per unit time) centres the exciting pulse and only
-    needs to be within some tens of percent.
+    needs to be within some tens of percent. pulse is the Gaussian's 1/e
+    half-width in periods of f_guess; the ringdown is read from six of them
+    on. A shorter pulse opens the window sooner but rings every higher mode,
+    and on a flat puck those bury the low-Q one it was meant to catch.
+    debug returns every fitted mode's (frequency, Q, amplitude) instead.
     """
     shape = tuple(n + air + npml for n in body)
-    g = _Yee(shape, eps_cell, npml)
-    tau = 1.0 / f_guess
+    g = _Yee(shape, eps_cell, npml, dtype)
+    tau = pulse / f_guess
     t0 = 3.0 * tau
     steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
     start = int((t0 + 3.0 * tau) / g.dt)
@@ -209,9 +214,13 @@ def ringdown(eps_cell, body: tuple[int, int, int], f_guess: float, source_z: int
     s, a = matrix_pencil(probe[start::dec], dec * g.dt)
     f = s.imag / (2 * math.pi)
     q = s.imag / (-2.0 * s.real)
+    if debug:
+        return f, q, np.abs(a)
     # The magnetic dipole is the lowest mode this symmetry admits, but not
     # always the loudest at the probe: a long bar rings a high-Q higher mode
     # just as hard. So take the lowest frequency that carries real amplitude.
+    # What this cannot do is see a mode with Q below about 3, which has all
+    # but gone by the time the window opens: a flat, low-permittivity puck.
     ok = (f > 0.3 * f_guess) & (q > 0.5) & (np.abs(a) > 0.1 * np.abs(a[f > 0]).max())
     k = int(np.flatnonzero(ok)[np.argmin(f[ok])])
     return f[k], q[k]
@@ -226,6 +235,21 @@ def brick(eps_r: float, half_x: int, half_y: int, height: int, k0h_guess: float,
     f, q = ringdown(eps_cell, (half_x, half_y, height), k0h_guess / (2 * math.pi * height),
                     max(1, int(0.7 * height)), **kw)
     return 2 * math.pi * f * height, q
+
+
+def cylinder(eps_r: float, radius: float, height: int, k0a_guess: float, **kw) -> tuple[float, float]:
+    """(k0*a, Q) of a puck of the given radius and height in cells, standing on
+    the ground, for the HE11 mode. Each cell's permittivity is its area fraction
+    of dielectric across the axis (4^2 samples); the top face is grid-aligned."""
+    sub = (np.arange(4) + 0.5) / 4 - 0.5
+
+    def eps_cell(x, y, z):
+        inside = sum(((x + p) ** 2 + (y + q) ** 2 < radius ** 2).astype(float) for p in sub for q in sub)
+        return 1.0 + (eps_r - 1.0) * inside / 16.0 * (np.abs(z) < height)
+    n = int(math.ceil(radius))
+    f, q = ringdown(eps_cell, (n, n, height), k0a_guess / (2 * math.pi * radius),
+                    max(1, int(0.7 * height)), **kw)
+    return 2 * math.pi * f * radius, q
 
 
 def hemisphere(eps_r: float, radius: float, **kw) -> tuple[float, float]:
