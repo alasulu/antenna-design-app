@@ -2000,9 +2000,41 @@ quantity that should not change. It is now Ds/D in tenths, 1 at the default.
 That closes the reflector family's asserted efficiencies. The lenses carry
 theirs still, and are the next place for the same method.
 
+## Lenses: one flattered by 0.80, one undersold by 0.75
+
+The lenses were the last archetypes with a flat asserted illumination
+efficiency: 0.80 for the hyperbolic dielectric lens, 0.75 for the metal-plate
+lens, 0.65 for the Luneburg, each silently including spillover, beside a flat
+70 lambda/D. A lens decides its own illumination: a ray leaving the feed at
+theta refracts at the curved face and crosses the flat one at
+rho = |n-1| F sin(theta)/|n cos(theta) - 1|, and power conserved along those ray
+tubes turns the feed pattern into the aperture field. The mapping was traced,
+not assumed - Snell's law at the actual face, with the normal taken from the
+curve: rays leave parallel to 1e-9 and land on the formula to 1e-15.
+
+It cuts both ways. A HYPERBOLA tapers the aperture on top of the feed: -8 dB at
+the feed is -22.4 dB at the rim of the default Rexolite lens, and with its rim
+angle at 40 of a possible 51 degrees the best taper-spillover product it can
+reach is 0.52 - against the asserted 0.80, some 2 dB of gain the spec did not
+have. Pulled in to 25 degrees it reaches 0.73. An ELLIPSE (the metal-plate
+lens, n < 1) brightens the rim instead: -12 dB at the feed is -8.5 dB at the
+rim, and the product reaches 0.89 to 0.95, which the flat 0.75 undersold. So the
+two want opposite feeds - broad for the dielectric (-6.7 to -9.3 dB is best),
+narrow for the metal plates (-11.8 to -13.6) - and the defaults now say so. The
+ellipse also has a limit its spec never stated: the aperture radius peaks at
+cos(theta) = n and folds back beyond it, so the rim angle must stay below
+acos(n); that is now a reported metric.
+
+Beamwidth is fitted to the Hankel transform of the ray-mapped aperture: 61 to
+112 lambda/D for the dielectric lens, where heavy lens taper broadens the beam
+a long way past 70, and 54 to 74 for the metal plates. The Luneburg lens keeps
+its 0.65, deliberately: in geometric optics a cos(theta) feed gives it a
+perfectly uniform aperture, so what keeps real ones near 0.65 is construction
+loss, which ray optics cannot see.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2340 tests, 729/729 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2370 tests, 762/762 known cases.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

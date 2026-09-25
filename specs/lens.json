@@ -45,8 +45,8 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.80"
+          "role": "derived",
+          "description": "Taper efficiency ALONE (it used to fold in spillover). DERIVED from the feed taper and the lens mapping; supply it to override."
         },
         {
           "symbol": "n_index",
@@ -65,6 +65,45 @@
           "name": "aperture diameter",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "feed_taper_db",
+          "name": "feed taper at the rim",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-8",
+          "description": "the feed pattern's own level at the rim angle, relative to its axis"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "derived",
+          "description": "feed power the lens intercepts. DERIVED; supply it to override"
+        },
+        {
+          "symbol": "lens_nf",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_e",
+          "name": "normalised feed taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_q",
+          "name": "normalised index",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_g",
+          "name": "rim angle as a fraction of its limit, normalised",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -94,6 +133,61 @@
           "depends_on": [
             "r_rim",
             "theta_rim_deg"
+          ]
+        },
+        {
+          "output": "lens_nf",
+          "expr": "2*feed_taper_db/(20*log10(cos(rad(theta_rim_deg))))",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db",
+            "theta_rim_deg"
+          ]
+        },
+        {
+          "output": "eta_spill",
+          "expr": "(1 - cos(rad(theta_rim_deg))**(lens_nf + 1))",
+          "units_out": "-",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg"
+          ],
+          "notes": "exact for a 2(n+1)cos^n feed"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "2*(lens_nf + 1)*np.trapezoid((n_index - 1)*np.sin(np.linspace(0, rad(theta_rim_deg), 4001))*np.sqrt(np.cos(np.linspace(0, rad(theta_rim_deg), 4001))**lens_nf*(n_index - np.cos(np.linspace(0, rad(theta_rim_deg), 4001)))/(n_index*np.cos(np.linspace(0, rad(theta_rim_deg), 4001)) - 1)**3), np.linspace(0, rad(theta_rim_deg), 4001))**2/(((n_index - 1)*sin(rad(theta_rim_deg))/(n_index*cos(rad(theta_rim_deg)) - 1))**2*(1 - cos(rad(theta_rim_deg))**(lens_nf + 1)))",
+          "units_out": "-",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg",
+            "n_index"
+          ],
+          "notes": "taper efficiency of the ray-mapped aperture field, integrated in the expression on 4001 points"
+        },
+        {
+          "output": "lens_e",
+          "expr": "(feed_taper_db + 11.0)/9.0",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db"
+          ]
+        },
+        {
+          "output": "lens_q",
+          "expr": "(log(n_index) - 0.6)/0.6",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ]
+        },
+        {
+          "output": "lens_g",
+          "expr": "(rad(theta_rim_deg)/acos(1/n_index) - 0.55)/0.35",
+          "units_out": "-",
+          "depends_on": [
+            "theta_rim_deg",
+            "n_index"
           ]
         }
       ],
@@ -144,10 +238,11 @@
         },
         {
           "metric": "aperture_efficiency",
-          "expr": "eta_ill*(1 - ((n_index - 1)/(n_index + 1))**2)**2",
+          "expr": "eta_ill*eta_spill*(1 - ((n_index - 1)/(n_index + 1))**2)**2",
           "units_out": "-",
           "depends_on": [
             "eta_ill",
+            "eta_spill",
             "n_index"
           ]
         },
@@ -156,19 +251,24 @@
           "expr": "db10(aperture_efficiency*(pi*D_ap*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
-            "aperture_efficiency",
             "D_ap",
+            "aperture_efficiency",
+            "eta_spill",
             "f0"
           ]
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D_ap",
+          "expr": "((72.0577047) + (8.13789995)*lens_g**1 + (4.81687724)*lens_g**2 + (3.38459759)*lens_g**3 + (1.87915465)*lens_g**4 + (-0.0742782119)*lens_q**1 + (-0.0298941224)*lens_q**1*lens_g**1 + (0.227694996)*lens_q**1*lens_g**2 + (0.69482056)*lens_q**1*lens_g**3 + (0.495153713)*lens_q**1*lens_g**4 + (0.0174495434)*lens_q**2 + (-0.0468447052)*lens_q**2*lens_g**1 + (-0.127859132)*lens_q**2*lens_g**2 + (-0.0754526239)*lens_q**2*lens_g**3 + (-0.00488047759)*lens_q**2*lens_g**4 + (-0.00161757491)*lens_q**3 + (0.0158760778)*lens_q**3*lens_g**1 + (0.025277252)*lens_q**3*lens_g**2 + (-0.0132009026)*lens_q**3*lens_g**3 + (-0.0224273835)*lens_q**3*lens_g**4 + (-8.97149781)*lens_e**1 + (-2.95667324)*lens_e**1*lens_g**1 + (-1.95700524)*lens_e**1*lens_g**2 + (-1.09453664)*lens_e**1*lens_g**3 + (-0.429713934)*lens_e**1*lens_g**4 + (0.0906093377)*lens_e**1*lens_q**1 + (0.175097192)*lens_e**1*lens_q**1*lens_g**1 + (0.0103659255)*lens_e**1*lens_q**1*lens_g**2 + (-0.621262007)*lens_e**1*lens_q**1*lens_g**3 + (-0.536676178)*lens_e**1*lens_q**1*lens_g**4 + (-0.0158243031)*lens_e**1*lens_q**2 + (0.0209840453)*lens_e**1*lens_q**2*lens_g**1 + (0.0903524242)*lens_e**1*lens_q**2*lens_g**2 + (0.0850179681)*lens_e**1*lens_q**2*lens_g**3 + (0.0268775626)*lens_e**1*lens_q**2*lens_g**4 + (0.000424280844)*lens_e**1*lens_q**3 + (-0.016337377)*lens_e**1*lens_q**3*lens_g**1 + (-0.0271713098)*lens_e**1*lens_q**3*lens_g**2 + (0.0128220296)*lens_e**1*lens_q**3*lens_g**3 + (0.0242516293)*lens_e**1*lens_q**3*lens_g**4 + (1.0818389)*lens_e**2 + (0.693570468)*lens_e**2*lens_g**1 + (0.559100564)*lens_e**2*lens_g**2 + (0.713131301)*lens_e**2*lens_g**3 + (0.456142859)*lens_e**2*lens_g**4 + (-0.0626059438)*lens_e**2*lens_q**1 + (-0.162433667)*lens_e**2*lens_q**1*lens_g**1 + (-0.135401073)*lens_e**2*lens_q**1*lens_g**2 + (0.190867624)*lens_e**2*lens_q**1*lens_g**3 + (0.222374298)*lens_e**2*lens_q**1*lens_g**4 + (0.0128425211)*lens_e**2*lens_q**2 + (0.0205928741)*lens_e**2*lens_q**2*lens_g**1 + (-0.00505560001)*lens_e**2*lens_q**2*lens_g**2 + (-0.0597723873)*lens_e**2*lens_q**2*lens_g**3 + (-0.0455730899)*lens_e**2*lens_q**2*lens_g**4 + (-0.00123299684)*lens_e**2*lens_q**3 + (0.00402359784)*lens_e**2*lens_q**3*lens_g**1 + (0.0116487241)*lens_e**2*lens_q**3*lens_g**2 + (0.000835636378)*lens_e**2*lens_q**3*lens_g**3 + (-0.0059498754)*lens_e**2*lens_q**3*lens_g**4 + (0.0106074706)*lens_e**3 + (-0.0254175958)*lens_e**3*lens_g**1 + (-0.0342228574)*lens_e**3*lens_g**2 + (-0.291191772)*lens_e**3*lens_g**3 + (-0.250404189)*lens_e**3*lens_g**4 + (0.00963303329)*lens_e**3*lens_q**1 + (0.0414543788)*lens_e**3*lens_q**1*lens_g**1 + (0.0590739315)*lens_e**3*lens_q**1*lens_g**2 + (-0.0127234165)*lens_e**3*lens_q**1*lens_g**3 + (-0.0401575414)*lens_e**3*lens_q**1*lens_g**4 + (-0.00223880425)*lens_e**3*lens_q**2 + (-0.0132985109)*lens_e**3*lens_q**2*lens_g**1 + (-0.0151090916)*lens_e**3*lens_q**2*lens_g**2 + (0.0222396794)*lens_e**3*lens_q**2*lens_g**3 + (0.026515704)*lens_e**3*lens_q**2*lens_g**4 + (0.000416131029)*lens_e**3*lens_q**3 + (0.000975047196)*lens_e**3*lens_q**3*lens_g**1 + (-0.000533800406)*lens_e**3*lens_q**3*lens_g**2 + (-0.00353235883)*lens_e**3*lens_q**3*lens_g**3 + (-0.00242825183)*lens_e**3*lens_q**3*lens_g**4 + (-0.015332559)*lens_e**4 + (-0.028046733)*lens_e**4*lens_g**1 + (-0.0286300338)*lens_e**4*lens_g**2 + (0.070985387)*lens_e**4*lens_g**3 + (0.0767485313)*lens_e**4*lens_g**4 + (0.00074884885)*lens_e**4*lens_q**1 + (-0.00165635104)*lens_e**4*lens_q**1*lens_g**1 + (-0.00884644925)*lens_e**4*lens_q**1*lens_g**2 + (-0.0101866578)*lens_e**4*lens_q**1*lens_g**3 + (-0.00354972148)*lens_e**4*lens_q**1*lens_g**4 + (-0.000260594733)*lens_e**4*lens_q**2 + (0.003376972)*lens_e**4*lens_q**2*lens_g**1 + (0.00663179111)*lens_e**4*lens_q**2*lens_g**2 + (-0.0046314532)*lens_e**4*lens_q**2*lens_g**3 + (-0.00781030673)*lens_e**4*lens_q**2*lens_g**4 + (-6.23320815e-06)*lens_e**4*lens_q**3 + (-0.000763795207)*lens_e**4*lens_q**3*lens_g**1 + (-0.00105773421)*lens_e**4*lens_q**3*lens_g**2 + (0.00157086245)*lens_e**4*lens_q**3*lens_g**3 + (0.0019034615)*lens_e**4*lens_q**3*lens_g**4)*(c/f0)/D_ap",
           "units_out": "deg",
           "depends_on": [
+            "lens_e",
+            "lens_q",
+            "lens_g",
             "f0",
             "D_ap"
-          ]
+          ],
+          "notes": "From the Hankel transform of the ray-mapped aperture field, fitted over feed taper -20..-2 dB, the index and the rim angle up to 0.9 of its limit; within 0.2 lambda/D on the grid and 0.06 on points it never saw. Not a flat 70: a heavily tapered lens beam is far broader."
         },
         {
           "metric": "f_over_d",
@@ -187,6 +287,17 @@
             "D_ap",
             "f0"
           ]
+        },
+        {
+          "metric": "aperture_edge_illumination_db",
+          "expr": "10*log10(cos(rad(theta_rim_deg))**lens_nf*(n_index*cos(rad(theta_rim_deg)) - 1)**3/((n_index - 1)**2*(n_index - cos(rad(theta_rim_deg)))))",
+          "units_out": "dB",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg",
+            "n_index"
+          ],
+          "notes": "the aperture field at the rim relative to the centre: the feed taper plus the lens's own"
         }
       ],
       "validity": [
@@ -194,7 +305,8 @@
         "theta_rim below max_rim_angle_deg, or the surface does not close",
         "reflection loss assumes normal incidence at both faces; it is worse toward the rim, and multiple internal reflections are ignored",
         "no dielectric absorption term - real lens materials add loss that grows with thickness and frequency",
-        "the flat face is untreated, so a real lens usually needs a matching layer or grooves"
+        "the flat face is untreated, so a real lens usually needs a matching layer or grooves",
+        "eta_ill, eta_spill, hpbw_deg and the edge illumination are geometric optics for a single refracting face and a cos^n feed; the rim angle must stay below 0.9 of its limit (acos(1/n) for a dielectric, acos(n) for metal plates) for the beamwidth fit"
       ],
       "known_cases": [
         {
@@ -240,13 +352,68 @@
           },
           "tol_pct": 0.5,
           "source": "Silicon, n = 3.4205: 30.0% reflected at every face. Two faces cost 3.10 dB, which is why millimetre-wave silicon lenses are always matched."
+        },
+        {
+          "given": {
+            "eps_r": 2.53,
+            "F": 0.05,
+            "theta_rim_deg": 40.0,
+            "feed_taper_db": -8.0,
+            "f0": 100000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.58747,
+            "eta_spill": 0.87859,
+            "aperture_efficiency": 0.463888,
+            "hpbw_deg": 1.32881,
+            "aperture_edge_illumination_db": -22.4012
+          },
+          "tol_pct": 0.5,
+          "source": "n = 1.5906, rim 40 deg, -8 dB feed taper (cos^6.912): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
+        },
+        {
+          "given": {
+            "eps_r": 11.7,
+            "F": 0.05,
+            "theta_rim_deg": 40.0,
+            "feed_taper_db": -8.0,
+            "f0": 100000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.820049,
+            "eta_spill": 0.87859,
+            "aperture_efficiency": 0.353212,
+            "hpbw_deg": 2.15593,
+            "aperture_edge_illumination_db": -13.6288
+          },
+          "tol_pct": 0.5,
+          "source": "n = 3.4205, rim 40 deg, -8 dB feed taper (cos^6.912): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
+        },
+        {
+          "given": {
+            "eps_r": 2.1,
+            "F": 0.05,
+            "theta_rim_deg": 25.0,
+            "feed_taper_db": -10.0,
+            "f0": 100000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.775294,
+            "eta_spill": 0.909369,
+            "aperture_efficiency": 0.658405,
+            "hpbw_deg": 3.50504,
+            "aperture_edge_illumination_db": -15.5112
+          },
+          "tol_pct": 0.5,
+          "source": "n = 1.4491, rim 25 deg, -10 dB feed taper (cos^23.406): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
         }
       ],
       "references": [
         "Milligan, Modern Antenna Design 2nd ed., Ch. 9 (lens antennas)",
         "Silver, Microwave Antenna Theory and Design, MIT Rad Lab vol. 12, Ch. 11",
         "Surface equation derived here from the equal-optical-path condition"
-      ]
+      ],
+      "notes": "FROM THE FEED, THROUGH THE LENS. A ray leaving the focus at theta refracts at the curved face and crosses the flat face at rho(theta) = |n-1| F sin(theta)/|n cos(theta) - 1|; that mapping was checked by tracing rays with Snell's law at the actual surface (they leave parallel to 1e-9, and land where the formula says to 1e-15). Power conserved along ray tubes then turns a feed of pattern 2(n+1)cos^n into an aperture field, and the taper efficiency, spillover and beamwidth all follow. A HYPERBOLIC lens TAPERS the aperture on top of the feed: rim rays are spread over more aperture than axial ones, so -8 dB at the feed becomes -22.4 dB at the rim of the default Rexolite lens. Its feed should be broad - the best feed taper runs -6.7 to -9.3 dB over the cases checked - and a rim angle near the hyperbola's limit costs dearly: the default 40 degrees of a 51-degree limit peaks at 0.52 for taper x spillover, where 25 degrees reaches 0.73. The old flat 0.80 was nowhere near. The asserted eta_ill, which silently included spillover, is now the taper efficiency alone, beside a derived eta_spill."
     },
     {
       "key": "luneburg_lens",
@@ -723,8 +890,8 @@
           "symbol": "eta_ill",
           "name": "illumination efficiency",
           "unit": "-",
-          "role": "assumption",
-          "typical": "0.75"
+          "role": "derived",
+          "description": "Taper efficiency ALONE (it used to fold in spillover). DERIVED from the feed taper and the lens mapping; supply it to override."
         },
         {
           "symbol": "plate_spacing",
@@ -749,6 +916,45 @@
           "name": "aperture diameter",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "feed_taper_db",
+          "name": "feed taper at the rim",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-12",
+          "description": "the feed pattern's own level at the rim angle, relative to its axis"
+        },
+        {
+          "symbol": "eta_spill",
+          "name": "spillover efficiency",
+          "unit": "-",
+          "role": "derived",
+          "description": "feed power the lens intercepts. DERIVED; supply it to override"
+        },
+        {
+          "symbol": "lens_nf",
+          "name": "feed pattern exponent",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_e",
+          "name": "normalised feed taper",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_q",
+          "name": "normalised index",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "lens_g",
+          "name": "rim angle as a fraction of its limit, normalised",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -789,6 +995,61 @@
             "r_rim",
             "theta_rim_deg"
           ]
+        },
+        {
+          "output": "lens_nf",
+          "expr": "2*feed_taper_db/(20*log10(cos(rad(theta_rim_deg))))",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db",
+            "theta_rim_deg"
+          ]
+        },
+        {
+          "output": "eta_spill",
+          "expr": "(1 - cos(rad(theta_rim_deg))**(lens_nf + 1))",
+          "units_out": "-",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg"
+          ],
+          "notes": "exact for a 2(n+1)cos^n feed"
+        },
+        {
+          "output": "eta_ill",
+          "expr": "2*(lens_nf + 1)*np.trapezoid((1 - n_index)*np.sin(np.linspace(0, rad(theta_rim_deg), 4001))*np.sqrt(np.cos(np.linspace(0, rad(theta_rim_deg), 4001))**lens_nf*(np.cos(np.linspace(0, rad(theta_rim_deg), 4001)) - n_index)/(1 - n_index*np.cos(np.linspace(0, rad(theta_rim_deg), 4001)))**3), np.linspace(0, rad(theta_rim_deg), 4001))**2/(((1 - n_index)*sin(rad(theta_rim_deg))/(1 - n_index*cos(rad(theta_rim_deg))))**2*(1 - cos(rad(theta_rim_deg))**(lens_nf + 1)))",
+          "units_out": "-",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg",
+            "n_index"
+          ],
+          "notes": "taper efficiency of the ray-mapped aperture field, integrated in the expression on 4001 points"
+        },
+        {
+          "output": "lens_e",
+          "expr": "(feed_taper_db + 11.0)/9.0",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db"
+          ]
+        },
+        {
+          "output": "lens_q",
+          "expr": "(n_index - 0.6)/0.3",
+          "units_out": "-",
+          "depends_on": [
+            "n_index"
+          ]
+        },
+        {
+          "output": "lens_g",
+          "expr": "(rad(theta_rim_deg)/acos(n_index) - 0.55)/0.35",
+          "units_out": "-",
+          "depends_on": [
+            "theta_rim_deg",
+            "n_index"
+          ]
         }
       ],
       "analysis": [
@@ -822,31 +1083,37 @@
         },
         {
           "metric": "aperture_efficiency",
-          "expr": "eta_ill",
+          "expr": "eta_ill*eta_spill",
           "units_out": "-",
           "depends_on": [
-            "eta_ill"
+            "eta_ill",
+            "eta_spill"
           ],
           "notes": "No dielectric reflection term: the plates are matched by flaring or by a matching section, not by Fresnel transmission"
         },
         {
           "metric": "gain_dbi",
-          "expr": "db10(eta_ill*(pi*D_ap*f0/c)**2)",
+          "expr": "db10(eta_ill*eta_spill*(pi*D_ap*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
-            "eta_ill",
             "D_ap",
+            "eta_ill",
+            "eta_spill",
             "f0"
           ]
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/D_ap",
+          "expr": "((63.2725284) + (-3.78827976)*lens_g**1 + (-0.869300845)*lens_g**2 + (-0.620333318)*lens_q**1 + (-0.342538027)*lens_q**1*lens_g**1 + (0.203900961)*lens_q**1*lens_g**2 + (0.056412322)*lens_q**2 + (0.0331490128)*lens_q**2*lens_g**1 + (-0.0242220486)*lens_q**2*lens_g**2 + (-5.84479196)*lens_e**1 + (1.45399884)*lens_e**1*lens_g**1 + (0.360420984)*lens_e**1*lens_g**2 + (0.142927038)*lens_e**1*lens_q**1 + (0.0117484273)*lens_e**1*lens_q**1*lens_g**1 + (-0.113523084)*lens_e**1*lens_q**1*lens_g**2 + (-0.0117912544)*lens_e**1*lens_q**2 + (0.0129501061)*lens_e**1*lens_q**2*lens_g**1 + (0.0272207122)*lens_e**1*lens_q**2*lens_g**2 + (0.36454429)*lens_e**2 + (-0.251133263)*lens_e**2*lens_g**1 + (-0.0159278604)*lens_e**2*lens_g**2 + (-0.00709171349)*lens_e**2*lens_q**1 + (0.0120214672)*lens_e**2*lens_q**1*lens_g**1 + (0.0155111823)*lens_e**2*lens_q**1*lens_g**2 + (-0.000262675955)*lens_e**2*lens_q**2 + (-0.00356940547)*lens_e**2*lens_q**2*lens_g**1 + (-0.00334144575)*lens_e**2*lens_q**2*lens_g**2 + (0.0530763935)*lens_e**3 + (-0.0076613396)*lens_e**3*lens_g**1 + (-0.0120633395)*lens_e**3*lens_g**2 + (-0.0013728812)*lens_e**3*lens_q**1 + (0.000265426789)*lens_e**3*lens_q**1*lens_g**1 + (0.00192647787)*lens_e**3*lens_q**1*lens_g**2 + (0.000157886699)*lens_e**3*lens_q**2 + (-0.000368800576)*lens_e**3*lens_q**2*lens_g**1 + (-0.00062030796)*lens_e**3*lens_q**2*lens_g**2)*(c/f0)/D_ap",
           "units_out": "deg",
           "depends_on": [
+            "lens_e",
+            "lens_q",
+            "lens_g",
             "f0",
             "D_ap"
-          ]
+          ],
+          "notes": "From the Hankel transform of the ray-mapped aperture field, fitted over feed taper -20..-2 dB, the index and the rim angle up to 0.9 of its limit; within 0.2 lambda/D on the grid and 0.06 on points it never saw. Not a flat 70: a heavily tapered lens beam is far broader."
         },
         {
           "metric": "index_sensitivity_per_percent_freq",
@@ -866,13 +1133,34 @@
             "F",
             "D_ap"
           ]
+        },
+        {
+          "metric": "aperture_edge_illumination_db",
+          "expr": "10*log10(cos(rad(theta_rim_deg))**lens_nf*(1 - n_index*cos(rad(theta_rim_deg)))**3/((1 - n_index)**2*(cos(rad(theta_rim_deg)) - n_index)))",
+          "units_out": "dB",
+          "depends_on": [
+            "lens_nf",
+            "theta_rim_deg",
+            "n_index"
+          ],
+          "notes": "the aperture field at the rim relative to the centre: the feed taper plus the lens's own"
+        },
+        {
+          "metric": "max_rim_angle_deg",
+          "expr": "deg(acos(n_index))",
+          "units_out": "deg",
+          "depends_on": [
+            "n_index"
+          ],
+          "notes": "beyond this the ellipse's aperture radius folds back and rays overlap"
         }
       ],
       "validity": [
         "plate spacing above lambda/2, strictly, or the guide is cut off",
         "spacing below lambda keeps the next mode out",
         "strongly dispersive: usable bandwidth is a few percent unquoted, and zoning makes it worse",
-        "ray optics, and the plate edges diffract - the model ignores both edge effects and the flare needed to match the plates to free space"
+        "ray optics, and the plate edges diffract - the model ignores both edge effects and the flare needed to match the plates to free space",
+        "eta_ill, eta_spill, hpbw_deg and the edge illumination are geometric optics for a single refracting face and a cos^n feed; the rim angle must stay below 0.9 of its limit (acos(1/n) for a dielectric, acos(n) for metal plates) for the beamwidth fit"
       ],
       "known_cases": [
         {
@@ -902,13 +1190,71 @@
           },
           "tol_pct": 0.2,
           "source": "The surface is an ellipse of eccentricity n = 0.5528, the mirror of the dielectric lens's hyperbola of eccentricity n > 1"
+        },
+        {
+          "given": {
+            "plate_spacing_over_lambda": 0.6,
+            "F": 0.3,
+            "theta_rim_deg": 30.0,
+            "feed_taper_db": -12.0,
+            "f0": 10000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.936256,
+            "eta_spill": 0.945357,
+            "aperture_efficiency": 0.885097,
+            "hpbw_deg": 7.48327,
+            "aperture_edge_illumination_db": -8.45829,
+            "max_rim_angle_deg": 56.4427
+          },
+          "tol_pct": 0.5,
+          "source": "n = 0.5528, rim 30 deg, -12 dB feed taper (cos^19.209): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
+        },
+        {
+          "given": {
+            "plate_spacing_over_lambda": 0.6,
+            "F": 0.3,
+            "theta_rim_deg": 45.0,
+            "feed_taper_db": -14.0,
+            "f0": 10000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.977284,
+            "eta_spill": 0.971849,
+            "aperture_efficiency": 0.949773,
+            "hpbw_deg": 5.94865,
+            "aperture_edge_illumination_db": -5.35727,
+            "max_rim_angle_deg": 56.4427
+          },
+          "tol_pct": 0.5,
+          "source": "n = 0.5528, rim 45 deg, -14 dB feed taper (cos^9.301): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
+        },
+        {
+          "given": {
+            "plate_spacing_over_lambda": 0.8,
+            "F": 0.3,
+            "theta_rim_deg": 20.0,
+            "feed_taper_db": -10.0,
+            "f0": 10000000000.0
+          },
+          "expect": {
+            "eta_ill": 0.965128,
+            "eta_spill": 0.906031,
+            "aperture_efficiency": 0.874435,
+            "hpbw_deg": 11.1203,
+            "aperture_edge_illumination_db": -6.07202,
+            "max_rim_angle_deg": 38.6822
+          },
+          "tol_pct": 0.5,
+          "source": "n = 0.7806, rim 20 deg, -10 dB feed taper (cos^37.018): rays traced with Snell's law through the curved face (otahub.num.lens), power conserved along the traced ray tubes, beam by Hankel transform of that field - not the spec's closed-form mapping or its fit."
         }
       ],
       "references": [
         "Kock, Metal-lens antennas, Proc. IRE 34(11), 1946",
         "Silver, Microwave Antenna Theory and Design, MIT Rad Lab vol. 12, Ch. 11",
         "Milligan, Modern Antenna Design 2nd ed., Ch. 9.4"
-      ]
+      ],
+      "notes": "FROM THE FEED, THROUGH THE LENS. A ray leaving the focus at theta refracts at the curved face and crosses the flat face at rho(theta) = |n-1| F sin(theta)/|n cos(theta) - 1|; that mapping was checked by tracing rays with Snell's law at the actual surface (they leave parallel to 1e-9, and land where the formula says to 1e-15). Power conserved along ray tubes then turns a feed of pattern 2(n+1)cos^n into an aperture field, and the taper efficiency, spillover and beamwidth all follow. A METAL-PLATE lens (n < 1, an elliptical face) does the opposite: it BRIGHTENS the rim, so -12 dB at the feed is -8.5 dB at the rim of the default design. Its feed should be narrower than a dish's - the best runs -11.8 to -13.6 dB - and taper x spillover reaches 0.89-0.95, where the old flat 0.75 undersold it. The ellipse also has a limit the spec did not state: the aperture radius peaks at cos(theta) = n and folds back beyond it, so the rim angle must stay below acos(n). The asserted eta_ill, which silently included spillover, is now the taper efficiency alone, beside a derived eta_spill."
     }
   ]
 }

@@ -6,7 +6,7 @@ confirmed by a route that shares no algebra with it.
 """
 from __future__ import annotations
 
-from . import corner, hallen, loop_modal, paraboloid, patch_cavity, waveguide_slot
+from . import corner, hallen, lens, loop_modal, paraboloid, patch_cavity, waveguide_slot
 from .mom import (
     Wire, WireModel, MoMSolution, dipole, loop, arc, halo, folded_dipole_wire,
     helix_over_ground, lpda_model, rhombic_model,
@@ -18,7 +18,7 @@ from .mom import (
 )
 
 __all__ = [
-    "corner", "hallen", "loop_modal", "paraboloid", "patch_cavity", "waveguide_slot",
+    "corner", "hallen", "lens", "loop_modal", "paraboloid", "patch_cavity", "waveguide_slot",
     "Wire", "WireModel", "MoMSolution", "dipole", "loop", "arc", "halo",
     "folded_dipole_wire", "helix_over_ground", "lpda_model",
     "rhombic_model", "top_hat_monopole", "bicone_cage",
