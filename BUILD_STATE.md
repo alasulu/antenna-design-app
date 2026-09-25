@@ -2136,12 +2136,59 @@ The DRA family has no curve-fit physics left: exact pole for the hemisphere,
 ringdowns for the brick and the puck. What none of them models is the feed,
 a finite ground and dielectric loss.
 
+## The zone plate's gain had no feed in it
+
+`fresnel_zone_plate` computed its gain as the first-order grating efficiency -
+1/pi^2, 4/pi^2, 8/pi^2 for opaque, phase-reversing and four-level plates - times
+(pi D/lambda)^2: a perfectly lit aperture with no feed in sight. The lens and
+dish rounds had each found that the feed's taper and spillover are where most
+of an aperture budget goes, so this one was worth doing the same way.
+
+The arbiter, `otahub/num/zone_plate.py`, is scalar Kirchhoff diffraction done
+bluntly: a 2(n+1)cos^n feed at the focus, spherical spreading to the plate, each
+point's transmission from its own path length, obliquity (1 + cos)/2, and the
+radiation integral summed over a Cartesian grid on the plate, gain referred to
+the feed's total power. The spec evaluates the same physics as a feed-angle
+integral on 8001 points; the two agree to 0.015%. Under near-uniform light on
+many zones the integral falls back to 1/pi^2, 4/pi^2 and 8/pi^2, so the old
+numbers were the right limit of the right model - just not the case a feed
+produces.
+
+For a phase plate the budget factorises exactly, to better than 1%: grating
+efficiency times the feed's taper and spillover. That factor is 0.72-0.81 even
+at the best feed taper, so the old gain was 0.9-1.4 dB optimistic; at the
+default design, phase reversal, 29.13 dBi rather than 30.11. The opaque plate
+does NOT factorise, and that was the surprise. Its unfocused zero order passes
+the open zones as well, and under a tapered feed the bright central zone, which
+is open, carries it into the beam: with few zones and a heavy taper the opaque
+plate beats 1/pi^2 (0.115 at best on the default four zones), with many zones
+it falls short, so its old gain was anywhere from 0.9 dB pessimistic to 1.3 dB
+optimistic. Its best feed taper is heavier too, -6 to -18 dB against -6 to -11
+for a phase plate.
+
+The zero order also shapes the opaque plate's beam, and makes it depend on the
+parity of M: an odd count ends on an open zone, an even one on a blocked one,
+and their beams differ by up to 14%. Beamwidth is therefore fitted per plate
+type and, for the opaque plate, per parity - quadratics in feed taper, 1/M and
+1 - cos(rim angle) over 1260 patterns, 0.79% worst and 0.18% on held-out 2-D
+patterns. A phase plate's beam is the tapered aperture's, 61-92 lambda/D; the
+opaque plate's reaches 116. The old flat 70 lambda/D suited a phase plate under
+a -10 dB feed; the default opaque plate's beam is 16% wider.
+
+The "INDICATIVE 1/M" bandwidth held up better than anything else in the spec.
+Swept in frequency with the plate fixed, M times the 1 dB gain bandwidth runs
+0.89-1.37, so 1/M was the right size; it is now computed the same way (0.70%
+fit, 0.30% held out), and the 3 dB band is 1.69-1.81 times wider. One detail on
+the way: a four-level plate whose steps each compensate at the lower edge of
+their band peaks above f0, 6% at four zones.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2420 tests, 774/774 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2446 tests, 785/785 known cases.
 The DRA family is backed end to end by `otahub/num/dra.py` (exact pole and FDTD);
-next candidates: the finite-gap MoM feed (HANDOVER §6), the discone's conventions
-and the Fresnel zone plate (§4).
+the lens family by ray tracing and Kirchhoff diffraction except the Luneburg's
+construction loss. Next candidates: the finite-gap MoM feed (HANDOVER §6) and
+the discone's conventions (§4).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-16,083 lines of Python, 22,166 lines of spec data, 2420 tests, 774/774 citable
+16,296 lines of Python, 22,378 lines of spec data, 2446 tests, 785/785 citable
 known cases passing.**
 
 ---
@@ -205,6 +205,7 @@ being written into a spec.
 | `cylindrical_parabolic` | Taper and spillover under a line feed (cylindrical spreading), focusing-plane beamwidth and peak sidelobe, from the edge taper and f/W | `otahub/num/paraboloid.py` integrates over the aperture coordinate: efficiencies to 1e-5, beamwidth to 0.05 lambda/W and peak sidelobe to 0.15 dB off the fit grid; the uniform limit reproduces 50.8 lambda/W and -13.3 dB |
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
+| `fresnel_zone_plate` | Aperture efficiency and gain from a cos^n feed through the plate's own zones (Kirchhoff, in-spec feed-angle integral); spillover; HPBW and 1 dB gain bandwidth fitted per plate type and, for the opaque plate, per parity of M | `otahub/num/zone_plate.py` integrates on a Cartesian grid over the plate: efficiency to 0.015%, the fits to 0.18% (beam) and 0.30% (bandwidth) on held-out 2-D runs; many zones under uniform light recover 1/π², 4/π², 8/π² |
 | `hemispherical_dra` | k₀a and Q from the exact complex TE₁ pole of the equivalent sphere, fitted to 0.23% over εr 6–100 | Newton on the characteristic equation; `otahub/num/dra.py`'s FDTD ringdown of a staircased hemisphere lands on the pole to 0.15% in frequency and 0.9% in Q; Mongia & Bhartia's published fit is within 1.04%. The peak of the Mie coefficient b₁ on the real axis, used before, was 1.2% high and its half-power Q 12% low at εr = 10 |
 | `cylindrical_dra` | k₀a and radiation Q of the HE₁₁ mode over εr 6–50 and a/h 0.4–4 | Fitted to 48 FDTD ringdowns (`otahub/num/dra.py`): 0.34% in k₀a, 0.42% in Q; 0.16% / 0.49% on 12 held out. Mongia & Bhartia's published fits kept as a comparison: 9.4% low to 8.8% high in resonance, 26% low to 16% high in Q |
 | `rectangular_dra` | k₀d and radiation Q of the broadside mode (magnetic dipole along L), the other mode's frequency | Fitted to 150 FDTD ringdowns (`otahub/num/dra.py`) over εr 6–50 and both aspects 1–3: 0.15% in k₀d, 0.7% in Q, and within 0.13% / 0.65% on 33 held-out ones. The DWM, run the right way round, is kept as a reported comparison: 10.6% high to 6.2% low |
@@ -309,9 +310,10 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   have Q under 2, which the ringdown cannot isolate.
 - **`discone` and `conical_monopole` rest on engineering conventions** — the
   quarter-wavelength slant and the decade bandwidth figure — not on derivations.
-- **Fresnel zone plate efficiencies** (1/π², 4/π², 8/π²) are the standard
-  first-order grating results. They ignore a real phase plate's finite thickness
-  and its shadowing at angle.
+- **The Fresnel zone plate is scalar Kirchhoff diffraction through an
+  infinitely thin plate.** Its gain, beam and bandwidth now come from the feed
+  through the plate, but a real phase plate's thickness, its shadowing at
+  oblique incidence and polarisation are not modelled.
 
 ### Metrics labelled "indicative"
 
@@ -594,9 +596,10 @@ known case only checks what it asserts.
    cylindrical wave, and the dual reflectors after it, through an equivalent
    paraboloid verified by ray tracing. That closes the reflector family's
    asserted efficiency pairs. The hyperbolic and metal-plate lenses followed,
-   through a Snell's-law ray trace. `luneburg_lens` keeps its 0.65 on purpose:
-   in geometric optics a cos(theta) feed gives it a perfectly uniform aperture,
-   so its shortfall is construction - stepped shells, material loss - which ray
+   through a Snell's-law ray trace, and the Fresnel zone plate through Kirchhoff
+   diffraction (its gain had left the feed out altogether). `luneburg_lens`
+   keeps its 0.65 on purpose: in geometric optics a cos(theta) feed gives it a
+   perfectly uniform aperture, so its shortfall is construction - stepped shells, material loss - which ray
    optics cannot see and which needs measured or full-wave data.
 8. ~~**Replace `rectangular_dra`'s borrowed Q**~~ — done, and the resonance
    with it: the DWM had been solved along the height, which is the mode of a

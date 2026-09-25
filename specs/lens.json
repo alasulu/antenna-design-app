@@ -628,7 +628,7 @@
       "key": "fresnel_zone_plate",
       "name": "Fresnel zone plate",
       "family": "lens",
-      "summary": "Flat plate of concentric zones that focuses by diffraction rather than refraction: cheap, thin, and inefficient.",
+      "summary": "Flat plate of concentric zones that focuses by diffraction rather than refraction: cheap, thin and inefficient. Gain, beamwidth and bandwidth computed from the feed through the plate by Kirchhoff diffraction.",
       "freq_range_hz": [
         1000000000.0,
         1000000000000.0
@@ -660,7 +660,14 @@
           "unit": "-",
           "role": "assumption",
           "typical": "1",
-          "description": "1 = opaque (Soret) amplitude plate, 2 = half-wave phase reversal, 4 = quarter-wave stepped"
+          "description": "1 = opaque (Soret) amplitude plate, central zone open; 2 = half-wave phase reversal; 4 = quarter-wave stepped, each step advancing its band of path by a quarter wave"
+        },
+        {
+          "symbol": "feed_taper_db",
+          "name": "feed taper at the rim angle (the feed's own, before spreading)",
+          "unit": "dB",
+          "role": "assumption",
+          "typical": "-10"
         },
         {
           "symbol": "r_outer",
@@ -673,6 +680,36 @@
           "name": "first zone radius",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "theta_rim",
+          "name": "rim angle seen from the focus",
+          "unit": "rad",
+          "role": "derived"
+        },
+        {
+          "symbol": "feed_n",
+          "name": "feed exponent n in 2(n+1)cos^n",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "x_ft",
+          "name": "feed taper / 10 dB",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "inv_M",
+          "name": "1/M",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "c_rim",
+          "name": "1 - cos(rim angle)",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -695,6 +732,49 @@
             "f0",
             "F"
           ]
+        },
+        {
+          "output": "theta_rim",
+          "expr": "atan(r_outer/F)",
+          "units_out": "rad",
+          "depends_on": [
+            "r_outer",
+            "F"
+          ]
+        },
+        {
+          "output": "feed_n",
+          "expr": "feed_taper_db/(10*log10(cos(theta_rim)))",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db",
+            "theta_rim"
+          ],
+          "notes": "Silver's feed model, power pattern 2(n+1)cos^n(theta), with n set so the pattern is feed_taper_db down at the rim"
+        },
+        {
+          "output": "x_ft",
+          "expr": "feed_taper_db/10",
+          "units_out": "-",
+          "depends_on": [
+            "feed_taper_db"
+          ]
+        },
+        {
+          "output": "inv_M",
+          "expr": "1/M",
+          "units_out": "-",
+          "depends_on": [
+            "M"
+          ]
+        },
+        {
+          "output": "c_rim",
+          "expr": "1 - cos(theta_rim)",
+          "units_out": "-",
+          "depends_on": [
+            "theta_rim"
+          ]
         }
       ],
       "analysis": [
@@ -716,28 +796,52 @@
           ]
         },
         {
+          "metric": "eta_spill",
+          "expr": "1 - cos(theta_rim)**(feed_n + 1)",
+          "units_out": "-",
+          "depends_on": [
+            "theta_rim",
+            "feed_n"
+          ],
+          "notes": "Fraction of the feed's power that reaches the plate at all"
+        },
+        {
           "metric": "focusing_efficiency",
-          "expr": "1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2)",
+          "expr": "(1/pi**2 if phase_levels < 2 else (phase_levels*sin(pi/phase_levels)/pi)**2)",
           "units_out": "-",
           "depends_on": [
             "phase_levels"
           ],
-          "notes": "First-order diffraction efficiency. An opaque Soret plate blocks half the aperture and scatters most of the rest: 1/pi^2 = 10.1%. Reversing the phase instead of blocking it gives 4/pi^2 = 40.5%, and a four-level stepped plate 8/pi^2 = 81.1%. These are the standard binary and multilevel grating efficiencies."
+          "notes": "The plate's first-order grating efficiency under UNIFORM illumination: 1/pi^2 opaque, 4/pi^2 phase-reversing, 8/pi^2 four-level, (L*sin(pi/L)/pi)^2 in general. For a phase plate it multiplies the feed's own taper and spillover exactly - the Kirchhoff integral below factorises to better than 1%. For an opaque plate it does NOT: its unfocused zero order passes the open zones too, and under a tapered feed it adds to the focus through the bright central zone, so the opaque plate beats 1/pi^2 with few zones and a heavy taper."
         },
         {
           "metric": "focusing_efficiency_db",
-          "expr": "db10(1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2))",
+          "expr": "db10((1/pi**2 if phase_levels < 2 else (phase_levels*sin(pi/phase_levels)/pi)**2))",
           "units_out": "dB",
           "depends_on": [
             "phase_levels"
           ]
         },
         {
+          "metric": "aperture_efficiency",
+          "expr": "4*pi*abs(2*pi*(F*f0/c)*np.trapezoid(sqrt(2*(feed_n + 1)*cos(np.linspace(0, theta_rim, 8001))**feed_n/(4*pi))*exp(-2j*pi*(F*f0/c)/cos(np.linspace(0, theta_rim, 8001)))*np.where(phase_levels < 2, 1.0*(np.floor(2*(F*f0/c)*(1/cos(np.linspace(0, theta_rim, 8001)) - 1)) % 2 < 0.5), exp(2j*pi/phase_levels*np.floor(phase_levels*(F*f0/c)*(1/cos(np.linspace(0, theta_rim, 8001)) - 1))))*0.5*(1 + cos(np.linspace(0, theta_rim, 8001)))*tan(np.linspace(0, theta_rim, 8001))/cos(np.linspace(0, theta_rim, 8001)), np.linspace(0, theta_rim, 8001)))**2/(pi*2*r_outer*f0/c)**2",
+          "units_out": "-",
+          "depends_on": [
+            "theta_rim",
+            "feed_n",
+            "phase_levels",
+            "F",
+            "f0",
+            "r_outer"
+          ],
+          "notes": "DERIVED, not asserted: the boresight gain by the scalar Kirchhoff integral - a 2(n+1)cos^n feed at the focus, spherical spreading to the plate, the plate's own transmission zone by zone, obliquity (1 + cos)/2 - over the feed's TOTAL power, divided by (pi D/lambda)^2. Evaluated here as a feed-angle integral on 8001 points; otahub.num.zone_plate does it on a Cartesian grid over the plate with every point's own path length and agrees to 0.015%. The previous gain was the grating efficiency times a perfectly lit aperture, so it left out the feed entirely: 0.9-1.4 dB optimistic for a phase plate even at its best feed taper (about -6 to -11 dB), and anywhere from 0.9 dB pessimistic to 1.3 dB optimistic for an opaque one, whose best taper is heavier, -6 to -18 dB, for the zero-order reason above."
+        },
+        {
           "metric": "gain_dbi",
-          "expr": "db10((1/pi**2 if phase_levels < 2 else (4/pi**2 if phase_levels < 4 else 8/pi**2))*(pi*2*r_outer*f0/c)**2)",
+          "expr": "db10(aperture_efficiency*(pi*2*r_outer*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
-            "phase_levels",
+            "aperture_efficiency",
             "r_outer",
             "f0"
           ]
@@ -754,13 +858,31 @@
         },
         {
           "metric": "hpbw_deg",
-          "expr": "70.0*(c/f0)/(2*r_outer)",
+          "expr": "np.where(phase_levels < 2, np.where(M % 2 < 0.5, exp((4.0848) + (0.0438086)*c_rim + (0.215039)*c_rim**2 + (0.545929)*inv_M + (0.366597)*inv_M*c_rim + (0.0910616)*inv_M**2 + (-0.0969801)*x_ft + (-0.0730117)*x_ft*c_rim + (-0.141722)*x_ft*inv_M + (0.0076352)*x_ft**2), exp((4.09141) + (0.0439848)*c_rim + (0.194731)*c_rim**2 + (-0.028691)*inv_M + (0.206972)*inv_M*c_rim + (-0.14935)*inv_M**2 + (-0.0898649)*x_ft + (-0.0802368)*x_ft*c_rim + (-0.325118)*x_ft*inv_M + (0.00835964)*x_ft**2)), np.where(phase_levels < 3, exp((4.08808) + (0.0721631)*c_rim + (0.176594)*c_rim**2 + (-0.0949541)*inv_M + (0.0769631)*inv_M*c_rim + (0.257496)*inv_M**2 + (-0.0973445)*x_ft + (-0.0616886)*x_ft*c_rim + (-0.0617583)*x_ft*inv_M + (0.00556934)*x_ft**2), exp((4.08004) + (0.0875674)*c_rim + (0.168024)*c_rim**2 + (-0.00375642)*inv_M + (-0.00827804)*inv_M*c_rim + (0.00105176)*inv_M**2 + (-0.103973)*x_ft + (-0.0567572)*x_ft*c_rim + (-0.00409233)*x_ft*inv_M + (0.00465989)*x_ft**2)))*(c/f0)/(2*r_outer)",
           "units_out": "deg",
           "depends_on": [
+            "phase_levels",
+            "M",
+            "x_ft",
+            "inv_M",
+            "c_rim",
             "f0",
             "r_outer"
           ],
-          "notes": "the beamwidth is set by the aperture, and is unaffected by the poor efficiency"
+          "notes": "FITTED to the Kirchhoff pattern: HPBW*D/lambda as a quadratic in feed taper, 1/M and 1 - cos(rim angle), one fit per plate type and, for the opaque plate, per parity of M - an odd M ends on an open zone, an even one on a blocked one, and the zero order makes the two differ by up to 14%. 1260 patterns over F/lambda 3-60, M 4-30, feed taper -3 to -24 dB, rim angle up to 60 degrees; worst fit error 0.79%, and 0.18% on twelve held-out 2-D patterns. A phase plate's beam is the tapered aperture's, 61-92 lambda/D; the opaque plate's zero order widens it to as much as 116. The previous flat 70 lambda/D suits a phase plate under a -10 dB feed and little else; the default opaque plate's beam is 16% wider."
+        },
+        {
+          "metric": "gain_bandwidth_1db",
+          "expr": "np.where(phase_levels < 2, np.where(M % 2 < 0.5, exp((0.0525464) + (-0.0409805)*c_rim + (0.00181377)*c_rim**2 + (-0.0574056)*inv_M + (0.183493)*inv_M*c_rim + (0.525912)*inv_M**2 + (0.00136624)*x_ft + (-0.0394449)*x_ft*c_rim + (-0.0417709)*x_ft*inv_M + (0.0307359)*x_ft**2), exp((0.0580041) + (-0.0259199)*c_rim + (-0.0151313)*c_rim**2 + (-1.12097)*inv_M + (0.145847)*inv_M*c_rim + (0.782598)*inv_M**2 + (0.0151645)*x_ft + (-0.0331866)*x_ft*c_rim + (-0.214037)*x_ft*inv_M + (0.0358922)*x_ft**2)), np.where(phase_levels < 3, exp((0.0396422) + (0.0041147)*c_rim + (-0.026499)*c_rim**2 + (0.0319526)*inv_M + (-0.0332071)*inv_M*c_rim + (-0.933916)*inv_M**2 + (-0.0118967)*x_ft + (-0.0180441)*x_ft*c_rim + (0.0457653)*x_ft*inv_M + (0.0285882)*x_ft**2), exp((0.046425) + (-0.00379299)*c_rim + (-0.0227346)*c_rim**2 + (-0.0460479)*inv_M + (0.0125861)*inv_M*c_rim + (-0.578297)*inv_M**2 + (-0.00431872)*x_ft + (-0.0210969)*x_ft*c_rim + (-0.00484573)*x_ft*inv_M + (0.030296)*x_ft**2)))/M",
+          "units_out": "-",
+          "depends_on": [
+            "phase_levels",
+            "M",
+            "x_ft",
+            "inv_M",
+            "c_rim"
+          ],
+          "notes": "FITTED: the fractional band over which the gain stays within 1 dB of its peak, the plate fixed and the feed pattern held constant, from the same Kirchhoff integral swept in frequency. M times it runs 0.89-1.37 - so the old indicative 1/M was the right size, and is now computed; heavier feed tapers widen it. Worst fit error 0.70%, 0.30% held out. The 3 dB band is 1.69-1.81 times wider. A four-level plate built with each step compensating at the lower edge of its band peaks slightly ABOVE f0 - 6% at M = 4, 0.4% by M = 16 - which this band is measured around."
         },
         {
           "metric": "outer_zone_width_m",
@@ -772,17 +894,13 @@
             "F"
           ],
           "notes": "The narrowest feature, and what sets the manufacturing tolerance. Zones get tighter outward, so a large plate is limited by the finest ring, not the biggest."
-        },
-        {
-          "metric": "fractional_bandwidth_estimate",
-          "expr": "1.0/M",
-          "units_out": "-",
-          "notes": "INDICATIVE. The zone radii are only correct at one frequency, and the focus blurs roughly as 1/M either side. A zone plate is a narrowband device."
         }
       ],
       "validity": [
-        "diffractive, so the design is correct at one frequency and degrades either side",
-        "efficiency figures are the standard first-order grating results, not full-wave computed - they ignore the finite thickness of a real phase plate and its shadowing at angle",
+        "diffractive, so the design is correct at one frequency and degrades either side - gain_bandwidth_1db says how fast",
+        "scalar Kirchhoff diffraction through an infinitely thin plate: a real phase plate's finite thickness and its shadowing at oblique incidence are not modelled, and polarisation is ignored",
+        "beamwidth and bandwidth are fitted over F >= 3 wavelengths, 4 <= M <= 30, feed taper -3 to -24 dB and rim angle up to 60 degrees; the aperture efficiency and gain are computed, not fitted, and hold at any M",
+        "phase_levels 1, 2 or 4; other level counts get the right efficiency and the four-level fits",
         "higher diffraction orders carry the remaining power into spurious foci, and those are real stray-signal paths",
         "the outermost zone width sets manufacturability and must stay comfortably above the etching or machining tolerance"
       ],
@@ -806,46 +924,140 @@
             "f0": 30000000000.0,
             "F": 0.15,
             "M": 4,
-            "phase_levels": 1
+            "phase_levels": 1,
+            "feed_taper_db": -10.0
           },
           "expect": {
             "focusing_efficiency": 0.10132118,
             "focusing_efficiency_db": -9.943
           },
           "tol_pct": 0.5,
-          "source": "An opaque Soret plate reaches 1/pi^2 = 0.1013, a 9.94 dB penalty against a filled aperture."
+          "source": "The opaque plate's first-order grating efficiency, 1/pi^2 = 0.1013: the uniform-illumination limit, not what a feed gets."
         },
         {
           "given": {
             "f0": 30000000000.0,
             "F": 0.15,
             "M": 4,
-            "phase_levels": 2
+            "phase_levels": 2,
+            "feed_taper_db": -10.0
           },
           "expect": {
             "focusing_efficiency": 0.40528473
           },
           "tol_pct": 0.5,
-          "source": "Reversing the phase of alternate zones rather than blocking them gives 4/pi^2 = 0.4053 - four times the Soret plate, for the same outline."
+          "source": "Phase reversal, 4/pi^2 = 0.4053, four times the opaque plate for the same outline."
         },
         {
           "given": {
             "f0": 30000000000.0,
             "F": 0.15,
             "M": 4,
-            "phase_levels": 4
+            "phase_levels": 4,
+            "feed_taper_db": -10.0
           },
           "expect": {
             "focusing_efficiency": 0.81056947
           },
           "tol_pct": 0.5,
-          "source": "Four phase levels reach 8/pi^2 = 0.8106, approaching a refractive lens"
+          "source": "Four phase levels, 8/pi^2 = 0.8106."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 1,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "aperture_efficiency": 0.10736,
+            "eta_spill": 0.91176
+          },
+          "tol_pct": 0.3,
+          "source": "otahub.num.zone_plate on a 2000 x 2000 grid over the plate: a -10 dB feed on the default opaque plate reaches 0.1074, above the 1/pi^2 its gain used to be built on - the open central zone carries the unfocused zero order into the beam. 91.2% of the feed's power reaches the plate."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 2,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "aperture_efficiency": 0.32364,
+            "gain_dbi": 29.129
+          },
+          "tol_pct": 0.3,
+          "source": "Phase reversal, same feed: 0.3236 and 29.13 dBi, where the old formula said 4/pi^2 x (pi D/lambda)^2 = 30.11 dBi - 0.98 dB optimistic, because a feed has taper and spillover and a perfectly lit aperture does not."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 4,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "aperture_efficiency": 0.64373
+          },
+          "tol_pct": 0.3,
+          "source": "Four levels: 0.6437 = 8/pi^2 x 0.7942, the feed's taper-and-spillover factor - the product the phase plates factorise into."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 1,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "hpbw_deg": 5.0622
+          },
+          "tol_pct": 1.0,
+          "source": "The default opaque plate's beam from the 2-D radiation integral: 5.062 degrees, 81.1 lambda/D - 16% wider than the 70 lambda/D this spec used to assert."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 2,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "hpbw_deg": 4.2441,
+            "gain_bandwidth_1db": 0.25509
+          },
+          "tol_pct": 1.0,
+          "source": "Phase reversal: 4.244 degrees (68.0 lambda/D), and a 1 dB gain bandwidth of 0.255 from the 2-D integral swept in frequency - M times it is 1.02, which is why 1/M was a fair guess."
+        },
+        {
+          "given": {
+            "f0": 60000000000.0,
+            "F": 0.1,
+            "M": 9,
+            "phase_levels": 2,
+            "feed_taper_db": -8.0
+          },
+          "expect": {
+            "aperture_efficiency": 0.31414,
+            "hpbw_deg": 2.3503,
+            "gain_bandwidth_1db": 0.11755
+          },
+          "tol_pct": 1.0,
+          "source": "Nine zones at 60 GHz, F = 100 mm, phase reversal, and a -8 dB feed that falls between the fitting grid's tapers. 2-D integral: efficiency 0.3141, 2.350 degrees, 1 dB bandwidth 0.1176."
         }
       ],
       "references": [
         "Hristov, Fresnel Zones in Wireless Links, Zone Plate Lenses and Antennas, Artech 2000",
         "Born & Wolf, Principles of Optics, Ch. 8 (zone construction)",
-        "Milligan, Modern Antenna Design 2nd ed., Ch. 9.6"
+        "Milligan, Modern Antenna Design 2nd ed., Ch. 9.6",
+        "Silver, Microwave Antenna Theory and Design, Ch. 12 (the cos^n feed and the spillover it implies)",
+        "Gain, beamwidth and bandwidth computed here by Kirchhoff diffraction (otahub.num.zone_plate) and checked on a 2-D grid"
       ]
     },
     {

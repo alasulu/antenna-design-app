@@ -1092,9 +1092,11 @@ def _zone_plate(design: DesignResult) -> Model:
         f"Rendered {thick * 1e3:.4g} mm thick. A real plate is etched foil on a "
         "thin dielectric, which is not modelled - the dielectric shifts the "
         "focus slightly.",
-        "This is the OPAQUE (Soret) plate, whose first-order efficiency is "
-        "1/pi^2, about 10%. The phase-reversing and stepped versions in the spec "
-        "replace these rings with dielectric steps and are NOT built here.",
+        "This is the OPAQUE (Soret) plate, central zone open. Its efficiency "
+        "under a real feed is the spec's aperture_efficiency (0.107 for the "
+        "default design), not the uniform-illumination 1/pi^2. The phase-reversing "
+        "and stepped versions replace these rings with dielectric steps and are "
+        "NOT built here.",
         "No feed is included. Illuminate it from the focal point with a separate "
         "source; there is no port to drive.",
     ]
