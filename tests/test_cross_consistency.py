@@ -273,10 +273,9 @@ def test_corner_reflector_self_resistance_is_the_isolated_dipole(syn):
 # ----------------------------------------------------------------------- DRAs
 
 def test_three_dra_shapes_agree_on_size_and_directivity(syn):
-    """Three unrelated models - exact Mie for the hemisphere, published curve
-    fits for the cylinder, the dielectric-waveguide transcendental for the
-    brick. At the same permittivity and frequency they must land on comparable
-    volumes.
+    """Three unrelated models - the exact Mie pole for the hemisphere, published
+    curve fits for the cylinder, FDTD ringdowns for the brick. At the same
+    permittivity and frequency they must land on comparable volumes.
 
     The tolerance is deliberately tight. While the brick used an
     all-magnetic-wall resonance it was 1.41x the other two and this test had to
@@ -298,13 +297,14 @@ def test_three_dra_shapes_agree_on_size_and_directivity(syn):
 
 
 def test_dra_q_rises_steeply_with_permittivity_in_every_shape(syn):
-    """The eps_r^1.3 law, reached independently by Mie theory and by published
-    fits. A shape whose Q did not rise would be a broken model."""
+    """Q rises a little faster than eps_r^1.2 between 10 and 20 in every shape:
+    the hemisphere's exact pole and the brick's ringdowns both go up 2.23-2.24
+    times, the cylinder's published fit 2^1.3. A shape whose Q did not rise
+    would be a broken model."""
     for key, extra, metric in (
             ("hemispherical_dra", {}, "radiation_q"),
             ("cylindrical_dra", {"aspect": 1.0}, "radiation_q"),
-            ("rectangular_dra", {"aspect_wd": 2.0, "aspect_Ld": 2.0},
-             "radiation_q_indicative")):
+            ("rectangular_dra", {"aspect_wd": 2.0, "aspect_Ld": 2.0}, "radiation_q")):
         low = syn(key, f0=10e9, eps_r=10.0, **extra).metrics[metric]
         high = syn(key, f0=10e9, eps_r=20.0, **extra).metrics[metric]
         assert high / low == pytest.approx(2 ** 1.3, rel=0.15), (

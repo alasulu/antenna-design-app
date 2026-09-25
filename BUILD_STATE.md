@@ -2032,9 +2032,78 @@ its 0.65, deliberately: in geometric optics a cos(theta) feed gives it a
 perfectly uniform aperture, so what keeps real ones near 0.65 is construction
 loss, which ray optics cannot see.
 
+## The rectangular DRA was sized for a mode the ground plane forbids
+
+The open item was the rectangular DRA's radiation Q, borrowed from the
+hemisphere. Reading the spec to derive it turned up a bigger problem in the
+resonance it would have been derived from. The dielectric waveguide model had
+been solved with its transcendental along the HEIGHT: magnetic walls on the four
+sides, the top face open. That is the even mode of the imaged resonator, 2d
+tall - a VERTICAL magnetic dipole, whose tangential E field is largest exactly
+where the ground plane sits. A ground plane shorts it out. The physical
+broadside mode has its dipole horizontal, and the DWM for it runs the
+transcendental along the dipole, with magnetic walls across the width and on
+the top face. The two orientations give the same answer only when the imaged
+brick is a cube, w = L = 2d - which is the default, and why every known case
+passed. A w = 3d, L = 1.5d brick came out 12.6% too big, a cube standing on the
+ground 15.9%.
+
+Before rewriting anything I wanted a model that shared nothing with the DWM, and
+the toolkit had none for dielectrics: the MoM is thin-wire only. So
+`otahub/num/dra.py` is a small 3-D FDTD solver: a quarter of the upper half
+space, symmetry planes chosen so that only horizontal-magnetic-dipole modes
+exist, CPML outside, a pulse to ring the resonator and a matrix pencil on the
+ringdown for the complex frequency. Its check is the exact TE1 pole of a
+dielectric sphere, which a staircased hemisphere reproduces to 0.15% in
+frequency and 0.9% in Q at eps_r = 10 and 50.
+
+That check found the second problem. The hemispherical spec - "the reference
+the others are judged against" - had taken its resonance and Q from the peak
+and half-power width of the Mie coefficient |b1| on the real frequency axis.
+At Q near 9 the scattering background drags that peak off the pole: at
+eps_r = 10 it was 1.2% high in k0*a and 12% LOW in Q (8.04 against 9.15). The
+FDTD saw the pole, not the peak; Mongia & Bhartia's published fit sits within
+about 1% of the pole too. Both fits are now to the complex pole, 0.23% over eps_r
+6-100, in forms that keep the right limits: sqrt(eps_r)*k0*a -> pi, and Q
+growing as eps_r^1.5. The old note that its "eps_r^1.32" reproduced the
+published eps_r^1.3 law does not survive; the pole is no power law at all.
+
+Then the brick. With the DWM the right way round, 150 ringdowns over eps_r
+6-50 and both aspect ratios 1-3 showed it is no better than "a few percent":
+10.6% high at eps_r = 6 on long narrow bricks, drifting to 6.2% LOW at
+eps_r = 50 on tall ones - where the whole VSWR 2 bandwidth is 1.2%. Its error
+does not shrink with permittivity; the magnetic walls it assumes are an
+approximation everywhere, not a limit. The DWM's own Q (Mongia & Ittipiboon's
+stored energy over magnetic-dipole radiation, which I derived and checked by
+direct integration of the fields first) runs from 33% low to 26% high, so it is
+not what the spec now uses. The borrowed hemisphere Q had been 6% low at the
+default and anywhere from 18% low to 78% high across the design space. Both k0*d
+and Q are fitted to the ringdowns instead: cubics in 1/sqrt(eps_r), ln(L/d)
+and ln(w/d), within 0.15% and 0.7%, and 0.13% and 0.65% on 33 held-out runs at
+other permittivities, other aspect ratios and finer grids. The DWM stays in the
+spec as a reported comparison, along with the other broadside mode's frequency
+(dipole along w) - the same fit with the aspects exchanged. The default brick
+moves 0.3% (3.7441 mm) and its Q from 7.96 to 8.45.
+
+One error of mine on the way, caught because the data would not fit: on long
+narrow bars a higher-order mode rang louder at the probe than the dipole mode,
+and the first survey took it on seven of 183 runs - resonances 20-30% off with
+Q from 14 to 109. The dipole mode is the lowest this symmetry admits, so the
+solver now takes the lowest mode with real amplitude, and those seven were
+re-run. The exporter's probe note was wrong as well: it still warned of a
+"magnetic-wall resonance 10-20% high", two corrections stale. It now says which
+mode the probe excites.
+
+The same solver took a first look at `cylindrical_dra`, which rests on
+published Mongia & Bhartia fits: five single runs put its Q 12-19% low at
+eps_r = 10 and its resonance 6.4% off at a/h = 0.5, while holding at
+eps_r = 30. That is the next item - a cylinder is one permittivity map away.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2370 tests, 762/762 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2408 tests, 766/766 known cases.
+The DRA family now has a full-wave arbiter of its own (`otahub/num/dra.py`, FDTD);
+`cylindrical_dra`'s published fits are the next thing to put through it.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

@@ -425,12 +425,14 @@ def _rect_dra(design: DesignResult) -> Model:
         "port1", (w / 2 + probe_r * 2, 0.0, -d * 0.05),
         (w / 2 + probe_r * 2, 0.0, 0.0)))
     model.notes += [
-        "The probe beside the resonator is ONE of several ways to excite TE111 "
-        "- slot and microstrip feeds behave differently and are not modelled. "
-        "Probe height and offset both need tuning in the solver.",
-        "The spec's magnetic-wall resonance runs 10-20% HIGH, so expect the "
-        "simulated resonance BELOW the design frequency and scale the "
-        "resonator up accordingly.",
+        "The probe stands at the centre of the face normal to x, where the mode "
+        "whose magnetic dipole runs along the length Lr (y) has its vertical E "
+        "field - the mode the spec designs. The mode along w is not excited "
+        "from there. Slot and microstrip feeds behave differently and are not "
+        "modelled; probe height and offset both need tuning in the solver.",
+        "The spec's resonance is fitted to FDTD ringdowns of the isolated brick "
+        "on an infinite ground (within about 0.2%), so a shift in the solver "
+        "comes from the probe and the finite ground plane, not the sizing.",
         f"Ground plane {ground * 1e3:.4g} mm square, standing in for an infinite one.",
     ]
     return model

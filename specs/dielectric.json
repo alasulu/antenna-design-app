@@ -217,12 +217,12 @@
       "synthesis": [
         {
           "output": "k0a",
-          "expr": "2.89997*eps_r**(-0.48394)",
+          "expr": "pi/sqrt(eps_r)*(1 - 0.237535*eps_r**(-0.658649))",
           "units_out": "-",
           "depends_on": [
             "eps_r"
           ],
-          "notes": "Fitted to EXACT TE111 resonances of the equivalent dielectric sphere, found by locating the first peak of the Mie magnetic-dipole coefficient b1. Maximum error 0.30% over 8 <= eps_r <= 50. The fitted exponent is almost exactly -1/2, which is the physical statement that the sphere holds about half an internal wavelength: sqrt(eps_r)*k0*a comes out near pi for every permittivity tested."
+          "notes": "Fitted to the EXACT complex natural frequency of the equivalent dielectric sphere's TE1 (magnetic dipole) mode: the root of m*psi1'(m*x)*xi1(x) = xi1'(x)*psi1(m*x) in the complex x = k0*a plane, whose real part is the resonance. Maximum error 0.23% over 6 <= eps_r <= 100. The form carries the right limit: as eps_r grows, sqrt(eps_r)*k0*a -> pi exactly, one internal half wavelength across the diameter, and the correction term is how far short of it a finite permittivity falls. An earlier version took the peak of the Mie scattering coefficient |b1| on the real frequency axis instead, which sits 1.2% high at eps_r = 10: a resonance with Q near 9 is broad enough that the scattering background drags its peak off the pole."
         },
         {
           "output": "a",
@@ -253,23 +253,23 @@
             "k0a",
             "eps_r"
           ],
-          "notes": "sqrt(eps_r)*k0*a / pi, which the exact solve puts between 0.957 and 0.983 across the whole range - the resonance really is 'one internal half wavelength across the diameter'"
+          "notes": "sqrt(eps_r)*k0*a / pi, which the exact pole puts between 0.929 and 0.983 over 6 <= eps_r <= 50 and which tends to 1 as eps_r grows - the resonance really is 'one internal half wavelength across the diameter', approached from below"
         },
         {
           "metric": "radiation_q",
-          "expr": "0.38014*eps_r**1.32122",
+          "expr": "0.154821*eps_r**1.5*(1 + 6.02232*eps_r**(-0.842894))",
           "units_out": "-",
           "depends_on": [
             "eps_r"
           ],
-          "notes": "Fitted to the exact solve's Q = Re(x)/(2*|Im(x)|), taken from the half-power width of the Mie resonance. Maximum error 4.09% over 8 <= eps_r <= 50. The exponent 1.32 independently reproduces the eps_r^1.3 scaling this family's cylindrical archetype inherits from published curve fits - two unrelated routes to the same law."
+          "notes": "Q = Re(x)/(2*Im(x)) at the same complex pole: the ringdown Q, stored energy over energy radiated per radian. Fitted to 0.22% over 6 <= eps_r <= 100 in a form that keeps the magnetic dipole's eps_r^1.5 asymptote. It is NOT a single power law - the best one misses the exact values by 9% somewhere in 8-50. The half-power width of |b1| on the real axis, which the previous version used, UNDERSTATES Q by 12% at eps_r = 10 and 10% at 8, converging on the pole only as Q grows. Mongia & Bhartia's published fit 0.08 + 0.796*eps_r + 0.01226*eps_r^2 - 3e-5*eps_r^3 lands within 1.04% of the pole over 8-50, which says the published fit describes the pole, not the scattering peak. A 3-D FDTD ringdown of a staircased hemisphere (otahub.num.dra) reproduces the pole to 0.9% at eps_r = 10 and 50."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
+          "expr": "(2-1)/(radiation_q*sqrt(2))",
           "units_out": "-",
           "depends_on": [
-            "eps_r"
+            "radiation_q"
           ],
           "notes": "BW = (S-1)/(Q*sqrt(S)) at S = 2"
         },
@@ -295,21 +295,21 @@
           "depends_on": [
             "k0a"
           ],
-          "notes": "0.151 at eps_r = 10, falling to 0.070 at eps_r = 50 - the size-versus-bandwidth trade, in one number"
+          "notes": "0.150 at eps_r = 10, falling to 0.070 at eps_r = 50 - the size-versus-bandwidth trade, in one number"
         },
         {
           "metric": "size_bandwidth_product",
-          "expr": "(k0a/(2*pi))*(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
+          "expr": "(k0a/(2*pi))*(2-1)/(radiation_q*sqrt(2))",
           "units_out": "-",
           "depends_on": [
             "k0a",
-            "eps_r"
+            "radiation_q"
           ],
           "notes": "Radius in wavelengths times fractional bandwidth. It falls steadily with permittivity, which is the honest summary: high permittivity buys size at a worse-than-linear cost in bandwidth."
         }
       ],
       "validity": [
-        "8 <= eps_r <= 50 for the quoted fit accuracies; the fits were computed over 6 to 100 and degrade below 8",
+        "8 <= eps_r <= 50 is the range this family's other fits cover; these two were fitted over 6 to 100 and hold to 0.23% across all of it",
         "infinite perfectly conducting ground plane, which image theory requires",
         "isolated resonator: a probe, slot or microstrip feed perturbs the resonance by a few percent and this spec does not model the feed",
         "lossless dielectric. A real material's tan_d adds an unloaded Q in parallel, widening the bandwidth and lowering the efficiency",
@@ -322,11 +322,11 @@
             "eps_r": 10.0
           },
           "expect": {
-            "k0a": 0.95112,
+            "k0a": 0.939784,
             "resonant_frequency_check_hz": 10000000000.0
           },
           "tol_pct": 0.5,
-          "source": "Exact TE111 resonance of the equivalent sphere, from the first peak of the Mie b1 coefficient: k0*a = 0.95112 at eps_r = 10. The fitted formula gives 0.95160, 0.05% away."
+          "source": "Exact TE1 pole of the equivalent sphere at eps_r = 10: k0*a = 0.939784 + j0.051356. Solved here by Newton iteration on the characteristic equation in 30-digit arithmetic; the fit gives 0.941671, 0.20% away. The real-axis peak of |b1| that the previous version quoted, 0.95112, is 1.2% higher."
         },
         {
           "given": {
@@ -334,10 +334,10 @@
             "eps_r": 10.0
           },
           "expect": {
-            "radiation_q": 8.0385
+            "radiation_q": 9.1497
           },
-          "tol_pct": 5.0,
-          "source": "Exact Q from the half-power width of the same resonance: 8.0385. This toolkit's cylindrical DRA, which takes its Q from published Mongia fits rather than from Mie theory, gives 7.60 at the same permittivity - two independent routes agreeing within 6%."
+          "tol_pct": 0.5,
+          "source": "Q = Re/(2 Im) at the same pole: 9.1497. The half-power width of |b1| gives 8.04, 12% low, which is what this case used to assert. otahub.num.dra's FDTD ringdown of a hemisphere 12 cells in radius gives 9.07, and the published Mongia & Bhartia fit 9.24."
         },
         {
           "given": {
@@ -345,11 +345,11 @@
             "eps_r": 20.0
           },
           "expect": {
-            "k0a": 0.67989,
-            "radiation_q": 20.0143
+            "k0a": 0.678245,
+            "radiation_q": 20.513
           },
-          "tol_pct": 5.0,
-          "source": "At eps_r = 20 the exact values are k0*a = 0.67989 and Q = 20.014. Doubling the permittivity from 10 shrinks the radius by 28% and raises Q by 2.49 times - the eps_r^1.3 law, reproduced here from first principles rather than assumed."
+          "tol_pct": 0.5,
+          "source": "eps_r = 20: pole at k0*a = 0.678245, Q = 20.513. Doubling the permittivity from 10 shrinks the radius by 28% and raises Q 2.24 times."
         },
         {
           "given": {
@@ -357,11 +357,11 @@
             "eps_r": 40.0
           },
           "expect": {
-            "k0a": 0.48687,
-            "radiation_q": 49.3689
+            "k0a": 0.486663,
+            "radiation_q": 49.5857
           },
-          "tol_pct": 5.0,
-          "source": "eps_r = 40: k0*a = 0.48687, Q = 49.37, so the bandwidth has fallen to 1.4%. The high-permittivity end of the trade."
+          "tol_pct": 0.5,
+          "source": "eps_r = 40: k0*a = 0.486663, Q = 49.59, so the VSWR 2 bandwidth has fallen to 1.4%. At this Q the real-axis peak and the pole agree to 0.04% in k0*a and 0.4% in Q: the discrepancy is a low-Q effect."
         },
         {
           "given": {
@@ -369,24 +369,24 @@
             "eps_r": 10.0
           },
           "expect": {
-            "internal_half_wavelengths": 0.9575
+            "internal_half_wavelengths": 0.94597
           },
-          "tol_pct": 2.0,
-          "source": "sqrt(10)*0.95112/pi = 0.9575: the diameter really does hold close to one internal half wavelength, which is why the k0a exponent comes out at -0.484 rather than exactly -0.5"
+          "tol_pct": 0.5,
+          "source": "sqrt(10)*0.939784/pi = 0.94597: the diameter holds a little under one internal half wavelength, and the shortfall shrinks as eps_r grows"
         }
       ],
       "references": [
         "Leung, Luk, Lai & Lin, Theory and experiment of a coaxial probe fed hemispherical DRA, IEEE T-AP 41(10), 1993",
         "Mongia & Bhartia, Dielectric Resonator Antennas - A Review, IJMWCAE 4(3), 1994",
         "Bohren & Huffman, Absorption and Scattering of Light by Small Particles, Ch. 4 (Mie coefficients)",
-        "Resonances and Q computed here from the exact Mie solution and fitted over 6 <= eps_r <= 100"
+        "Complex natural frequencies computed here from the exact characteristic equation and fitted over 6 <= eps_r <= 100; checked against a 3-D FDTD ringdown (otahub.num.dra)"
       ]
     },
     {
       "key": "rectangular_dra",
       "name": "Rectangular dielectric resonator antenna",
       "family": "dielectric",
-      "summary": "Dielectric brick on a ground plane, sized by the dielectric waveguide model rather than by assuming magnetic walls all round.",
+      "summary": "Dielectric brick on a ground plane in its broadside mode, magnetic dipole along the length; resonance and Q fitted to 3-D FDTD ringdowns rather than taken from the dielectric waveguide model.",
       "freq_range_hz": [
         300000000.0,
         100000000000.0
@@ -407,14 +407,14 @@
         },
         {
           "symbol": "aspect_wd",
-          "name": "width/height ratio w/d",
+          "name": "width/height ratio w/d (across the magnetic dipole)",
           "unit": "-",
           "role": "assumption",
           "typical": "2.0"
         },
         {
           "symbol": "aspect_Ld",
-          "name": "length/height ratio L/d",
+          "name": "length/height ratio L/d (along the magnetic dipole)",
           "unit": "-",
           "role": "assumption",
           "typical": "2.0"
@@ -438,50 +438,74 @@
           "role": "geometry"
         },
         {
-          "symbol": "P",
-          "name": "transverse wavenumber group",
+          "symbol": "s_eps",
+          "name": "1/sqrt(eps_r)",
           "unit": "-",
           "role": "derived"
         },
         {
-          "symbol": "u_kz_h",
-          "name": "kz*h",
+          "symbol": "ln_a",
+          "name": "ln(L/d), along the dipole",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "ln_b",
+          "name": "ln(w/d), across the dipole",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "k0d",
+          "name": "normalised height k0*d at resonance",
           "unit": "-",
           "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "P",
-          "expr": "pi**2*(1/aspect_wd**2 + 1/aspect_Ld**2)",
+          "output": "s_eps",
+          "expr": "1/sqrt(eps_r)",
           "units_out": "-",
           "depends_on": [
-            "aspect_wd",
-            "aspect_Ld"
-          ],
-          "notes": "(kx^2 + ky^2)*h^2 with kx = pi/w and ky = pi/L. Non-dimensionalising collapses the whole problem onto this one group and eps_r: the aspect ratios enter nowhere else."
+            "eps_r"
+          ]
         },
         {
-          "output": "u_kz_h",
-          "expr": "(0.47360296) + (0.52173269)*sqrt(P) + (-0.15073401)*P + (0.023283499)*P*sqrt(P) + (-0.0014625035)*P**2 + (-0.33989702)/eps_r + (0.087736792)*sqrt(P)/eps_r + (-0.0084100244)*P/eps_r + (-0.12485445)/eps_r**2",
+          "output": "ln_a",
+          "expr": "log(aspect_Ld)",
           "units_out": "-",
           "depends_on": [
-            "P",
-            "eps_r"
+            "aspect_Ld"
+          ]
+        },
+        {
+          "output": "ln_b",
+          "expr": "log(aspect_wd)",
+          "units_out": "-",
+          "depends_on": [
+            "aspect_wd"
+          ]
+        },
+        {
+          "output": "k0d",
+          "expr": "s_eps*exp((1.50269) + (-0.704741)*ln_b + (0.24334)*ln_b**2 + (0.00707449)*ln_b**3 + (-0.213201)*ln_a + (-0.0800231)*ln_a*ln_b + (0.00879827)*ln_a*ln_b**2 + (0.0636987)*ln_a**2 + (0.00329716)*ln_a**2*ln_b + (-0.00123883)*ln_a**3 + (-0.222994)*s_eps + (0.295823)*s_eps*ln_b + (-0.296002)*s_eps*ln_b**2 + (0.00511033)*s_eps*ln_a + (0.042492)*s_eps*ln_a*ln_b + (-0.035258)*s_eps*ln_a**2 + (-0.474971)*s_eps**2 + (0.164239)*s_eps**2*ln_b + (0.0070326)*s_eps**2*ln_a + (0.388303)*s_eps**3)",
+          "units_out": "-",
+          "depends_on": [
+            "s_eps",
+            "ln_a",
+            "ln_b"
           ],
-          "notes": "u = kz*h, the root of u*tan(u) = sqrt(((eps_r-1)*P - u^2)/eps_r). No closed form, so this is a polynomial fitted to the exact root over P in [2, 20] and eps_r in [6, 50] - the range aspect ratios from 1 to 3 produce. Worst error 0.001 in u, 0.032% in the resulting size. resonance_residual reports the true equation's value at this u, so the fit cannot drift unnoticed."
+          "notes": "FITTED TO FDTD. ln(sqrt(eps_r)*k0*d) as a cubic in 1/sqrt(eps_r), ln(L/d) and ln(w/d), fitted to 150 ringdowns of the brick on an infinite ground plane (otahub.num.dra.brick: 12 cells per height, CPML, symmetry planes that admit only the horizontal magnetic dipole) over eps_r 6-50 and both aspect ratios 1-3. Fit error 0.15% worst, 0.13% on 33 held-out ringdowns at other permittivities and aspect ratios. The FDTD reproduces the exact hemisphere pole to 0.15% in frequency and 0.9% in Q, and moves by at most 0.1% (0.2% in Q) when the grid is refined to 16 or 18 cells. Per unit sqrt(eps_r) because that carries nearly all of the permittivity dependence: the brick holds about one internal half wavelength whatever eps_r is."
         },
         {
           "output": "d",
-          "expr": "sqrt((P + u_kz_h**2)/eps_r)/k0",
+          "expr": "k0d/k0",
           "units_out": "m",
           "depends_on": [
-            "P",
-            "u_kz_h",
-            "eps_r",
+            "k0d",
             "k0"
-          ],
-          "notes": "k0*h = sqrt((P + u^2)/eps_r), straight from kx^2 + ky^2 + kz^2 = eps_r*k0^2."
+          ]
         },
         {
           "output": "w",
@@ -504,28 +528,91 @@
       ],
       "analysis": [
         {
-          "metric": "resonance_residual",
-          "expr": "u_kz_h*tan(u_kz_h) - sqrt(((eps_r - 1)*P - u_kz_h**2)/eps_r)",
-          "units_out": "-",
-          "depends_on": [
-            "u_kz_h",
-            "eps_r",
-            "P"
-          ],
-          "notes": "The exact dielectric-waveguide condition evaluated at the fitted root; it vanishes at the true resonance. A live check on the fit rather than a restatement of it."
-        },
-        {
           "metric": "resonant_frequency_check_hz",
-          "expr": "(c/(2*pi*sqrt(eps_r)))*sqrt((pi/w)**2 + (pi/Lr)**2 + (u_kz_h/d)**2)",
+          "expr": "c*k0d/(2*pi*d)",
           "units_out": "Hz",
           "depends_on": [
-            "eps_r",
-            "w",
-            "Lr",
-            "u_kz_h",
+            "k0d",
             "d"
           ],
           "notes": "forward check from the geometry: must return f0"
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "exp((-2.29417) + (0.688271)*ln_b + (-0.569678)*ln_b**2 + (-0.0163732)*ln_b**3 + (0.0577534)*ln_a + (0.370338)*ln_a*ln_b + (-0.0102489)*ln_a*ln_b**2 + (-0.312491)*ln_a**2 + (-0.0384445)*ln_a**2*ln_b + (0.0215133)*ln_a**3 + (1.56245)*s_eps + (-0.270652)*s_eps*ln_b + (0.110979)*s_eps*ln_b**2 + (0.0240541)*s_eps*ln_a + (-0.338871)*s_eps*ln_a*ln_b + (0.277786)*s_eps*ln_a**2 + (4.29493)*s_eps**2 + (0.503383)*s_eps**2*ln_b + (-0.0517285)*s_eps**2*ln_a + (-6.02722)*s_eps**3)/s_eps**3",
+          "units_out": "-",
+          "depends_on": [
+            "s_eps",
+            "ln_a",
+            "ln_b"
+          ],
+          "notes": "FITTED TO FDTD: Q = Re/(2 Im) of the same ringdowns' complex frequency, ln(Q/eps_r^1.5) fitted in the same three variables. Worst error 0.68% on the fitting set and 0.65% held out. eps_r^1.5 is the magnetic dipole's high-permittivity scaling, which the hemisphere's exact pole shows. This replaces a Q borrowed from the hemisphere, which was 6% low at the default brick and anywhere from 18% low to 78% high across the design space, because a brick's Q depends on its shape and not only on its permittivity. The dielectric waveguide model's own Q (Mongia & Ittipiboon: stored energy from the DWM fields, radiation from their magnetic moment) is no substitute: 8% low at the default, from 33% low at eps_r = 6 to 26% high at eps_r = 50."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(radiation_q*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_q"
+          ],
+          "notes": "BW = (S-1)/(Q*sqrt(S)) at S = 2"
+        },
+        {
+          "metric": "resonant_frequency_other_mode_hz",
+          "expr": "f0*exp((1.50269) + (-0.704741)*ln_a + (0.24334)*ln_a**2 + (0.00707449)*ln_a**3 + (-0.213201)*ln_b + (-0.0800231)*ln_b*ln_a + (0.00879827)*ln_b*ln_a**2 + (0.0636987)*ln_b**2 + (0.00329716)*ln_b**2*ln_a + (-0.00123883)*ln_b**3 + (-0.222994)*s_eps + (0.295823)*s_eps*ln_a + (-0.296002)*s_eps*ln_a**2 + (0.00511033)*s_eps*ln_b + (0.042492)*s_eps*ln_b*ln_a + (-0.035258)*s_eps*ln_b**2 + (-0.474971)*s_eps**2 + (0.164239)*s_eps**2*ln_a + (0.0070326)*s_eps**2*ln_b + (0.388303)*s_eps**3)/exp((1.50269) + (-0.704741)*ln_b + (0.24334)*ln_b**2 + (0.00707449)*ln_b**3 + (-0.213201)*ln_a + (-0.0800231)*ln_a*ln_b + (0.00879827)*ln_a*ln_b**2 + (0.0636987)*ln_a**2 + (0.00329716)*ln_a**2*ln_b + (-0.00123883)*ln_a**3 + (-0.222994)*s_eps + (0.295823)*s_eps*ln_b + (-0.296002)*s_eps*ln_b**2 + (0.00511033)*s_eps*ln_a + (0.042492)*s_eps*ln_a*ln_b + (-0.035258)*s_eps*ln_a**2 + (-0.474971)*s_eps**2 + (0.164239)*s_eps**2*ln_b + (0.0070326)*s_eps**2*ln_a + (0.388303)*s_eps**3)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "s_eps",
+            "ln_a",
+            "ln_b"
+          ],
+          "notes": "The same brick's OTHER broadside mode, magnetic dipole along w instead of L: the same fit with the two aspect ratios exchanged. Equal to f0 for a square footprint, where the two are degenerate; a feed on the centre of a face couples to one of them and not the other. How far apart they sit is how much room the design has."
+        },
+        {
+          "metric": "dwm_group_P",
+          "expr": "(pi**2/4)*aspect_Ld**2*(1/aspect_wd**2 + 0.25)",
+          "units_out": "-",
+          "depends_on": [
+            "aspect_Ld",
+            "aspect_wd"
+          ],
+          "notes": "Dielectric waveguide model, set up the right way round: the transcendental runs ALONG the magnetic dipole (open faces at each end of L), with magnetic walls across the width and on the top face, whose image doubles the height. (ky^2 + kz^2)*(L/2)^2 with ky = pi/w and kz = pi/(2d)."
+        },
+        {
+          "metric": "dwm_root_v",
+          "expr": "(0.86024998) + (-0.27080329)/eps_r + (-0.18461776)/eps_r**2 + (0.15671531)*log(dwm_group_P) + (0.062293879)*log(dwm_group_P)/eps_r + (0.022799073)*log(dwm_group_P)/eps_r**2 + (0.0040226616)*log(dwm_group_P)**2 + (-0.0038670328)*log(dwm_group_P)**2/eps_r + (0.0017606144)*log(dwm_group_P)**2/eps_r**2 + (-0.0034283941)*log(dwm_group_P)**3 + (3.0507128e-05)*log(dwm_group_P)**3/eps_r + (0.0002029276)*log(dwm_group_P)**4",
+          "units_out": "-",
+          "depends_on": [
+            "dwm_group_P",
+            "eps_r"
+          ],
+          "notes": "v = kx*L/2, the root of v*tan(v) = sqrt(((eps_r-1)*P - v^2)/eps_r), fitted in ln P and 1/eps_r to 1.5e-4 over P 0.8-30 and eps_r 6-50. Used only for the comparison below."
+        },
+        {
+          "metric": "resonance_residual",
+          "expr": "dwm_root_v*tan(dwm_root_v) - sqrt(((eps_r - 1)*dwm_group_P - dwm_root_v**2)/eps_r)",
+          "units_out": "-",
+          "depends_on": [
+            "dwm_root_v",
+            "eps_r",
+            "dwm_group_P"
+          ],
+          "notes": "The exact DWM condition at the fitted root; it vanishes at the true root. A live check on that fit."
+        },
+        {
+          "metric": "resonant_frequency_dwm_hz",
+          "expr": "f0*2*sqrt((dwm_group_P + dwm_root_v**2)/eps_r)/(aspect_Ld*k0d)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "dwm_group_P",
+            "dwm_root_v",
+            "eps_r",
+            "aspect_Ld",
+            "k0d"
+          ],
+          "notes": "What the dielectric waveguide model predicts for THIS brick. Its error does not shrink with permittivity; it drifts from up to 10.6% HIGH at eps_r = 6 (long narrow bricks) to up to 6.2% LOW at eps_r = 50 (tall ones), and at eps_r = 50 the whole VSWR 2 bandwidth is about 1.2%. The magnetic walls it puts on four faces are an approximation at every permittivity, not a limit that high permittivity approaches."
         },
         {
           "metric": "height_magnetic_wall_m",
@@ -537,7 +624,7 @@
             "aspect_wd",
             "aspect_Ld"
           ],
-          "notes": "What the all-magnetic-wall model would give. It assumes total confinement on every face, so it takes kz = pi/(2h) - the largest kz possible - and therefore oversizes the brick. NOT a limiting case of the model above: as eps_r grows, k0 shrinks with it and the open-face condition tends to u*tan(u) = sqrt(P), which is finite. The magnetic wall is never recovered."
+          "notes": "What an all-magnetic-wall cavity would give: kx = pi/L, ky = pi/w, kz = pi/(2d). It assumes total confinement on every face, so it oversizes the brick."
         },
         {
           "metric": "magnetic_wall_oversize",
@@ -547,7 +634,7 @@
             "height_magnetic_wall_m",
             "d"
           ],
-          "notes": "About 1.10 for a square brick and worse at extreme aspect ratios"
+          "notes": "1.096 for the default brick at eps_r = 10"
         },
         {
           "metric": "k0_w",
@@ -580,24 +667,6 @@
           "notes": "radius of a sphere of the same volume, for comparing against the hemispherical archetype"
         },
         {
-          "metric": "radiation_q_indicative",
-          "expr": "0.38014*eps_r**1.32122",
-          "units_out": "-",
-          "depends_on": [
-            "eps_r"
-          ],
-          "notes": "BORROWED from the hemispherical DRA's exact Mie solution, and still the weakest part of this spec. It is more defensible than it was: with the resonance corrected, this brick comes out within 6% of the hemispherical and cylindrical archetypes' volumes at the same permittivity, where the magnetic-wall version was 30-41% larger. Three shapes of the same size and material do have similar Q. Aspect ratio still moves a rectangular DRA's Q more than this captures."
-        },
-        {
-          "metric": "fractional_bandwidth_indicative",
-          "expr": "(2-1)/(0.38014*eps_r**1.32122*sqrt(2))",
-          "units_out": "-",
-          "depends_on": [
-            "eps_r"
-          ],
-          "notes": "from the borrowed Q, and no better than it"
-        },
-        {
           "metric": "directivity_dbi",
           "expr": "db10(3.0)",
           "units_out": "dBi",
@@ -605,11 +674,11 @@
         }
       ],
       "validity": [
-        "DIELECTRIC WAVEGUIDE MODEL: magnetic walls on the four side faces, the open top treated properly. The published accuracy is a few percent against measurement, far better than the all-magnetic-wall model it replaces",
-        "the u fit covers P in [2, 20] and eps_r in [6, 50], which is aspect ratios from 1 to 3. Outside that a 4th-order polynomial diverges rather than degrades - check resonance_residual, which stays near zero only where the fit is valid",
+        "resonance and Q are fitted to FDTD over 6 <= eps_r <= 50 and 1 <= w/d, L/d <= 3; outside that the polynomials extrapolate, and the fit's worst errors quoted in the notes do not apply",
+        "the mode designed is the broadside one whose magnetic dipole runs along L. The other one, along w, is reported; higher modes are not tracked",
         "infinite perfect ground plane",
-        "radiation Q is borrowed from the hemispherical solution and is indicative only",
-        "TE111 only; higher modes exist and are not tracked"
+        "isolated resonator: a probe, slot or microstrip feed pulls the resonance by a few percent and is not modelled",
+        "lossless dielectric. A real tan_d adds an unloaded Q in parallel, widening the bandwidth and lowering the efficiency"
       ],
       "known_cases": [
         {
@@ -620,11 +689,24 @@
             "aspect_Ld": 2.0
           },
           "expect": {
-            "d": 0.00373252434,
+            "d": 0.00374414778,
             "resonant_frequency_check_hz": 10000000000.0
           },
-          "tol_pct": 0.2,
-          "source": "Dielectric waveguide model at eps_r = 10, w = L = 2d: P = 4.9348, the exact root of u*tan(u) = sqrt(((eps_r-1)P-u^2)/eps_r) is u = 1.088500, giving d = 3.7325 mm. The fitted u gives 3.7325 mm, 0.0002% away. Root found here by bisection on the transcendental."
+          "tol_pct": 0.5,
+          "source": "FDTD ringdown (otahub.num.dra.brick, 16 cells per height) of the default brick at eps_r = 10: k0*d = 0.78472, d = 3.7441 mm. The dielectric waveguide model gives 3.7325 mm, 0.31% small; this is the one brick where the old and the corrected DWM orientations coincide, because its image is a cube."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "radiation_q": 8.4532
+          },
+          "tol_pct": 1.5,
+          "source": "Same ringdown: Q = 8.453. The hemisphere's Q, which this spec used to borrow, is 7.96 (6% low); the DWM's own stored-energy Q is 7.754 (8% low)."
         },
         {
           "given": {
@@ -637,7 +719,7 @@
             "resonance_residual": 0.0
           },
           "tol_abs": 0.005,
-          "source": "The exact condition must vanish at the true root; it nearly does at the fitted one. Expectation of zero, so an absolute tolerance."
+          "source": "The DWM condition must vanish at its own root; it nearly does at the fitted one. Expectation of zero, so an absolute tolerance, in its own case."
         },
         {
           "given": {
@@ -647,10 +729,10 @@
             "aspect_Ld": 2.0
           },
           "expect": {
-            "magnetic_wall_oversize": 1.09981
+            "magnetic_wall_oversize": 1.0964
           },
           "tol_pct": 0.5,
-          "source": "The all-magnetic-wall model gives 4.1051 mm against 3.7325, oversizing the brick by 10.0% in every dimension and therefore predicting the resonance high - which is the bias the previous version of this spec recorded but could not remove."
+          "source": "The all-magnetic-wall cavity gives 4.1051 mm against the ringdown's 3.7441 mm: 9.6% oversize in every dimension, so it predicts the resonance high."
         },
         {
           "given": {
@@ -660,11 +742,11 @@
             "aspect_Ld": 2.0
           },
           "expect": {
-            "d": 0.00264412867,
-            "resonant_frequency_check_hz": 10000000000.0
+            "d": 0.00271225265,
+            "radiation_q": 18.855
           },
-          "tol_pct": 0.2,
-          "source": "Same at eps_r = 20: exact root u = 1.098625, d = 2.6441 mm."
+          "tol_pct": 1.5,
+          "source": "eps_r = 20, default aspect: ringdown k0*d = 0.56845 (d = 2.7123 mm), Q = 18.855. The DWM is already 2.5% low in frequency here."
         },
         {
           "given": {
@@ -674,11 +756,24 @@
             "aspect_Ld": 1.5
           },
           "expect": {
-            "d": 0.00390638045,
-            "resonant_frequency_check_hz": 10000000000.0
+            "d": 0.00347001006,
+            "resonant_frequency_other_mode_hz": 11641041830.1
           },
-          "tol_pct": 0.3,
-          "source": "An asymmetric brick, which the P grouping has to handle: P = 5.4831, exact u = 1.104415, d = 3.9063 mm."
+          "tol_pct": 0.5,
+          "source": "w = 3d, L = 1.5d, the dipole along the SHORT side: ringdown k0*d = 0.72726, d = 3.4700 mm. The previous spec, solving the transcendental along the height, gave 3.9064 mm - 12.6% too big, because it was describing a vertical magnetic dipole the ground plane shorts out. The same brick's mode along w rings at k0*d = 0.84661, i.e. 11.641 GHz."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 10.0,
+            "aspect_wd": 3.0,
+            "aspect_Ld": 1.5
+          },
+          "expect": {
+            "radiation_q": 7.6773
+          },
+          "tol_pct": 1.5,
+          "source": "Same ringdown: Q = 7.677; the mode along w has 7.290."
         },
         {
           "given": {
@@ -688,17 +783,31 @@
             "aspect_Ld": 1.0
           },
           "expect": {
-            "d": 0.00779586568,
-            "resonant_frequency_check_hz": 10000000000.0
+            "d": 0.00672551268,
+            "radiation_q": 5.1926
           },
-          "tol_pct": 0.3,
-          "source": "The tall thin corner of the design space, P = 19.7392: exact u = 1.272106, d = 7.7960 mm."
+          "tol_pct": 1.5,
+          "source": "The tall corner, a cube standing on the ground at eps_r = 8: ringdown k0*d = 1.40956 (d = 6.7255 mm), Q = 5.193. The old orientation gave 7.7959 mm, 15.9% too big; the borrowed Q was 5.94, 14% high."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 50.0,
+            "aspect_wd": 2.0,
+            "aspect_Ld": 2.0
+          },
+          "expect": {
+            "d": 0.00175149659,
+            "resonant_frequency_dwm_hz": 9557437887.2
+          },
+          "tol_pct": 0.5,
+          "source": "eps_r = 50, default aspect, ringdown on an 18-cell grid: k0*d = 0.36709, d = 1.7515 mm. The DWM solved by bisection puts this brick at 9.557 GHz, 4.4% low, while its VSWR 2 bandwidth is only 1.2%: the model the literature sizes bricks with misses the band entirely at high permittivity."
         }
       ],
       "references": [
-        "Mongia & Ittipiboon, Theoretical and experimental investigations on rectangular DRAs, IEEE T-AP 45(9), 1997",
+        "Mongia & Ittipiboon, Theoretical and experimental investigations on rectangular DRAs, IEEE T-AP 45(9), 1997 (the dielectric waveguide model and its Q)",
         "Petosa, Dielectric Resonator Antenna Handbook, Artech House 2007, Ch. 3",
-        "Roots of the transcendental found here by bisection; the u fit is to those roots, and the corrected size agrees with this family's hemispherical and cylindrical archetypes to within 6%"
+        "Resonances and Q computed here by 3-D FDTD ringdown (otahub.num.dra), validated against the exact hemisphere pole, and fitted"
       ]
     }
   ]
