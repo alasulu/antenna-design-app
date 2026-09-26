@@ -1,0 +1,77 @@
+{
+ "description": "Full-wave checks for the dual-mode (Potter) horn. step: a 1.033-to-1.300 wavelength step solved by otahub.num.bor_fdtd at 60, 120 and 180 cells per wavelength, against mode matching (otahub.num.waveguide_step). horn: a whole horn (input guide 1.1, step 1.367, phasing 0.583, cone to 5.467 wavelengths, slant 10) in the FDTD's own staircase at 60 and 120 cells per wavelength: raw = TE11/TM11 projections at the aperture plane, corrected = after removing the cone's spherical phase front (the form the aperture model uses); against the stepped-cone cascade (waveguide_step.cascade) and the first-order chain (local propagation constants, no conversion).",
+ "step": {
+  "radii_cells_at_60": [
+   31,
+   39
+  ],
+  "fdtd": [
+   {
+    "N": 60,
+    "share": 0.180794,
+    "phase": 40.576
+   },
+   {
+    "N": 120,
+    "share": 0.178353,
+    "phase": 40.9281
+   },
+   {
+    "N": 180,
+    "share": 0.177698,
+    "phase": 41.0137
+   }
+  ]
+ },
+ "horn": {
+  "geometry_cells_at_60": [
+   33,
+   41,
+   35,
+   164,
+   433
+  ],
+  "fdtd_raw": [
+   {
+    "N": 60,
+    "share": 0.35458,
+    "phase": 39.465
+   },
+   {
+    "N": 120,
+    "share": 0.36308,
+    "phase": 37.84
+   }
+  ],
+  "fdtd_corrected": [
+   {
+    "N": 60,
+    "share": 0.12586,
+    "phase": 14.107
+   },
+   {
+    "N": 120,
+    "share": 0.13856,
+    "phase": 14.793
+   }
+  ],
+  "plain_cone_corrected": [
+   {
+    "N": 60,
+    "share": 0.00334
+   }
+  ],
+  "cascade": {
+   "raw_share": 0.367,
+   "raw_phase": 37.42,
+   "corrected_share": 0.14205,
+   "corrected_phase": 15.244,
+   "slope_deg_per_percent": -11.39
+  },
+  "first_order": {
+   "share": 0.16028,
+   "phase": -6.813,
+   "slope_deg_per_percent": -7.72
+  }
+ }
+}

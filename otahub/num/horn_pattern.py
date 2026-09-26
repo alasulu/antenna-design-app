@@ -157,11 +157,13 @@ def _mode_power(fields):
     return float(np.sum((np.abs(ex) ** 2 + np.abs(ey) ** 2) * (0.5 * _WR * r)[:, None]) * 2 * math.pi / _NPH)
 
 
-def dual_mode(p_tm: float):
-    """(fx, fy) of TE11 plus TM11 in phase, with a fraction p_tm of the
-    aperture power in TM11, in the sense that tapers the E plane (Potter)."""
+def dual_mode(p_tm: float, psi_deg: float = 0.0):
+    """(fx, fy) of TE11 plus TM11, with a fraction p_tm of the aperture power in
+    TM11, in the sense that tapers the E plane (Potter), TM11 leading TE11 by
+    psi_deg - zero when the horn is on its design frequency."""
     pte, ptm = _mode_power(_te11_fields), _mode_power(_tm11_fields)
     b = math.sqrt(p_tm / (1 - p_tm) * pte / ptm) if p_tm < 1 else 0.0
+    b = b * complex(math.cos(math.radians(psi_deg)), math.sin(math.radians(psi_deg)))
     # At the E-plane rim TE11's x-field is J1(1.841)/1.841 = +0.316 and TM11's is
     # J1'(3.832) = -0.403, so adding TM11 with the SAME sign at the centre is
     # what tapers the E plane towards the H plane's cosine-like edge

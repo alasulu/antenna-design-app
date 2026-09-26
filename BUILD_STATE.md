@@ -2632,12 +2632,86 @@ ratio at f0, and over 7 dB for the classic cut; the first-order offset test now
 allows the cut's second-order term, 5% at this Q0. A supplied Q0 still
 overrides, for loss the full-wave Q does not include.
 
+
+## The Potter horn's step, solved - and a flare that moves the phase 20 degrees
+
+`conical_horn_dual_mode` had its aperture derived for a given TM11 share but took
+that share as an assumption: the step that launches it was "indicative, 1.3
+wavelengths". `otahub/num/waveguide_step.py` solves the step by mode matching
+over the m = 1 modes (TE1n and TM1n, counts in proportion to the radii), and
+`otahub/num/bor_fdtd.py` checks it: an FDTD at azimuthal order 1 on a (rho, z)
+grid, which shares nothing with it. Taken to zero cell size (order 1.4, set by
+the step's corner) the FDTD gives a TM11 share of 0.17682 at 41.11 degrees where
+mode matching gives 0.17671 at 41.15.
+
+What the step does:
+- It launches TM11 20-60 degrees out of phase with TE11, not in phase; the
+  phasing section has to make that up.
+- The input guide matters. From a 1.0-wavelength guide a share of 0.15 needs a
+  step only 2.7% above TM11 cutoff, and at 0.97 f0 TM11 no longer propagates;
+  from 1.1 the step is 11% clear, the share holds to 0.002 over +-2%, and 0.1% of
+  the power is reflected. The spec now takes the input guide as an input (1.1
+  typical) and synthesises the step for the share asked (tabulated, within 0.002
+  of it; NaN where the guide cannot launch it).
+
+What the flare does, found by cascading the mode matching over a stepped cone
+(generalised scattering matrices) and checked by an FDTD of the whole
+10-wavelength horn in its own staircase: the cascade's aperture projections sit
+where the FDTD converges (0.367 at 37.4 degrees; FDTD 0.355 and 0.363 at 60 and
+120 cells per wavelength). A plain cone barely converts (0.3% of the power), but
+coherently: the Potter horn's aperture phase lands at 15 degrees where the
+first-order chain - local propagation constants, no conversion - puts it at -7,
+and its frequency slope is 11.4 degrees per percent, not 7.7. So the phasing
+length the spec now gives is first-order and labelled INDICATIVE, with that
+error stated.
+
+Cross-polar bandwidth, derived rather than asserted: the aperture model's
+tolerance to phase error is lopsided - TM11 leading spoils the null fast (+5.5
+degrees at a share of 0.13), lagging slowly (-19) - so a design can centre its
+band by phasing about 6 degrees long. With the first-order slope the -30 dB band
+of a 10-wavelength horn at 0.15 is about 2.5%, 1.8% with the cascade's; the -25
+dB band about 6.4% and 4.5%. Longer horns are narrower (-17 degrees per percent
+at 33 wavelengths). The 6% the spec carried is roughly the -25 dB figure.
+
+The horn stays low confidence, for a narrower reason than before: the step is
+solved, the phasing is not. HANDOVER section 6 item 11 describes the cascade-based
+design that would finish it.
+
+## Finish line
+
+Set by the user on 2026-09-26, through the VS Code session. It governs every
+round from here on; the house rules are unchanged.
+
+1. **Scope freeze.** Pick only from items already open in HANDOVER section 6 as
+   it stood at commit 53df1ab. The order after the Potter horn round:
+   - item 13: the shorted patch, and the stacked patch's length, full-wave;
+   - item 12: the annular ring mode in patch_q, and PIFA;
+   - item 9: the wide-strip equivalence;
+   - item 5: array element-pattern embedding;
+   - item 4: taking one low-confidence archetype end to end.
+   Anything newly discovered goes into section 6 as future work, not a new round.
+2. **Hard stop at 2026-09-27 20:00 local time.** No new round starts after it. A
+   round in progress at the deadline is finished only if it can be green (suite,
+   doctor, check) and committed within about an hour; otherwise its work goes on a
+   local branch `wip/<topic>` with a commit message saying what is unfinished, and
+   master returns to the last green commit.
+3. **Stop early** if section 6 runs out first: every remaining item needs
+   CST/HFSS, measurement data, or a new solver judged out of scope.
+4. **Wrap-up round, the last one:** rewrite HANDOVER section 6 as the final
+   future-work list, grouped by what each item needs (CST/HFSS installation,
+   measurement data, or a new solver); update the README and HANDOVER counts; run
+   the full suite, doctor and check; add a final "Development closed" section to
+   this file, last as always; commit and tag that commit v1.0 (local tag, no
+   remote, do not push); stop the loop with ScheduleWakeup stop: true and do not
+   re-arm it.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2668 tests, 912/912 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2686 tests, 930/930 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
-printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`).
+printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
+waveguide steps and stepped horns (`waveguide_step`, checked by `bor_fdtd`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
 solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
@@ -2645,10 +2719,10 @@ and the two-mode horns' efficiency and cross-polar levels, from aperture
 integration; patch directivity from the cavity current through the slab, and
 the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
-full-wave. Next candidates: the resonant slot array's 1/N bandwidth (needs a
-stated slot width for its element Q), the Potter horn's step (needs mode
-matching to turn its TM11 fraction into a result), and the patches the
-rectangular MoM cannot reach (HANDOVER section 6 item 13).
+full-wave; the Potter horn's step is solved. Development runs to the finish line
+above (hard stop 2026-09-27 20:00): next, HANDOVER section 6 item 13 (the shorted
+patch and the stacked patch's length, full-wave), then items 12, 9, 5 and 4, then
+the wrap-up round that tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

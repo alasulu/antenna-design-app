@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-18,415 lines of Python, 23,642 lines of spec data, 2668 tests, 912/912 citable
+18,899 lines of Python, 23,800 lines of spec data, 2686 tests, 930/930 citable
 known cases passing.**
 
 ---
@@ -184,6 +184,25 @@ efficiency against Jackson's closed form, to 0.0-0.5% on thin board.
 lossless, infinite substrate and ground; FDTD is affordable only on moderately
 thick boards (the FR-4 check took 80 minutes at its finest grid).
 
+### A fifth, for waveguide steps and flared horns
+
+`otahub/num/waveguide_step.py` solves a step between coaxial circular guides by
+mode matching over the m = 1 modes (TE1n and TM1n, in numbers proportional to
+the radii), and cascades such steps with uniform sections through generalised
+scattering matrices, so a stepped or flared horn is a staircase of them.
+`otahub/num/bor_fdtd.py` checks it with nothing in common: an FDTD at azimuthal
+order 1 on a (rho, z) grid, walls of any radius profile on grid lines, CPML ends,
+a TE11 pulse in, TE11 and TM11 read out by projection. On a single step the two
+agree to 0.06% in the TM11 power share and 0.04 degrees in its phase once the FDTD
+is taken to zero cell size (order about 1.4, set by the step's corner). On a whole
+10-wavelength Potter horn in the FDTD's own staircase, the cascade's aperture
+projections sit where the FDTD is converging (0.367 at 37.4 degrees against
+0.355 and 0.363 at 60 and 120 cells per wavelength).
+
+**Limits that bite:** m = 1 only; perfectly conducting walls; the cascade models
+a staircase (fine steps approximate a smooth cone); the FDTD's finest horn run
+took 11 minutes.
+
 ### Independent first-principles checks
 
 `otahub/core/pattern.py` is deliberately spec-independent, so it acts as an
@@ -267,7 +286,7 @@ being written into a spec.
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
 | Sectoral, conical and corrugated horns (beamwidths) | HPBW of each principal plane at any flare, from the aperture field with its quadratic phase error; NaN past the point where the beam breaks up | `otahub/num/horn_pattern.py` by quadrature, matching the E-plane pattern's Fresnel-integral closed form to 1e-10; fits to 0.5% (0.5% held out) over apertures of 1.5-40 wavelengths |
-| `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step that sets the fraction is still not solved |
+| `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step is now solved by mode matching (`waveguide_step`, FDTD-checked by `bor_fdtd` to 0.06%); the phasing length and cross-polar bandwidth are first-order - the flare's mode conversion moves the aperture phase ~20 degrees on a 10-wavelength horn (stepped-cone cascade and whole-horn FDTD agree), and the -30 dB band is about 2% there, not 6% |
 | Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 to 0.02% for a vanishing patch, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
 | Rectangular, inset, CP, circular, triangular and shorted patches (directivity) | Broadside directivity as the thin-substrate value (all walls radiating) times a substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1 | `otahub/num/patch_sdm.py` full-wave: `patch_q`'s directivity within 0.3-0.9% on air, eps_r 2.2, FR-4 and 10.2. The two-slot formula was 7.5-13% low (side walls and substrate); the circular and triangular free-space edge models up to 18% low on thick board; the shorted patch's single slot 5-35% high |
 | `rectangular_patch`, `rectangular_patch_inset` (resonance, Q, surface waves) | L is now the length that resonates at f0 full-wave (the textbook design kept as L_textbook, where it resonates reported); full-wave radiation Q, surface-wave efficiency and a bandwidth counting it; the inset depth is the transmission-line fraction of the full-wave L | `patch_sdm` against `patch_fdtd` (0.013-0.02% in frequency, 0.15-0.2% in Q). The Hammerstad design resonates 0.5-7% LOW (the classic 2.4 GHz FR-4 patch at 2.33 GHz); the cavity-current Q ran 1.6-28% high; efficiency matches Jackson's thin-slab form to 0.5% |
@@ -311,12 +330,14 @@ ferrite material model.
 
 Two of those are new in session 5 and both are honest about why:
 `stacked_patch`'s bandwidth multiplier is an expectation drawn from published
-designs rather than a computed result. `conical_horn_dual_mode` is half way
-out: its efficiency, beamwidths and cross-polar level are now derived from the
-aperture fields for a given TM11 power fraction (and the old analogies were
-wrong - 0.62 is 0.506, the gain "advantage" is a loss), but that fraction is an
-input, because the step that sets it needs mode matching, and the bandwidth
-remains an estimate. Its mode cutoff diameters are exact Bessel zeros.
+designs rather than a computed result. `conical_horn_dual_mode` is most of the
+way out: its aperture is derived for a given TM11 share (0.62 was 0.506, the gain
+"advantage" a loss), and its step is now SOLVED by mode matching and checked by
+FDTD. What keeps it low is the phasing: the flare converts between TE11 and TM11
+enough to move the aperture phase about 20 degrees on a 10-wavelength horn, which
+a first-order phasing length cannot see, so that length and the bandwidth are
+first-order and labelled so. The stepped-cone cascade that does see it exists
+(§3); a spec-level design built on it is the way out.
 
 They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
@@ -613,6 +634,12 @@ known case only checks what it asserts.
 
 ## 6. Recommended next steps
 
+> **Finish line (set by the user, 2026-09-26).** Scope is frozen to the items open
+> here as of commit 53df1ab; development stops at 2026-09-27 20:00 local time,
+> followed by a wrap-up round that rewrites this section as the final future-work
+> list and tags v1.0. The full terms are in BUILD_STATE.md, section "Finish line".
+> Anything newly found goes into this section as future work, not a new round.
+
 1. **Execution-test the exporters** against real CST and HFSS installations.
    This is the biggest gap, and session 5 did not touch it — the catalogue grew
    by 32 archetypes while the exporter still builds geometry for 7. Start with
@@ -707,9 +734,11 @@ known case only checks what it asserts.
    surviving in the builder - and is fixed.
 11. ~~**The diagonal and dual-mode horns' fixed figures**~~ - done with the
    two-component aperture transform in `otahub/num/horn_pattern.py`. The Potter
-   horn's step is the part left: a mode-matching solve at the guide step would
-   turn its TM11 fraction from an input into a result, and give the bandwidth
-   over which the two modes stay in phase - the only route out of low confidence.
+   horn's step is now solved too (§3, fifth reference). **Left:** design the
+   phasing length with the stepped-cone cascade rather than first-order - the
+   flare moves the aperture phase ~20 degrees and steepens its frequency slope
+   by a third - and tabulate it over horn length, input guide and share; that is
+   what would take the horn out of low confidence.
 12. ~~**Patch directivity, family-wide.**~~ - done, with a full-wave arbiter
    (`otahub/num/patch_sdm.py`, §3) that settled which model is right: the cavity
    current radiated through the slab (`patch_q`) holds to 0.3-0.9%; the two-slot
