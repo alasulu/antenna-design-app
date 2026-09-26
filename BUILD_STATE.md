@@ -2384,18 +2384,64 @@ apertures - 21 terms, 0.5% over 1.5 to 40 wavelengths. The pyramidal horn,
 designed at the optimum by construction, keeps its 54.1 and 78.1: aperture
 integration with obliquity agrees to 0.5%.
 
+
+## Two-mode horns: a dual-mode "advantage" that is a loss, and cross-polar lobes 3.5 dB worse
+
+The diagonal horn and Potter's dual-mode conical horn were the last horns with
+fixed figures. The dual-mode horn carried an INDICATIVE 0.62 efficiency (so +0.85
+dB over a smooth horn), 68 lambda/D "equal in E and H" and -30 dB cross-polar;
+the diagonal horn 58 lambda/a and cross-polar lobes "typically around -19 dB, not
+modelled". `otahub/num/horn_pattern.py` now transforms BOTH components of a
+two-mode aperture, which gives Ludwig-3 co- and cross-polar patterns from one
+integral. Its TE11 limit reproduces the scalar TE11 routine to 1e-9 and the
+textbook 0.837; the diagonal horn's efficiency matches a closed form in Fresnel
+integrals to 1e-6.
+
+What it found:
+- Dual-mode efficiency is 0.506 at the default TM11 fraction of 0.15, not 0.62.
+  The 0.62 sat between the smooth horn at this phase error (0.51) and the
+  corrugated horn at none (0.69) - two numbers that were not comparable. Against
+  the smooth horn at the same 3/8 phase error it is a 0.27 dB LOSS: the TM11
+  tapers the E-plane rim, which equalises the beams and cancels the cross-polar
+  field, and a tapered aperture has less gain.
+- Beams are equal at a TM11 power fraction of 0.097, at 78 lambda/dm, not 68; at
+  the default 0.15 the E plane is already 4% wider (82.0 against 78.6).
+- Cross-polar nulls at a fraction near 0.13 (-34.1 to -34.5 dB depending on
+  size); -32.2 dB at the default, so the -30 was about right. The two design
+  goals pull a third apart.
+- The diagonal horn's cross-polar lobes, in the planes 45 degrees from the
+  polarisation, are -15.5 dB for a long horn, -14.7 at an edge phase error of
+  1/4 and -12.4 at 1/2 - not -19. Small horns are a little cleaner (-16.1 dB at
+  2 wavelengths), so the fit carries 1/D^2.
+- Its 58 lambda/a beam was right for a long horn (58.3), and E and H are equal
+  by symmetry, exactly; the beam widens to 61.2 at an edge error of 1/4, 81.9 at
+  1/2. Its efficiency now follows the flare, exactly - the E-plane sectoral phase
+  factor times the H-plane sectoral efficiency - and so does its gain.
+- Its notes put the phase error (a/2)^2/(2R) "at the aperture corner"; that is
+  the edge centre, and the corner has twice it, so R >= a^2/lambda holds the
+  corners to a QUARTER wave, not an eighth.
+
+Dual-mode efficiency is exact as a ratio of four mode integrals; beams are fitted
+in sqrt(fraction) and 1/D^2 to 0.002%; cross-polar is tabulated at 3.2, 5.5 and
+12 wavelengths and interpolated in 1/D^2 (0.03 dB on eight held-out solutions);
+the diagonal horn's beam fit holds 0.07% and its cross-polar fit 0.003 dB. NaN
+outside the surveyed range. The Potter horn stays low confidence: the step that
+sets the TM11 fraction needs mode matching, so the fraction is an input, and the
+bandwidth stays an estimate.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2561 tests, 828/828 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2600 tests, 853/853 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
-solved radiation Q; horn beamwidths from aperture integration. Next candidates,
-from the remaining "indicative" metrics: the resonant slot array's 1/N bandwidth
-(needs a stated slot width for its element Q), the quarter-wave shorted patch's
-halving (needs the shorting wall's vertical current), and the diagonal and
-dual-mode horns' fixed beamwidths.
+solved radiation Q; horn beamwidths, and the two-mode horns' efficiency and
+cross-polar levels, from aperture integration. Next candidates, from the
+remaining "indicative" metrics: the resonant slot array's 1/N bandwidth (needs a
+stated slot width for its element Q), the quarter-wave shorted patch's halving
+(needs the shorting wall's vertical current), and the Potter horn's step (needs
+mode matching to turn its TM11 fraction into a result).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

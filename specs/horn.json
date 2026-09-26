@@ -1629,7 +1629,7 @@
             "R_axial",
             "f0"
           ],
-          "notes": "Quadratic phase error at the aperture corner, (a/2)^2/(2R) expressed in wavelengths. Keep it under about 1/8 for the ideal gain to be realised."
+          "notes": "Quadratic phase error at the centre of each aperture edge, (a/2)^2/(2R) in wavelengths; at the corners it is twice this. The efficiency, beam and cross-polar figures below take it as their input."
         },
         {
           "metric": "min_axial_length_for_eighth_wave_m",
@@ -1639,23 +1639,55 @@
             "a_ap",
             "f0"
           ],
-          "notes": "R >= a^2/lambda holds the corner phase error to an eighth of a wavelength"
+          "notes": "R >= a^2/lambda holds the phase error to an eighth of a wavelength at the edge centres - and a QUARTER at the corners, which this note used to call an eighth."
         },
         {
-          "metric": "hpbw_deg",
-          "expr": "58.0/(a_ap*f0/c)",
-          "units_out": "deg",
+          "metric": "aperture_efficiency_with_phase_error",
+          "expr": "((fresnel_c(2*sqrt(max(max_phase_error_wavelengths, 1e-9)))**2 + fresnel_s(2*sqrt(max(max_phase_error_wavelengths, 1e-9)))**2)/(2*sqrt(max(max_phase_error_wavelengths, 1e-9)))**2)*((1/(8*max(max_phase_error_wavelengths, 1e-9)))*((fresnel_c((1/sqrt(8*max(max_phase_error_wavelengths, 1e-9)) + sqrt(8*max(max_phase_error_wavelengths, 1e-9)))/sqrt(2)) - fresnel_c((1/sqrt(8*max(max_phase_error_wavelengths, 1e-9)) - sqrt(8*max(max_phase_error_wavelengths, 1e-9)))/sqrt(2)))**2 + (fresnel_s((1/sqrt(8*max(max_phase_error_wavelengths, 1e-9)) + sqrt(8*max(max_phase_error_wavelengths, 1e-9)))/sqrt(2)) - fresnel_s((1/sqrt(8*max(max_phase_error_wavelengths, 1e-9)) - sqrt(8*max(max_phase_error_wavelengths, 1e-9)))/sqrt(2)))**2))",
+          "units_out": "-",
           "depends_on": [
+            "max_phase_error_wavelengths"
+          ],
+          "notes": "EXACT, in Fresnel integrals: the field y cos(pi x/a) + x cos(pi y/a) under the same quadratic phase in both directions separates, and its co-polar efficiency is the E-plane sectoral horn's phase factor times the H-plane sectoral horn's efficiency at the same edge error - 8/pi^2 with none. otahub.num.horn_pattern's 2-D integration agrees to 1e-6. 0.787 at the example's 0.075, 0.584 at 1/4."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "db10(aperture_efficiency_with_phase_error*4*pi*a_ap**2*(f0/c)**2)",
+          "units_out": "dBi",
+          "depends_on": [
+            "aperture_efficiency_with_phase_error",
             "a_ap",
             "f0"
           ],
-          "notes": "Indicative and equal in both principal planes, which is the horn's selling point - a pyramidal horn's E and H beamwidths differ by a third"
+          "notes": "The gain this horn has at its length; gain_ideal_dbi is the infinitely long horn's."
+        },
+        {
+          "metric": "hpbw_deg",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.5, np.where(a_ap*f0/c >= 1.99, 2*deg(arcsin(np.clip(((0.50946265) + (-0.046250798)*(1/(a_ap*f0/c)**2) + (0.0018628656)*(1/(a_ap*f0/c)**2)**2 + (-0.032664484)*(max(max_phase_error_wavelengths, 1e-9)) + (0.069102787)*(max(max_phase_error_wavelengths, 1e-9))*(1/(a_ap*f0/c)**2) + (-0.059963151)*(max(max_phase_error_wavelengths, 1e-9))*(1/(a_ap*f0/c)**2)**2 + (1.2771543)*(max(max_phase_error_wavelengths, 1e-9))**2 + (-2.0548279)*(max(max_phase_error_wavelengths, 1e-9))**2*(1/(a_ap*f0/c)**2) + (1.6840272)*(max(max_phase_error_wavelengths, 1e-9))**2*(1/(a_ap*f0/c)**2)**2 + (-9.6176438)*(max(max_phase_error_wavelengths, 1e-9))**3 + (19.78859)*(max(max_phase_error_wavelengths, 1e-9))**3*(1/(a_ap*f0/c)**2) + (-16.822314)*(max(max_phase_error_wavelengths, 1e-9))**3*(1/(a_ap*f0/c)**2)**2 + (45.796263)*(max(max_phase_error_wavelengths, 1e-9))**4 + (-91.311111)*(max(max_phase_error_wavelengths, 1e-9))**4*(1/(a_ap*f0/c)**2) + (76.371492)*(max(max_phase_error_wavelengths, 1e-9))**4*(1/(a_ap*f0/c)**2)**2 + (-98.168878)*(max(max_phase_error_wavelengths, 1e-9))**5 + (193.63358)*(max(max_phase_error_wavelengths, 1e-9))**5*(1/(a_ap*f0/c)**2) + (-159.74128)*(max(max_phase_error_wavelengths, 1e-9))**5*(1/(a_ap*f0/c)**2)**2 + (83.884071)*(max(max_phase_error_wavelengths, 1e-9))**6 + (-157.5026)*(max(max_phase_error_wavelengths, 1e-9))**6*(1/(a_ap*f0/c)**2) + (126.26071)*(max(max_phase_error_wavelengths, 1e-9))**6*(1/(a_ap*f0/c)**2)**2)/(a_ap*f0/c), -1, 1))), inf - inf), inf - inf)",
+          "units_out": "deg",
+          "depends_on": [
+            "max_phase_error_wavelengths",
+            "a_ap",
+            "f0"
+          ],
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern) and fitted as U = D sin(theta_h) in the edge phase error and 1/D^2, D = a/lambda from 2 to 40 and the error up to 1/2: 0.07% worst on 168 patterns, 0.04% on 5 held out; NaN outside that. This is the beam in the planes containing and crossing the polarisation, which lie along the aperture's DIAGONALS and are identical by the field's symmetry - that equality is exact, not approximate. 58.3 lambda/a with no phase error, so the 58 this spec carried was right for a long horn; it widens to 61.2 at an edge error of 1/4 and 81.9 at 1/2."
         },
         {
           "metric": "boresight_cross_pol_db",
           "expr": "-inf",
           "units_out": "dB",
           "notes": "Exactly zero on boresight: the cross-polar aperture integral cancels by symmetry, confirmed numerically to 1e-17. Off boresight four cross-polar lobes appear in the diagonal planes, typically around -19 dB, and those are NOT modelled here."
+        },
+        {
+          "metric": "cross_pol_peak_db",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.5, np.where(a_ap*f0/c >= 1.99, (-15.455672) + (-2.4860937)*(1/(a_ap*f0/c)**2) + (-0.93891827)*(1/(a_ap*f0/c)**2)**2 + (0.039242441)*(max(max_phase_error_wavelengths, 1e-9)) + (-0.051507386)*(max(max_phase_error_wavelengths, 1e-9))*(1/(a_ap*f0/c)**2) + (0.12586761)*(max(max_phase_error_wavelengths, 1e-9))*(1/(a_ap*f0/c)**2)**2 + (11.42431)*(max(max_phase_error_wavelengths, 1e-9))**2 + (0.1721126)*(max(max_phase_error_wavelengths, 1e-9))**2*(1/(a_ap*f0/c)**2) + (-2.301032)*(max(max_phase_error_wavelengths, 1e-9))**2*(1/(a_ap*f0/c)**2)**2 + (2.3410625)*(max(max_phase_error_wavelengths, 1e-9))**3 + (-2.994072)*(max(max_phase_error_wavelengths, 1e-9))**3*(1/(a_ap*f0/c)**2) + (9.9127365)*(max(max_phase_error_wavelengths, 1e-9))**3*(1/(a_ap*f0/c)**2)**2 + (-1.1060326)*(max(max_phase_error_wavelengths, 1e-9))**4 + (4.0337522)*(max(max_phase_error_wavelengths, 1e-9))**4*(1/(a_ap*f0/c)**2) + (-12.42294)*(max(max_phase_error_wavelengths, 1e-9))**4*(1/(a_ap*f0/c)**2)**2, inf - inf), inf - inf)",
+          "units_out": "dB",
+          "depends_on": [
+            "max_phase_error_wavelengths",
+            "a_ap",
+            "f0"
+          ],
+          "notes": "SOLVED: the four cross-polar lobes, which lie in the planes 45 degrees from the polarisation - the aperture's own principal planes (checked: nowhere else in azimuth is higher). Relative to the co-polar peak, Ludwig-3, fitted in the edge phase error and 1/D^2 over D = 2-12 and the error up to 1/2: 0.003 dB worst on 88 solutions, 0.002 dB on 6 held out. -15.5 dB for a large horn with no phase error, -14.7 at 1/4, -12.4 at 1/2; a small horn is a little cleaner (-16.1 dB at 2 wavelengths). The 'typically around -19 dB' this spec's notes gave was 3.5 dB optimistic."
         },
         {
           "metric": "gain_advantage_over_pyramidal_db",
@@ -1668,7 +1700,7 @@
         "the two modes must be equal in amplitude and phase at the aperture, which happens at one frequency band only - the diagonal horn is not broadband",
         "gain assumes uniform phase; check max_phase_error_wavelengths and lengthen the horn if it exceeds about 0.125",
         "polarisation is along the DIAGONAL of the square aperture, not along a side",
-        "the diagonal-plane cross-polar lobes are real and significant; only the boresight null is claimed here"
+        "the cross-polar lobes 45 degrees from the polarisation are computed (cross_pol_peak_db); the aperture model is the ideal two-mode field with the flare's quadratic phase"
       ],
       "known_cases": [
         {
@@ -1708,6 +1740,48 @@
           },
           "tol_pct": 1.0,
           "source": "10*log10((8/pi^2)/(64/pi^4)) = 10*log10(pi^2/8) = 0.914 dB over a separable cosine aperture"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.05995849,
+            "R_axial": 0.19986164
+          },
+          "expect": {
+            "aperture_efficiency_with_phase_error": 0.787187,
+            "hpbw_deg": 28.9402,
+            "cross_pol_peak_db": -16.069
+          },
+          "tol_pct": 0.5,
+          "source": "2-D aperture integration solved directly (otahub.num.horn_pattern): a = 2.0 wavelengths, edge phase error 0.075 - efficiency 0.7872, beam 28.940 degrees in the E and H planes, cross-polar lobes -16.07 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.08993774,
+            "R_axial": 0.13490661
+          },
+          "expect": {
+            "aperture_efficiency_with_phase_error": 0.584266,
+            "hpbw_deg": 20.28927,
+            "cross_pol_peak_db": -14.991
+          },
+          "tol_pct": 0.5,
+          "source": "2-D aperture integration solved directly (otahub.num.horn_pattern): a = 3.0 wavelengths, edge phase error 0.250 - efficiency 0.5843, beam 20.289 degrees in the E and H planes, cross-polar lobes -14.99 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_ap": 0.20985472,
+            "R_axial": 0.4590572
+          },
+          "expect": {
+            "aperture_efficiency_with_phase_error": 0.347639,
+            "hpbw_deg": 9.74454,
+            "cross_pol_peak_db": -13.543
+          },
+          "tol_pct": 0.5,
+          "source": "2-D aperture integration solved directly (otahub.num.horn_pattern): a = 7.0 wavelengths, edge phase error 0.400 - efficiency 0.3476, beam 9.745 degrees in the E and H planes, cross-polar lobes -13.54 dB."
         }
       ],
       "references": [
@@ -1742,11 +1816,11 @@
         },
         {
           "symbol": "tm11_fraction",
-          "name": "TM11 amplitude fraction",
+          "name": "TM11 share of the aperture power",
           "unit": "-",
           "role": "assumption",
           "typical": "0.15",
-          "description": "relative to TE11; the classic Potter design sits near 0.15"
+          "description": "Fraction of the power at the aperture carried by TM11, in phase with TE11 there. The step sets it and is not solved here; everything the aperture does follows from it."
         },
         {
           "symbol": "dm",
@@ -1793,40 +1867,76 @@
         },
         {
           "metric": "aperture_efficiency",
-          "expr": "0.62",
+          "expr": "((0.4654098211 + sqrt(tm11_fraction/(1 - tm11_fraction)*0.3749390004/0.2548069317)*0.3098835114)**2 + (-0.6462692725 + sqrt(tm11_fraction/(1 - tm11_fraction)*0.3749390004/0.2548069317)*0.170402943)**2)/(pi*(0.3749390004 + (sqrt(tm11_fraction/(1 - tm11_fraction)*0.3749390004/0.2548069317))**2*0.2548069317))",
           "units_out": "-",
-          "notes": "INDICATIVE AND NOT DERIVED. Placed between this family's smooth conical horn (0.51) and corrugated horn (0.69), which is where published Potter horns land. The dual-mode horn's purpose is pattern symmetry and cross-polar purity, not gain."
+          "depends_on": [
+            "tm11_fraction"
+          ],
+          "notes": "DERIVED, exact for the aperture: TE11 plus TM11 in phase at the aperture, a fraction tm11_fraction of the power in TM11, and the 3/8-wavelength quadratic phase error that dm = sqrt(3 lambda L) puts at the rim. The co-polar integrals and powers of the two modes are four constants here, computed by otahub.num.horn_pattern; the formula reproduces its direct integration to 1e-12. 0.506 at the default 0.15 - against the INDICATIVE 0.62 this spec carried, which sat between the smooth horn at this phase error (0.51) and the corrugated horn at none (0.69), two numbers that were not comparable."
         },
         {
           "metric": "gain_dbi",
-          "expr": "db10(0.62*4*pi*(pi*dm**2/4)*(f0/c)**2)",
+          "expr": "db10(aperture_efficiency*4*pi*(pi*dm**2/4)*(f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
+            "aperture_efficiency",
             "dm",
             "f0"
           ]
         },
         {
           "metric": "gain_advantage_over_smooth_db",
-          "expr": "db10(0.62/0.51)",
+          "expr": "db10(aperture_efficiency/0.5384729212)",
           "units_out": "dB",
-          "notes": "0.85 dB, and that is the smaller part of the benefit"
+          "depends_on": [
+            "aperture_efficiency"
+          ],
+          "notes": "Against the smooth conical horn of the same length and phase error (TE11 alone, 0.53847). NEGATIVE for any useful mode mix: -0.27 dB at the default. The TM11 tapers the E-plane rim, which is what equalises the beams and cancels the cross-polar field - and a tapered aperture has less gain, not more. The +0.85 dB this spec asserted came from the incomparable efficiencies above."
         },
         {
-          "metric": "hpbw_deg",
-          "expr": "68.0/(dm*f0/c)",
+          "metric": "hpbw_e_deg",
+          "expr": "np.where(tm11_fraction <= 0.4, np.where(dm*f0/c >= 1.99, 2*deg(arcsin(np.clip(((0.56111157) + (-0.065984037)*(1/(dm*f0/c)**2) + (0.0049227617)*(1/(dm*f0/c)**2)**2 + (0.32982512)*(sqrt(tm11_fraction)) + (-0.11742625)*(sqrt(tm11_fraction))*(1/(dm*f0/c)**2) + (0.016145119)*(sqrt(tm11_fraction))*(1/(dm*f0/c)**2)**2 + (0.23471762)*(sqrt(tm11_fraction))**2 + (-0.27925236)*(sqrt(tm11_fraction))**2*(1/(dm*f0/c)**2) + (0.072810785)*(sqrt(tm11_fraction))**2*(1/(dm*f0/c)**2)**2 + (-0.50354466)*(sqrt(tm11_fraction))**3 + (0.9508296)*(sqrt(tm11_fraction))**3*(1/(dm*f0/c)**2) + (-0.28725978)*(sqrt(tm11_fraction))**3*(1/(dm*f0/c)**2)**2 + (1.8783197)*(sqrt(tm11_fraction))**4 + (-3.2306165)*(sqrt(tm11_fraction))**4*(1/(dm*f0/c)**2) + (0.95458689)*(sqrt(tm11_fraction))**4*(1/(dm*f0/c)**2)**2 + (-2.8862349)*(sqrt(tm11_fraction))**5 + (5.0605809)*(sqrt(tm11_fraction))**5*(1/(dm*f0/c)**2) + (-1.6741497)*(sqrt(tm11_fraction))**5*(1/(dm*f0/c)**2)**2 + (1.9016323)*(sqrt(tm11_fraction))**6 + (-3.2901051)*(sqrt(tm11_fraction))**6*(1/(dm*f0/c)**2) + (1.1333373)*(sqrt(tm11_fraction))**6*(1/(dm*f0/c)**2)**2)/(dm*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
+            "tm11_fraction",
             "dm",
             "f0"
           ],
-          "notes": "Indicative, and equal in E and H planes - the symmetry the mode mixture buys. A smooth conical horn differs by about 10 degrees between planes."
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern) and fitted as the half-power point U = D sin(theta_h) in sqrt(tm11_fraction) and 1/D^2, D = dm/lambda from 2 to 40 and the fraction up to 0.4: 0.0014% worst on 136 patterns, 0.0012% on 5 held out. NaN outside that. The TM11 tapers the E plane and broadens its beam: 64.2 lambda/dm with none, 82.0 at the default."
+        },
+        {
+          "metric": "hpbw_h_deg",
+          "expr": "np.where(tm11_fraction <= 0.4, np.where(dm*f0/c >= 1.99, 2*deg(arcsin(np.clip(((0.66305096) + (-0.10369681)*(1/(dm*f0/c)**2) + (0.0078459718)*(1/(dm*f0/c)**2)**2 + (0.050914168)*(sqrt(tm11_fraction)) + (-0.027697128)*(sqrt(tm11_fraction))*(1/(dm*f0/c)**2) + (0.0055298831)*(sqrt(tm11_fraction))*(1/(dm*f0/c)**2)**2 + (0.031550843)*(sqrt(tm11_fraction))**2 + (-0.01873128)*(sqrt(tm11_fraction))**2*(1/(dm*f0/c)**2) + (0.0037893089)*(sqrt(tm11_fraction))**2*(1/(dm*f0/c)**2)**2 + (-0.0088407682)*(sqrt(tm11_fraction))**3 + (0.0044583559)*(sqrt(tm11_fraction))**3*(1/(dm*f0/c)**2) + (0.0010382532)*(sqrt(tm11_fraction))**3*(1/(dm*f0/c)**2)**2 + (0.089517509)*(sqrt(tm11_fraction))**4 + (-0.056175626)*(sqrt(tm11_fraction))**4*(1/(dm*f0/c)**2) + (0.0072701667)*(sqrt(tm11_fraction))**4*(1/(dm*f0/c)**2)**2 + (-0.10732619)*(sqrt(tm11_fraction))**5 + (0.067966655)*(sqrt(tm11_fraction))**5*(1/(dm*f0/c)**2) + (-0.0070599427)*(sqrt(tm11_fraction))**5*(1/(dm*f0/c)**2)**2 + (0.08978221)*(sqrt(tm11_fraction))**6 + (-0.058426055)*(sqrt(tm11_fraction))**6*(1/(dm*f0/c)**2) + (0.0082540813)*(sqrt(tm11_fraction))**6*(1/(dm*f0/c)**2)**2)/(dm*f0/c), -1, 1))), inf - inf), inf - inf)",
+          "units_out": "deg",
+          "depends_on": [
+            "tm11_fraction",
+            "dm",
+            "f0"
+          ],
+          "notes": "Same fit (0.0002% worst, 0.0005% held out). The H plane barely moves - 75.8 to 81.6 lambda/dm over the whole range. The two beams are equal at a TM11 fraction of 0.097 (0.098 for a horn 3 wavelengths across), about 78 lambda/dm - not the 68 this spec quoted as 'equal in E and H'. At the default 0.15 the E plane is already 4% wider than the H."
         },
         {
           "metric": "cross_pol_db",
-          "expr": "-30.0",
+          "expr": "np.where(tm11_fraction <= 0.4, np.where(dm*f0/c >= 3.15, np.where((1/(dm*f0/c)**2) <= 0.03329959, np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.545, -20.435, -21.992, -23.413, -24.822, -26.245, -27.722, -29.289, -30.935, -31.268, -31.600, -31.929, -32.253, -32.571, -32.879, -33.174, -33.445, -33.687, -33.902, -34.081, -34.047, -33.873, -33.671, -33.440, -33.184, -32.907, -32.618, -32.325, -32.030, -31.737, -31.450, -31.169, -30.891, -30.629, -29.362, -28.229, -27.192, -26.268, -25.401, -24.601, -23.870, -23.198, -22.575, -21.975, -21.410, -20.880, -20.380, -19.906, -19.457, -19.029, -18.619, -18.227, -17.850]) + (np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.620, -20.510, -22.059, -23.473, -24.863, -26.283, -27.777, -29.357, -30.999, -31.332, -31.664, -31.993, -32.316, -32.633, -32.939, -33.231, -33.506, -33.754, -33.971, -34.148, -34.273, -34.117, -33.905, -33.663, -33.395, -33.108, -32.809, -32.506, -32.205, -31.908, -31.617, -31.331, -31.052, -30.780, -29.506, -28.361, -27.325, -26.381, -25.518, -24.720, -23.986, -23.302, -22.664, -22.072, -21.512, -20.982, -20.483, -20.010, -19.561, -19.132, -18.718, -18.322, -17.941]) - np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.545, -20.435, -21.992, -23.413, -24.822, -26.245, -27.722, -29.289, -30.935, -31.268, -31.600, -31.929, -32.253, -32.571, -32.879, -33.174, -33.445, -33.687, -33.902, -34.081, -34.047, -33.873, -33.671, -33.440, -33.184, -32.907, -32.618, -32.325, -32.030, -31.737, -31.450, -31.169, -30.891, -30.629, -29.362, -28.229, -27.192, -26.268, -25.401, -24.601, -23.870, -23.198, -22.575, -21.975, -21.410, -20.880, -20.380, -19.906, -19.457, -19.029, -18.619, -18.227, -17.850]))*np.clip(((1/(dm*f0/c)**2) - 0.0069444444)/0.026355145, 0, 1), np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.620, -20.510, -22.059, -23.473, -24.863, -26.283, -27.777, -29.357, -30.999, -31.332, -31.664, -31.993, -32.316, -32.633, -32.939, -33.231, -33.506, -33.754, -33.971, -34.148, -34.273, -34.117, -33.905, -33.663, -33.395, -33.108, -32.809, -32.506, -32.205, -31.908, -31.617, -31.331, -31.052, -30.780, -29.506, -28.361, -27.325, -26.381, -25.518, -24.720, -23.986, -23.302, -22.664, -22.072, -21.512, -20.982, -20.483, -20.010, -19.561, -19.132, -18.718, -18.322, -17.941]) + (np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.819, -20.703, -22.249, -23.655, -25.040, -26.460, -27.947, -29.518, -31.163, -31.496, -31.827, -32.156, -32.481, -32.798, -33.106, -33.401, -33.677, -33.929, -34.152, -34.335, -34.470, -34.543, -34.538, -34.289, -33.978, -33.653, -33.324, -33.000, -32.682, -32.372, -32.070, -31.776, -31.489, -31.209, -29.905, -28.738, -27.682, -26.722, -25.843, -25.036, -24.291, -23.601, -22.958, -22.356, -21.792, -21.260, -20.757, -20.281, -19.827, -19.394, -18.979, -18.582, -18.200]) - np.interp(tm11_fraction, [0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875, 0.1, 0.1025, 0.105, 0.1075, 0.11, 0.1125, 0.115, 0.1175, 0.12, 0.1225, 0.125, 0.1275, 0.13, 0.1325, 0.135, 0.1375, 0.14, 0.1425, 0.145, 0.1475, 0.15, 0.1525, 0.155, 0.1575, 0.16, 0.1625, 0.175, 0.1875, 0.2, 0.2125, 0.225, 0.2375, 0.25, 0.2625, 0.275, 0.2875, 0.3, 0.3125, 0.325, 0.3375, 0.35, 0.3625, 0.375, 0.3875, 0.4], [-17.620, -20.510, -22.059, -23.473, -24.863, -26.283, -27.777, -29.357, -30.999, -31.332, -31.664, -31.993, -32.316, -32.633, -32.939, -33.231, -33.506, -33.754, -33.971, -34.148, -34.273, -34.117, -33.905, -33.663, -33.395, -33.108, -32.809, -32.506, -32.205, -31.908, -31.617, -31.331, -31.052, -30.780, -29.506, -28.361, -27.325, -26.381, -25.518, -24.720, -23.986, -23.302, -22.664, -22.072, -21.512, -20.982, -20.483, -20.010, -19.561, -19.132, -18.718, -18.322, -17.941]))*np.clip(((1/(dm*f0/c)**2) - 0.03329959)/0.066844618, 0, 1)), inf - inf), inf - inf)",
           "units_out": "dB",
-          "notes": "INDICATIVE, at the design frequency only. Good Potter horns reach -30 dB or better at band centre and degrade to -20 dB within a few percent either side, because TE11 and TM11 travel at different phase velocities and drift out of step."
+          "depends_on": [
+            "tm11_fraction",
+            "dm",
+            "f0"
+          ],
+          "notes": "SOLVED: the peak cross-polar level (Ludwig-3) in the 45-degree plane relative to the co-polar peak, from otahub.num.horn_pattern at dm = 3.16, 5.48 and 12 wavelengths over the fraction 0-0.4 (0.0025 steps around the null), interpolated linearly in the fraction and in 1/D^2; eight held-out solutions at 4.2 and 8 wavelengths agree to 0.03 dB. Held at the 12-wavelength values above that (worth about 0.05 dB), NaN below 3.15 wavelengths or past a fraction of 0.4. -17.6 dB with TE11 alone; a null of -34.1 to -34.5 dB near a fraction of 0.13; -32.2 dB at the default - so the INDICATIVE -30 dB this spec carried was about right at the design frequency. Only there: the two modes travel at different speeds, and the phase condition that cancels the cross-polar field drifts off with frequency."
+        },
+        {
+          "metric": "tm11_fraction_for_equal_beams",
+          "expr": "0.097",
+          "units_out": "-",
+          "notes": "Solved from the two beamwidth fits: E- and H-plane half-power beamwidths coincide at 0.0970 for a large horn, 0.0972 at 5.5 wavelengths, 0.0979 at 3."
+        },
+        {
+          "metric": "tm11_fraction_for_min_cross_pol",
+          "expr": "0.13",
+          "units_out": "-",
+          "notes": "Solved: where the peak cross-polar level is lowest - 0.1275 at 12 wavelengths across, 0.130 at 5.5, 0.1325 at 3.2 (resolved to 0.0025). Not the equal-beam mix: the two design goals pull a third apart, and a horn tuned for one gives up about 3 dB of cross-polar null or 4% of beam balance for the other."
         },
         {
           "metric": "tm11_cutoff_diameter_m",
@@ -1854,10 +1964,10 @@
         }
       ],
       "validity": [
-        "LOW CONFIDENCE: aperture efficiency, cross-polar level, beamwidth constant and bandwidth are all indicative figures placed by analogy with the neighbouring horn archetypes, not computed",
-        "the step geometry is not solved - setting the TM11 fraction to a target needs mode matching, which this spec does not attempt",
-        "narrowband by construction: the mode phase relationship holds at one frequency",
-        "the two cutoff diameters ARE exact, being Bessel zeros; treat them as the reliable part of this spec"
+        "aperture efficiency, beamwidths and cross-polar level are DERIVED from the aperture fields for a given TM11 fraction, at the design frequency; the step that sets that fraction is NOT solved (it needs mode matching), so the fraction is an input, not a result",
+        "the aperture phase error is the 3/8 wavelength that dm = sqrt(3 lambda L) implies",
+        "narrowband by construction: the mode phase relationship holds at one frequency, and the bandwidth figure remains indicative",
+        "the two cutoff diameters are exact, being Bessel zeros"
       ],
       "known_cases": [
         {
@@ -1880,11 +1990,82 @@
             "tm11_fraction": 0.15
           },
           "expect": {
-            "dm": 0.1642599,
-            "gain_advantage_over_smooth_db": 0.8483
+            "dm": 0.1642599
           },
           "tol_pct": 0.5,
-          "source": "sqrt(3*lambda*L) = 164.26 mm for a 300 mm horn at 10 GHz, identical to the smooth conical horn of the same length. The gain advantage is 10*log10(0.62/0.51) = 0.85 dB - modest, and not the reason to build one."
+          "source": "sqrt(3*lambda*L) = 164.26 mm for a 300 mm horn at 10 GHz, identical to the smooth conical horn of the same length."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "tm11_fraction": 0.15
+          },
+          "expect": {
+            "aperture_efficiency": 0.506213,
+            "hpbw_e_deg": 14.97034,
+            "hpbw_h_deg": 14.35241,
+            "cross_pol_db": -32.205
+          },
+          "tol_pct": 0.5,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) for TE11 + TM11 with 0.15 of the power in TM11, dm = 5.479 wavelengths, 3/8 phase error: efficiency 0.5062, beamwidths 14.970 (E) and 14.352 (H) degrees, peak cross-polar -32.21 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "tm11_fraction": 0.05
+          },
+          "expect": {
+            "aperture_efficiency": 0.534667,
+            "hpbw_e_deg": 13.43513,
+            "hpbw_h_deg": 14.0984,
+            "cross_pol_db": -24.859
+          },
+          "tol_pct": 0.5,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) for TE11 + TM11 with 0.05 of the power in TM11, dm = 5.479 wavelengths, 3/8 phase error: efficiency 0.5347, beamwidths 13.435 (E) and 14.098 (H) degrees, peak cross-polar -24.86 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 1.0,
+            "tm11_fraction": 0.14
+          },
+          "expect": {
+            "aperture_efficiency": 0.509327,
+            "hpbw_e_deg": 8.14611,
+            "hpbw_h_deg": 7.86557,
+            "cross_pol_db": -33.208
+          },
+          "tol_pct": 0.5,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) for TE11 + TM11 with 0.14 of the power in TM11, dm = 10.003 wavelengths, 3/8 phase error: efficiency 0.5093, beamwidths 8.146 (E) and 7.866 (H) degrees, peak cross-polar -33.21 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.12,
+            "tm11_fraction": 0.1
+          },
+          "expect": {
+            "aperture_efficiency": 0.521317,
+            "hpbw_e_deg": 22.45044,
+            "hpbw_h_deg": 22.40403,
+            "cross_pol_db": -31.12
+          },
+          "tol_pct": 0.5,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) for TE11 + TM11 with 0.10 of the power in TM11, dm = 3.465 wavelengths, 3/8 phase error: efficiency 0.5213, beamwidths 22.450 (E) and 22.404 (H) degrees, peak cross-polar -31.12 dB."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "tm11_fraction": 0.15
+          },
+          "expect": {
+            "gain_advantage_over_smooth_db": -0.2683
+          },
+          "tol_abs": 0.01,
+          "source": "Efficiency 0.50621 solved above against the smooth horn's 0.53847 at the same phase error: a LOSS of 0.27 dB, not the +0.85 dB asserted before. Near zero, so an absolute tolerance, in its own case."
         }
       ],
       "references": [

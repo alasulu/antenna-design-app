@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-17,325 lines of Python, 22,940 lines of spec data, 2561 tests, 828/828 citable
+17,609 lines of Python, 23,121 lines of spec data, 2600 tests, 853/853 citable
 known cases passing.**
 
 ---
@@ -206,7 +206,7 @@ being written into a spec.
 | `turnstile_dipole` | On-axis D equals a single dipole's; element plane exactly 3 dB down | Spherical integration of the summed-power pattern |
 | `v_antenna_travelling`, `rhombic` | Axial directivity fitted to a four-leg travelling-wave model | 1.3% max fit error over 1.5–12 λ; axial lobe confirmed to be the global peak at the design angle |
 | `corner_reflector_90`, `corner_reflector_60` | Image array factors; and now the driving-point impedance of the half-wave element, fitted over spacing and radius | Summed field leaves ~1e-15 tangential E on the plates. `otahub/num/corner.py` solves dipole plus images as one MoM problem: directivity within 0.04 dB of the specs everywhere tested, power balance to 1e-5, impedance fit within 2.2 ohm of fresh solves off its grid |
-| `diagonal_horn` | Aperture efficiency 8/π² = 0.8106 | Aperture integration on a 2001² grid: 0.8110 |
+| `diagonal_horn` | Aperture efficiency 8/π² = 0.8106, and at any flare exactly, as the E-plane sectoral phase factor times the H-plane sectoral efficiency in Fresnel integrals; beamwidth and cross-polar lobes against phase error and size | Aperture integration on a 2001² grid: 0.8110. `otahub/num/horn_pattern.py` transforms both field components: the Fresnel product to 1e-6; beam fit 0.07% (0.04% held out), cross-polar fit 0.003 dB. The lobes are −15.5 dB, not the −19 the notes claimed, and the edge-centre/corner phase wording was a factor of 2 out |
 | `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
 | `annular_ring_patch` | Directivity from the TWO edge walls' magnetic ring currents, fitted in (k₀a, k₀b) | Quadrature and an independent 2-D angular grid agree to four decimals; replaces a hard-coded 5.0 that was 5% low at εr = 2.2 and 48% high at εr = 10.2 |
 | `one_wavelength_circular_loop` | Resonant circumference, driving-point resistance and broadside directivity, all as functions of the conductor thickness | A method-of-moments solve and an independent Fourier-mode solution of the same loop agree to 0.25% on impedance and four decimals on the current; replaces a fixed 1.09λ / 100 Ω / 3.4 dBi that were 2.6–5% long, 28–30% low and 5–6% low |
@@ -232,6 +232,7 @@ being written into a spec.
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
 | Sectoral, conical and corrugated horns (beamwidths) | HPBW of each principal plane at any flare, from the aperture field with its quadratic phase error; NaN past the point where the beam breaks up | `otahub/num/horn_pattern.py` by quadrature, matching the E-plane pattern's Fresnel-integral closed form to 1e-10; fits to 0.5% (0.5% held out) over apertures of 1.5-40 wavelengths |
+| `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step that sets the fraction is still not solved |
 | Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 to 0.02% for a vanishing patch, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
@@ -271,10 +272,12 @@ ferrite material model.
 
 Two of those are new in session 5 and both are honest about why:
 `stacked_patch`'s bandwidth multiplier is an expectation drawn from published
-designs rather than a computed result, and `conical_horn_dual_mode`'s
-efficiency, cross-polar level and beamwidth constant are placed by analogy
-with its neighbouring horns. In the Potter horn only the two mode cutoff
-diameters are exact — they are Bessel zeros.
+designs rather than a computed result. `conical_horn_dual_mode` is half way
+out: its efficiency, beamwidths and cross-polar level are now derived from the
+aperture fields for a given TM11 power fraction (and the old analogies were
+wrong - 0.62 is 0.506, the gain "advantage" is a loss), but that fraction is an
+input, because the step that sets it needs mode matching, and the bandwidth
+remains an estimate. Its mode cutoff diameters are exact Bessel zeros.
 
 They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
@@ -662,6 +665,11 @@ known case only checks what it asserts.
    65 degrees; a conical monopole in 50 ohm only from 30 to 55. The biconical
    exporter was found still halving theta_h - the spec's old full-angle bug,
    surviving in the builder - and is fixed.
+11. ~~**The diagonal and dual-mode horns' fixed figures**~~ - done with the
+   two-component aperture transform in `otahub/num/horn_pattern.py`. The Potter
+   horn's step is the part left: a mode-matching solve at the guide step would
+   turn its TM11 fraction from an input into a result, and give the bandwidth
+   over which the two modes stay in phase - the only route out of low confidence.
 
 ---
 
