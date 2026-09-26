@@ -2237,13 +2237,56 @@ The survey also cost a restart: the machine hibernated mid-run and the
 28-design job had to be redone. It is recorded in tests/data so nothing needs
 re-solving to check the tables.
 
+## The bicone's decade holds, the monopole's only sometimes
+
+`biconical` and `conical_monopole` sized their cones with a quarter-wave slant
+and asserted an "indicative" decade, with directivities fitted from a wire cage.
+`otahub/num/bor.py`, built for the discone, solves both: a conical monopole on an
+infinite plane is exactly half a bicone by image theory - half the impedance,
+twice the directivity - so one survey of solid bicones, 5 to 65 degrees, swept to
+ten times the cutoff and extrapolated from two meshes, serves both. Both carry
+the discone's coax-sized feed (cone top 2% of the base diameter), stated as
+geometry, and the exporters now truncate the cones there.
+
+What decides the answer is the reference. Matched to its own characteristic
+impedance - the best any line can do - a bicone holds VSWR under 2 for more than
+a decade at every angle from 10 to 65 degrees, from a slant of 0.22 to 0.29
+wavelengths: the quarter wave is right to 15% there, and the indicative decade
+was right. A 5-degree cone breaks off at 1.26:1 before settling again, and a
+65-degree one needs 0.33 wavelengths.
+
+A conical monopole is fed from 50 ohm, and there the cone angle is everything.
+From 30 to 55 degrees it holds a decade (from 0.22-0.23 wavelengths at 35-47
+degrees - a quarter wave is 8% long at the default 47). Below that the cone's
+impedance climbs away from 50 ohm, and the cutoff with it, steeply: 0.22 at 34
+degrees, 0.30 at 33, 0.35 at 32, 0.40 at 30. The early near-match at a fifth of
+a wavelength stalls just above VSWR 2 - 2.04 at 32 degrees, 2.08 at 30 - so the
+50 ohm band only begins once the cone is long. A table at 5-degree steps would
+have interpolated straight across that, so it carries extra nodes at 32, 32.5
+and 33. At 15-20 degrees the band is 1.2-1.5:1, below 15 there is none, and at 65
+degrees (27 ohm) it is 1.6:1.
+
+Directivity is now quoted at each antenna's own cutoff. The old cage fits were
+evaluated at a quarter wave and ran 0.7-2.8% above the solid cone even there -
+a cage is not a surface. Because the two specs now define their cutoffs against
+different references, "monopole directivity = twice the bicone's" no longer holds
+at every angle; it holds exactly where the cutoffs coincide, at 47 degrees, whose
+monopole Zc is 50 ohm, and the cross-check now tests that instead of an identity
+the definitions no longer imply.
+
+One more survivor of the old angle bug: the biconical exporter still halved
+theta_h, drawing cones half as wide as the design. The spec was fixed several
+rounds ago; the builder was not, and nothing tested the angle it drew. It is
+fixed, with a test on the flare.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2469 tests, 791/791 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2485 tests, 800/800 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
-Next candidates (HANDOVER §6): the biconical and conical monopole bandwidths with
-`bor`, and the slot family's fat complementary dipole past w/L = 0.05.
+The cone family (discone, biconical, conical monopole) is solved end to end.
+Next candidate (HANDOVER §6 item 9): the slot family's fat complementary dipole
+past w/L = 0.05, which `bor` can now solve as a tube with a finite gap.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

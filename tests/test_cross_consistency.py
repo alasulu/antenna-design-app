@@ -157,15 +157,24 @@ def test_conical_monopole_is_half_a_biconical(syn, half):
     monopole at 5 - doubled on one side, because the biconical spec was using
     the full-angle form cot(theta/4) against a half-angle input. The test had
     been written to make the two specs agree rather than to catch that they
-    disagreed. Both now use the half angle, and the test compares like with
-    like - impedance halved and directivity doubled by the image.
+    disagreed. Both now use the half angle, and the impedance halves by the image.
     """
     bic = syn("biconical", f0=1e9, theta_h=math.radians(half))
     con = syn("conical_monopole", f_low=1e9, cone_half_angle_deg=half)
     assert con.metrics["characteristic_impedance_ohm"] == pytest.approx(
         bic.metrics["characteristic_impedance_ohm"] / 2, rel=1e-9)
-    assert con.metrics["directivity_linear"] == pytest.approx(
-        2 * bic.metrics["directivity_linear"], rel=1e-9)
+
+
+def test_at_47_degrees_the_image_relation_holds_at_the_cutoff_too(syn):
+    """The two specs quote directivity at their own cutoffs, and those differ:
+    the monopole's is where VSWR in 50 ohm reaches 2, the bicone's where VSWR
+    against its own Zc does. At 47 degrees the monopole's Zc IS 50 ohm, so the
+    two cutoffs are the same frequency, and image theory must then hold
+    exactly: the same slant, twice the directivity."""
+    bic = syn("biconical", f0=1e9, theta_h=math.radians(47.0))
+    con = syn("conical_monopole", f_low=1e9, cone_half_angle_deg=47.0)
+    assert con.get("slant") == pytest.approx(bic.get("Lc"), rel=2e-4)
+    assert con.metrics["directivity_linear"] == pytest.approx(2 * bic.metrics["directivity_linear"], rel=5e-4)
 
 
 def test_discone_quotes_the_same_biconical_impedance_as_the_biconical_spec(syn):

@@ -1,0 +1,186 @@
+{
+ "about": "Biconical antennas solved as bodies of revolution by otahub.num.bor. Each cone truncated at a top diameter 2% of its base diameter, the two top faces 0.6 x that diameter apart, a feed tube of the top radius across the gap; a conical monopole on an infinite plane is half of it (image theory): half the impedance, twice the directivity, gap 0.3 x top diameter. th = half angle (deg); k = slant/lambda at the cutoff, where VSWR first falls to 2 and stays there - against the characteristic impedance for 'bic', 50 ohm for 'mono' - extrapolated from 24 and 48 segments per slant; band = continuous VSWR<2 f_high/f_low (10 where it ran past a decade); worst = highest VSWR from 2 to 10 x f_low; D = peak directivity at the cutoff. Monopole rows at 32-34 degrees resolve a steep threshold: their band and worst are interpolated from 30 and 35, both of which hold a decade.",
+ "bic": [
+  {
+   "th": 5.0,
+   "k": 0.36466,
+   "band": 1.2594,
+   "worst": 1.8788,
+   "D": 1.95469,
+   "D_quarter": 1.67597
+  },
+  {
+   "th": 10.0,
+   "k": 0.28788,
+   "band": 10.0,
+   "worst": 1.8942,
+   "D": 1.75171,
+   "D_quarter": 1.67676
+  },
+  {
+   "th": 15.0,
+   "k": 0.25784,
+   "band": 10.0,
+   "worst": 1.8107,
+   "D": 1.6793,
+   "D_quarter": 1.66406
+  },
+  {
+   "th": 20.0,
+   "k": 0.24068,
+   "band": 10.0,
+   "worst": 1.7061,
+   "D": 1.63129,
+   "D_quarter": 1.64098
+  },
+  {
+   "th": 25.0,
+   "k": 0.23037,
+   "band": 10.0,
+   "worst": 1.6671,
+   "D": 1.59268,
+   "D_quarter": 1.60981
+  },
+  {
+   "th": 30.0,
+   "k": 0.22469,
+   "band": 10.0,
+   "worst": 1.6566,
+   "D": 1.55812,
+   "D_quarter": 1.57258
+  },
+  {
+   "th": 35.0,
+   "k": 0.22269,
+   "band": 10.0,
+   "worst": 1.6038,
+   "D": 1.52478,
+   "D_quarter": 1.53121
+  },
+  {
+   "th": 40.0,
+   "k": 0.22408,
+   "band": 10.0,
+   "worst": 1.5106,
+   "D": 1.49055,
+   "D_quarter": 1.48753
+  },
+  {
+   "th": 47.0,
+   "k": 0.23218,
+   "band": 10.0,
+   "worst": 1.3915,
+   "D": 1.43672,
+   "D_quarter": 1.42583
+  },
+  {
+   "th": 55.0,
+   "k": 0.25389,
+   "band": 10.0,
+   "worst": 1.3827,
+   "D": 1.35317,
+   "D_quarter": 1.36
+  },
+  {
+   "th": 65.0,
+   "k": 0.33211,
+   "band": 10.0,
+   "worst": 1.4101,
+   "D": 1.1682,
+   "D_quarter": 1.29478
+  }
+ ],
+ "mono": [
+  {
+   "th": 15.0,
+   "k": 0.57797,
+   "band": 1.2342,
+   "worst": 2.362,
+   "D": 4.50806
+  },
+  {
+   "th": 20.0,
+   "k": 0.53527,
+   "band": 1.465,
+   "worst": 2.0687,
+   "D": 4.19392
+  },
+  {
+   "th": 25.0,
+   "k": 0.47786,
+   "band": 8.3419,
+   "worst": 1.8509,
+   "D": 3.78299
+  },
+  {
+   "th": 30.0,
+   "k": 0.39746,
+   "band": 10.0,
+   "worst": 1.6768,
+   "D": 3.37264
+  },
+  {
+   "th": 32.0,
+   "k": 0.34692,
+   "band": 10.0,
+   "worst": 1.6677,
+   "D": 3.22314
+  },
+  {
+   "th": 32.5,
+   "k": 0.32783,
+   "band": 10.0,
+   "worst": 1.6654,
+   "D": 3.18508
+  },
+  {
+   "th": 33.0,
+   "k": 0.29722,
+   "band": 10.0,
+   "worst": 1.6632,
+   "D": 3.14075
+  },
+  {
+   "th": 34.0,
+   "k": 0.22231,
+   "band": 10.0,
+   "worst": 1.6586,
+   "D": 3.06306
+  },
+  {
+   "th": 35.0,
+   "k": 0.2183,
+   "band": 10.0,
+   "worst": 1.6541,
+   "D": 3.04768
+  },
+  {
+   "th": 40.0,
+   "k": 0.21861,
+   "band": 10.0,
+   "worst": 1.4923,
+   "D": 2.98227
+  },
+  {
+   "th": 47.0,
+   "k": 0.23219,
+   "band": 10.0,
+   "worst": 1.392,
+   "D": 2.87342
+  },
+  {
+   "th": 55.0,
+   "k": 0.25888,
+   "band": 10.0,
+   "worst": 1.6767,
+   "D": 2.69302
+  },
+  {
+   "th": 65.0,
+   "k": 0.3112,
+   "band": 1.6445,
+   "worst": 2.6092,
+   "D": 2.35503
+  }
+ ]
+}

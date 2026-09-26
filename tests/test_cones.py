@@ -8,10 +8,12 @@ cross-consistency tests had been written with doubled angles to make them
 agree. Those tests now compare like with like (see test_cross_consistency.py).
 
 The directivities were flat constants - the half-wave dipole's 1.6409 for the
-biconical, the short monopole's 3.0 for the conical monopole. Both are now
-solved at the lowest design frequency, from a wire cage whose directivity
-converges to 0.2% in the wire count. Its impedance does not converge, so it is
-used below only for an ordering that no plausible convergence could reverse.
+biconical, the short monopole's 3.0 for the conical monopole. They were then
+solved from a wire cage at a quarter-wave slant, and are now tabulated from the
+solid cones solved as bodies of revolution at each antenna's own cutoff (see
+test_cone_bands.py). The cage's directivity converges to 0.2% in the wire count
+and sits 0.5-3% above the solid cone; its impedance does not converge, so it is
+used below only for orderings no plausible convergence could reverse.
 """
 from __future__ import annotations
 
@@ -56,11 +58,20 @@ def test_directivity_converges_in_the_wire_count():
 
 
 @pytest.mark.parametrize("half", [10.0, 30.0, 47.0, 60.0])
-def test_spec_directivity_matches_the_cage(half, registry):
-    want = mom.directivity(_solve(0.25, half), 50, 60)
-    got = registry["biconical"].synthesize(
-        f0=1e9, theta_h=math.radians(half)).metrics["directivity_linear"]
-    assert got == pytest.approx(want, rel=5e-3)
+def test_the_cage_runs_slightly_above_the_solid_cone(half):
+    """The cage directivity that the specs used to carry, against the solid
+    cone solved as a body of revolution at the same quarter-wave slant: the
+    cage is 0.5-3% high, more so the wider the cone - a cage is not a surface."""
+    from otahub.num import bor
+    th = math.radians(half)
+    a = 0.02 * 0.25 * math.sin(th)
+    g = 0.6 * a
+    zb = g + (0.25 - a / math.sin(th)) * math.cos(th)
+    solid = bor.directivity(bor.solve(bor.profile(
+        [(0.25 * math.sin(th), -zb), (a, -g), (a, g), (0.25 * math.sin(th), zb)],
+        0.25 / 24, gap=(1, 2), gap_seg=4)))[0]
+    cage = mom.directivity(_solve(0.25, half), 50, 60)
+    assert 1.004 < cage / solid < 1.035
 
 
 def test_narrow_cones_are_dipoles_and_wide_ones_are_not(registry):

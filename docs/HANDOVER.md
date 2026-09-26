@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-16,707 lines of Python, 22,493 lines of spec data, 2469 tests, 791/791 citable
+16,842 lines of Python, 22,665 lines of spec data, 2485 tests, 800/800 citable
 known cases passing.**
 
 ---
@@ -231,6 +231,8 @@ being written into a spec.
 | `cylindrical_parabolic` | Taper and spillover under a line feed (cylindrical spreading), focusing-plane beamwidth and peak sidelobe, from the edge taper and f/W | `otahub/num/paraboloid.py` integrates over the aperture coordinate: efficiencies to 1e-5, beamwidth to 0.05 lambda/W and peak sidelobe to 0.15 dB off the fit grid; the uniform limit reproduces 50.8 lambda/W and -13.3 dB |
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
+| `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
+| `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
 | `discone` | Low cutoff (slant at VSWR 2 in 50 ohm), continuous VSWR-2 bandwidth, worst in-band VSWR and directivity at f_low, tabulated over half angle 20-50 deg and disc ratio 0.6-0.9 with a stated coax-sized feed | `otahub/num/bor.py`, the exact axisymmetric surface solution: low cutoff extrapolated from two meshes (0.4%), 0.9% on six held-out designs; the spec's own dimensions, rebuilt and solved live, sit at VSWR 2 at f_low |
 | `fresnel_zone_plate` | Aperture efficiency and gain from a cos^n feed through the plate's own zones (Kirchhoff, in-spec feed-angle integral); spillover; HPBW and 1 dB gain bandwidth fitted per plate type and, for the opaque plate, per parity of M | `otahub/num/zone_plate.py` integrates on a Cartesian grid over the plate: efficiency to 0.015%, the fits to 0.18% (beam) and 0.30% (bandwidth) on held-out 2-D runs; many zones under uniform light recover 1/π², 4/π², 8/π² |
 | `hemispherical_dra` | k₀a and Q from the exact complex TE₁ pole of the equivalent sphere, fitted to 0.23% over εr 6–100 | Newton on the characteristic equation; `otahub/num/dra.py`'s FDTD ringdown of a staircased hemisphere lands on the pole to 0.15% in frequency and 0.9% in Q; Mongia & Bhartia's published fit is within 1.04%. The peak of the Mie coefficient b₁ on the real axis, used before, was 1.2% high and its half-power Q 12% low at εr = 10 |
@@ -335,12 +337,11 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   the resonance a few percent and sets the match), a finite ground plane, and
   dielectric loss. The cylinder's fits stop at a/h = 4: flatter, low-εr pucks
   have Q under 2, which the ringdown cannot isolate.
-- **`conical_monopole` and `biconical` still carry an indicative decade
-  bandwidth.** The discone's conventions are now solved (§3), and the same
-  solver, `otahub/num/bor.py`, can solve these two directly - a cone over an
-  infinite plane is half a bicone by image theory. The discone is modelled with a
-  stated coax-sized feed (top 2% of the base diameter); its band edges move with
-  the feed, so a very different feed is outside what was solved.
+- **The cone family is solved for one feed.** Discone, biconical and conical
+  monopole are now solved as bodies of revolution (§3), each with a stated
+  coax-sized feed (cone top 2% of the base diameter). Their band edges move with
+  the feed, so a very different feed is outside what was solved, and the conical
+  monopole assumes an infinite ground plane.
 - **The Fresnel zone plate is scalar Kirchhoff diffraction through an
   infinitely thin plate.** Its gain, beam and bandwidth now come from the feed
   through the plate, but a real phase plate's thickness, its shadowing at
@@ -653,9 +654,11 @@ known case only checks what it asserts.
    with the wire code's exact kernel on thin ones. Checking the slot family's
    complementary dipole out to w/L = 0.2 with it - a strip is not a tube, so the
    a = w/4 equivalence has to be checked too - is the natural next use.
-10. **`conical_monopole` and `biconical` bandwidths** - solve them with
-   `otahub/num/bor.py` the way the discone was; both still assert an indicative
-   decade.
+10. ~~**`conical_monopole` and `biconical` bandwidths**~~ - done with
+   `otahub/num/bor.py`. Matched to its own Zc a bicone holds a decade from 10 to
+   65 degrees; a conical monopole in 50 ohm only from 30 to 55. The biconical
+   exporter was found still halving theta_h - the spec's old full-angle bug,
+   surviving in the builder - and is fixed.
 
 ---
 

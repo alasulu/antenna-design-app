@@ -499,19 +499,21 @@ def _conical_monopole(design: DesignResult) -> Model:
     model = _base_model(design, "Conical monopole over a ground plane")
     height = _param(design, "height")
     base_d = _param(design, "base_diameter")
+    top_d = _param(design, "cone_top_diameter", default=0.0)
+    gap = _param(design, "feed_gap", default=height / 50.0)
     ground = max(base_d * 3.0, height * 3.0)
-    gap = height / 50.0
     model.solids += [
         Cylinder("ground", "PEC", "z", ground / 2.0, (0.0, 0.0)),
-        Cone("cone", "PEC", "z", 0.0, base_d / 2.0, (gap, gap + height)),
+        Cone("cone", "PEC", "z", top_d / 2.0, base_d / 2.0, (gap, gap + height)),
     ]
     model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
     model.notes += [
-        f"Feed gap {gap * 1e3:.4g} mm between the apex and the plane. The gap "
-        "sets the high-frequency limit and is not given by the spec.",
+        f"Cone truncated at {top_d * 1e3:.4g} mm across, its top face {gap * 1e3:.4g} mm "
+        "above the plane - the feed the spec's cutoff and bandwidth were solved "
+        "with. The coax inner meets the cone top; this discrete port stands in for it.",
         f"Ground plane rendered as a disc {ground * 1e3:.4g} mm across. The "
-        "spec's impedance assumes an infinite plane AND an infinite cone; a "
-        "truncated cone's impedance oscillates about that value with frequency.",
+        "spec's figures assume an infinite plane; a finite one tilts the beam "
+        "upward and raises the low-frequency VSWR.",
         "Solid cone. A skeletal wire cone behaves similarly at the low end and "
         "worse at the high end.",
     ]
@@ -522,25 +524,28 @@ def _conical_monopole(design: DesignResult) -> Model:
 def _biconical(design: DesignResult) -> Model:
     model = _base_model(design, "Biconical antenna")
     slant = _param(design, "Lc")
-    theta_full = _param(design, "theta_h", default=0.5236)
-    half_angle = theta_full / 2.0
+    # theta_h is the HALF angle from the axis, as the spec defines it. This
+    # builder used to halve it again - the spec's own old full-angle bug,
+    # outliving its fix - and drew cones half as wide as the design.
+    half_angle = _param(design, "theta_h", default=0.5236)
     base_r = slant * math.sin(half_angle)
-    height = slant * math.cos(half_angle)
-    gap = height / 50.0
+    top_r = _param(design, "cone_top_diameter", default=0.0) / 2.0
+    height = (slant - top_r / math.sin(half_angle)) * math.cos(half_angle)
+    gap = _param(design, "feed_gap", default=height / 50.0)
     model.solids += [
-        Cone("cone_upper", "PEC", "z", 0.0, base_r, (gap / 2.0, gap / 2.0 + height)),
-        Cone("cone_lower", "PEC", "z", base_r, 0.0, (-gap / 2.0 - height, -gap / 2.0)),
+        Cone("cone_upper", "PEC", "z", top_r, base_r, (gap / 2.0, gap / 2.0 + height)),
+        Cone("cone_lower", "PEC", "z", base_r, top_r, (-gap / 2.0 - height, -gap / 2.0)),
     ]
     model.ports.append(DiscretePort(
         "port1", (0.0, 0.0, -gap / 2.0), (0.0, 0.0, gap / 2.0)))
     model.notes += [
-        f"Half angle {math.degrees(half_angle):.4g} deg, from the spec's full "
-        f"cone angle of {math.degrees(theta_full):.4g} deg.",
-        f"Feed gap {gap * 1e3:.4g} mm between the apexes - the spec assumes "
-        "apexes meeting at a point, which cannot be meshed.",
-        "The spec's characteristic impedance is the INFINITE-cone value. A "
-        "truncated bicone's input impedance oscillates about it, converging as "
-        "the cones grow electrically long.",
+        f"Half angle {math.degrees(half_angle):.4g} deg from the axis, as the "
+        "spec's theta_h.",
+        f"Each cone truncated at {2 * top_r * 1e3:.4g} mm across, the top faces "
+        f"{gap * 1e3:.4g} mm apart - the feed the spec's cutoff and bandwidth "
+        "were solved with.",
+        "The spec's VSWR figures are against the cone's characteristic "
+        "impedance; feed it through a balun and a line of that impedance to see them.",
     ]
     return model
 

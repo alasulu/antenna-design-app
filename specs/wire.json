@@ -924,17 +924,64 @@
           "name": "cone slant length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "cone_top_diameter",
+          "name": "cone top diameter (the feed)",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "feed_gap",
+          "name": "spacing between the two cone tops",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "k_slant",
+          "name": "slant length at f0, in wavelengths",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
+          "output": "k_slant",
+          "expr": "np.interp(deg(theta_h), [5, 10, 15, 20, 25, 30, 35, 40, 47, 55, 65], [0.36466, 0.28788, 0.25784, 0.24068, 0.23037, 0.22469, 0.22269, 0.22408, 0.23218, 0.25389, 0.33211])",
+          "units_out": "-",
+          "depends_on": [
+            "theta_h"
+          ],
+          "notes": "SOLVED, tabulated: the slant at which VSWR against the cone's own characteristic impedance first falls to 2 and stays there - the lowest frequency of a bicone fed from a line matched to it - from otahub.num.bor, extrapolated from two meshes. 0.223-0.288 wavelengths from 10 to 55 degrees, so the quarter-wave rule is right to 15% there; 0.332 at 65 degrees and 0.365 at 5, where it is not."
+        },
+        {
           "output": "Lc",
-          "expr": "0.25 * c / f0",
+          "expr": "k_slant*c/f0",
           "units_out": "m",
           "depends_on": [
+            "k_slant",
             "f0"
           ],
-          "notes": "slant length of about lambda/4 at the lowest frequency sets the low-end cutoff"
+          "notes": "slant length of each cone, from the ideal apex"
+        },
+        {
+          "output": "cone_top_diameter",
+          "expr": "0.02*2*Lc*sin(theta_h)",
+          "units_out": "m",
+          "depends_on": [
+            "Lc",
+            "theta_h"
+          ],
+          "notes": "The feed: each cone truncated at 2% of its base diameter, as the solved model is."
+        },
+        {
+          "output": "feed_gap",
+          "expr": "0.6*cone_top_diameter",
+          "units_out": "m",
+          "depends_on": [
+            "cone_top_diameter"
+          ],
+          "notes": "Spacing between the two top faces - twice the conical monopole's 0.3 x top diameter, its image included."
         }
       ],
       "analysis": [
@@ -949,12 +996,12 @@
         },
         {
           "metric": "directivity_linear",
-          "expr": "(-0.17258789)*theta_h**4 + (0.8463745)*theta_h**3 + (-1.2264273)*theta_h**2 + (0.24408963)*theta_h**1 + (1.683607)",
+          "expr": "np.interp(deg(theta_h), [5, 10, 15, 20, 25, 30, 35, 40, 47, 55, 65], [1.9547, 1.7517, 1.6793, 1.6313, 1.5927, 1.5581, 1.5248, 1.4906, 1.4367, 1.3532, 1.1682])",
           "units_out": "-",
           "depends_on": [
             "theta_h"
           ],
-          "notes": "At the lowest design frequency, where the slant is a quarter wavelength. A narrow cone is a fat half-wave dipole and slightly exceeds 1.6409 (1.70 at 5 degrees); a wide one falls well below it (1.45 at 47, 1.33 at 65). The flat 1.6409 this spec carried was up to 23% high. Across the band it does not stay put: the tables field has it rising to 1.82 at 0.6 lambda slant for a 30 degree cone and falling to 1.22 for a 47 degree one. Fitted over 5 to 65 degrees, worst error 0.05%. Solved as a wire cage by method of moments: two cones of sixteen wires each, joined at their apexes to a short feed wire through wire junctions (the conical monopole is half of it by image theory). Directivity is converged to 0.2% in both wire count and segment length; the input IMPEDANCE of a cage is not - it was still moving 3-5% between 24 and 32 wires - so no impedance figure here comes from the solver."
+          "notes": "SOLVED, tabulated: peak directivity at f0, where the slant is k_slant. 1.558 at 30 degrees. The wire-cage fit this replaces was evaluated at a quarter-wave slant and ran 0.7-2.8% above the solid cone there; the rest of the difference is the cutoff moving. A narrow cone is a fat dipole and exceeds 1.64; a wide one falls well below, and at 65 degrees its beam has lifted 30 degrees off the horizon at f0."
         },
         {
           "metric": "directivity_dbi",
@@ -966,28 +1013,40 @@
         },
         {
           "metric": "bandwidth_ratio",
-          "expr": "10.0",
+          "expr": "np.interp(deg(theta_h), [5, 10, 15, 20, 25, 30, 35, 40, 47, 55, 65], [1.2594, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000])",
           "units_out": "-",
-          "notes": "Indicative: practical finite biconicals reach roughly a decade of usable VSWR bandwidth. Not a closed-form result."
+          "depends_on": [
+            "theta_h"
+          ],
+          "notes": "SOLVED, tabulated: continuous band with VSWR under 2 against the characteristic impedance; 10 means it ran past a decade. It does from 10 to 65 degrees - the indicative decade was right, matched to Zc. At 5 degrees the VSWR pops back over 2 just above the cutoff (1.26:1), though it is under 2 again from twice f0."
+        },
+        {
+          "metric": "worst_vswr_2_to_10_f0",
+          "expr": "np.interp(deg(theta_h), [5, 10, 15, 20, 25, 30, 35, 40, 47, 55, 65], [1.8788, 1.8942, 1.8107, 1.7061, 1.6671, 1.6566, 1.6038, 1.5106, 1.3915, 1.3827, 1.4101])",
+          "units_out": "-",
+          "depends_on": [
+            "theta_h"
+          ],
+          "notes": "SOLVED, tabulated: the highest VSWR against Zc between 2 f0 and 10 f0. 1.66 at 30 degrees."
         }
       ],
       "validity": [
-        "characteristic impedance is exact only for an infinite structure",
-        "theta_h is the HALF angle from the axis, between about 5 and 65 degrees",
-        "directivity is the value at the lowest design frequency; it moves across the band, and not in the same direction for every flare",
-        "bandwidth entry is indicative, not derived: a thin-wire cage cannot represent a solid cone at the top of a decade, where the gap between wires stops being small against the wavelength"
+        "characteristic impedance is exact only for an infinite structure; the tables are for the finite cones solved",
+        "theta_h is the HALF angle from the axis, between 5 and 65 degrees",
+        "VSWR is against the cone's own characteristic impedance - a matched feed line; against any other reference the band differs",
+        "solid cones truncated at the stated feed (top 2% of the base diameter); a very different feed moves the band edges"
       ],
       "known_cases": [
         {
           "given": {
             "f0": 1000000000.0,
-            "theta_h": 0.5235988
+            "theta_h": 0.5235987755982988
           },
           "expect": {
-            "Lc_m": 0.0749481
+            "Lc_m": 0.06735903
           },
-          "tol_pct": 1.0,
-          "source": "theta_h = 30 deg: Zc = (eta0/pi)*ln(cot(7.5 deg)) = 243.2 ohm. Balanis, Antenna Theory 4th ed., Ch. 4 [Its impedance figure used the full-angle form against a half-angle input and was removed; the corrected values follow in their own cases.]"
+          "tol_pct": 0.5,
+          "source": "Body-of-revolution solve, 30 degrees: VSWR against Zc = 158 ohm falls to 2 at a slant of 0.2247 wavelengths, 67.36 mm at 1 GHz - 10% shorter than the quarter wave this spec used."
         },
         {
           "given": {
@@ -996,10 +1055,10 @@
           },
           "expect": {
             "characteristic_impedance_ohm": 157.926,
-            "directivity_linear": 1.5837
+            "directivity_linear": 1.5581
           },
           "tol_pct": 0.5,
-          "source": "Half angle 30 degrees: Zc = (eta0/pi) ln cot(15.0 deg) = 157.9 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.5835."
+          "source": "(eta0/pi) ln cot(15 deg) = 157.93 ohm, and the solved directivity at f0, 1.5581."
         },
         {
           "given": {
@@ -1008,10 +1067,10 @@
           },
           "expect": {
             "characteristic_impedance_ohm": 292.147,
-            "directivity_linear": 1.6932
+            "directivity_linear": 1.7517
           },
           "tol_pct": 0.5,
-          "source": "Half angle 10 degrees: Zc = (eta0/pi) ln cot(5.0 deg) = 292.1 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.6940."
+          "source": "A narrow cone, 10 degrees: 292.15 ohm, and directivity 1.7517 at its cutoff slant of 0.2879 wavelengths - more than a half-wave dipole."
         },
         {
           "given": {
@@ -1020,15 +1079,39 @@
           },
           "expect": {
             "characteristic_impedance_ohm": 99.8717,
-            "directivity_linear": 1.4476
+            "directivity_linear": 1.4367
           },
           "tol_pct": 0.5,
-          "source": "Half angle 47 degrees: Zc = (eta0/pi) ln cot(23.5 deg) = 99.9 ohm. Directivity at the quarter-wave slant, method of moments on a 16-wire cage: 1.4478. The classic cone for a 100 ohm bicone and a 50 ohm monopole."
+          "source": "47 degrees, the 100 ohm bicone: directivity 1.4367 at f0."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.5235987755982988
+          },
+          "expect": {
+            "bandwidth_ratio": 10.0,
+            "worst_vswr_2_to_10_f0": 1.657
+          },
+          "tol_pct": 0.5,
+          "source": "30 degrees, matched to Zc: VSWR under 2 past a decade, worst 1.657 between 2 and 10 f0."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "theta_h": 0.08726646259971647
+          },
+          "expect": {
+            "bandwidth_ratio": 1.259
+          },
+          "tol_pct": 1.0,
+          "source": "5 degrees: the band under VSWR 2 breaks off at 1.26 f0 before settling below 2 again."
         }
       ],
       "references": [
         "Balanis, Antenna Theory 4th ed., Ch. 4 Ch. 10.3 (eq. 10-20)",
-        "Directivity solved here by method of moments on a wire cage; angle convention corrected to the half angle the parameter always documented"
+        "Directivity solved here by method of moments on a wire cage; angle convention corrected to the half angle the parameter always documented",
+        "Cutoff, bandwidth and directivity solved here as a body of revolution (otahub.num.bor)"
       ],
       "confidence": "normal",
       "tables": {

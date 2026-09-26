@@ -6,6 +6,8 @@ cannot build says so instead of emitting a half-model.
 """
 import re
 
+import math
+
 import pytest
 
 from otahub.export import build
@@ -283,6 +285,18 @@ def test_sphere_radius_reaches_both_backends(registry):
     radius_mm = spheres[0].radius * 1e3
     assert f"{radius_mm:.6f}" in cst.render(model)
     assert "CreateSphere" in hfss.render(model)
+
+
+def test_biconical_cone_has_the_specs_half_angle(registry):
+    """theta_h is the half angle from the axis. The builder once halved it
+    again and drew a 15 degree cone for a 30 degree design."""
+    from otahub.export.base import Cone
+
+    design = registry["biconical"].synthesize(f0=1e9, theta_h=math.radians(30.0))
+    cone = [s for s in build(design).solids if isinstance(s, Cone) and s.name == "cone_upper"][0]
+    height = cone.span[1] - cone.span[0]
+    flare = math.atan((cone.radius_end - cone.radius_start) / height)
+    assert math.degrees(flare) == pytest.approx(30.0, abs=1e-6)
 
 
 def test_biconical_cones_are_mirror_images(registry):
