@@ -2559,6 +2559,18 @@
           "typical": "0.0016"
         },
         {
+          "symbol": "Q0_radiation",
+          "name": "radiation Q of the square, full-wave",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "sw_efficiency",
+          "name": "surface-wave efficiency of the square, full-wave",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
           "symbol": "bw1",
           "name": "one-mode bandwidth",
           "unit": "-",
@@ -2605,8 +2617,14 @@
           "role": "derived"
         },
         {
+          "symbol": "L_textbook",
+          "name": "transmission-line (textbook) square side",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
           "symbol": "L",
-          "name": "patch side",
+          "name": "square side (full-wave resonant at f_sq)",
           "unit": "m",
           "role": "geometry"
         },
@@ -2631,24 +2649,45 @@
       ],
       "synthesis": [
         {
-          "output": "bw1",
-          "expr": "(2-1)/(sqrt(2)*exp((-1.67815) + (3.380115)*(h*f0*sqrt(eps_r)/c) + (-33.83257)*(h*f0*sqrt(eps_r)/c)**2 + (0.4135576)*(1/eps_r) + (3.833924)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (94.28176)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.29363)*(1/eps_r)**2 + (-10.89607)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-140.3975)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (0.1186557)*(1/eps_r)**3 + (5.419184)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (97.92832)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c)))",
+          "output": "Q0_radiation",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-1.725015) + (-4.044213)*(h*f0*sqrt(eps_r)/c) + (10.07845)*(h*f0*sqrt(eps_r)/c)**2 + (0.4532639)*(1/eps_r) + (23.69298)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (15.98938)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.1695658)*(1/eps_r)**2 + (-58.93306)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-236.8164)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (-0.06089604)*(1/eps_r)**3 + (52.83458)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (462.3171)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (0.05925325)*(1/eps_r)**4 + (-14.06007)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-264.9842)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c)), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "eps_r",
             "h",
             "f0"
           ],
-          "notes": "One mode's VSWR-2 band, 1/(sqrt(2) Q) with Q the solved radiation Q of a square patch resonant at f0 - Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.51% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. The simplified Jackson formula it replaces put Q0 5-11% low on the designs below, which made every truncation 2.5-5.5% too large. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound. The corner cut follows Q0, so on thick board it is likely too small."
+          "notes": "Radiation Q of the square patch resonant at f0, FULL-WAVE: otahub.num.patch_sdm, the spectral-domain MoM, which an FDTD ringdown of a square patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.007% in frequency and 0.17% in Q. Fitted as ln(Q (h/lambda0) c1/eps_r) over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.87% worst on 68 full-wave solutions, 0.67% on 8 held out); NaN past h sqrt(eps_r)/lambda0 = 0.1."
+        },
+        {
+          "output": "sw_efficiency",
+          "expr": "np.minimum(1.0, exp((-2.132693)*(h*f0*sqrt(eps_r)/c) + (-0.1971704)*(h*f0*sqrt(eps_r)/c)**2 + (-11.72205)*(h*f0*sqrt(eps_r)/c)**3 + (-24.68891)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (40.23793)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-1070.072)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (104.725)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-415.1693)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (9506.852)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-155.7388)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (1350.955)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-27248.69)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3 + (109.4251)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-1727.16)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2 + (31898.45)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**3 + (-31.60508)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c) + (752.4159)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**2 + (-13091.43)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**3))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "Space-wave over space plus surface-wave power of the square, full-wave (0.10% worst on 68 full-wave solutions, 0.13% on 8 held out), capped at 1. The surface wave damps each mode as surely as radiation does, so it belongs in Q0."
         },
         {
           "output": "Q0",
-          "expr": "1/(bw1*sqrt(2))",
+          "expr": "Q0_radiation*sw_efficiency",
           "units_out": "-",
           "depends_on": [
-            "bw1"
+            "Q0_radiation",
+            "sw_efficiency"
           ],
-          "notes": "one mode's Q, from BW = (S-1)/(Q sqrt(S)) at S = 2"
+          "notes": "Each mode's Q: radiation and surface wave, full-wave - the damping the two modes' split must match. The cavity-current radiation Q this spec used was 1-99% HIGH against it - up to 28% from the radiation Q itself, the rest from the surface wave it left out, which dominates on thick high-permittivity board - so every corner cut was too small and every axial-ratio band too narrow. Dielectric and conductor loss lower it further; supply Q0 directly to include them."
+        },
+        {
+          "output": "bw1",
+          "expr": "(2-1)/(sqrt(2)*Q0)",
+          "units_out": "-",
+          "depends_on": [
+            "Q0"
+          ],
+          "notes": "One mode's VSWR-2 band, from Q0."
         },
         {
           "output": "u_cp",
@@ -2700,7 +2739,7 @@
           ]
         },
         {
-          "output": "L",
+          "output": "L_textbook",
           "expr": "c/(2*f_sq*sqrt(eps_reff)) - 2*dL",
           "units_out": "m",
           "depends_on": [
@@ -2708,7 +2747,19 @@
             "eps_reff",
             "dL"
           ],
-          "notes": "The uncut square, sized as a linear patch resonant at f_sq - NOT at f0. Cutting the corners lifts one mode and puts the CP centre at f0."
+          "notes": "The textbook transmission-line side for a square resonant at f_sq; full-wave it resonates low, so the square built is L."
+        },
+        {
+          "output": "L",
+          "expr": "np.where((h*f_sq*sqrt(eps_r)/c) <= 0.1, L_textbook*exp((-0.5514828)*(h*f_sq*sqrt(eps_r)/c) + (-5.174182)*(h*f_sq*sqrt(eps_r)/c)**2 + (42.08975)*(h*f_sq*sqrt(eps_r)/c)**3 + (-3.303718)*(1/eps_r)*(h*f_sq*sqrt(eps_r)/c) + (51.59451)*(1/eps_r)*(h*f_sq*sqrt(eps_r)/c)**2 + (-358.2535)*(1/eps_r)*(h*f_sq*sqrt(eps_r)/c)**3 + (1.781401)*(1/eps_r)**2*(h*f_sq*sqrt(eps_r)/c) + (0.3635123)*(1/eps_r)**2*(h*f_sq*sqrt(eps_r)/c)**2 + (648.4149)*(1/eps_r)**2*(h*f_sq*sqrt(eps_r)/c)**3 + (-1.440255)*(1/eps_r)**3*(h*f_sq*sqrt(eps_r)/c) + (51.1657)*(1/eps_r)**3*(h*f_sq*sqrt(eps_r)/c)**2 + (-1154.308)*(1/eps_r)**3*(h*f_sq*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "L_textbook",
+            "eps_r",
+            "h",
+            "f_sq"
+          ],
+          "notes": "The square side that resonates at f_sq FULL-WAVE (otahub.num.patch_sdm, the spectral-domain MoM, which an FDTD ringdown of a square patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.007% in frequency and 0.17% in Q), fitted as a ratio to the textbook side (0.21% worst on 68 full-wave solutions, 0.12% on 8 held out): 0.54-7.1% shorter. The textbook square resonated low by as much, taking the CP centre with it."
         },
         {
           "output": "c_trunc",
@@ -2718,26 +2769,26 @@
             "L",
             "u_cp"
           ],
-          "notes": "Leg of each cut triangle (two triangles, combined area c^2). The classic first-order rule is c/L = u_cp = sqrt(1/(2Q)); the bracket is the cavity model's correction, fitted over Q0 = 12..1156 to 0.0005 in (c/L)/u_cp and 0.03% on held-out meshes. It is 1.4% bigger than the classic cut at Q0 = 59."
+          "notes": "Leg of each cut triangle (two triangles, combined area c^2). The classic first-order rule is c/L = u_cp = sqrt(1/(2Q)); the bracket is the cavity model's correction, fitted over Q0 = 12..1156 to 0.0005 in (c/L)/u_cp and 0.03% on held-out meshes. It is 1.4% bigger than the classic cut at Q0 = 59. The cut-to-split relation is the cavity model's (checked on the truncated outline by otahub.num.patch_cavity); it is applied to the full-wave side and Q0. The full-wave solver does not model the cut itself."
         },
         {
           "output": "L_eff",
-          "expr": "L + 2*dL",
+          "expr": "L_textbook + 2*dL",
           "units_out": "m",
           "depends_on": [
-            "L",
+            "L_textbook",
             "dL"
           ],
-          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+          "notes": "the transmission-line model's effective length, on the textbook side it belongs to"
         },
         {
           "output": "g_pattern",
-          "expr": "(0.99940739) + (0.00018306329)*(k0*L) + (-0.0014910918)*(k0*L_eff)**1 + (0.00033186218)*(k0*L_eff)**1*(k0*L) + (-0.1890797)*(k0*L_eff)**2 + (-0.0052674407)*(k0*L_eff)**2*(k0*L) + (-0.0089556897)*(k0*L_eff)**3 + (0.0011641111)*(k0*L_eff)**3*(k0*L) + (0.015779123)*(k0*L_eff)**4 + (-0.0017182346)*(k0*L_eff)**5",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*L_textbook) + (-0.0014910918)*(k0*L_eff)**1 + (0.00033186218)*(k0*L_eff)**1*(k0*L_textbook) + (-0.1890797)*(k0*L_eff)**2 + (-0.0052674407)*(k0*L_eff)**2*(k0*L_textbook) + (-0.0089556897)*(k0*L_eff)**3 + (0.0011641111)*(k0*L_eff)**3*(k0*L_textbook) + (0.015779123)*(k0*L_eff)**4 + (-0.0017182346)*(k0*L_eff)**5",
           "units_out": "-",
           "depends_on": [
             "k0",
             "L_eff",
-            "L"
+            "L_textbook"
           ],
           "notes": "the mutual/self conductance fit at the effective separation. This patch is SQUARE, so the slot width and the resonant length are the same dimension L - there is no separate W here."
         }
@@ -2769,6 +2820,22 @@
             "Q0"
           ],
           "notes": "each mode's Q - the one number every other result here scales with"
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "Q0_radiation",
+          "units_out": "-",
+          "depends_on": [
+            "Q0_radiation"
+          ]
+        },
+        {
+          "metric": "surface_wave_efficiency",
+          "expr": "sw_efficiency",
+          "units_out": "-",
+          "depends_on": [
+            "sw_efficiency"
+          ]
         },
         {
           "metric": "truncation_area_ratio",
@@ -2858,11 +2925,12 @@
       ],
       "validity": [
         "feed on a CENTRELINE of the square, never on a diagonal: a diagonal feed couples to only one of the two diagonal modes and radiates linear polarisation. Feeding the other centreline reverses the sense of rotation",
-        "the cut and the square are cavity-model results (magnetic walls at the physical outline, one loss Q for all modes), fitted for Q0 = 12..1156; outside that is extrapolation, and the cavity model does not see the fringing field change at the cuts",
-        "Q0 comes from a thin-substrate RADIATION bandwidth; conductor and dielectric loss lower the true Q, which needs a BIGGER cut and moves the CP centre. Supply Q0 from a measurement or a full-wave solve to redesign for it",
-        "single-feed CP is narrowband in axial ratio: 0.35/Q, 0.6% at Q = 59 and a few tenths of a percent on thin high-permittivity substrates",
+        "the cut-to-split relation is a cavity-model result (magnetic walls at the physical outline, one loss Q for all modes), fitted for Q0 = 12..1156; outside that is extrapolation, and the cavity model does not see the fringing field change at the cuts. The square side and Q0 are full-wave",
+        "Q0 is the full-wave radiation and surface-wave Q; conductor and dielectric loss lower the true Q, which needs a BIGGER cut and moves the CP centre. Supply Q0 to redesign for them",
+        "single-feed CP is narrowband in axial ratio: 0.35/Q0, from a few tenths of a percent on thin board to about 1% on thick",
         "axial ratio degrades rapidly off boresight and off frequency; only the on-axis values are claimed",
-        "directivity is the cavity current radiated through the slab, checked full-wave on the rectangular patch to 2.5%"
+        "directivity is the cavity current radiated through the slab, checked full-wave on the rectangular patch to 2.5%",
+        "Q0 and the square side are fitted over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and are NaN past the last"
       ],
       "known_cases": [
         {
@@ -2872,19 +2940,22 @@
             "h": 0.0016
           },
           "expect": {
-            "L_m": 0.041768,
-            "c_trunc_m": 0.003793128,
-            "truncation_over_side": 0.0908142,
-            "truncation_area_ratio": 0.00824722,
-            "quality_factor": 62.2454,
-            "mode_split_hz": 38557080.4,
-            "fractional_bandwidth_vswr2": 0.02271998,
-            "fractional_bandwidth_vswr2_one_mode": 0.01135999,
-            "axial_ratio_bandwidth_3db": 0.00557643,
-            "f_sq_hz": 2381709465.0
+            "L_m": 0.040698407,
+            "L_textbook_m": 0.041815453,
+            "c_trunc_m": 0.00397513,
+            "truncation_over_side": 0.0976729,
+            "truncation_area_ratio": 0.00953999,
+            "quality_factor": 53.9328,
+            "mode_split_hz": 44499801.0,
+            "fractional_bandwidth_vswr2": 0.02622176,
+            "fractional_bandwidth_vswr2_one_mode": 0.01311088,
+            "axial_ratio_bandwidth_3db": 0.00643591,
+            "f_sq_hz": 2379061472.0,
+            "radiation_q": 56.3248,
+            "surface_wave_efficiency": 0.957533
           },
-          "tol_pct": 0.6,
-          "source": "Q0 solved directly by otahub.num.patch_q for the square resonant at f0: 62.245, against 59.045 from the simplified formula before. The rest follows the spec's own chain from it - f_sq, the square's side, and the cavity-model truncation - recomputed here: the cut is 2.6% smaller than it was."
+          "tol_pct": 1.5,
+          "source": "The whole chain from full-wave solves (otahub.num.patch_sdm), not the fits: the square resonant at f0 has radiation Q 56.325 and surface-wave efficiency 0.95753, so Q0 = 53.933 (the cavity-current Q0 was 62.245); the cavity model puts the square at f_sq = 2.37906e+09 Hz; the side that resonates there full-wave is 40.6984 mm (textbook 41.8155 mm, was 41.7680 mm) and the cut 3.9751 mm."
         },
         {
           "given": {
@@ -2893,19 +2964,22 @@
             "h": 0.0016
           },
           "expect": {
-            "L_m": 0.04553625,
-            "c_trunc_m": 0.002724605,
-            "truncation_over_side": 0.0598338,
-            "truncation_area_ratio": 0.00358008,
-            "quality_factor": 141.9165,
-            "mode_split_hz": 11098076.1,
-            "fractional_bandwidth_vswr2": 0.00996511,
-            "fractional_bandwidth_vswr2_one_mode": 0.00498256,
-            "axial_ratio_bandwidth_3db": 0.00244585,
-            "f_sq_hz": 1569576368.0
+            "L_m": 0.04466099,
+            "L_textbook_m": 0.045567174,
+            "c_trunc_m": 0.002931149,
+            "truncation_over_side": 0.0656311,
+            "truncation_area_ratio": 0.00430744,
+            "quality_factor": 118.1776,
+            "mode_split_hz": 13327400.4,
+            "fractional_bandwidth_vswr2": 0.01196685,
+            "fractional_bandwidth_vswr2_one_mode": 0.00598343,
+            "axial_ratio_bandwidth_3db": 0.00293716,
+            "f_sq_hz": 1568517307.0,
+            "radiation_q": 126.5822,
+            "surface_wave_efficiency": 0.933603
           },
-          "tol_pct": 0.6,
-          "source": "Q0 solved directly by otahub.num.patch_q for the square resonant at f0: 141.916, against 127.021 from the simplified formula before. The rest follows the spec's own chain from it - f_sq, the square's side, and the cavity-model truncation - recomputed here: the cut is 5.4% smaller than it was."
+          "tol_pct": 1.5,
+          "source": "The whole chain from full-wave solves (otahub.num.patch_sdm), not the fits: the square resonant at f0 has radiation Q 126.582 and surface-wave efficiency 0.93360, so Q0 = 118.178 (the cavity-current Q0 was 141.917); the cavity model puts the square at f_sq = 1.56852e+09 Hz; the side that resonates there full-wave is 44.6610 mm (textbook 45.5672 mm, was 45.5363 mm) and the cut 2.9311 mm."
         },
         {
           "given": {
@@ -2914,19 +2988,22 @@
             "h": 0.000787
           },
           "expect": {
-            "L_m": 0.0172362,
-            "c_trunc_m": 0.001700049,
-            "truncation_over_side": 0.0986325,
-            "truncation_area_ratio": 0.00972837,
-            "quality_factor": 52.9051,
-            "mode_split_hz": 109630207.8,
-            "fractional_bandwidth_vswr2": 0.02673113,
-            "fractional_bandwidth_vswr2_one_mode": 0.01336556,
-            "axial_ratio_bandwidth_3db": 0.00656093,
-            "f_sq_hz": 5748476582.0
+            "L_m": 0.016747489,
+            "L_textbook_m": 0.017262832,
+            "c_trunc_m": 0.001797612,
+            "truncation_over_side": 0.1073362,
+            "truncation_area_ratio": 0.01152106,
+            "quality_factor": 44.7991,
+            "mode_split_hz": 129466952.8,
+            "fractional_bandwidth_vswr2": 0.03156792,
+            "fractional_bandwidth_vswr2_one_mode": 0.01578396,
+            "axial_ratio_bandwidth_3db": 0.00774808,
+            "f_sq_hz": 5739832682.0,
+            "radiation_q": 47.1691,
+            "surface_wave_efficiency": 0.949755
           },
-          "tol_pct": 0.6,
-          "source": "Q0 solved directly by otahub.num.patch_q for the square resonant at f0: 52.905, against 49.672 from the simplified formula before. The rest follows the spec's own chain from it - f_sq, the square's side, and the cavity-model truncation - recomputed here: the cut is 3.1% smaller than it was."
+          "tol_pct": 1.5,
+          "source": "The whole chain from full-wave solves (otahub.num.patch_sdm), not the fits: the square resonant at f0 has radiation Q 47.169 and surface-wave efficiency 0.94976, so Q0 = 44.799 (the cavity-current Q0 was 52.905); the cavity model puts the square at f_sq = 5.73983e+09 Hz; the side that resonates there full-wave is 16.7475 mm (textbook 17.2628 mm, was 17.2362 mm) and the cut 1.7976 mm."
         },
         {
           "given": {
@@ -2936,18 +3013,20 @@
             "Q0": 30.0
           },
           "expect": {
-            "L_m": 0.04208435,
-            "c_trunc_m": 0.005539191,
-            "truncation_over_side": 0.1316212,
-            "truncation_area_ratio": 0.01732413,
+            "L_m": 0.040965366,
+            "L_textbook_m": 0.042084886,
+            "c_trunc_m": 0.005392878,
+            "truncation_over_side": 0.1316448,
+            "truncation_area_ratio": 0.01733036,
             "quality_factor": 30.0,
             "mode_split_hz": 80000000.0,
             "fractional_bandwidth_vswr2": 0.04714045,
-            "axial_ratio_bandwidth_3db": 0.01157024,
-            "f_sq_hz": 2364166000.0
+            "fractional_bandwidth_vswr2_one_mode": 0.02357023,
+            "axial_ratio_bandwidth_3db": 0.01157023,
+            "f_sq_hz": 2364136818.0
           },
-          "tol_pct": 0.3,
-          "source": "the 2.4 GHz patch with a supplied Q0 = 30: Q = 30.000, so the classic cut is c/L = 0.12910; the finite-element cavity model (N = 480, spline in sqrt(1/2Q)) makes it perfectly circular at c/L = 0.13162 and puts its CP centre 1.516% above the uncut square's resonance, so the square is sized for 2.36417 GHz by the transmission-line model. Split f0/Q, AR band 0.347107/Q and VSWR-2 band sqrt(2)/Q from the two-mode model, which the cavity model reproduces to 4 digits."
+          "tol_pct": 1.5,
+          "source": "Q0 = 30 supplied, which overrides the full-wave value; f_sq = 2.36414e+09 Hz; the side that resonates there full-wave (otahub.num.patch_sdm) is 40.9654 mm, textbook 42.0849 mm (was 42.0844 mm), cut 5.3929 mm."
         },
         {
           "given": {

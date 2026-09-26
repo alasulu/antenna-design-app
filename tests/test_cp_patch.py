@@ -86,7 +86,10 @@ def test_the_impedance_band_is_twice_one_modes(cp):
 def test_the_square_is_sized_below_f0(cp):
     d = cp.synthesize(**GIVEN)
     assert d.get("f_sq") < GIVEN["f0"]
-    assert GIVEN["f0"] / d.get("f_sq") - 1 == pytest.approx(0.5 / d.get("Q0"), rel=0.05)
+    # 1/(2 Q0) to first order; the cut's second-order term, about -6 u^2 of it,
+    # is 5% at the full-wave Q0 of 54 (u = 0.096)
+    assert GIVEN["f0"] / d.get("f_sq") - 1 == pytest.approx(0.5 / d.get("Q0"), rel=0.07)
+    assert GIVEN["f0"] / d.get("f_sq") - 1 < 0.5 / d.get("Q0")
 
 
 # ------------------------------------------------ the cavity model (slow)
@@ -154,9 +157,10 @@ def test_the_spec_cuts_what_the_cavity_model_makes_circular(n, m, cp):
 def test_the_design_is_circular_at_f0_and_the_old_one_was_not(cp):
     d = cp.synthesize(**GIVEN)
     q, f_sq = d.get("Q0"), d.get("f_sq")
-    # meshes re-matched when Q0 became the solved radiation Q (62.3, was 59.0):
-    new = _cavity(330, 30)                 # c/L 0.09091 against the spec's 0.09078
+    # meshes re-matched when Q0 became the full-wave radiation-and-surface-wave Q
+    # (54.06; it was the cavity-current radiation Q, 62.3, and before that 59.0):
+    new = _cavity(246, 24)                 # c/L 0.097561 against the spec's 0.097555
     assert new.axial_ratio_db(new.k_square * GIVEN["f0"] / f_sq, q, CENTRELINE) < 0.1
-    old = _cavity(279, 25)                 # the classic cut, c/L = sqrt(1/(2Q)) = 0.0896
-    assert d.get("u_cp") == pytest.approx(25 / 279, rel=1e-3)
+    old = _cavity(260, 25)                 # the classic cut, c/L = sqrt(1/(2Q)) = 0.0962
+    assert d.get("u_cp") == pytest.approx(25 / 260, rel=1e-3)
     assert old.axial_ratio_db(old.k_square, q, CENTRELINE) > 7.0   # square tuned to f0

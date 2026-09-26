@@ -2599,9 +2599,42 @@ Still on textbook lengths, and said so in HANDOVER section 6 item 13: the CP
 square (the MoM handles a square, and its Q0-driven corner cut is also off), the
 shorted patch (needs a shorting wall the MoM lacks) and the stacked patch.
 
+
+## The CP square, full-wave: a smaller square with a bigger cut
+
+`truncated_corner_cp_patch` took its square side from the same textbook chain
+that resonates 0.5-7% low, and its corner cut from Q0 - the cavity-current
+radiation Q, which runs high and leaves the surface wave out. A single-feed CP
+patch lives on the ratio of its mode split to its modes' damping, and the
+surface wave damps each mode as surely as radiation, so Q0 is now the full-wave
+radiation Q times the surface-wave efficiency; the square side is the one that
+resonates at f_sq full-wave; the cut-to-split relation stays the cavity model's,
+which `patch_cavity` checked on the truncated outline and the MoM cannot model.
+
+The MoM was checked on a square first: an FDTD ringdown of a thick eps_r 10.2
+square, extrapolated in cell size, gives 0.98403 f0 and Q 57.56 against its
+0.98396 and 57.46.
+
+What changed, on the spec's own designs (68 squares and 8 held out):
+- The old Q0 was 1-99% above the full-wave total - up to 28% from the radiation
+  Q itself, the rest from the surface wave it left out, which nearly halves the
+  Q of a square on thick high-permittivity board. Every cut was too small and
+  every axial-ratio band too narrow.
+- The textbook square is 0.54-7.1% too large.
+- The classic 2.4 GHz, eps_r 2.2, 1.6 mm design: Q0 53.9 (was 62.2), square
+  40.70 mm (was 41.77), cut 3.975 mm (was 3.793). A 1.575 GHz FR-4 GPS patch:
+  Q0 118.2 (was 141.9), square 44.66 mm (was 45.54), cut 2.931 mm (was 2.725).
+
+Fits: side ratio 0.21% (0.12% held out), radiation Q 0.87% (0.67%), efficiency
+0.11% (0.13%). The cavity-model design test re-matched its meshes to the new cut
+(246 cells, a 24-cell cut, c/L to 6e-5) and still finds under 0.1 dB of axial
+ratio at f0, and over 7 dB for the classic cut; the first-order offset test now
+allows the cut's second-order term, 5% at this Q0. A supplied Q0 still
+overrides, for loss the full-wave Q does not include.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2665 tests, 901/901 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2668 tests, 912/912 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`).
@@ -2611,10 +2644,11 @@ solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
 and the two-mode horns' efficiency and cross-polar levels, from aperture
 integration; patch directivity from the cavity current through the slab, and
 the rectangular patch's resonance, Q and surface waves full-wave - and it
-builds the length that resonates. Next candidates: the CP square full-wave (side
-and Q0-driven corner cut, HANDOVER section 6 item 13), the resonant slot array's
-1/N bandwidth (needs a stated slot width for its element Q), and the Potter
-horn's step (needs mode matching to turn its TM11 fraction into a result).
+builds the length that resonates, and the CP square takes its side and Q0
+full-wave. Next candidates: the resonant slot array's 1/N bandwidth (needs a
+stated slot width for its element Q), the Potter horn's step (needs mode
+matching to turn its TM11 fraction into a result), and the patches the
+rectangular MoM cannot reach (HANDOVER section 6 item 13).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

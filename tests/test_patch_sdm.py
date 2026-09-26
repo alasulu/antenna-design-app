@@ -133,10 +133,11 @@ def test_the_rectangular_spec_directivity_is_the_full_wave_one(registry, case):
 FULL = json.loads((Path(__file__).parent / "data" / "patch_fullwave.json").read_text())
 
 
-@pytest.mark.parametrize("which", ["fdtd_check", "fdtd_check_fr4"])
+@pytest.mark.parametrize("which", ["fdtd_check", "fdtd_check_fr4", "fdtd_check_square"])
 def test_fdtd_and_sdm_agree_on_whole_patches(which):
     """The same patch two unrelated ways: FDTD at three cell sizes taken to
-    zero, and the spectral MoM with its default basis - thick eps_r 10.2 and FR-4."""
+    zero, and the spectral MoM with its default basis - thick eps_r 10.2, FR-4,
+    and a square, the CP patch's starting shape."""
     from otahub.num import patch_fdtd
     ref = FULL[which]
     runs = ref["fdtd_runs"]
@@ -208,3 +209,34 @@ def test_the_rectangular_spec_against_a_fresh_full_wave_solve(registry):
     assert d.get("L") == pytest.approx(Lfw, rel=3e-3)
     assert d.metrics["radiation_q"] == pytest.approx(m["q_radiation"], rel=0.015)
     assert d.metrics["surface_wave_efficiency"] == pytest.approx(m["efficiency"], rel=3e-3)
+
+
+# ------------------------------------------------------------------ the CP square
+
+def test_cp_q0_is_radiation_and_surface_wave_and_its_square_is_the_full_wave_one(registry):
+    lam = C0 / 2.4e9
+    for er, hl in ((2.2, 0.0128), (4.4, 0.0084), (10.2, 0.02)):
+        d = registry["truncated_corner_cp_patch"].synthesize(f0=2.4e9, eps_r=er, h=hl * lam)
+        m = d.metrics
+        assert m["quality_factor"] == pytest.approx(m["radiation_q"] * m["surface_wave_efficiency"], rel=1e-12)
+        assert m["surface_wave_efficiency"] < 1.0
+        assert d.get("L") < d.get("L_textbook")
+        assert m["truncation_over_side"] == pytest.approx(d.get("c_trunc") / d.get("L"), rel=1e-12)
+    # a supplied Q0 still overrides the full-wave one
+    d = registry["truncated_corner_cp_patch"].synthesize(f0=2.4e9, eps_r=2.2, h=0.0016, Q0=30.0)
+    assert d.metrics["quality_factor"] == 30.0
+
+
+@pytest.mark.slow
+def test_the_cp_spec_against_a_fresh_full_wave_square():
+    """Off the fitting grid: Q0 of the square resonant at f0, and the side
+    resonant at the spec's own f_sq."""
+    from otahub.core.registry import Registry
+    reg = Registry.load(Path(__file__).parent.parent / "specs")
+    g = dict(f0=3.5e9, eps_r=3.38, h=0.000813)
+    d = reg["truncated_corner_cp_patch"].synthesize(**g)
+    side = lambda f, a0: sdm._secant(lambda a: sdm._dominant(sdm.RectPatch(g["eps_r"], g["h"], a, a, **sdm.BASIS_FULL).Z(f))[0], a0, 0.99 * a0)
+    a0 = side(g["f0"], d.get("L"))
+    m = sdm.mode_metrics(sdm.RectPatch(g["eps_r"], g["h"], a0, a0, **sdm.BASIS_FULL), g["f0"])
+    assert d.get("Q0") == pytest.approx(m["q_radiation"] * m["efficiency"], rel=0.015)
+    assert d.get("L") == pytest.approx(side(d.get("f_sq"), d.get("L")), rel=3e-3)

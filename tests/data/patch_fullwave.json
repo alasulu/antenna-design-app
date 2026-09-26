@@ -1,5 +1,5 @@
 {
- "description": "Full-wave checks on rectangular patches at f0 = 10 GHz. fdtd_check and fdtd_check_fr4: a thick eps_r 10.2 patch and an FR-4 one whose geometry the FDTD grid represents exactly at three resolutions (h = 4, 6, 8 cells), solved by otahub.num.patch_fdtd and by otahub.num.patch_sdm with its default (edge-exact) basis. sdm_bases_tried records what other bases gave on the same geometry: sines along the current (S_*) wander by +-1.5%; the edge-exact family (U*) converges.",
+ "description": "Full-wave checks on rectangular patches at f0 = 10 GHz. fdtd_check, fdtd_check_fr4 and fdtd_check_square: a thick eps_r 10.2 patch, an FR-4 one and a thick eps_r 10.2 square whose geometry the FDTD grid represents exactly at three resolutions (h = 4, 6, 8 cells), solved by otahub.num.patch_fdtd and by otahub.num.patch_sdm with its default (edge-exact) basis. sdm_bases_tried records what other bases gave on the same geometry: sines along the current (S_*) wander by +-1.5%; the edge-exact family (U*) converges.",
  "fdtd_check": {
   "eps_r": 10.2,
   "h_lam": 0.0245,
@@ -86,6 +86,41 @@
    "Q_total": 60.855,
    "Q_rad": 67.481,
    "directivity": 4.4101
+  }
+ },
+ "fdtd_check_square": {
+  "eps_r": 10.2,
+  "h_lam": 0.0245,
+  "L_lam": 0.147,
+  "W_lam": 0.147,
+  "fdtd_runs": [
+   {
+    "nh": 4,
+    "nl": 12,
+    "nw": 12,
+    "f_over_f0": 0.955986,
+    "Q": 59.9901
+   },
+   {
+    "nh": 6,
+    "nl": 18,
+    "nw": 18,
+    "f_over_f0": 0.96537,
+    "Q": 59.1717
+   },
+   {
+    "nh": 8,
+    "nl": 24,
+    "nw": 24,
+    "f_over_f0": 0.969991,
+    "Q": 58.7755
+   }
+  ],
+  "sdm": {
+   "f_over_f0": 0.983958,
+   "Q_total": 57.459,
+   "Q_rad": 77.602,
+   "directivity": 3.9534
   }
  }
 }
