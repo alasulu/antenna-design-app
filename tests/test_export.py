@@ -267,7 +267,8 @@ def test_cone_radii_reach_both_backends(registry):
     cones = [s for s in model.solids if isinstance(s, Cone)]
     assert cones, "the discone must contain a cone"
     cone = cones[0]
-    assert cone.radius_start > 0 and cone.radius_end == 0, "apex should be a point"
+    # truncated at the feed: the spec's band edges were solved with that top face
+    assert cone.radius_start > cone.radius_end > 0
     vba, py = cst.render(model), hfss.render(model)
     assert "With Cone" in vba and "Bottomradius" in vba and "Topradius" in vba
     assert "CreateCone" in py and "BottomRadius:=" in py and "TopRadius:=" in py

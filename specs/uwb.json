@@ -714,7 +714,7 @@
       "key": "discone",
       "name": "Discone",
       "family": "uwb",
-      "summary": "Cone against a disc: a bicone with one half replaced by a flat plate, decade bandwidth from a 50 ohm feed.",
+      "summary": "Cone against a disc, fed at the apex: an omnidirectional wideband antenna whose low cutoff, 50 ohm bandwidth and gain are solved here as a body of revolution rather than taken from rules of thumb.",
       "freq_range_hz": [
         1000000.0,
         40000000000.0
@@ -766,36 +766,49 @@
         },
         {
           "symbol": "feed_gap",
-          "name": "disc-to-apex gap",
+          "name": "cone-top-to-disc spacing S",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "cone_top_diameter",
+          "name": "cone top diameter (the feed)",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "k_slant",
+          "name": "slant length at f_low, in wavelengths",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "slant",
-          "expr": "0.25*c/f_low",
-          "units_out": "m",
+          "output": "k_slant",
+          "expr": "np.interp(disc_ratio, [0.6, 0.7, 0.8, 0.9], [np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [0.30703, 0.29645, 0.29653, 0.30632, 0.32618, 0.35619, 0.39487]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [0.28475, 0.27742, 0.28008, 0.29199, 0.31290, 0.34123, 0.37451]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [0.26988, 0.26504, 0.27043, 0.28515, 0.30750, 0.33415, 0.36264]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [0.25914, 0.25715, 0.26611, 0.28472, 0.30818, 0.33213, 0.35564])])",
+          "units_out": "-",
           "depends_on": [
-            "f_low"
+            "cone_half_angle_deg",
+            "disc_ratio"
           ],
-          "notes": "The cone slant sets the low-frequency limit at about a quarter wavelength. Below that the match degrades quickly; above it the antenna stays usable for a decade or more."
+          "notes": "SOLVED, then tabulated: the slant (from the ideal apex) at which VSWR in 50 ohm first falls to 2, found by otahub.num.bor - the exact axisymmetric surface problem, solid cone and disc, the finite feed below - on meshes of 24 and 48 segments per slant, extrapolated (the 48-segment answer is within 0.4% of the limit). Bilinear in half angle (20-50 deg, 5 deg steps) and disc ratio (0.6-0.9); 0.9% worst on 6 held-out designs between the grid points. The quarter-wave rule this replaces falls 3-23% short at 20-35 degrees and 33-58% short at 45-50, 12% at the default - wider cones start working later, not earlier."
         },
         {
-          "output": "cone_base_diameter",
-          "expr": "2*0.25*(c/f_low)*sin(rad(cone_half_angle_deg))",
+          "output": "slant",
+          "expr": "k_slant*c/f_low",
           "units_out": "m",
           "depends_on": [
-            "f_low",
-            "cone_half_angle_deg"
+            "k_slant",
+            "f_low"
           ]
         },
         {
-          "output": "cone_height",
-          "expr": "0.25*(c/f_low)*cos(rad(cone_half_angle_deg))",
+          "output": "cone_base_diameter",
+          "expr": "2*slant*sin(rad(cone_half_angle_deg))",
           "units_out": "m",
           "depends_on": [
-            "f_low",
+            "slant",
             "cone_half_angle_deg"
           ]
         },
@@ -810,14 +823,33 @@
           "notes": "About 0.7 of the cone base is the long-standing rule; the disc is the second half of the bicone, flattened"
         },
         {
-          "output": "feed_gap",
-          "expr": "0.3*0.25*(c/f_low)*sin(rad(cone_half_angle_deg))/3",
+          "output": "cone_top_diameter",
+          "expr": "0.02*cone_base_diameter",
           "units_out": "m",
           "depends_on": [
-            "f_low",
-            "cone_half_angle_deg"
+            "cone_base_diameter"
           ],
-          "notes": "Small compared with the disc radius. The gap mostly sets the high-frequency limit: once it approaches a quarter wavelength the feed region stops behaving as a simple transmission line."
+          "notes": "The feed: the cone is truncated where the coax shield meets it, at 2% of the base diameter - an N-type connector's size on a VHF discone. It is part of the design, not a detail: the solved cutoff moves up 1.3-1.8% for each further 1% of the base diameter at 20-30 degrees (hardly at all at 45), and the proportion this spec used to imply, a top a third of the base RADIUS, moved it up 23% and cut a 30 degree discone's band to 4.8:1."
+        },
+        {
+          "output": "feed_gap",
+          "expr": "0.3*cone_top_diameter",
+          "units_out": "m",
+          "depends_on": [
+            "cone_top_diameter"
+          ],
+          "notes": "Spacing S between the cone's top face and the disc, Nail's S = 0.3 x top diameter."
+        },
+        {
+          "output": "cone_height",
+          "expr": "slant*cos(rad(cone_half_angle_deg)) - cone_top_diameter/(2*tan(rad(cone_half_angle_deg)))",
+          "units_out": "m",
+          "depends_on": [
+            "slant",
+            "cone_half_angle_deg",
+            "cone_top_diameter"
+          ],
+          "notes": "height of the truncated cone, top face to base; the slant is measured from the ideal apex"
         }
       ],
       "analysis": [
@@ -841,33 +873,53 @@
         },
         {
           "metric": "f_low_check_hz",
-          "expr": "0.25*c/slant",
+          "expr": "k_slant*c/slant",
           "units_out": "Hz",
           "depends_on": [
+            "k_slant",
             "slant"
           ],
           "notes": "forward check: must return f_low"
         },
         {
           "metric": "bandwidth_ratio",
-          "expr": "10.0",
+          "expr": "np.interp(disc_ratio, [0.6, 0.7, 0.8, 0.9], [np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [4.563, 10.000, 10.000, 10.000, 10.000, 10.000, 10.000]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [4.797, 4.908, 10.000, 10.000, 10.000, 10.000, 10.000]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [3.175, 5.135, 10.000, 10.000, 10.000, 10.000, 10.000]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [3.135, 3.422, 10.000, 10.000, 10.000, 10.000, 10.000])])",
           "units_out": "-",
-          "notes": "INDICATIVE. Well-built discones hold VSWR under 2 over roughly a decade; the upper limit is set by the feed gap and disc flatness, neither of which is modelled here."
+          "depends_on": [
+            "cone_half_angle_deg",
+            "disc_ratio"
+          ],
+          "notes": "SOLVED, tabulated: f_high/f_low for the CONTINUOUS band with VSWR under 2 in 50 ohm above the low cutoff. At least a decade (the table's 10: VSWR under 2 all the way to 10 f_low, the end of the survey) for every cone of 30 degrees or more at every disc ratio, and at 25 degrees with a 0.6 disc; 3.1:1 to 5.1:1 for the narrower cones. So the decade this spec asserted as indicative is right for the default 30 degree cone and wider ones - with a coax-sized feed - and wrong for narrow cones, whose VSWR climbs back past 2 within the decade. Where a ripple touches 2 the band edge can jump between grid points, which the table interpolates across."
         },
         {
           "metric": "f_high_estimate_hz",
-          "expr": "10*0.25*c/slant",
+          "expr": "bandwidth_ratio*f_low",
           "units_out": "Hz",
           "depends_on": [
-            "slant"
+            "bandwidth_ratio",
+            "f_low"
           ],
-          "notes": "from the indicative decade bandwidth"
+          "notes": "bandwidth_ratio times f_low. Where the table reads 10 the survey stopped at 10 f_low with VSWR still under 2, so this is a lower bound there."
+        },
+        {
+          "metric": "worst_vswr_2_to_10_f_low",
+          "expr": "np.interp(disc_ratio, [0.6, 0.7, 0.8, 0.9], [np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [2.156, 1.997, 1.801, 1.699, 1.609, 1.552, 1.677]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [2.296, 2.085, 1.865, 1.842, 1.721, 1.621, 1.683]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [2.383, 2.091, 1.961, 1.912, 1.733, 1.571, 1.550]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [2.406, 2.072, 1.998, 1.894, 1.659, 1.483, 1.615])])",
+          "units_out": "-",
+          "depends_on": [
+            "cone_half_angle_deg",
+            "disc_ratio"
+          ],
+          "notes": "SOLVED, tabulated: the highest VSWR in 50 ohm between 2 f_low and 10 f_low, once the low-frequency roll-off is behind - the margin inside the band. It is 1.86 at the default; 1.48-2.00 across the cones that hold the decade, and 2.07-2.41 on the 20-25 degree cones that do not."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(2.2)",
+          "expr": "db10(np.interp(disc_ratio, [0.6, 0.7, 0.8, 0.9], [np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [1.5407, 1.5138, 1.4864, 1.4527, 1.4053, 1.3349, 1.2571]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [1.5300, 1.5070, 1.4819, 1.4494, 1.4027, 1.3350, 1.2588]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [1.5231, 1.5019, 1.4771, 1.4433, 1.3938, 1.3249, 1.2512]), np.interp(cone_half_angle_deg, [20, 25, 30, 35, 40, 45, 50], [1.5179, 1.4972, 1.4713, 1.4334, 1.3784, 1.3060, 1.2357])]))",
           "units_out": "dBi",
-          "notes": "Indicative. Omnidirectional in azimuth with the beam tilting downward as frequency rises - the elevation pattern is NOT constant across the band, which is the discone's real limitation."
+          "depends_on": [
+            "cone_half_angle_deg",
+            "disc_ratio"
+          ],
+          "notes": "SOLVED, tabulated: peak directivity at f_low from the solved currents' far field. 1.24 to 1.54 linear across the box, 1.482 (1.71 dBi) at the default. The previous flat 2.2 (3.4 dBi) was 48% high. It rises across the band as the beam tilts downward: at the default, 2.35 with the peak 50 degrees below the horizon at 3 f_low, 4.00 at 70 degrees at 6 f_low."
         },
         {
           "metric": "overall_height_m",
@@ -886,10 +938,11 @@
         }
       ],
       "validity": [
-        "the quarter-wavelength slant rule is an engineering convention, accurate to perhaps 10% on the low-frequency corner",
-        "the decade bandwidth figure is indicative and depends on construction, particularly the feed gap",
-        "elevation pattern tilts progressively downward with frequency; only the azimuth pattern is genuinely broadband",
-        "assumes a solid or densely spoked cone and disc; sparse wire versions perform worse at the top of the band"
+        "solved for 20 <= half angle <= 50 degrees and 0.6 <= disc ratio <= 0.9 with the feed stated here (top diameter 2% of the base, S = 0.3 x top diameter); outside that box the tables clamp",
+        "solid, perfectly conducting cone and zero-thickness disc on a common axis, and an infinitesimally thin feed gap region carrying a uniform field - a real coax transition, a thick disc or a wire-spoke cone will differ, most at the top of the band",
+        "free space: no mast, no ground below the cone",
+        "50 ohm reference for every VSWR quoted",
+        "the elevation pattern tilts progressively downward with frequency; only the azimuth pattern is broadband"
       ],
       "known_cases": [
         {
@@ -899,12 +952,73 @@
             "disc_ratio": 0.7
           },
           "expect": {
-            "slant": 0.7494811,
-            "f_low_check_hz": 100000000.0,
-            "cone_base_diameter": 0.7494811
+            "slant": 0.8396683,
+            "f_low_check_hz": 100000000.0
+          },
+          "tol_pct": 0.1,
+          "source": "Default discone at 100 MHz: the body-of-revolution solve puts VSWR = 2 in 50 ohm at a slant of 0.2801 wavelengths (0.2821 on 24 and 0.2811 on 48 segments per slant, extrapolated), 839.7 mm - 12.0% longer than the quarter wave this spec used, 749.5 mm."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 30.0,
+            "disc_ratio": 0.7
+          },
+          "expect": {
+            "bandwidth_ratio": 10.0,
+            "worst_vswr_2_to_10_f_low": 1.865
           },
           "tol_pct": 0.5,
-          "source": "At 100 MHz the slant is a quarter wavelength, 749.5 mm. With a 30 degree half angle the base diameter is 2*slant*sin(30) = slant exactly, a useful coincidence of that angle."
+          "source": "Same design: VSWR stays under 2 from f_low right through 10 f_low, so the decade this spec asserted as indicative is real for it - with a coax-sized feed. Its worst VSWR between 2 and 10 f_low is 1.865."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 20.0,
+            "disc_ratio": 0.7
+          },
+          "expect": {
+            "bandwidth_ratio": 4.797,
+            "worst_vswr_2_to_10_f_low": 2.296
+          },
+          "tol_pct": 0.5,
+          "source": "A narrow cone, 20 degrees: the band under VSWR 2 ends at 4.80 f_low and the VSWR reaches 2.30 before 10 f_low. The decade is a property of cones of 30 degrees or more."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 30.0,
+            "disc_ratio": 0.7
+          },
+          "expect": {
+            "directivity_dbi": 1.708
+          },
+          "tol_pct": 1.0,
+          "source": "Peak directivity at f_low from the solved far field: 1.482, 1.71 dBi, against the flat 2.2 (3.42 dBi) asserted before."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 50.0,
+            "disc_ratio": 0.6
+          },
+          "expect": {
+            "slant": 1.1837916
+          },
+          "tol_pct": 0.5,
+          "source": "A wide cone, 50 degrees with a 0.6 disc: its VSWR reaches 2 only at a slant of 0.3949 wavelengths, 58% longer than a quarter wave - a wider cone matches 50 ohm better once it is working, and starts working later."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "cone_half_angle_deg": 32.5,
+            "disc_ratio": 0.75
+          },
+          "expect": {
+            "slant": 0.8394381
+          },
+          "tol_pct": 1.0,
+          "source": "Between the table's grid points (32.5 degrees, 0.75): solved directly, low cutoff at 0.2800 wavelengths; the bilinear table gives 0.2819."
         },
         {
           "given": {
@@ -916,14 +1030,15 @@
             "biconical_impedance_ohm": 157.928,
             "cone_impedance_over_ground_ohm": 78.964
           },
-          "tol_pct": 0.5,
-          "source": "eta0/pi * ln(cot(15 deg)) = 119.92 * 1.3170 = 157.93 ohm, and exactly half that over a ground plane. Cross-checked against this family's biconical spec, which gives 375.50 ohm at a 5 degree half angle by the same formula."
+          "tol_pct": 0.1,
+          "source": "Unchanged reference values: eta0/pi * ln(cot(15 deg)) = 157.93 ohm for a full bicone of this half angle, and half that for the cone over an infinite ground plane."
         }
       ],
       "references": [
         "Kandoian, Three new antenna types and their applications, Proc. IRE 34(2), 1946",
         "Nail, Designing discone antennas, Electronics 26(8), 1953",
-        "Balanis, Antenna Theory 4th ed., Ch. 9.5 for the biconical basis"
+        "Balanis, Antenna Theory 4th ed., Ch. 9.5 for the biconical basis",
+        "Low cutoff, VSWR, bandwidth and directivity solved here as a body of revolution (otahub.num.bor), checked against the wire code on a tube, Schelkunoff's bicone and image theory"
       ]
     },
     {

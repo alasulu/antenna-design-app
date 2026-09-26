@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-16,296 lines of Python, 22,378 lines of spec data, 2446 tests, 785/785 citable
+16,707 lines of Python, 22,493 lines of spec data, 2469 tests, 791/791 citable
 known cases passing.**
 
 ---
@@ -123,6 +123,32 @@ and a shorter pulse rings so many higher modes that they bury it instead. On a
 flat low-permittivity puck (a/h = 6, εr <= 12) it therefore reports a higher
 mode; `tests/data/cylindrical_dra_fdtd.json` keeps those runs, unfitted.
 
+### A third, for solid surfaces of revolution
+
+A wire cage cannot stand in for a solid cone: its impedance was still moving
+3-5% between 24 and 32 wires. `otahub/num/bor.py` solves a rotationally
+symmetric surface driven symmetrically - a cone, a disc, a tube, any polyline
+generating curve off the axis - as the one-dimensional problem it is: EFIE in
+mixed-potential form, rooftop basis on the TOTAL ring current along the curve,
+Galerkin testing, and the wire kernel replaced by its exact ring averages. For
+each azimuth a straight generating segment is a straight line in space, so the
+static 1/R is integrated along it in closed form and the log singularity left in
+azimuth is removed by phi = pi u^2. The feed is a FINITE gap, a uniform field
+over a stretch of the curve, so a fat body has a physical feed instead of a delta
+gap whose capacitance diverges.
+
+Checked four ways that share nothing: a thin tube against the wire code's exact
+kernel, which models the same tube (0.3%); input power against power radiated
+through an independent far-field integral (1 part in 10^5); a long 47-degree
+bicone against Schelkunoff's characteristic impedance (within 1%); and a cone
+over a disc of 1.5, 3 and 5 wavelengths converging on image theory's half
+bicone (7.7%, 3.7%, 2.1%), which is the check on the disc's purely radial
+current.
+
+**Limits that bite:** m = 0 only - symmetric excitation, so no tilted beams and
+no cross-polar; perfectly conducting, zero-thickness sheets; a surface cannot
+reach the axis (stop it at a small radius, where a feed tube goes).
+
 ### Independent first-principles checks
 
 `otahub/core/pattern.py` is deliberately spec-independent, so it acts as an
@@ -205,6 +231,7 @@ being written into a spec.
 | `cylindrical_parabolic` | Taper and spillover under a line feed (cylindrical spreading), focusing-plane beamwidth and peak sidelobe, from the edge taper and f/W | `otahub/num/paraboloid.py` integrates over the aperture coordinate: efficiencies to 1e-5, beamwidth to 0.05 lambda/W and peak sidelobe to 0.15 dB off the fit grid; the uniform limit reproduces 50.8 lambda/W and -13.3 dB |
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
+| `discone` | Low cutoff (slant at VSWR 2 in 50 ohm), continuous VSWR-2 bandwidth, worst in-band VSWR and directivity at f_low, tabulated over half angle 20-50 deg and disc ratio 0.6-0.9 with a stated coax-sized feed | `otahub/num/bor.py`, the exact axisymmetric surface solution: low cutoff extrapolated from two meshes (0.4%), 0.9% on six held-out designs; the spec's own dimensions, rebuilt and solved live, sit at VSWR 2 at f_low |
 | `fresnel_zone_plate` | Aperture efficiency and gain from a cos^n feed through the plate's own zones (Kirchhoff, in-spec feed-angle integral); spillover; HPBW and 1 dB gain bandwidth fitted per plate type and, for the opaque plate, per parity of M | `otahub/num/zone_plate.py` integrates on a Cartesian grid over the plate: efficiency to 0.015%, the fits to 0.18% (beam) and 0.30% (bandwidth) on held-out 2-D runs; many zones under uniform light recover 1/π², 4/π², 8/π² |
 | `hemispherical_dra` | k₀a and Q from the exact complex TE₁ pole of the equivalent sphere, fitted to 0.23% over εr 6–100 | Newton on the characteristic equation; `otahub/num/dra.py`'s FDTD ringdown of a staircased hemisphere lands on the pole to 0.15% in frequency and 0.9% in Q; Mongia & Bhartia's published fit is within 1.04%. The peak of the Mie coefficient b₁ on the real axis, used before, was 1.2% high and its half-power Q 12% low at εr = 10 |
 | `cylindrical_dra` | k₀a and radiation Q of the HE₁₁ mode over εr 6–50 and a/h 0.4–4 | Fitted to 48 FDTD ringdowns (`otahub/num/dra.py`): 0.34% in k₀a, 0.42% in Q; 0.16% / 0.49% on 12 held out. Mongia & Bhartia's published fits kept as a comparison: 9.4% low to 8.8% high in resonance, 26% low to 16% high in Q |
@@ -308,8 +335,12 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
   the resonance a few percent and sets the match), a finite ground plane, and
   dielectric loss. The cylinder's fits stop at a/h = 4: flatter, low-εr pucks
   have Q under 2, which the ringdown cannot isolate.
-- **`discone` and `conical_monopole` rest on engineering conventions** — the
-  quarter-wavelength slant and the decade bandwidth figure — not on derivations.
+- **`conical_monopole` and `biconical` still carry an indicative decade
+  bandwidth.** The discone's conventions are now solved (§3), and the same
+  solver, `otahub/num/bor.py`, can solve these two directly - a cone over an
+  infinite plane is half a bicone by image theory. The discone is modelled with a
+  stated coax-sized feed (top 2% of the base diameter); its band edges move with
+  the feed, so a very different feed is outside what was solved.
 - **The Fresnel zone plate is scalar Kirchhoff diffraction through an
   infinitely thin plate.** Its gain, beam and bandwidth now come from the feed
   through the plate, but a real phase plate's thickness, its shadowing at
@@ -616,9 +647,15 @@ known case only checks what it asserts.
 9. **A finite-gap feed for the MoM.** The delta gap on a wire fatter than
    about 0.01 lambda has no converged answer with either kernel - its
    capacitance diverges as the mesh refines. That is what now caps the slot
-   family at w/L = 0.05 and the fat-dipole checks at a = 0.006 lambda. A
-   magnetic-frill or finite-gap source would lift it; the exact kernel is
-   already in place for it to stand on.
+   family at w/L = 0.05 and the fat-dipole checks at a = 0.006 lambda. For
+   straight fat conductors this is now within reach another way:
+   `otahub/num/bor.py` solves a tube as a surface with a finite gap, and agrees
+   with the wire code's exact kernel on thin ones. Checking the slot family's
+   complementary dipole out to w/L = 0.2 with it - a strip is not a tube, so the
+   a = w/4 equivalence has to be checked too - is the natural next use.
+10. **`conical_monopole` and `biconical` bandwidths** - solve them with
+   `otahub/num/bor.py` the way the discone was; both still assert an indicative
+   decade.
 
 ---
 

@@ -1,0 +1,265 @@
+{
+ "about": "Discone solved as a body of revolution by otahub.num.bor: solid cone truncated at D_top = 0.02 D_base with its top face S = 0.3 D_top below a zero-thickness disc, a feed tube of the top radius across S. th = half angle (deg), ratio = disc/base diameter; k = slant/lambda at the VSWR-2 low cutoff in 50 ohm, extrapolated from 24 and 48 segments per slant; band = continuous VSWR<2 f_high/f_low (10 where it ran to the end of the survey at 10 f_low); worst = highest VSWR from 2 f_low to 10 f_low; D0 = peak directivity at f_low. 'held' are low cutoffs between grid points.",
+ "tolerance": {
+  "k_grid": 0.0001,
+  "k_held": 0.0135
+ },
+ "grid": [
+  {
+   "th": 50.0,
+   "ratio": 0.9,
+   "k": 0.35564,
+   "band": 10.0,
+   "worst": 1.6152,
+   "D0": 1.23567
+  },
+  {
+   "th": 50.0,
+   "ratio": 0.8,
+   "k": 0.36264,
+   "band": 10.0,
+   "worst": 1.5501,
+   "D0": 1.2512
+  },
+  {
+   "th": 50.0,
+   "ratio": 0.7,
+   "k": 0.37451,
+   "band": 10.0,
+   "worst": 1.6831,
+   "D0": 1.25878
+  },
+  {
+   "th": 50.0,
+   "ratio": 0.6,
+   "k": 0.39487,
+   "band": 10.0,
+   "worst": 1.6766,
+   "D0": 1.25708
+  },
+  {
+   "th": 45.0,
+   "ratio": 0.9,
+   "k": 0.33213,
+   "band": 10.0,
+   "worst": 1.4831,
+   "D0": 1.30605
+  },
+  {
+   "th": 45.0,
+   "ratio": 0.8,
+   "k": 0.33415,
+   "band": 10.0,
+   "worst": 1.5705,
+   "D0": 1.32489
+  },
+  {
+   "th": 45.0,
+   "ratio": 0.7,
+   "k": 0.34123,
+   "band": 10.0,
+   "worst": 1.6214,
+   "D0": 1.33496
+  },
+  {
+   "th": 45.0,
+   "ratio": 0.6,
+   "k": 0.35619,
+   "band": 10.0,
+   "worst": 1.5524,
+   "D0": 1.33493
+  },
+  {
+   "th": 40.0,
+   "ratio": 0.9,
+   "k": 0.30818,
+   "band": 10.0,
+   "worst": 1.6589,
+   "D0": 1.37836
+  },
+  {
+   "th": 40.0,
+   "ratio": 0.8,
+   "k": 0.3075,
+   "band": 10.0,
+   "worst": 1.7329,
+   "D0": 1.39383
+  },
+  {
+   "th": 40.0,
+   "ratio": 0.7,
+   "k": 0.3129,
+   "band": 10.0,
+   "worst": 1.7209,
+   "D0": 1.40271
+  },
+  {
+   "th": 40.0,
+   "ratio": 0.6,
+   "k": 0.32618,
+   "band": 10.0,
+   "worst": 1.6086,
+   "D0": 1.40531
+  },
+  {
+   "th": 35.0,
+   "ratio": 0.9,
+   "k": 0.28472,
+   "band": 10.0,
+   "worst": 1.8938,
+   "D0": 1.43335
+  },
+  {
+   "th": 35.0,
+   "ratio": 0.8,
+   "k": 0.28515,
+   "band": 10.0,
+   "worst": 1.9121,
+   "D0": 1.44327
+  },
+  {
+   "th": 35.0,
+   "ratio": 0.7,
+   "k": 0.29199,
+   "band": 10.0,
+   "worst": 1.8419,
+   "D0": 1.44938
+  },
+  {
+   "th": 35.0,
+   "ratio": 0.6,
+   "k": 0.30632,
+   "band": 10.0,
+   "worst": 1.6985,
+   "D0": 1.45265
+  },
+  {
+   "th": 30.0,
+   "ratio": 0.9,
+   "k": 0.26611,
+   "band": 10.0,
+   "worst": 1.998,
+   "D0": 1.47127
+  },
+  {
+   "th": 30.0,
+   "ratio": 0.8,
+   "k": 0.27043,
+   "band": 10.0,
+   "worst": 1.9613,
+   "D0": 1.4771
+  },
+  {
+   "th": 30.0,
+   "ratio": 0.7,
+   "k": 0.28008,
+   "band": 10.0,
+   "worst": 1.8646,
+   "D0": 1.48186
+  },
+  {
+   "th": 30.0,
+   "ratio": 0.6,
+   "k": 0.29653,
+   "band": 10.0,
+   "worst": 1.8011,
+   "D0": 1.48638
+  },
+  {
+   "th": 25.0,
+   "ratio": 0.9,
+   "k": 0.25715,
+   "band": 3.4222,
+   "worst": 2.0718,
+   "D0": 1.49725
+  },
+  {
+   "th": 25.0,
+   "ratio": 0.8,
+   "k": 0.26504,
+   "band": 5.1351,
+   "worst": 2.091,
+   "D0": 1.50188
+  },
+  {
+   "th": 25.0,
+   "ratio": 0.7,
+   "k": 0.27742,
+   "band": 4.9078,
+   "worst": 2.0854,
+   "D0": 1.50704
+  },
+  {
+   "th": 25.0,
+   "ratio": 0.6,
+   "k": 0.29645,
+   "band": 10.0,
+   "worst": 1.9972,
+   "D0": 1.51383
+  },
+  {
+   "th": 20.0,
+   "ratio": 0.9,
+   "k": 0.25914,
+   "band": 3.1346,
+   "worst": 2.4056,
+   "D0": 1.51792
+  },
+  {
+   "th": 20.0,
+   "ratio": 0.8,
+   "k": 0.26988,
+   "band": 3.175,
+   "worst": 2.3826,
+   "D0": 1.52312
+  },
+  {
+   "th": 20.0,
+   "ratio": 0.7,
+   "k": 0.28475,
+   "band": 4.7971,
+   "worst": 2.2957,
+   "D0": 1.52998
+  },
+  {
+   "th": 20.0,
+   "ratio": 0.6,
+   "k": 0.30703,
+   "band": 4.5631,
+   "worst": 2.1558,
+   "D0": 1.54067
+  }
+ ],
+ "held": [
+  {
+   "th": 32.5,
+   "ratio": 0.75,
+   "k": 0.28001
+  },
+  {
+   "th": 42.5,
+   "ratio": 0.65,
+   "k": 0.33194
+  },
+  {
+   "th": 27.5,
+   "ratio": 0.85,
+   "k": 0.26288
+  },
+  {
+   "th": 22.5,
+   "ratio": 0.65,
+   "k": 0.28887
+  },
+  {
+   "th": 47.5,
+   "ratio": 0.75,
+   "k": 0.35208
+  },
+  {
+   "th": 37.5,
+   "ratio": 0.6,
+   "k": 0.31507
+  }
+ ]
+}

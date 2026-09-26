@@ -547,22 +547,25 @@ def _biconical(design: DesignResult) -> Model:
 
 @builder("discone")
 def _discone(design: DesignResult) -> Model:
-    """Disc on top, cone below with its apex at the feed."""
+    """Disc on top, cone below, truncated at the feed's top diameter."""
     model = _base_model(design, "Discone")
     cone_h = _param(design, "cone_height")
     base_d = _param(design, "cone_base_diameter")
+    top_d = _param(design, "cone_top_diameter", default=0.0)
     disc_d = _param(design, "disc_diameter")
     gap = _param(design, "feed_gap")
     disc_t = disc_d / 200.0
     model.solids += [
-        Cone("cone", "PEC", "z", base_d / 2.0, 0.0, (-cone_h, 0.0)),
+        Cone("cone", "PEC", "z", base_d / 2.0, top_d / 2.0, (-cone_h, 0.0)),
         Cylinder("disc", "PEC", "z", disc_d / 2.0, (gap, gap + disc_t)),
     ]
     model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
     model.notes += [
-        f"Cone apex at the origin opening downward, disc {gap * 1e3:.4g} mm "
-        "above it. The coax inner connects to the disc and the shield to the "
-        "cone, which this discrete port stands in for.",
+        f"Cone top face at z = 0, {top_d * 1e3:.4g} mm across, opening downward; "
+        f"disc {gap * 1e3:.4g} mm above it. The coax shield meets the cone top and "
+        "the inner runs up to the disc; this discrete port stands in for that "
+        "transition. The spec's band edges were solved with exactly this top "
+        "diameter and spacing.",
         f"Disc rendered {disc_t * 1e3:.4g} mm thick; a real one is sheet metal "
         "and its thickness is not a design parameter.",
         "The feed gap is the main control on the high-frequency limit and is "

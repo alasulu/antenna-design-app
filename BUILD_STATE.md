@@ -2182,13 +2182,68 @@ fit, 0.30% held out), and the 3 dB band is 1.69-1.81 times wider. One detail on
 the way: a four-level plate whose steps each compensate at the lower edge of
 their band peaks above f0, 6% at four zones.
 
+## A solver for solid cones, and a discone whose feed was part of the answer
+
+The discone carried three conventions: a quarter-wave slant at f_low, a decade
+of VSWR under 2 ("indicative"), and a flat 2.2 directivity. The wire-cage model
+the cones round built could not settle any of them - a cage's impedance does not
+converge in the wire count - so this round built `otahub/num/bor.py`: the method
+of moments for a body of revolution driven symmetrically. The current is a ring
+current along the generating curve, rooftop basis, Galerkin testing, the wire
+kernel replaced by its exact ring averages; for each azimuth a straight
+generating segment is a straight line in space, so the static part integrates in
+closed form and phi = pi u^2 removes the log singularity left behind. The feed is
+a finite gap - a uniform field over a stretch of the curve - so a fat body gets a
+physical feed rather than a delta gap whose capacitance diverges.
+
+It was checked four ways before it touched the discone: a thin tube against the
+wire code's exact kernel (0.3%), input power against radiated power through a
+separate far-field integral (1e-5), a 47-degree bicone against Schelkunoff's
+99.9 ohm (within 1% in resistance), and - for the disc's purely radial current -
+a cone over discs of 1.5, 3 and 5 wavelengths converging on image theory's half
+bicone (7.7%, 3.7%, 2.1%).
+
+Then the discone, and a lesson in how much the feed decides. The first survey
+said the decade did not exist - about 3:1 at 30 degrees - and the second, with
+the feed made to match the spec's gap rule, said the cutoff moved up by a fifth
+or more.
+Both were artefacts of the feed. My first geometry put the ideal apex a gap below
+the disc and then truncated the cone, which quietly made the real spacing nearly
+four times the stated one; the second took the spec's own rule at its word, and that
+rule implies a cone top a third of the base RADIUS - a capacitor plate facing
+the disc. With a coax-sized top (2% of the base diameter, Nail's spacing of 0.3
+times it), converged in the feed region, the picture reversed:
+
+- The decade is real for cones of 30 degrees or more at every disc ratio
+  surveyed (VSWR under 2 right through 10 f_low, worst 1.48-2.00 between 2 and 10
+  f_low) and not for narrower ones: 3.1:1 to 5.1:1 at 20-25 degrees, the one
+  exception being 25 degrees with a 0.6 disc. The
+  indicative figure was right for the default and has limits now.
+- The quarter wave is short everywhere: the VSWR-2 cutoff sits at 0.257-0.395
+  wavelengths of slant, 12% longer than a quarter wave at the default and 58% on
+  a 50-degree cone. Wide cones match 50 ohm better once they work, and start
+  working later.
+- Directivity at f_low is 1.24-1.54, 1.48 (1.71 dBi) at the default, where the
+  spec said 2.2; it climbs to 2.35 at 3 f_low as the beam tilts 50 degrees below
+  the horizon.
+
+The spec now tabulates all four over half angle 20-50 degrees and disc ratio
+0.6-0.9 (the low cutoff extrapolated from two meshes, 0.9% on six held-out
+designs), states the feed as geometry - `cone_top_diameter` and the spacing -
+and the exporter truncates the cone there. A test rebuilds the antenna from the
+spec's own dimensions and solves it live: VSWR 2 at f_low, as the table says.
+
+The survey also cost a restart: the machine hibernated mid-run and the
+28-design job had to be redone. It is recorded in tests/data so nothing needs
+re-solving to check the tables.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2446 tests, 785/785 known cases.
-The DRA family is backed end to end by `otahub/num/dra.py` (exact pole and FDTD);
-the lens family by ray tracing and Kirchhoff diffraction except the Luneburg's
-construction loss. Next candidates: the finite-gap MoM feed (HANDOVER §6) and
-the discone's conventions (§4).
+S1-S5 done. 72 archetypes, 10 families, 2469 tests, 791/791 known cases.
+Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
+zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
+Next candidates (HANDOVER §6): the biconical and conical monopole bandwidths with
+`bor`, and the slot family's fat complementary dipole past w/L = 0.05.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
