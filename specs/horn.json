@@ -664,13 +664,14 @@
         },
         {
           "metric": "hpbw_e_deg",
-          "expr": "54.0/(b1*f0/c)",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.44, np.where(b1*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.4432817) + (-0.029927334)*(1/(b1*f0/c)**2) + (0.0013194971)*(1/(b1*f0/c)**2)**2 + (-0.078895529)*(max_phase_error_wavelengths) + (0.19843387)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2) + (-0.18053404)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2)**2 + (2.8362577)*(max_phase_error_wavelengths)**2 + (-6.2620256)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2) + (5.5838119)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2)**2 + (-28.413124)*(max_phase_error_wavelengths)**3 + (69.623815)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2) + (-62.438081)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2)**2 + (148.32566)*(max_phase_error_wavelengths)**4 + (-355.32811)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2) + (315.52597)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2)**2 + (-353.67691)*(max_phase_error_wavelengths)**5 + (834.70045)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2) + (-733.77554)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2)**2 + (325.72237)*(max_phase_error_wavelengths)**6 + (-740.81574)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2) + (640.54085)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2)**2)/(b1*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "b1",
-            "f0"
+            "f0",
+            "max_phase_error_wavelengths"
           ],
-          "notes": "Indicative, and only near the optimum flare - an over-flared horn broadens and eventually splits."
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a uniform line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.23% worst on 207 patterns, 0.23% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 54 lambda/b1 this spec carried is right at the optimum flare (53.8-53.9 here) and nowhere else: 50.7 with no phase error, 63.7 at s = 0.4 (flare 1.26) - and it turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.44, where the beam has all but broken up: at s = 0.47 the half-power point jumps from 87 to 126 lambda/b1 as the main lobe splits."
         }
       ],
       "validity": [
@@ -744,6 +745,32 @@
           },
           "tol_pct": 0.2,
           "source": "the aperture form and Balanis 13-19 must agree, which is what directivity_balanis_form is there to show"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "hpbw_e_deg": 12.01805
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 4.474 wavelengths and edge phase error 0.250: 12.0181 degrees, 53.8 lambda/D. At the optimum flare the old 54 was right."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.25
+          },
+          "expect": {
+            "hpbw_e_deg": 11.15806
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 5.592 wavelengths and edge phase error 0.391: 11.1581 degrees, 62.4 lambda/D. Over-flared by a quarter: the old 54 lambda/b1 was 13% narrow."
         }
       ],
       "references": [
@@ -902,13 +929,14 @@
         },
         {
           "metric": "hpbw_h_deg",
-          "expr": "78.0/(a1*f0/c)",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.8, np.where(a1*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.59371314) + (-0.071210198)*(1/(a1*f0/c)**2) + (0.0042006186)*(1/(a1*f0/c)**2)**2 + (0.13014621)*(max_phase_error_wavelengths) + (-0.22354295)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2) + (0.021966359)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2)**2 + (-2.1034288)*(max_phase_error_wavelengths)**2 + (4.7186406)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2) + (-1.5181772)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2)**2 + (18.278612)*(max_phase_error_wavelengths)**3 + (-37.301577)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2) + (16.808954)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2)**2 + (-56.869215)*(max_phase_error_wavelengths)**4 + (122.31357)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2) + (-66.880651)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2)**2 + (82.18282)*(max_phase_error_wavelengths)**5 + (-179.6673)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2) + (110.22427)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2)**2 + (-41.597238)*(max_phase_error_wavelengths)**6 + (92.029456)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2) + (-61.209904)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2)**2)/(a1*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "a1",
-            "f0"
+            "f0",
+            "max_phase_error_wavelengths"
           ],
-          "notes": "indicative, near the optimum flare only"
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a cosine-tapered line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.27% worst on 207 patterns, 0.28% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 78 lambda/a1 this spec carried is right at the optimum (77.6-77.9 here): 68 with no phase error, 107 at t = 0.6 and 147 at the flare of 1.4 a known case below uses. It turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.8, where the fit stops; the beam keeps broadening smoothly past it."
         }
       ],
       "validity": [
@@ -969,6 +997,32 @@
           },
           "tol_pct": 0.2,
           "source": "a1 = sqrt(3*lambda*rho) puts three eighths of a wavelength at the edge, which is the H-plane optimum - looser than the E plane's quarter because the cosine taper already suppresses those edges."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 0.6
+          },
+          "expect": {
+            "hpbw_h_deg": 20.90773
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 3.287 wavelengths and edge phase error 0.135: 20.9077 degrees, 68.7 lambda/D. Under-flared: narrower than 78 lambda/a1."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "b_wg": 0.01016,
+            "rho": 0.3,
+            "flare": 1.4
+          },
+          "expect": {
+            "hpbw_h_deg": 19.06381
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 7.671 wavelengths and edge phase error 0.735: 19.0638 degrees, 146.2 lambda/D. Over-flared: nearly twice 78 lambda/a1."
         }
       ],
       "references": [
@@ -1072,23 +1126,25 @@
         },
         {
           "metric": "hpbw_e_deg",
-          "expr": "60.0/(dm*f0/c)",
+          "expr": "np.where(s_phase <= 0.55, np.where(dm*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.5148563) + (-0.047173925)*(1/(dm*f0/c)**2) + (0.0023887261)*(1/(dm*f0/c)**2)**2 + (-0.06784434)*(s_phase) + (0.18735968)*(s_phase)*(1/(dm*f0/c)**2) + (-0.17986266)*(s_phase)*(1/(dm*f0/c)**2)**2 + (1.949558)*(s_phase)**2 + (-4.7608667)*(s_phase)**2*(1/(dm*f0/c)**2) + (4.4713905)*(s_phase)**2*(1/(dm*f0/c)**2)**2 + (-15.726746)*(s_phase)**3 + (42.36336)*(s_phase)**3*(1/(dm*f0/c)**2) + (-40.117771)*(s_phase)**3*(1/(dm*f0/c)**2)**2 + (65.904262)*(s_phase)**4 + (-173.70442)*(s_phase)**4*(1/(dm*f0/c)**2) + (162.92542)*(s_phase)**4*(1/(dm*f0/c)**2)**2 + (-126.221)*(s_phase)**5 + (327.92458)*(s_phase)**5*(1/(dm*f0/c)**2) + (-304.65793)*(s_phase)**5*(1/(dm*f0/c)**2)**2 + (93.517055)*(s_phase)**6 + (-234.34035)*(s_phase)**6*(1/(dm*f0/c)**2) + (214.17508)*(s_phase)**6*(1/(dm*f0/c)**2)**2)/(dm*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "dm",
-            "f0"
+            "f0",
+            "s_phase"
           ],
-          "notes": "indicative, near the optimum flare only"
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: the circular guide TE11 field, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.20% worst on 207 patterns, 0.21% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 60 lambda/dm this spec carried is 7% narrow at the default flare (64.3) and grows fast after; it turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.55, where the E-plane beam is collapsing - 82 lambda/dm at s = 0.55, 123 at 0.60, 156 at the 0.634 of a 1.3 flare."
         },
         {
           "metric": "hpbw_h_deg",
-          "expr": "70.0/(dm*f0/c)",
+          "expr": "np.where(s_phase <= 0.72, np.where(dm*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.64956132) + (-0.097188494)*(1/(dm*f0/c)**2) + (0.0088748184)*(1/(dm*f0/c)**2)**2 + (-0.13777142)*(s_phase) + (0.39913866)*(s_phase)*(1/(dm*f0/c)**2) + (-0.40061067)*(s_phase)*(1/(dm*f0/c)**2)**2 + (2.7141904)*(s_phase)**2 + (-7.6132333)*(s_phase)**2*(1/(dm*f0/c)**2) + (7.5635576)*(s_phase)**2*(1/(dm*f0/c)**2)**2 + (-18.392856)*(s_phase)**3 + (52.033864)*(s_phase)**3*(1/(dm*f0/c)**2) + (-51.612841)*(s_phase)**3*(1/(dm*f0/c)**2)**2 + (58.1362)*(s_phase)**4 + (-161.6912)*(s_phase)**4*(1/(dm*f0/c)**2) + (159.15186)*(s_phase)**4*(1/(dm*f0/c)**2)**2 + (-84.545978)*(s_phase)**5 + (231.30846)*(s_phase)**5*(1/(dm*f0/c)**2) + (-225.78297)*(s_phase)**5*(1/(dm*f0/c)**2)**2 + (46.929329)*(s_phase)**6 + (-124.67233)*(s_phase)**6*(1/(dm*f0/c)**2) + (120.16211)*(s_phase)**6*(1/(dm*f0/c)**2)**2)/(dm*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "dm",
-            "f0"
+            "f0",
+            "s_phase"
           ],
-          "notes": "Indicative. The E and H beamwidths differ by about 10 degrees because the TE11 aperture field is tapered in one plane and not the other - which is exactly what corrugating the horn fixes."
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: the circular guide TE11 field, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.48% worst on 207 patterns, 0.49% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 70 lambda/dm this spec carried is 8% narrow at the default flare (75.9); the H plane is the WIDER of the two because the TE11 field is tapered across it, and it holds up longer as the flare grows. It turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.72, where the H-plane beam starts to collapse - 113 lambda/dm at 0.74, 157 at 0.78."
         }
       ],
       "validity": [
@@ -1147,6 +1203,54 @@
           },
           "tol_pct": 1.0,
           "source": "Over-flaring to 1.3x drives s to 0.6338 and the efficiency down to 0.21599 - less than half the optimum. A pinned efficiency cannot express this, and would have claimed the larger aperture was simply better."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "hpbw_e_deg": 11.70973
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 5.479 wavelengths and edge phase error 0.375: 11.7097 degrees, 64.2 lambda/D. The old figure was 60 lambda/dm."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "hpbw_h_deg": 13.82869
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 5.479 wavelengths and edge phase error 0.375: 13.8287 degrees, 75.8 lambda/D. The old figure was 70 lambda/dm."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 0.5
+          },
+          "expect": {
+            "hpbw_e_deg": 21.47414
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 2.740 wavelengths and edge phase error 0.094: 21.4741 degrees, 58.8 lambda/D. The old figure was 60 lambda/dm."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 0.5
+          },
+          "expect": {
+            "hpbw_h_deg": 26.87958
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 2.740 wavelengths and edge phase error 0.094: 26.8796 degrees, 73.6 lambda/D. The old figure was 70 lambda/dm."
         }
       ],
       "references": [
@@ -1264,13 +1368,14 @@
         },
         {
           "metric": "hpbw_deg",
-          "expr": "66.0/(dm*f0/c)",
+          "expr": "np.where(s_phase <= 0.8, np.where(dm*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.66151649) + (-0.10065533)*(1/(dm*f0/c)**2) + (0.0070483745)*(1/(dm*f0/c)**2)**2 + (-0.01470716)*(s_phase) + (0.060553761)*(s_phase)*(1/(dm*f0/c)**2) + (-0.046011138)*(s_phase)*(1/(dm*f0/c)**2)**2 + (0.53891042)*(s_phase)**2 + (-1.3450456)*(s_phase)**2*(1/(dm*f0/c)**2) + (0.99338358)*(s_phase)**2*(1/(dm*f0/c)**2)**2 + (-2.2727017)*(s_phase)**3 + (8.7751783)*(s_phase)**3*(1/(dm*f0/c)**2) + (-7.2151354)*(s_phase)**3*(1/(dm*f0/c)**2)**2 + (7.9665002)*(s_phase)**4 + (-28.894884)*(s_phase)**4*(1/(dm*f0/c)**2) + (24.197933)*(s_phase)**4*(1/(dm*f0/c)**2)**2 + (-12.151861)*(s_phase)**5 + (43.540928)*(s_phase)**5*(1/(dm*f0/c)**2) + (-37.187727)*(s_phase)**5*(1/(dm*f0/c)**2)**2 + (7.7653921)*(s_phase)**6 + (-25.644455)*(s_phase)**6*(1/(dm*f0/c)**2) + (21.842296)*(s_phase)**6*(1/(dm*f0/c)**2)**2)/(dm*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "dm",
-            "f0"
+            "f0",
+            "s_phase"
           ],
-          "notes": "One figure for both planes, which is the point of the design"
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: the balanced hybrid HE11 field, J0(2.405 r/a), quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.06% worst on 207 patterns, 0.07% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 66 lambda/dm this spec carried was 13% narrow even with no phase error - a J0 taper to zero at the rim gives 75.7 - and 18% narrow at the default flare (80.2). It is still one figure for both planes, which is the point of the design. It turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.8, where the fit stops at the edge of the efficiency fit's range."
         },
         {
           "metric": "cross_pol_db",
@@ -1331,6 +1436,30 @@
           },
           "tol_pct": 0.2,
           "source": "quarter-wave corrugations, 7.495 mm at 10 GHz"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "hpbw_deg": 14.61297
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 5.479 wavelengths and edge phase error 0.375: 14.6130 degrees, 80.1 lambda/D. The old figure was 66 lambda/dm."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "L": 0.3,
+            "flare": 0.6
+          },
+          "expect": {
+            "hpbw_deg": 23.03347
+          },
+          "tol_pct": 1.0,
+          "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 3.287 wavelengths and edge phase error 0.135: 23.0335 degrees, 75.7 lambda/D. The old figure was 66 lambda/dm."
         }
       ],
       "references": [

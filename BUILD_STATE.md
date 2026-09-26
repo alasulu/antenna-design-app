@@ -2348,16 +2348,54 @@ only: dielectric and conductor loss would widen every band, and surface waves
 are not counted. The quarter-wave shorted patch keeps its indicative halving:
 its shorting wall carries a vertical current this model does not have.
 
+## Horn beamwidths that let the flare vary, and beams that break up
+
+Every horn in the family quoted its beamwidth as K lambda/D with K fixed - 54 and
+78 for the E- and H-plane sectoral horns, 60 and 70 for the smooth conical horn,
+66 for the corrugated one - "indicative, near the optimum flare only", while the
+same specs take the flare as an input and compute the efficiency exactly at any
+value of it. `otahub/num/horn_pattern.py` does the beam the same way: the
+aperture field (uniform, cosine, the circular guide's TE11, the corrugated
+horn's J0 HE11) with its quadratic phase error, Huygens obliquity, a Fourier
+integral by quadrature and a root-find for the half-power point. Its E-plane
+pattern matches the closed form in Fresnel integrals, which it does not use, to
+1e-10.
+
+What it found:
+- The sectoral coefficients are right exactly where they were derived: 53.8-
+  53.9 and 77.6-77.9 at the optimum flare. Away from it they are not - 50.7 and
+  68 with no phase error, 63.7 at s = 0.4, 107 at t = 0.6 - and the H-plane horn
+  at the flare of 1.4 one of its own known cases uses has a beam nearly twice 78.
+- Over-flared E-plane horns break up: at an edge phase error of 0.47 the
+  half-power point jumps from 87 to 126 lambda/b1 as the main lobe splits, for
+  every aperture size tried. The smooth conical horn's E plane collapses the
+  same way past s = 0.55 - at the 1.3 flare one of its known cases uses it is
+  156 lambda/dm against the 60 quoted. Past those points the spec now returns
+  NaN rather than a number.
+- The conical coefficients were 7-8% narrow at the default flare (64.3 and
+  75.9, E narrower than H as the note said), and the corrugated horn's 66 was
+  wrong at any flare: a J0 field tapering to zero at the rim gives 75.7 with no
+  phase error at all and 80.2 at the default. The one figure for both planes
+  survives; its value did not.
+
+Each plane is fitted as the half-power point U = D sin(theta_h) in phase error
+and 1/D^2, so HPBW = 2 asin(U/D) keeps the sine mapping exact for small
+apertures - 21 terms, 0.5% over 1.5 to 40 wavelengths. The pyramidal horn,
+designed at the optimum by construction, keeps its 54.1 and 78.1: aperture
+integration with obliquity agrees to 0.5%.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2530 tests, 818/818 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2561 tests, 828/828 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
-solved radiation Q. Next candidates, from the remaining "indicative" metrics: the
-resonant slot array's 1/N bandwidth, the quarter-wave shorted patch's halving,
-and the sectoral and conical horn beamwidths.
+solved radiation Q; horn beamwidths from aperture integration. Next candidates,
+from the remaining "indicative" metrics: the resonant slot array's 1/N bandwidth
+(needs a stated slot width for its element Q), the quarter-wave shorted patch's
+halving (needs the shorting wall's vertical current), and the diagonal and
+dual-mode horns' fixed beamwidths.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
