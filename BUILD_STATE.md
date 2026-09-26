@@ -2305,15 +2305,59 @@ w/L = 0.2 the complementary dipole spans +-2-4% and 74-96 ohm, a 370-480 ohm slo
 What stays unchecked is the strip-to-tube equivalence a = w/4 itself for wide
 strips; that needs a strip solver the toolkit does not have.
 
+## Patch bandwidths from a solved Q, and an air patch that had none
+
+Three patch shapes carried the same bandwidth: 3.771 (eps_r - 1)/eps_r^2 x
+(h/lambda0)(W/L). It is Jackson and Alexopoulos's, simplified twice - their
+substrate factor c1 = 1 - 1/eps_r + 2/(5 eps_r^2) cut to 1 - 1/eps_r, their
+pattern factor p set to 1 - and the circular and triangular patches borrowed it
+with W/L = 1, marked "indicative for this shape". The corner-truncated CP patch
+took its Q0 from it, and Q0 sets how big the corners are cut.
+
+`otahub/num/patch_q.py` computes the radiation Q directly: the stored energy of
+each shape's own cavity mode against the space wave of the patch's surface
+current lying on its grounded substrate, through the transverse-equivalent-
+network slab factors - the physics Jackson's formula was derived from, before
+its thin-substrate expansion. Two checks that share nothing with it: a
+vanishing patch on a thin substrate reproduces Jackson's c1 to 0.02%, and on
+air its broadside directivity reproduces the cavity model's edge-current
+integrals - an electric surface current against magnetic edge currents - to
+0.06% for the disc and 0.003% for the triangle. Against Jackson's full formula
+it runs 3-10% high, most of it in p, whose Taylor series overstates the pattern
+factor of an electrically large (low-permittivity) patch; the rest is substrate
+thickness, which the thin-substrate c1 leaves out.
+
+What the solved Q says about the formulas:
+- The simplified formula gives an AIR patch zero bandwidth, through its
+  (eps_r - 1) factor - the wideband case. It reads 5-45% low at eps_r 1.25-1.5
+  and 0-33% high from 2 upward on the rectangle.
+- The disc was lucky: within 13% from eps_r 2 to 12, but 27-51% low at 1.25-1.5
+  and zero on air.
+- The triangle was 40-64% too broad from eps_r 2 up. It stores more energy for
+  each watt it radiates than the square it was borrowed from.
+- The CP patch's Q0 was 5-11% low (62.3 against 59.0 on the 2.4 GHz design), so
+  every corner cut was 2.5-5.5% too large. The cut follows the solved Q now;
+  its cavity-model test needed its meshes re-matched to the smaller cut, and the
+  design is still circular at f0 on them.
+
+All four are fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and
+h sqrt(eps_r)/lambda0 - Jackson's thin-substrate law carries the bulk, so twelve
+terms reach 0.6% (0.25% held out) - over eps_r 1-12, h/lambda0 0.003-0.05 and
+h sqrt(eps_r)/lambda0 up to 0.1, where the cavity model still holds. Radiation
+only: dielectric and conductor loss would widen every band, and surface waves
+are not counted. The quarter-wave shorted patch keeps its indicative halving:
+its shorting wall carries a vertical current this model does not have.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2495 tests, 800/800 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2530 tests, 818/818 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
-fat dipoles to 0.025 wavelengths with a finite gap. Next candidates, from the
-remaining "indicative" metrics: the circular and triangular patch bandwidths
-(the rectangular patch's formula borrowed), and the resonant slot array's 1/N.
+fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
+solved radiation Q. Next candidates, from the remaining "indicative" metrics: the
+resonant slot array's 1/N bandwidth, the quarter-wave shorted patch's halving,
+and the sectoral and conical horn beamwidths.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

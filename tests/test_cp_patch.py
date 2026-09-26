@@ -154,8 +154,9 @@ def test_the_spec_cuts_what_the_cavity_model_makes_circular(n, m, cp):
 def test_the_design_is_circular_at_f0_and_the_old_one_was_not(cp):
     d = cp.synthesize(**GIVEN)
     q, f_sq = d.get("Q0"), d.get("f_sq")
-    new = _cavity(300, 28)                 # c/L 0.09333 against the spec's 0.09328
+    # meshes re-matched when Q0 became the solved radiation Q (62.3, was 59.0):
+    new = _cavity(330, 30)                 # c/L 0.09091 against the spec's 0.09078
     assert new.axial_ratio_db(new.k_square * GIVEN["f0"] / f_sq, q, CENTRELINE) < 0.1
-    old = _cavity(250, 23)                 # the classic cut, c/L = sqrt(1/(2Q)) = 0.0920
-    assert d.get("u_cp") == pytest.approx(23 / 250, rel=1e-3)
+    old = _cavity(279, 25)                 # the classic cut, c/L = sqrt(1/(2Q)) = 0.0896
+    assert d.get("u_cp") == pytest.approx(25 / 279, rel=1e-3)
     assert old.axial_ratio_db(old.k_square, q, CENTRELINE) > 7.0   # square tuned to f0
