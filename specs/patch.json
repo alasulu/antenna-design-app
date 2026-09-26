@@ -159,6 +159,29 @@
           ]
         },
         {
+          "metric": "full_wave_resonance_hz",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, f0*exp((-0.4567085)*(h*f0*sqrt(eps_r)/c) + (-6.636903)*(h*f0*sqrt(eps_r)/c)**2 + (52.89918)*(h*f0*sqrt(eps_r)/c)**3 + (-3.797246)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.06636)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-408.9057)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.553096)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-9.189785)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (676.3118)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-1.712839)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (54.92704)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1178.594)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "eps_r",
+            "h"
+          ],
+          "notes": "Where the patch this spec designs actually resonates, full-wave: otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
+        },
+        {
+          "metric": "L_full_wave_m",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The length that DOES resonate at f0 full-wave, width held (0.21% worst on 68 full-wave solutions, 0.12% on 8 held out): 0.55-8.8% shorter than L. L itself stays the textbook transmission-line design, which is what the worked examples below reproduce; build this one."
+        },
+        {
           "metric": "W_over_h",
           "expr": "W/h",
           "units_out": "-",
@@ -179,14 +202,14 @@
         },
         {
           "metric": "radiation_q",
-          "expr": "exp((-2.017636) + (3.446245)*(h*f0*sqrt(eps_r)/c) + (-38.43522)*(h*f0*sqrt(eps_r)/c)**2 + (1.023612)*(1/eps_r) + (1.510623)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (98.16504)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.6771756)*(1/eps_r)**2 + (-10.19748)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-152.71)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (0.2318826)*(1/eps_r)**3 + (4.982745)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (108.4175)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c))",
+          "expr": "exp((-2.035715) + (-3.475945)*(h*f0*sqrt(eps_r)/c) + (7.844638)*(h*f0*sqrt(eps_r)/c)**2 + (0.9420372)*(1/eps_r) + (22.74868)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (28.14482)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.4038507)*(1/eps_r)**2 + (-64.08534)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-323.6588)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (0.009411181)*(1/eps_r)**3 + (53.42779)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (695.4192)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (0.03925208)*(1/eps_r)**4 + (-12.06823)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-401.3338)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c))",
           "units_out": "-",
           "depends_on": [
             "eps_r",
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.57% worst on 201 solved designs, 0.25% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%."
+          "notes": "Radiation Q of the patch resonant at f0, FULL-WAVE: otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.91% worst on 68 full-wave solutions, 0.37% on 8 held out). The cavity current radiated through the slab (otahub.num.patch_q), which this spec used, runs 1.6-28% HIGH - least on thin board, most on thick - so every bandwidth it gave was that much too narrow. Surface waves are not in this Q; see surface_wave_efficiency."
         },
         {
           "metric": "directivity_thin_substrate_linear",
@@ -219,7 +242,7 @@
             "h",
             "f0"
           ],
-          "notes": "SOLVED: the thin-substrate directivity times the substrate factor; NaN past h sqrt(eps_r)/lambda0 = 0.1, where the cavity model stops. Checked full-wave: otahub.num.patch_sdm, a spectral-domain method of moments that solves for the patch current instead of assuming it, puts the rectangular patch's broadside directivity within 0.3-0.9%% of this on air, eps_r 2.2, FR-4 and eps_r 10.2. It replaces the two-slot formula 2 D1/(1 + G12/G1), which was 7.5% low on eps_r 2.2 and FR-4, 10% on air and 13% on eps_r 10.2 against the full-wave solution: it left out the non-radiating edges and the substrate."
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor; NaN past h sqrt(eps_r)/lambda0 = 0.1, where the cavity model stops. Checked full-wave: otahub.num.patch_sdm, a spectral-domain method of moments that solves for the patch current instead of assuming it, puts the rectangular patch's broadside directivity within 0.3-0.9%% of this on air, eps_r 2.2, FR-4 and eps_r 10.2. It replaces the two-slot formula 2 D1/(1 + G12/G1), which was 7.5% low on eps_r 2.2 and FR-4, 10% on air and 13% on eps_r 10.2 against the full-wave solution: it left out the non-radiating edges and the substrate. At the full-wave-resonant design the full-wave directivity is within 0.02-2.5% of this, the largest difference on thick air board."
         },
         {
           "metric": "directivity_dbi",
@@ -236,7 +259,28 @@
           "depends_on": [
             "radiation_q"
           ],
-          "notes": "VSWR-2 bandwidth from the solved radiation Q, lossless. The closed form this replaces, 3.771 (eps_r-1)/eps_r^2 (h/lambda0)(W/L), is Jackson and Alexopoulos's with two simplifications: their substrate factor c1 cut to 1 - 1/eps_r, and their pattern factor p set to 1. The first gives an AIR patch zero bandwidth - the wideband case - and reads 5-45% low at eps_r 1.25-1.5; the second makes it 0-33% high from eps_r 2 upward. Dielectric and conductor loss would widen it further."
+          "notes": "VSWR-2 bandwidth from the full-wave radiation Q: radiation only, lossless, surface waves not counted (fractional_bandwidth_vswr2_with_surface_waves counts them)."
+        },
+        {
+          "metric": "surface_wave_efficiency",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-2.137477)*(h*f0*sqrt(eps_r)/c) + (-0.1850764)*(h*f0*sqrt(eps_r)/c)**2 + (-11.72706)*(h*f0*sqrt(eps_r)/c)**3 + (-24.50238)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (39.69858)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-1067.866)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (104.4637)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-415.022)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (9532.173)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-156.2265)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (1360.401)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-27421.76)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3 + (110.4981)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-1745.835)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2 + (32178.61)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**3 + (-32.111)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c) + (762.0327)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**2 + (-13226.16)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "Space-wave power over space plus surface-wave power, full-wave, for the patch resonant at f0 (0.11% worst on 68 full-wave solutions, 0.13% on 8 held out). It agrees with Jackson and Alexopoulos's thin-substrate closed form for a horizontal dipole to 0.0-0.5% on thin board, and falls below it as the board thickens - 7.5% below at eps_r 10.2, h = 0.03 lambda0. Exactly 1 on air; 0.66 at eps_r 6, h = 0.04 lambda0."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2_with_surface_waves",
+          "expr": "(2-1)/(radiation_q*surface_wave_efficiency*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_q",
+            "surface_wave_efficiency"
+          ],
+          "notes": "VSWR-2 bandwidth with the surface wave counted as the loss it is to the feed: the total Q is the radiation Q times the surface-wave efficiency. Still no dielectric or conductor loss."
         },
         {
           "metric": "quality_factor_dielectric",
@@ -259,10 +303,10 @@
       "validity": [
         "W/h > 1 for the eps_reff expression",
         "h < 0.05*lambda0; thicker substrates need a probe-inductance correction",
-        "transmission-line model ignores surface waves and mutual edge coupling; expect 1-3% error in f0 and more on high-permittivity substrates",
         "single-layer, isotropic, non-magnetic substrate",
-        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice",
-        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted"
+        "L is the textbook transmission-line design; full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz) - build L_full_wave_m",
+        "full-wave figures are fitted over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and are NaN outside the last; lossless, infinite ground and substrate",
+        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%"
       ],
       "known_cases": [
         {
@@ -330,45 +374,6 @@
         },
         {
           "given": {
-            "f0": 2400000000.0,
-            "eps_r": 4.4,
-            "h": 0.0016
-          },
-          "expect": {
-            "radiation_q": 75.834,
-            "fractional_bandwidth_vswr2": 0.0093244
-          },
-          "tol_pct": 0.8,
-          "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 75.834, so a VSWR-2 bandwidth of 0.932%. The formula this spec used gave 1.096%."
-        },
-        {
-          "given": {
-            "f0": 10000000000.0,
-            "eps_r": 2.2,
-            "h": 0.000787
-          },
-          "expect": {
-            "radiation_q": 26.9772,
-            "fractional_bandwidth_vswr2": 0.0262112
-          },
-          "tol_pct": 0.8,
-          "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 26.977, so a VSWR-2 bandwidth of 2.621%. The formula this spec used gave 3.013%."
-        },
-        {
-          "given": {
-            "f0": 2400000000.0,
-            "eps_r": 1.0,
-            "h": 0.005
-          },
-          "expect": {
-            "radiation_q": 14.9957,
-            "fractional_bandwidth_vswr2": 0.047154
-          },
-          "tol_pct": 0.8,
-          "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 14.996, so a VSWR-2 bandwidth of 4.715%. The formula this spec used gave 0.000% - zero, for an air patch."
-        },
-        {
-          "given": {
             "f0": 10000000000.0,
             "eps_r": 3.0,
             "h": 1e-06
@@ -378,6 +383,70 @@
           },
           "tol_pct": 0.3,
           "source": "otahub.num.patch_q solved directly on a board 3.3e-05 wavelengths thick - the thin limit the fit describes: 4.80795."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "full_wave_resonance_hz": 2331815081.0,
+            "L_full_wave_m": 0.028521125,
+            "radiation_q": 66.893,
+            "surface_wave_efficiency": 0.90093,
+            "fractional_bandwidth_vswr2": 0.0105708
+          },
+          "tol_pct": 1.0,
+          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 29.422 mm resonates at 2.3318 GHz (2.84% low); 28.521 mm resonates at f0, where the radiation Q is 66.89, total Q 60.27 and the surface-wave efficiency 0.9009. The cavity-current Q this case used to expect was 75.83."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.000787
+          },
+          "expect": {
+            "full_wave_resonance_hz": 9602167553.0,
+            "L_full_wave_m": 0.009227151,
+            "radiation_q": 22.994,
+            "surface_wave_efficiency": 0.91605,
+            "fractional_bandwidth_vswr2": 0.0307512
+          },
+          "tol_pct": 1.0,
+          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 9.653 mm resonates at 9.6022 GHz (3.98% low); 9.227 mm resonates at f0, where the radiation Q is 22.99, total Q 21.06 and the surface-wave efficiency 0.9160. The cavity-current Q this case used to expect was 26.98."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 1.0,
+            "h": 0.005
+          },
+          "expect": {
+            "full_wave_resonance_hz": 2315550008.0,
+            "L_full_wave_m": 0.0533442,
+            "radiation_q": 12.917,
+            "surface_wave_efficiency": 1.0,
+            "fractional_bandwidth_vswr2": 0.054744
+          },
+          "tol_pct": 1.0,
+          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 55.530 mm resonates at 2.3156 GHz (3.52% low); 53.344 mm resonates at f0, where the radiation Q is 12.92, total Q 12.92 and the surface-wave efficiency 1.0000. The cavity-current Q this case used to expect was 15.00."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "full_wave_resonance_hz": 5467684315.0,
+            "L_full_wave_m": 0.007238595,
+            "radiation_q": 59.75,
+            "surface_wave_efficiency": 0.73621,
+            "fractional_bandwidth_vswr2": 0.0118345
+          },
+          "tol_pct": 1.0,
+          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 7.774 mm resonates at 5.4677 GHz (5.73% low); 7.239 mm resonates at f0, where the radiation Q is 59.75, total Q 43.99 and the surface-wave efficiency 0.7362. The cavity-current Q this case used to expect was nan."
         }
       ],
       "references": [
@@ -604,6 +673,29 @@
           ]
         },
         {
+          "metric": "full_wave_resonance_hz",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, f0*exp((-0.4567085)*(h*f0*sqrt(eps_r)/c) + (-6.636903)*(h*f0*sqrt(eps_r)/c)**2 + (52.89918)*(h*f0*sqrt(eps_r)/c)**3 + (-3.797246)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.06636)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-408.9057)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.553096)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-9.189785)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (676.3118)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-1.712839)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (54.92704)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1178.594)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "Hz",
+          "depends_on": [
+            "f0",
+            "eps_r",
+            "h"
+          ],
+          "notes": "Where the patch this spec designs actually resonates, full-wave: otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
+        },
+        {
+          "metric": "L_full_wave_m",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "L",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The length that DOES resonate at f0 full-wave, width held (0.21% worst on 68 full-wave solutions, 0.12% on 8 held out): 0.55-8.8% shorter than L. L itself stays the textbook transmission-line design, which is what the worked examples below reproduce; build this one."
+        },
+        {
           "metric": "self_conductance_S",
           "expr": "G1",
           "units_out": "S",
@@ -689,7 +781,9 @@
         "the G12 fit is valid over k0*L in [0.8, 3.3] and k0*W in [1.15, 3.25]. The design formulas keep any patch on eps_r between 1 and 12 inside that, but a hand-entered W or L outside it will make the 5th-order polynomial diverge rather than degrade",
         "W/h > 1, h < 0.05*lambda0",
         "transmission-line model throughout: it ignores surface waves, the feed probe's inductance, and any finite ground plane",
-        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
+        "L is the textbook transmission-line design; full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz) - build L_full_wave_m",
+        "full-wave figures are fitted over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and are NaN outside the last; lossless, infinite ground and substrate",
+        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%"
       ],
       "known_cases": [
         {
@@ -781,6 +875,19 @@
           },
           "tol_pct": 0.5,
           "source": "otahub.num.patch_q solved directly for this outline (the inset notch not modelled): 4.02474."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "full_wave_resonance_hz": 2331815081.0,
+            "L_full_wave_m": 0.028521125
+          },
+          "tol_pct": 0.5,
+          "source": "Solved directly by otahub.num.patch_sdm for this outline, the inset notch not modelled: see rectangular_patch."
         }
       ],
       "references": [
@@ -1018,7 +1125,7 @@
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound."
         },
         {
           "metric": "probe_radius_m",
@@ -1041,10 +1148,11 @@
       ],
       "validity": [
         "TM110 dominant mode, cavity model: thin substrate, magnetic side wall, no surface waves and no probe inductance",
-        "the directivity fit covers k0*a_e in [0.45, 1.90], which is eps_r from about 1 to 17",
+        "the thin-substrate directivity fit covers k0*a_e in [0.45, 1.90], which is eps_r from about 1 to 17",
         "broadside is the pattern peak throughout that range, checked; it would not be for a much larger k0*a_e",
         "radiation_conductance_S and the resistances derived from it are NOT validated against a published worked example - only the derivation is. The directivity and the feed-position ratio are, and those are the numbers to lean on",
-        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted"
+        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
+        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter"
       ],
       "known_cases": [
         {
@@ -1508,7 +1616,7 @@
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the quarter-wave cavity mode psi = sin(pi x/2L) against the space wave of its currents on the grounded substrate - the patch's surface current AND the vertical current the shorting wall carries to the ground, which radiates TM only, through a slab factor checked against a direct plane-wave boundary-value solve to 1e-8. Without the wall current the Q comes out 3.4 times too high on air. On air the whole thing reproduces the cavity model's magnetic currents on the three open walls, computed independently, to 0.004%. Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, as the other patches are, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.39% worst on 154 solved designs, 0.23% on 10 held out. Surface waves are not counted."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the quarter-wave cavity mode psi = sin(pi x/2L) against the space wave of its currents on the grounded substrate - the patch's surface current AND the vertical current the shorting wall carries to the ground, which radiates TM only, through a slab factor checked against a direct plane-wave boundary-value solve to 1e-8. Without the wall current the Q comes out 3.4 times too high on air. On air the whole thing reproduces the cavity model's magnetic currents on the three open walls, computed independently, to 0.004%. Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, as the other patches are, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.39% worst on 154 solved designs, 0.23% on 10 held out. Surface waves are not counted. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -1528,7 +1636,7 @@
             "h",
             "f0"
           ],
-          "notes": "The unshorted rectangular patch's solved radiation Q on the same board, the same expression that spec uses."
+          "notes": "The unshorted rectangular patch's radiation Q on the same board from the SAME cavity-current model this spec's own Q uses, so the ratio below compares like with like. The rectangular spec itself now carries a full-wave Q, 1.6-28% below this."
         },
         {
           "metric": "bandwidth_relative_to_full_patch",
@@ -1923,7 +2031,7 @@
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -1939,9 +2047,10 @@
         "h << lambda0; the cavity model assumes a single z-directed field with magnetic side walls",
         "the a_eff = a + h/sqrt(eps_r) correction is the common first-order one and loses accuracy on thick or low-permittivity substrates",
         "feed placement along a median sets the impedance and is not solved here",
-        "the directivity fit covers k0*a_eff 0.90 to 4.25, i.e. eps_r about 1 to 21; below that range it still tends to the correct limit of 3, above it the polynomial diverges",
+        "the thin-substrate directivity fit covers k0*a_eff 0.90 to 4.25, i.e. eps_r about 1 to 21; below that range it still tends to the correct limit of 3, above it the polynomial diverges",
         "directivity is the lossless cavity-model value on an infinite ground plane: no conductor or dielectric loss, no surface-wave power, no finite-ground diffraction",
-        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted"
+        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
+        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter"
       ],
       "known_cases": [
         {
@@ -2490,7 +2599,7 @@
             "h",
             "f0"
           ],
-          "notes": "One mode's VSWR-2 band, 1/(sqrt(2) Q) with Q the solved radiation Q of a square patch resonant at f0 - Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.51% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. The simplified Jackson formula it replaces put Q0 5-11% low on the designs below, which made every truncation 2.5-5.5% too large."
+          "notes": "One mode's VSWR-2 band, 1/(sqrt(2) Q) with Q the solved radiation Q of a square patch resonant at f0 - Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.51% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. The simplified Jackson formula it replaces put Q0 5-11% low on the designs below, which made every truncation 2.5-5.5% too large. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound. The corner cut follows Q0, so on thick board it is likely too small."
         },
         {
           "output": "Q0",
@@ -2713,7 +2822,7 @@
         "Q0 comes from a thin-substrate RADIATION bandwidth; conductor and dielectric loss lower the true Q, which needs a BIGGER cut and moves the CP centre. Supply Q0 from a measurement or a full-wave solve to redesign for it",
         "single-feed CP is narrowband in axial ratio: 0.35/Q, 0.6% at Q = 59 and a few tenths of a percent on thin high-permittivity substrates",
         "axial ratio degrades rapidly off boresight and off frequency; only the on-axis values are claimed",
-        "directivity is the two-slot model's, which ignores surface waves and any finite ground plane; both reduce it in practice"
+        "directivity is the cavity current radiated through the slab, checked full-wave on the rectangular patch to 2.5%"
       ],
       "known_cases": [
         {

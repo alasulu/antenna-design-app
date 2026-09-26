@@ -2524,21 +2524,68 @@ puts the Hammerstad-length patch 1-2% low in frequency on thin board and about
 and 10.2 - but at eps_r 10.2 those move 1.7% and 14% across bases, too much to
 redesign on.
 
+
+## The textbook patch resonates low: 0.5-7%, the 2.4 GHz FR-4 patch at 2.33 GHz
+
+Last round's spectral MoM settled directivity but left resonance and Q open:
+they moved 1.7% and 14% with the basis. The cause was the basis. Sines along the
+current vanish linearly at the open ends; the real current vanishes as the
+square root of the distance. With U_n sqrt(1-t^2) along the current (closed-form
+spectra in Bessel functions) the resonance moves 1e-4 from the default basis to
+the next. The solver was also made about thirteen times faster: one quadrant by
+symmetry, the two truncations sharing their common range, a secant search in
+place of a frequency scan.
+
+Then it was checked against something that shares nothing with it but the
+geometry. `otahub/num/patch_fdtd.py` rings the patch down in `dra`'s Yee grid - a
+PEC sheet on a slab running into the CPML - at three cell sizes of an exactly
+representable geometry, extrapolated at the first order the sheet edge gives
+(successive differences in ratio 2.03 and 2.04). On a thick eps_r 10.2 patch:
+FDTD 0.95854 f0 and total Q 46.90, the MoM 0.95866 and 46.80. On FR-4: 0.99121
+and 60.77 against 0.99141 and 60.86. The sine basis had put the first at
+0.951-0.986.
+
+What the full-wave solver found on the rectangular spec's own designs (68, and
+8 held out, over eps_r 1-12 and h/lambda0 0.003-0.05):
+- The transmission-line design with Hammerstad's fringing extension resonates
+  LOW: 0.54-0.96% on the thinnest boards, 2.2-2.8% at h = 0.01 lambda0, up to 7%
+  on thick high-permittivity board. The classic 2.4 GHz FR-4 patch (L = 29.42 mm)
+  resonates at 2.332 GHz; 28.52 mm resonates at 2.4. The spec's validity allowed
+  "1-3%".
+- The cavity-current radiation Q (`patch_q`), which the bandwidths came from,
+  runs 1.6-28% HIGH - least on thin board, most on thick - so every rectangular
+  bandwidth was that much too narrow.
+- The surface-wave efficiency matches Jackson and Alexopoulos's thin-slab closed
+  form to 0.0-0.5% on thin board and falls 7.5% below it at eps_r 10.2,
+  h = 0.03 lambda0; 0.66 at eps_r 6, h = 0.04 lambda0.
+- Directivity at the full-wave-resonant design is within 0.02-2.5% of the
+  cavity-current value the specs carry.
+
+`rectangular_patch` keeps L as the textbook design (Balanis's worked example
+still reproduces) and now reports full_wave_resonance_hz, L_full_wave_m (the one
+to build), a full-wave radiation_q, surface_wave_efficiency and a bandwidth that
+counts the surface wave; the inset patch carries the two geometric ones. Fits:
+0.20%, 0.21%, 0.9% and 0.11% (0.13%, 0.12%, 0.37%, 0.13% held out). The circular,
+triangular and shorted patches' cavity-current Q, and the CP patch's Q0 and so
+its corner cut, are now labelled as not checked full-wave. HANDOVER section 6
+item 13 lists what building L_full_wave_m would take.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2653 tests, 881/881 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2661 tests, 897/897 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
-printed patches on a grounded slab (`patch_sdm`, full-wave).
+printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
 solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
 and the two-mode horns' efficiency and cross-polar levels, from aperture
-integration; patch directivity from the cavity current through the slab,
-checked full-wave. Next candidates: patch resonance and Q full-wave (HANDOVER
-section 6 item 13 - needs a better-converged basis), the resonant slot array's
-1/N bandwidth (needs a stated slot width for its element Q), and the Potter
-horn's step (needs mode matching to turn its TM11 fraction into a result).
+integration; patch directivity from the cavity current through the slab, and
+the rectangular patch's resonance, Q and surface waves full-wave. Next
+candidates: build the full-wave patch length and carry it through the family
+(HANDOVER section 6 item 13), the resonant slot array's 1/N bandwidth (needs a
+stated slot width for its element Q), and the Potter horn's step (needs mode
+matching to turn its TM11 fraction into a result).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

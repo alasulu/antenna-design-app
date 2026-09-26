@@ -44,7 +44,7 @@ def test_on_air_the_space_wave_is_the_edge_current_pattern(registry, key, geom, 
 
 @pytest.mark.slow
 @pytest.mark.parametrize("key,geom", [
-    ("rectangular_patch", lambda d: pq.rectangle(d.get("L") + 2 * d.get("dL"), d.get("W"))),
+    # the rectangular patch's Q is full-wave now: see test_patch_sdm
     ("circular_patch", lambda d: pq.disc(d.get("a_eff"))),
     ("triangular_patch", lambda d: pq.triangle(d.get("a_eff")))])
 @pytest.mark.parametrize("f0,eps_r,h", [(3.1e9, 1.7, 0.004), (6.2e9, 3.66, 0.000508), (1.2e9, 9.8, 0.00254)])
