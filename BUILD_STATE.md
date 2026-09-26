@@ -2279,14 +2279,41 @@ theta_h, drawing cones half as wide as the design. The spec was fixed several
 rounds ago; the builder was not, and nothing tested the angle it drew. It is
 fixed, with a test on the flare.
 
+## Fat dipoles: where the feed takes over
+
+HANDOVER item 9 asked for a finite-gap feed so the slot family could be checked
+past w/L = 0.05, where the complementary wire (a = w/4) is too fat for a delta
+gap. `otahub/num/bor.py` already has one: a straight conductor is a body of
+revolution, a solid tube with a gap of physical length. So the check was run
+there - tube dipoles of radius 0.002 to 0.025 wavelengths, each with gaps of
+a/2, a, 2a and 4a - and the useful result is the spread, not a number.
+
+Past a = 0.005 wavelengths the resonance belongs to the feed as much as to the
+wire. The resonant length moves +-0.3% across those gaps at a = 0.005, +-0.9% at
+0.01 and +-2-4% at 0.015-0.025; the resistance at resonance spans 72-74, 73-78
+and 74-96 ohm. At a = 0.025 with a gap of a/2 the reactance tops out at -6 ohm:
+the gap capacitance wins and there is no resonance at any length. A delta gap is
+the limit of shrinking that gap, which is why it never converged.
+
+`resonant_dipole`'s length law lies inside the spread at every radius tested, out
+to 0.025 wavelengths - better than its own validity claimed. Its resistance law,
+fitted to delta-gap solutions, sits at the small-gap end of the spread, 2-4%
+above the finite gaps at 0.005. The slot family now says what that means for it:
+checked to within the feed's +-0.9% up to w/L of about 0.09, and past that its
+resonant length and resistance mean something only with the feed modelled - at
+w/L = 0.2 the complementary dipole spans +-2-4% and 74-96 ohm, a 370-480 ohm slot.
+What stays unchecked is the strip-to-tube equivalence a = w/4 itself for wide
+strips; that needs a strip solver the toolkit does not have.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2485 tests, 800/800 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2495 tests, 800/800 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
-The cone family (discone, biconical, conical monopole) is solved end to end.
-Next candidate (HANDOVER §6 item 9): the slot family's fat complementary dipole
-past w/L = 0.05, which `bor` can now solve as a tube with a finite gap.
+The cone family (discone, biconical, conical monopole) is solved end to end, and
+fat dipoles to 0.025 wavelengths with a finite gap. Next candidates, from the
+remaining "indicative" metrics: the circular and triangular patch bandwidths
+(the rectangular patch's formula borrowed), and the resonant slot array's 1/N.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

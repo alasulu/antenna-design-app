@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-16,842 lines of Python, 22,665 lines of spec data, 2485 tests, 800/800 citable
+16,914 lines of Python, 22,666 lines of spec data, 2495 tests, 800/800 citable
 known cases passing.**
 
 ---
@@ -645,15 +645,16 @@ known case only checks what it asserts.
    by fits to 48 ringdowns, kept as a reported comparison. The DRA family has
    no curve-fit physics left in it.
 
-9. **A finite-gap feed for the MoM.** The delta gap on a wire fatter than
-   about 0.01 lambda has no converged answer with either kernel - its
-   capacitance diverges as the mesh refines. That is what now caps the slot
-   family at w/L = 0.05 and the fat-dipole checks at a = 0.006 lambda. For
-   straight fat conductors this is now within reach another way:
-   `otahub/num/bor.py` solves a tube as a surface with a finite gap, and agrees
-   with the wire code's exact kernel on thin ones. Checking the slot family's
-   complementary dipole out to w/L = 0.2 with it - a strip is not a tube, so the
-   a = w/4 equivalence has to be checked too - is the natural next use.
+9. ~~**A finite-gap feed for the MoM.**~~ - answered with `otahub/num/bor.py`
+   instead: a straight conductor solved as a solid tube with a gap of physical
+   length. The answer is that past a = 0.005 wavelengths the resonance belongs
+   to the feed as much as the wire - gaps of a/2 to 4a spread the resonant length
+   +-0.3% at 0.005, +-0.9% at 0.01, +-2-4% at 0.015-0.025 wavelengths, and at
+   0.025 a gap of a/2 leaves no resonance at all. `resonant_dipole`'s length law
+   lies inside that spread throughout; the slot family is now checked to w/L of
+   about 0.09 and says plainly that past it L and R need a feed model. The wire
+   MoM itself still has only the delta gap. What remains unchecked is the strip
+   to tube equivalence a = w/4 for WIDE strips, which needs a strip solver.
 10. ~~**`conical_monopole` and `biconical` bandwidths**~~ - done with
    `otahub/num/bor.py`. Matched to its own Zc a bicone holds a decade from 10 to
    65 degrees; a conical monopole in 50 ohm only from 30 to 55. The biconical

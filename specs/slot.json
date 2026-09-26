@@ -273,7 +273,7 @@
         "quoted Z assumes the feed is at the slot CENTRE. Feeding off-centre multiplies the impedance by cos^2(pi*x/L) (see cavity_backed_slot)",
         "wall thickness t must satisfy t << w, otherwise the slot behaves as a short length of below-cutoff waveguide and its resonant length grows",
         "the 78 deg / omnidirectional beamwidths apply to a lambda/2 slot; longer slots break up into multiple lobes exactly as a long dipole does",
-        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0). Wider slots are extrapolation: their complementary wire is too fat for a delta-gap feed to be solved honestly here, and the reduced-kernel Hallen solution already drifts at 0.05 under a fine mesh"
+        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0) and, as a solid tube with a finite feed gap (otahub.num.bor), to within the feed's own +-0.9% up to w/L of about 0.09 (a = 0.01 lambda0). Past that the complementary dipole's resonance depends on its feed as much as on its width - +-2-4% in length and 74-96 ohm (a 370-480 ohm slot) at w/L = 0.2 across gaps of a/2 to 4a - so a wide slot's L and R mean something only with its feed modelled"
       ],
       "known_cases": [
         {
@@ -1354,7 +1354,7 @@
         "the N^2 law assumes equal slot widths and close spacing, exactly as the folded dipole's does",
         "Rd_res is derived from the slot width through the complementary dipole and can be supplied to override; it moves every impedance here",
         "substrate loading shortens the resonant length, which this free-space form does not model",
-        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0). Wider slots are extrapolation: their complementary wire is too fat for a delta-gap feed to be solved honestly here, and the reduced-kernel Hallen solution already drifts at 0.05 under a fine mesh"
+        "the resonant length and resistance come from the complementary dipole's laws, confirmed against two independent solvers up to w/L = 0.05 (a = 0.0058 lambda0) and, as a solid tube with a finite feed gap (otahub.num.bor), to within the feed's own +-0.9% up to w/L of about 0.09 (a = 0.01 lambda0). Past that the complementary dipole's resonance depends on its feed as much as on its width - +-2-4% in length and 74-96 ohm (a 370-480 ohm slot) at w/L = 0.2 across gaps of a/2 to 4a - so a wide slot's L and R mean something only with its feed modelled"
       ],
       "known_cases": [
         {

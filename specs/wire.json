@@ -382,7 +382,7 @@
             "t",
             "f0"
           ],
-          "notes": "Quadratic fit to the exact zero of Balanis 4-79, computed over a/lambda = 1e-5..1e-2 (L/d = 50 to 50000). Max error 0.42% of a wavelength across that range. Outside it, solve X(L) = 0 directly."
+          "notes": "Quadratic fit to the exact zero of Balanis 4-79, computed over a/lambda = 1e-5..1e-2 (L/d = 50 to 50000). Max error 0.42% of a wavelength across that range. Outside it, solve X(L) = 0 directly. Checked as a solid tube with a finite gap out to 0.025 wavelengths: inside the spread the feed itself causes, which grows from +-0.3% at 0.005 to +-3% at 0.025."
         }
       ],
       "analysis": [
@@ -475,7 +475,8 @@
         "thin-wire theory: no insulation, no end capacitance from hardware",
         "free space; height above ground shifts resonance by more than this correction",
         "input_resistance_ohm, bandwidth, Q and directivity are full-wave values for a delta-gap-fed wire in free space; radiation_resistance_ohm and input_reactance_ohm are the induced-EMF closed forms and describe an assumed sinusoidal current, not the wire",
-        "the fits cover aw from 1e-5 to 5e-3 wavelengths"
+        "the fits cover aw from 1e-5 to 5e-3 wavelengths",
+        "past aw of about 0.005 wavelengths the resonance is a property of the feed as well as the wire. Solved as a tube with a finite gap (otahub.num.bor), gaps from a/2 to 4a spread the resonant length by +-0.3% at aw = 0.005, +-0.9% at 0.01 and +-2-4% at 0.015-0.025 wavelengths, and the resistance over 72-74, 73-78 and 74-96 ohm. The length law stays inside that spread throughout; the resistance law, fitted to delta-gap solutions, sits at its small-gap end. At 0.025 wavelengths a gap of a/2 leaves the dipole with no resonance at all"
       ],
       "known_cases": [
         {
