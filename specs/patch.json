@@ -197,7 +197,7 @@
             "W",
             "g_pattern"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. A family-wide revision is pending (HANDOVER section 6)."
         },
         {
           "metric": "directivity_dbi",
@@ -617,7 +617,7 @@
             "W",
             "g_pattern"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8."
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. A family-wide revision is pending (HANDOVER section 6)."
         },
         {
           "metric": "directivity_dbi",
@@ -1359,7 +1359,7 @@
             "k0",
             "W"
           ],
-          "notes": "EXACT for the single radiating slot this antenna has: D = (k0*W)^2/I1 over the half space, the same expression the full patch's two-slot model is built from. It tends to 3.0 as the slot narrows - a magnetic dipole's 1.5 doubled by the ground plane - and rises slowly with width. This spec previously carried a flat 3.3, reasoned as half the full patch's 6.6."
+          "notes": "The single radiating slot's directivity, D = (k0*W)^2/I1 over the half space - the same expression the full patch's two-slot model is built from; it tends to 3.0 as the slot narrows. INDICATIVE for the antenna: the side edges radiate too. With all three open walls the free-space cavity model gives 26% less on air, 16% less on eps_r 2.2, 10% on FR-4, 5% on eps_r 10.2; the substrate's own effect (otahub.num.patch_q's slab model) pushes the other way on high-permittivity board, to 15% MORE than this at eps_r 10.2. The rectangular patch's two-slot figure leaves its side walls out in the same way, so both are due one family-wide revision rather than this one alone."
         },
         {
           "metric": "directivity_dbi",
@@ -1370,17 +1370,45 @@
           ]
         },
         {
-          "metric": "fractional_bandwidth_vswr2",
-          "expr": "0.5*3.771*(eps_r-1)/(eps_r**2)*(h*f0/c)*(W/L_full_patch)",
+          "metric": "radiation_q",
+          "expr": "exp((-1.329744) + (3.246124)*(h*f0*sqrt(eps_r)/c) + (-36.72353)*(h*f0*sqrt(eps_r)/c)**2 + (-0.5912429)*(1/eps_r) + (9.20974)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (63.85394)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.5765286)*(1/eps_r)**2 + (-11.71383)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-90.47699)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (0.4528461)*(1/eps_r)**3 + (-0.956356)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (73.13305)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c))",
           "units_out": "-",
           "depends_on": [
             "eps_r",
             "h",
-            "f0",
-            "W",
-            "L_full_patch"
+            "f0"
           ],
-          "notes": "Roughly half the full patch's: the stored energy is nearly unchanged while only one slot radiates, so Q about doubles. INDICATIVE - unlike the directivity above, this halving has not been computed."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the quarter-wave cavity mode psi = sin(pi x/2L) against the space wave of its currents on the grounded substrate - the patch's surface current AND the vertical current the shorting wall carries to the ground, which radiates TM only, through a slab factor checked against a direct plane-wave boundary-value solve to 1e-8. Without the wall current the Q comes out 3.4 times too high on air. On air the whole thing reproduces the cavity model's magnetic currents on the three open walls, computed independently, to 0.004%. Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, as the other patches are, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.39% worst on 154 solved designs, 0.23% on 10 held out. Surface waves are not counted."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(radiation_q*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_q"
+          ],
+          "notes": "VSWR-2 bandwidth from the solved radiation Q, lossless. It replaces half the rectangular patch's simplified formula, which was wrong twice over. The stored energy halves along with the patch, so Q would rise by 1 + G12/G1, not 2, even if only the open edge radiated - and it is not the only one: the side edges carry sin(pi x/2L) fields that add in phase, and the shorting wall a vertical current. On air that makes the shorted patch's Q 0.54 times the full patch's - 1.83-1.85 times the bandwidth; the two are equal near eps_r 2, and only toward eps_r 12 does the Q ratio approach 1.8. The old formula gave an air patch zero, was 2.4-5.5 times too narrow at eps_r 1.25-1.5 and 3-53% narrow at eps_r 2-3.5; from eps_r 6 up its two errors roughly cancel, to between 16% narrow and 5% wide."
+        },
+        {
+          "metric": "full_patch_radiation_q",
+          "expr": "exp((-2.017636) + (3.446245)*(h*f0*sqrt(eps_r)/c) + (-38.43522)*(h*f0*sqrt(eps_r)/c)**2 + (1.023612)*(1/eps_r) + (1.510623)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (98.16504)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-0.6771756)*(1/eps_r)**2 + (-10.19748)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-152.71)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (0.2318826)*(1/eps_r)**3 + (4.982745)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (108.4175)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The unshorted rectangular patch's solved radiation Q on the same board, the same expression that spec uses."
+        },
+        {
+          "metric": "bandwidth_relative_to_full_patch",
+          "expr": "full_patch_radiation_q/radiation_q",
+          "units_out": "-",
+          "depends_on": [
+            "full_patch_radiation_q",
+            "radiation_q"
+          ],
+          "notes": "The bandwidth the short costs or gains against the full patch on the same board: 1.83-1.85 on air, about 1 near eps_r 2, 0.66-0.72 on eps_r 4.4, 0.56-0.57 at eps_r 12. It was asserted to be 0.5 everywhere."
         },
         {
           "metric": "shorting_wall_width_m",
@@ -1419,14 +1447,15 @@
             "full_patch_directivity_linear",
             "directivity_linear"
           ],
-          "notes": "COMPUTED, not the 3 dB usually assumed. Two slots less than a half wavelength apart do not array perfectly, so removing one costs less than 3 dB - about 2.15 dB on eps_r 2.2 and only 1.05 dB on FR-4, where the slots are so close together that the second one was adding little. Shorting a patch is cheaper in gain on high-permittivity board than on low."
+          "notes": "Within the slot models, not the 3 dB usually assumed: two slots less than a half wavelength apart do not array perfectly, so removing one costs less - about 2.15 dB on eps_r 2.2 and 1.05 dB on FR-4. INDICATIVE, as the two directivities it compares are: counting every wall and the substrate the cost is larger on low-permittivity board (2.5-2.9 dB on eps_r 2.2, over 5 dB on air) and smaller on high (0.55 dB at eps_r 10.2). It falls with eps_r either way."
         }
       ],
       "validity": [
         "h << lambda0, as for any cavity-model patch",
         "assumes an ideal full-width shorting wall; real shorting posts or a partial wall shift the resonance downward",
-        "directivity and bandwidth figures are indicative, scaled from the full patch rather than computed",
-        "the pattern is asymmetric - the single radiating edge tilts the beam off broadside, which the full patch's symmetry avoids"
+        "the pattern is asymmetric - the single radiating edge tilts the beam off broadside, which the full patch's symmetry avoids",
+        "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
+        "directivity is the single-slot model's and is indicative - the side edges radiate too (see its notes)"
       ],
       "known_cases": [
         {
@@ -1489,6 +1518,66 @@
           },
           "tol_pct": 0.5,
           "source": "Single radiating slot at k0*W = 1.32757: D = (k0*W)^2/I1 = 3.08848 (4.897 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +6.8% from it here."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "radiation_q": 109.0569,
+            "fractional_bandwidth_vswr2": 0.0064838,
+            "full_patch_radiation_q": 75.834,
+            "bandwidth_relative_to_full_patch": 0.69536
+          },
+          "tol_pct": 0.8,
+          "source": "Solved directly by otahub.num.patch_q for this design (not from the fit): the shorted patch's Q 109.057 with its wall current, the full patch's 75.834 on the same board, so a VSWR-2 bandwidth of 0.648%, 0.70 times the full patch's. The halved formula gave 0.548%."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.000787
+          },
+          "expect": {
+            "radiation_q": 29.3579,
+            "fractional_bandwidth_vswr2": 0.0240858,
+            "full_patch_radiation_q": 26.9772,
+            "bandwidth_relative_to_full_patch": 0.91891
+          },
+          "tol_pct": 0.8,
+          "source": "Solved directly by otahub.num.patch_q for this design (not from the fit): the shorted patch's Q 29.358 with its wall current, the full patch's 26.977 on the same board, so a VSWR-2 bandwidth of 2.409%, 0.92 times the full patch's. The halved formula gave 1.506%."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 1.0,
+            "h": 0.005
+          },
+          "expect": {
+            "radiation_q": 8.1355,
+            "fractional_bandwidth_vswr2": 0.0869162,
+            "full_patch_radiation_q": 14.9957,
+            "bandwidth_relative_to_full_patch": 1.84324
+          },
+          "tol_pct": 0.8,
+          "source": "Solved directly by otahub.num.patch_q for this design (not from the fit): the shorted patch's Q 8.135 with its wall current, the full patch's 14.996 on the same board, so a VSWR-2 bandwidth of 8.692%, 1.84 times the full patch's. The halved formula gave 0.000% - zero, on air."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "radiation_q": 128.7546,
+            "fractional_bandwidth_vswr2": 0.0054919,
+            "full_patch_radiation_q": 73.0816,
+            "bandwidth_relative_to_full_patch": 0.5676
+          },
+          "tol_pct": 0.8,
+          "source": "Solved directly by otahub.num.patch_q for this design (not from the fit): the shorted patch's Q 128.755 with its wall current, the full patch's 73.082 on the same board, so a VSWR-2 bandwidth of 0.549%, 0.57 times the full patch's. The halved formula gave 0.575%."
         }
       ],
       "references": [
@@ -2409,7 +2498,7 @@
             "L",
             "g_pattern"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. For the CP patch the two diagonal modes radiate the same pattern turned 90 degrees and in quadrature, so their cross terms cancel in power and the broadside directivity is the linear square's."
+          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. For the CP patch the two diagonal modes radiate the same pattern turned 90 degrees and in quadrature, so their cross terms cancel in power and the broadside directivity is the linear square's. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the rectangular patch's directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. The square here was not surveyed separately; a family-wide revision is pending (HANDOVER section 6)."
         },
         {
           "metric": "directivity_dbi",

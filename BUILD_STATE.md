@@ -2429,18 +2429,62 @@ outside the surveyed range. The Potter horn stays low confidence: the step that
 sets the TM11 fraction needs mode matching, so the fraction is an input, and the
 bandwidth stays an estimate.
 
+
+## The shorted patch is not half as wide: its side walls radiate
+
+`quarter_wave_shorted_patch` carried half the rectangular patch's simplified
+bandwidth formula, "INDICATIVE - this halving has not been computed". The
+reasoning was that Q doubles when one of two slots is removed. It does not: the
+stored energy halves along with the patch, so even in the slot picture Q only
+rises by 1 + G12/G1. And the open edge is not the only radiator - the side
+edges carry sin(pi x/2L) fields that add in phase, and the shorting wall a
+vertical current down to the ground.
+
+`otahub/num/patch_q.py` now carries that wall current: K_z equal to the patch
+current arriving at the wall, uniform over the height, radiating TM through the
+slab with a factor G j sin(theta)/(k0 N^2). The factor was derived from the
+fields of a TM plane wave in the slab and is checked against a direct
+boundary-value solve to 1e-8; on air it is exactly a vertical current and its
+image. The whole shorted patch on air reproduces the cavity model's magnetic
+currents on its three open walls, written independently, to 0.004%. Without
+the wall current the Q is 3.4 times too high.
+
+What it found, as the ratio of the shorted patch's bandwidth to the full patch's
+on the same board:
+- 1.83-1.85 on AIR: the shorted patch is nearly twice as broad, not half. The
+  old formula gave it zero.
+- About 1 near eps_r 2; 0.66-0.72 on FR-4; 0.56-0.57 at eps_r 12. It approaches
+  a half as the patch shrinks and the slot picture takes over, and never gets
+  there inside the domain.
+- The old formula was 2.4-5.5 times too narrow at eps_r 1.25-1.5 and 3-53%
+  narrow at eps_r 2-3.5. From eps_r 6 up its two errors - the halving and the
+  simplified Jackson formula - roughly cancel, to between 16% narrow and 5% wide.
+
+The Q is fitted in the same form as the other patches (12 terms, 0.39%, 0.23%
+held out) over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1.
+The spec now also reports the full patch's Q on the same board and the
+bandwidth relative to it.
+
+Found on the way, and recorded rather than fixed: patch DIRECTIVITY. The
+shorted patch's single-slot figure ignores the side walls that dominate its
+bandwidth - the complete free-space cavity model gives 5-26% less - and the
+rectangular patch's two-slot figure ignores its side walls too, which raise it
+2-10%. The substrate (Jackson's space wave, `patch_q`'s slab model) pushes
+both up by as much as 13-15% at eps_r 10.2. Both specs' directivity notes now
+say so; HANDOVER section 6 item 12 describes the family-wide revision.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2600 tests, 853/853 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2627 tests, 869/869 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
-solved radiation Q; horn beamwidths, and the two-mode horns' efficiency and
-cross-polar levels, from aperture integration. Next candidates, from the
-remaining "indicative" metrics: the resonant slot array's 1/N bandwidth (needs a
-stated slot width for its element Q), the quarter-wave shorted patch's halving
-(needs the shorting wall's vertical current), and the Potter horn's step (needs
+solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
+and the two-mode horns' efficiency and cross-polar levels, from aperture
+integration. Next candidates: patch directivity family-wide (side walls and
+substrate - HANDOVER section 6 item 12), the resonant slot array's 1/N bandwidth
+(needs a stated slot width for its element Q), and the Potter horn's step (needs
 mode matching to turn its TM11 fraction into a result).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 

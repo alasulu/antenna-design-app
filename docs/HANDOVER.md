@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-17,609 lines of Python, 23,121 lines of spec data, 2600 tests, 853/853 citable
+17,831 lines of Python, 23,210 lines of spec data, 2627 tests, 869/869 citable
 known cases passing.**
 
 ---
@@ -234,6 +234,7 @@ being written into a spec.
 | Sectoral, conical and corrugated horns (beamwidths) | HPBW of each principal plane at any flare, from the aperture field with its quadratic phase error; NaN past the point where the beam breaks up | `otahub/num/horn_pattern.py` by quadrature, matching the E-plane pattern's Fresnel-integral closed form to 1e-10; fits to 0.5% (0.5% held out) over apertures of 1.5-40 wavelengths |
 | `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step that sets the fraction is still not solved |
 | Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 to 0.02% for a vanishing patch, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
+| `quarter_wave_shorted_patch` | Radiation Q and VSWR-2 bandwidth with the shorting wall's vertical current; the bandwidth relative to the full patch on the same board | `otahub/num/patch_q.py`: the wall's slab factor against a plane-wave boundary-value solve (1e-8); on air the shorted patch against the cavity model's magnetic currents on its three open walls, written independently (0.004%). Not half the full patch's bandwidth: 1.84 times it on air, equal near eps_r 2, 0.57 at eps_r 12. The side walls radiate a third of the power the old one-slot picture left out |
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
 | `discone` | Low cutoff (slant at VSWR 2 in 50 ohm), continuous VSWR-2 bandwidth, worst in-band VSWR and directivity at f_low, tabulated over half angle 20-50 deg and disc ratio 0.6-0.9 with a stated coax-sized feed | `otahub/num/bor.py`, the exact axisymmetric surface solution: low cutoff extrapolated from two meshes (0.4%), 0.9% on six held-out designs; the spec's own dimensions, rebuilt and solved live, sit at VSWR 2 at f_low |
@@ -670,6 +671,16 @@ known case only checks what it asserts.
    horn's step is the part left: a mode-matching solve at the guide step would
    turn its TM11 fraction from an input into a result, and give the bandwidth
    over which the two modes stay in phase - the only route out of low confidence.
+12. **Patch directivity, family-wide.** Found while solving the shorted patch:
+   the rectangular patch's two-slot directivity leaves out its side walls, which
+   the complete cavity model (and `patch_q`, which matches it on air) says raise
+   it 10% on air, 8% on eps_r 2.2, 2% on eps_r 10.2; and the substrate itself
+   (Jackson's space wave, `patch_q`'s slab model) adds up to 13% more at eps_r
+   10.2. The circular, triangular and annular specs use complete free-space wall
+   models, so only the substrate part applies to them. The shorted patch's
+   single-slot figure is 35% high on air in the free-space model. Settling which
+   model the family should carry needs the substrate question decided once, with
+   an independent check at high permittivity - ideally a full-wave solve.
 
 ---
 
