@@ -2570,9 +2570,38 @@ triangular and shorted patches' cavity-current Q, and the CP patch's Q0 and so
 its corner cut, are now labelled as not checked full-wave. HANDOVER section 6
 item 13 lists what building L_full_wave_m would take.
 
+
+## The rectangular patch now builds the length that resonates
+
+Last round showed the textbook length resonates 0.5-7% low and left the spec
+reporting it rather than building it. `rectangular_patch` and
+`rectangular_patch_inset` now synthesise L as the full-wave resonant length (the
+fitted ratio to the textbook length, 0.21%, from the survey the FDTD checked),
+and keep the transmission-line design as `L_textbook`, so every worked example
+still reproduces - under that name. Balanis's Example 14.1 patch, solved directly:
+the textbook 0.9053 cm resonates at 9.534 GHz, 4.7% low; 0.8556 cm resonates at
+10 GHz. The inset patch keeps its transmission-line edge resistance and feed
+FRACTION on the textbook length they were derived for, and cuts the notch that
+fraction of the full-wave L: Example 14.2's inset is 0.2952 cm deep on the patch
+that resonates, not 0.3124 cm on one that resonates at 9.53 GHz. The exporter
+builds from L, so it now builds the patch that resonates.
+
+Found on the way, an engine bug: an expression guarded with np.where came back
+as a 0-d array rather than a number. The exporter refused it outright, and the
+plausibility test skipped it - so metrics that go NaN outside their fitted
+domains (horn beamwidths past break-up, patch figures on too thick a board) had
+never been seen by it. The evaluator now unwraps 0-d results; the plausibility
+test lets deliberate NaN through, because an expected value that comes out NaN
+is caught by the reference match. The rectangular patch's surface-wave
+efficiency is capped at 1, which its fit overshot on air by parts in 10^4.
+
+Still on textbook lengths, and said so in HANDOVER section 6 item 13: the CP
+square (the MoM handles a square, and its Q0-driven corner cut is also off), the
+shorted patch (needs a shorting wall the MoM lacks) and the stacked patch.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2661 tests, 897/897 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2665 tests, 901/901 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`).
@@ -2581,11 +2610,11 @@ fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
 solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
 and the two-mode horns' efficiency and cross-polar levels, from aperture
 integration; patch directivity from the cavity current through the slab, and
-the rectangular patch's resonance, Q and surface waves full-wave. Next
-candidates: build the full-wave patch length and carry it through the family
-(HANDOVER section 6 item 13), the resonant slot array's 1/N bandwidth (needs a
-stated slot width for its element Q), and the Potter horn's step (needs mode
-matching to turn its TM11 fraction into a result).
+the rectangular patch's resonance, Q and surface waves full-wave - and it
+builds the length that resonates. Next candidates: the CP square full-wave (side
+and Q0-driven corner cut, HANDOVER section 6 item 13), the resonant slot array's
+1/N bandwidth (needs a stated slot width for its element Q), and the Potter
+horn's step (needs mode matching to turn its TM11 fraction into a result).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

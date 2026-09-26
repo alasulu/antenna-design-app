@@ -334,7 +334,7 @@ def test_inset_patch_conductances_match_direct_quadrature(syn):
     d = syn("rectangular_patch_inset", f0=10e9, eps_r=2.2, h=0.001588,
             Z_target=50.0)
     k0 = 2 * math.pi * 10e9 / 2.99792458e8
-    W, L = d.get("W"), d.get("L")
+    W, L = d.get("W"), d.get("L_textbook")   # the transmission-line model's own slot spacing
 
     X = k0 * W
     i1 = -2 + math.cos(X) + X * sici(X)[0] + math.sin(X) / X

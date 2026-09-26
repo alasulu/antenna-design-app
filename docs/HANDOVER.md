@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-18,368 lines of Python, 23,523 lines of spec data, 2661 tests, 897/897 citable
+18,379 lines of Python, 23,563 lines of spec data, 2665 tests, 901/901 citable
 known cases passing.**
 
 ---
@@ -270,7 +270,7 @@ being written into a spec.
 | `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step that sets the fraction is still not solved |
 | Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 to 0.02% for a vanishing patch, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
 | Rectangular, inset, CP, circular, triangular and shorted patches (directivity) | Broadside directivity as the thin-substrate value (all walls radiating) times a substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1 | `otahub/num/patch_sdm.py` full-wave: `patch_q`'s directivity within 0.3-0.9% on air, eps_r 2.2, FR-4 and 10.2. The two-slot formula was 7.5-13% low (side walls and substrate); the circular and triangular free-space edge models up to 18% low on thick board; the shorted patch's single slot 5-35% high |
-| `rectangular_patch` (resonance, Q, surface waves) | Where the textbook design resonates, the length that resonates at f0, full-wave radiation Q, surface-wave efficiency and a bandwidth counting it | `patch_sdm` against `patch_fdtd` (0.013-0.02% in frequency, 0.15-0.2% in Q). The Hammerstad design resonates 0.5-7% LOW (the classic 2.4 GHz FR-4 patch at 2.33 GHz); the cavity-current Q ran 1.6-28% high; efficiency matches Jackson's thin-slab form to 0.5% |
+| `rectangular_patch`, `rectangular_patch_inset` (resonance, Q, surface waves) | L is now the length that resonates at f0 full-wave (the textbook design kept as L_textbook, where it resonates reported); full-wave radiation Q, surface-wave efficiency and a bandwidth counting it; the inset depth is the transmission-line fraction of the full-wave L | `patch_sdm` against `patch_fdtd` (0.013-0.02% in frequency, 0.15-0.2% in Q). The Hammerstad design resonates 0.5-7% LOW (the classic 2.4 GHz FR-4 patch at 2.33 GHz); the cavity-current Q ran 1.6-28% high; efficiency matches Jackson's thin-slab form to 0.5% |
 | `quarter_wave_shorted_patch` | Radiation Q and VSWR-2 bandwidth with the shorting wall's vertical current; the bandwidth relative to the full patch on the same board | `otahub/num/patch_q.py`: the wall's slab factor against a plane-wave boundary-value solve (1e-8); on air the shorted patch against the cavity model's magnetic currents on its three open walls, written independently (0.004%). Not half the full patch's bandwidth: 1.84 times it on air, equal near eps_r 2, 0.57 at eps_r 12. The side walls radiate a third of the power the old one-slot picture left out |
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
@@ -606,6 +606,7 @@ known case only checks what it asserts.
 | dBi floor rejected genuine nulls | A dipole λ/2 over ground has an exact zenith null and reported −310 dBi |
 | Degree bound assumed unsigned angles | A beam angle measured from broadside is negative when it scans the other way |
 | `array --sll 30` raised | The commoner spelling of "30 dB sidelobes" hit an unhandled `ValueError`; either sign is now accepted |
+| `np.where` results stayed 0-d arrays | A spec output guarded with `np.where` came back as an array, not a number: the exporter refused it ("has none of ('L',)"), and the plausibility test skipped it - so metrics that return NaN outside their fitted domain had never been seen by it. The evaluator now unwraps 0-d results; the plausibility test lets deliberate NaN through, since an expected NaN is caught by the reference match |
 
 ---
 
@@ -716,13 +717,13 @@ known case only checks what it asserts.
    factor. The annular ring keeps its free-space two-ring model (no annular mode
    in `patch_q` yet), PIFA and stacked patch their assertions.
 13. ~~**Patch resonance and Q, full-wave.**~~ - done for the rectangle, with an
-   edge-exact basis and an FDTD check (§3). `rectangular_patch` keeps its textbook L
-   and reports where it really resonates and the length that does; its Q is
-   full-wave. **Next:** build `L_full_wave_m` instead of L (the inset, CP and
-   shorted patches and the exporters all inherit L, and the textbook worked
-   examples would move to a separate metric); solve the CP square's Q0 full-wave,
-   because its corner cut follows it; and a full-wave check for the circular and
-   triangular patches, whose cavity-current Q is now labelled as an upper bound.
+   edge-exact basis and an FDTD check (§3), and `rectangular_patch` and the inset
+   patch now BUILD the full-wave length (the exporter follows). **Next:** the CP
+   square - its side comes from the same textbook chain and its corner cut from
+   a cavity-current Q0, both now known to be off, and the MoM handles a square;
+   the shorted patch, whose length is textbook too, needs a shorting wall the
+   MoM does not have; `stacked_patch` inherits the textbook length; and the
+   circular and triangular patches need a full-wave solver of their own shape.
 ---
 
 ## 7. Conventions worth preserving

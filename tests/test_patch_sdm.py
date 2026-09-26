@@ -105,9 +105,9 @@ def test_full_wave_directivity_of_a_thick_high_permittivity_patch(registry):
     lam = C0 / f0
     er, h = 10.2, 0.0245 * lam
     d = registry["rectangular_patch"].synthesize(f0=f0, eps_r=er, h=h)
-    p = sdm.RectPatch(er, h, d.get("L"), d.get("W"), **sdm.BASIS_FULL)
+    p = sdm.RectPatch(er, h, d.get("L_textbook"), d.get("W"), **sdm.BASIS_FULL)
     m = sdm.mode_metrics(p, sdm.resonance(p, 0.95 * f0))
-    cavity = pq.directivity(*pq.rectangle(d.get("L") + 2 * d.get("dL"), d.get("W")), er, h, f0)
+    cavity = pq.directivity(*pq.rectangle(d.get("L_textbook") + 2 * d.get("dL"), d.get("W")), er, h, f0)
     assert m["far_over_spectral"] == pytest.approx(1.0, rel=1e-4)
     assert m["directivity"] == pytest.approx(cavity, rel=0.02)
 
@@ -174,7 +174,7 @@ def test_the_textbook_patch_resonates_low_and_more_so_on_thick_board(registry):
     for er, hl in ((2.2, 0.003), (2.2, 0.01), (2.2, 0.04), (10.2, 0.02)):
         d = registry["rectangular_patch"].synthesize(f0=1e10, eps_r=er, h=hl * lam)
         ratios[(er, hl)] = d.metrics["full_wave_resonance_hz"] / 1e10
-        assert d.metrics["L_full_wave_m"] < d.get("L")
+        assert d.get("L") < d.get("L_textbook")
     assert 0.99 < ratios[(2.2, 0.003)] < 0.996
     assert ratios[(2.2, 0.003)] > ratios[(2.2, 0.01)] > ratios[(2.2, 0.04)] > 0.93
     assert ratios[(10.2, 0.02)] < 0.96
@@ -196,14 +196,15 @@ def test_surface_wave_efficiency_is_one_on_air_and_jacksons_on_thin_board(regist
 @pytest.mark.slow
 def test_the_rectangular_spec_against_a_fresh_full_wave_solve(registry):
     """Off the fitting grid: resonance of the textbook length, the length that
-    resonates, and the radiation Q and surface-wave efficiency there."""
+    resonates (which is now the spec's L), and the radiation Q and surface-wave
+    efficiency there."""
     g = dict(f0=3.1e9, eps_r=3.66, h=0.0022)
     d = registry["rectangular_patch"].synthesize(**g)
-    L, W = d.get("L"), d.get("W")
+    L, W = d.get("L_textbook"), d.get("W")
     fr = sdm.resonance(sdm.RectPatch(g["eps_r"], g["h"], L, W, **sdm.BASIS_FULL), 0.97 * g["f0"])
     Lfw = sdm.resonant_length(g["eps_r"], g["h"], W, g["f0"], L * fr / g["f0"])
     m = sdm.mode_metrics(sdm.RectPatch(g["eps_r"], g["h"], Lfw, W, **sdm.BASIS_FULL), g["f0"])
     assert d.metrics["full_wave_resonance_hz"] == pytest.approx(fr, rel=3e-3)
-    assert d.metrics["L_full_wave_m"] == pytest.approx(Lfw, rel=3e-3)
+    assert d.get("L") == pytest.approx(Lfw, rel=3e-3)
     assert d.metrics["radiation_q"] == pytest.approx(m["q_radiation"], rel=0.015)
     assert d.metrics["surface_wave_efficiency"] == pytest.approx(m["efficiency"], rel=3e-3)

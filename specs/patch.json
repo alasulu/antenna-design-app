@@ -38,8 +38,14 @@
           "role": "geometry"
         },
         {
+          "symbol": "L_textbook",
+          "name": "transmission-line (textbook) patch length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
           "symbol": "L",
-          "name": "patch length",
+          "name": "patch length (full-wave resonant)",
           "unit": "m",
           "role": "geometry"
         },
@@ -116,7 +122,7 @@
           "notes": "Balanis 14-2: the electrical length each radiating edge gains from fringing"
         },
         {
-          "output": "L",
+          "output": "L_textbook",
           "expr": "c/(2*f0*np.sqrt(eps_reff)) - 2*dL",
           "units_out": "m",
           "depends_on": [
@@ -124,17 +130,29 @@
             "eps_reff",
             "dL"
           ],
-          "notes": "Balanis 14-3"
+          "notes": "The textbook transmission-line design - a half guide wavelength less Hammerstad's fringing extension at each open edge - kept because the worked examples are written in it. Full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz). The patch to build is L."
+        },
+        {
+          "output": "L",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L_textbook*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "L_textbook",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The length that resonates at f0 FULL-WAVE, width held: otahub.num.patch_sdm (spectral-domain MoM, edge-exact currents, exact slab Green's function), checked against an FDTD ringdown (otahub.num.patch_fdtd) to 0.013-0.02% in frequency. Fitted as a ratio to L_textbook over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1 (0.21% worst, 0.12% held out); exactly L_textbook on a vanishingly thin board, NaN past h sqrt(eps_r)/lambda0 = 0.1. It is 0.55-8.8% shorter than the textbook length, which resonates 0.5-7% LOW - Balanis's own Example 14.1 patch at 9.53 GHz, the classic 2.4 GHz FR-4 patch at 2.33 GHz."
         },
         {
           "output": "L_eff",
-          "expr": "L + 2*dL",
+          "expr": "L_textbook + 2*dL",
           "units_out": "m",
           "depends_on": [
-            "L",
+            "L_textbook",
             "dL"
           ],
-          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+          "notes": "the transmission-line model's effective (radiating-slot) length, on the textbook design it belongs to"
         },
         {
           "output": "g_pattern",
@@ -151,10 +169,10 @@
       "analysis": [
         {
           "metric": "L_eff_m",
-          "expr": "L + 2*dL",
+          "expr": "L_textbook + 2*dL",
           "units_out": "m",
           "depends_on": [
-            "L",
+            "L_textbook",
             "dL"
           ]
         },
@@ -167,19 +185,7 @@
             "eps_r",
             "h"
           ],
-          "notes": "Where the patch this spec designs actually resonates, full-wave: otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
-        },
-        {
-          "metric": "L_full_wave_m",
-          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
-          "units_out": "m",
-          "depends_on": [
-            "L",
-            "eps_r",
-            "h",
-            "f0"
-          ],
-          "notes": "The length that DOES resonate at f0 full-wave, width held (0.21% worst on 68 full-wave solutions, 0.12% on 8 held out): 0.55-8.8% shorter than L. L itself stays the textbook transmission-line design, which is what the worked examples below reproduce; build this one."
+          "notes": "Where the TEXTBOOK length L_textbook would resonate, full-wave (L itself resonates at f0): otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
         },
         {
           "metric": "W_over_h",
@@ -263,14 +269,14 @@
         },
         {
           "metric": "surface_wave_efficiency",
-          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-2.137477)*(h*f0*sqrt(eps_r)/c) + (-0.1850764)*(h*f0*sqrt(eps_r)/c)**2 + (-11.72706)*(h*f0*sqrt(eps_r)/c)**3 + (-24.50238)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (39.69858)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-1067.866)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (104.4637)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-415.022)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (9532.173)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-156.2265)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (1360.401)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-27421.76)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3 + (110.4981)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-1745.835)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2 + (32178.61)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**3 + (-32.111)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c) + (762.0327)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**2 + (-13226.16)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, np.minimum(1.0, exp((-2.137477)*(h*f0*sqrt(eps_r)/c) + (-0.1850764)*(h*f0*sqrt(eps_r)/c)**2 + (-11.72706)*(h*f0*sqrt(eps_r)/c)**3 + (-24.50238)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (39.69858)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-1067.866)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (104.4637)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-415.022)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (9532.173)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-156.2265)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (1360.401)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-27421.76)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3 + (110.4981)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-1745.835)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2 + (32178.61)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**3 + (-32.111)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c) + (762.0327)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**2 + (-13226.16)*(1/eps_r)**5*(h*f0*sqrt(eps_r)/c)**3)), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "eps_r",
             "h",
             "f0"
           ],
-          "notes": "Space-wave power over space plus surface-wave power, full-wave, for the patch resonant at f0 (0.11% worst on 68 full-wave solutions, 0.13% on 8 held out). It agrees with Jackson and Alexopoulos's thin-substrate closed form for a horizontal dipole to 0.0-0.5% on thin board, and falls below it as the board thickens - 7.5% below at eps_r 10.2, h = 0.03 lambda0. Exactly 1 on air; 0.66 at eps_r 6, h = 0.04 lambda0."
+          "notes": "Space-wave power over space plus surface-wave power, full-wave, for the patch resonant at f0 (0.11% worst on 68 full-wave solutions, 0.13% on 8 held out). It agrees with Jackson and Alexopoulos's thin-substrate closed form for a horizontal dipole to 0.0-0.5% on thin board, and falls below it as the board thickens - 7.5% below at eps_r 10.2, h = 0.03 lambda0. Exactly 1 on air; 0.66 at eps_r 6, h = 0.04 lambda0. Capped at 1, which the fit would otherwise overshoot on air by a few parts in 10^4."
         },
         {
           "metric": "fractional_bandwidth_vswr2_with_surface_waves",
@@ -304,9 +310,9 @@
         "W/h > 1 for the eps_reff expression",
         "h < 0.05*lambda0; thicker substrates need a probe-inductance correction",
         "single-layer, isotropic, non-magnetic substrate",
-        "L is the textbook transmission-line design; full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz) - build L_full_wave_m",
         "full-wave figures are fitted over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and are NaN outside the last; lossless, infinite ground and substrate",
-        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%"
+        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%",
+        "L is the full-wave resonant length (NaN past h sqrt(eps_r)/lambda0 = 0.1); L_textbook is the transmission-line design, 0.5-7% longer"
       ],
       "known_cases": [
         {
@@ -317,11 +323,11 @@
           },
           "expect": {
             "W_m": 0.011859,
-            "L_m": 0.009058,
-            "eps_reff": 1.972
+            "eps_reff": 1.972,
+            "L_textbook_m": 0.009058
           },
           "tol_pct": 1.0,
-          "source": "Balanis Example 14.1: f0 = 10 GHz, eps_r = 2.2, h = 0.1588 cm gives W = 1.186 cm, L = 0.906 cm"
+          "source": "Balanis Example 14.1: f0 = 10 GHz, eps_r = 2.2, h = 0.1588 cm gives W = 1.186 cm, L = 0.906 cm (Now the textbook length, L_textbook: the transmission-line design these examples are worked in.)"
         },
         {
           "given": {
@@ -331,10 +337,10 @@
           },
           "expect": {
             "W_m": 0.038048,
-            "L_m": 0.029234
+            "L_textbook_m": 0.029234
           },
           "tol_pct": 2.0,
-          "source": "Standard FR-4 2.4 GHz patch: W = 38.0 mm, L = 29.2 mm. Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook"
+          "source": "Standard FR-4 2.4 GHz patch: W = 38.0 mm, L = 29.2 mm. Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook (Now the textbook length, L_textbook: the transmission-line design these examples are worked in.)"
         },
         {
           "given": {
@@ -392,10 +398,10 @@
           },
           "expect": {
             "full_wave_resonance_hz": 2331815081.0,
-            "L_full_wave_m": 0.028521125,
             "radiation_q": 66.893,
             "surface_wave_efficiency": 0.90093,
-            "fractional_bandwidth_vswr2": 0.0105708
+            "fractional_bandwidth_vswr2": 0.0105708,
+            "L_m": 0.028521125
           },
           "tol_pct": 1.0,
           "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 29.422 mm resonates at 2.3318 GHz (2.84% low); 28.521 mm resonates at f0, where the radiation Q is 66.89, total Q 60.27 and the surface-wave efficiency 0.9009. The cavity-current Q this case used to expect was 75.83."
@@ -408,10 +414,10 @@
           },
           "expect": {
             "full_wave_resonance_hz": 9602167553.0,
-            "L_full_wave_m": 0.009227151,
             "radiation_q": 22.994,
             "surface_wave_efficiency": 0.91605,
-            "fractional_bandwidth_vswr2": 0.0307512
+            "fractional_bandwidth_vswr2": 0.0307512,
+            "L_m": 0.009227151
           },
           "tol_pct": 1.0,
           "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 9.653 mm resonates at 9.6022 GHz (3.98% low); 9.227 mm resonates at f0, where the radiation Q is 22.99, total Q 21.06 and the surface-wave efficiency 0.9160. The cavity-current Q this case used to expect was 26.98."
@@ -424,13 +430,12 @@
           },
           "expect": {
             "full_wave_resonance_hz": 2315550008.0,
-            "L_full_wave_m": 0.0533442,
             "radiation_q": 12.917,
-            "surface_wave_efficiency": 1.0,
-            "fractional_bandwidth_vswr2": 0.054744
+            "fractional_bandwidth_vswr2": 0.054744,
+            "L_m": 0.0533442
           },
           "tol_pct": 1.0,
-          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 55.530 mm resonates at 2.3156 GHz (3.52% low); 53.344 mm resonates at f0, where the radiation Q is 12.92, total Q 12.92 and the surface-wave efficiency 1.0000. The cavity-current Q this case used to expect was 15.00."
+          "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 55.530 mm resonates at 2.3156 GHz (3.52% low); 53.344 mm resonates at f0, where the radiation Q is 12.92, total Q 12.92 and the surface-wave efficiency 1.0000. The cavity-current Q this case used to expect was 15.00. (On air there is no surface wave: the efficiency is exactly 1, which tests/test_patch_sdm.py checks.)"
         },
         {
           "given": {
@@ -440,13 +445,26 @@
           },
           "expect": {
             "full_wave_resonance_hz": 5467684315.0,
-            "L_full_wave_m": 0.007238595,
             "radiation_q": 59.75,
             "surface_wave_efficiency": 0.73621,
-            "fractional_bandwidth_vswr2": 0.0118345
+            "fractional_bandwidth_vswr2": 0.0118345,
+            "L_m": 0.007238595
           },
           "tol_pct": 1.0,
           "source": "Solved directly by otahub.num.patch_sdm for this design (not from the fits): the textbook L = 7.774 mm resonates at 5.4677 GHz (5.73% low); 7.239 mm resonates at f0, where the radiation Q is 59.75, total Q 43.99 and the surface-wave efficiency 0.7362. The cavity-current Q this case used to expect was nan."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588
+          },
+          "expect": {
+            "L_m": 0.008555572,
+            "full_wave_resonance_hz": 9533930468.0
+          },
+          "tol_pct": 0.8,
+          "source": "Balanis Example 14.1's patch, solved directly by otahub.num.patch_sdm: the textbook 0.9053 cm resonates at 9.5339 GHz, 4.7% low; 0.8556 cm resonates at 10 GHz. The board is h = 0.053 lambda0, just past the fits' h/lambda0 = 0.05, hence the wider tolerance."
         }
       ],
       "references": [
@@ -499,8 +517,14 @@
           "role": "geometry"
         },
         {
+          "symbol": "L_textbook",
+          "name": "transmission-line (textbook) patch length",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
           "symbol": "L",
-          "name": "patch length",
+          "name": "patch length (full-wave resonant)",
           "unit": "m",
           "role": "geometry"
         },
@@ -590,14 +614,27 @@
           ]
         },
         {
-          "output": "L",
+          "output": "L_textbook",
           "expr": "c/(2*f0*np.sqrt(eps_reff)) - 2*dL",
           "units_out": "m",
           "depends_on": [
             "f0",
             "eps_reff",
             "dL"
-          ]
+          ],
+          "notes": "The textbook transmission-line design - a half guide wavelength less Hammerstad's fringing extension at each open edge - kept because the worked examples are written in it. Full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz). The patch to build is L."
+        },
+        {
+          "output": "L",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L_textbook*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "L_textbook",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The length that resonates at f0 FULL-WAVE, width held: otahub.num.patch_sdm (spectral-domain MoM, edge-exact currents, exact slab Green's function), checked against an FDTD ringdown (otahub.num.patch_fdtd) to 0.013-0.02% in frequency. Fitted as a ratio to L_textbook over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1 (0.21% worst, 0.12% held out); exactly L_textbook on a vanishingly thin board, NaN past h sqrt(eps_r)/lambda0 = 0.1. It is 0.55-8.8% shorter than the textbook length, which resonates 0.5-7% LOW - Balanis's own Example 14.1 patch at 9.53 GHz, the classic 2.4 GHz FR-4 patch at 2.33 GHz."
         },
         {
           "output": "G1",
@@ -611,14 +648,14 @@
         },
         {
           "output": "G12_over_G1",
-          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L)**1 + (0.00033186218)*(k0*L)**1*(k0*W) + (-0.1890797)*(k0*L)**2 + (-0.0052674407)*(k0*L)**2*(k0*W) + (-0.0089556897)*(k0*L)**3 + (0.0011641111)*(k0*L)**3*(k0*W) + (0.015779123)*(k0*L)**4 + (-0.0017182346)*(k0*L)**5",
+          "expr": "(0.99940739) + (0.00018306329)*(k0*W) + (-0.0014910918)*(k0*L_textbook)**1 + (0.00033186218)*(k0*L_textbook)**1*(k0*W) + (-0.1890797)*(k0*L_textbook)**2 + (-0.0052674407)*(k0*L_textbook)**2*(k0*W) + (-0.0089556897)*(k0*L_textbook)**3 + (0.0011641111)*(k0*L_textbook)**3*(k0*W) + (0.015779123)*(k0*L_textbook)**4 + (-0.0017182346)*(k0*L_textbook)**5",
           "units_out": "-",
           "depends_on": [
             "k0",
-            "L",
+            "L_textbook",
             "W"
           ],
-          "notes": "Mutual-to-self slot conductance ratio. The exact quantity is the integral of Balanis 14-18a divided by 14-12, which has no closed form, so this is a polynomial fitted to that integral over the whole practical design space: k0*L from 0.8 to 3.3 and k0*W from 1.15 to 3.25, which is what eps_r between 1 and 12 produces. Worst error 0.0021 in the ratio, and under 0.1% in the resulting resistance. The older approximation G12 = G1*J0(k0*L) is the leading term of this and is 28% low, because the weighting favours theta near 90 degrees but not nearly as strongly as that form assumes."
+          "notes": "Mutual-to-self slot conductance ratio. The exact quantity is the integral of Balanis 14-18a divided by 14-12, which has no closed form, so this is a polynomial fitted to that integral over the whole practical design space: k0*L from 0.8 to 3.3 and k0*W from 1.15 to 3.25, which is what eps_r between 1 and 12 produces. Worst error 0.0021 in the ratio, and under 0.1% in the resulting resistance. The older approximation G12 = G1*J0(k0*L) is the leading term of this and is 28% low, because the weighting favours theta near 90 degrees but not nearly as strongly as that form assumes. Evaluated on the textbook length: the edge resistance is the transmission-line model's, and the model's own slot spacing is what it was derived for."
         },
         {
           "output": "Rin0",
@@ -639,17 +676,17 @@
             "Z_target",
             "Rin0"
           ],
-          "notes": "Inverts Rin(y0) = Rin0*cos^2(pi*y0/L) (Balanis 14-20). The cos^2 law degrades for deep insets and wide notches; verify in a solver."
+          "notes": "Inverts Rin(y0) = Rin0*cos^2(pi*y0/L) (Balanis 14-20). The cos^2 law degrades for deep insets and wide notches; verify in a solver. The inset FRACTION y0/L comes from the transmission-line model; the depth is that fraction of the full-wave length L, the patch actually built."
         },
         {
           "output": "L_eff",
-          "expr": "L + 2*dL",
+          "expr": "L_textbook + 2*dL",
           "units_out": "m",
           "depends_on": [
-            "L",
+            "L_textbook",
             "dL"
           ],
-          "notes": "Note which length: the slot SEPARATION for the pattern is the EFFECTIVE length L_eff = L + 2*dL, because the equivalent magnetic currents sit at the fringing edges. The mutual conductance that sets the input resistance uses the PHYSICAL L, which is what reproduces Balanis Example 14.2's 228.35 ohm. Balanis uses both conventions in the same chapter and so does this spec; using L_eff for the impedance instead would move it to 261 ohm."
+          "notes": "the transmission-line model's effective (radiating-slot) length, on the textbook design it belongs to"
         },
         {
           "output": "g_pattern",
@@ -681,19 +718,7 @@
             "eps_r",
             "h"
           ],
-          "notes": "Where the patch this spec designs actually resonates, full-wave: otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
-        },
-        {
-          "metric": "L_full_wave_m",
-          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
-          "units_out": "m",
-          "depends_on": [
-            "L",
-            "eps_r",
-            "h",
-            "f0"
-          ],
-          "notes": "The length that DOES resonate at f0 full-wave, width held (0.21% worst on 68 full-wave solutions, 0.12% on 8 held out): 0.55-8.8% shorter than L. L itself stays the textbook transmission-line design, which is what the worked examples below reproduce; build this one."
+          "notes": "Where the TEXTBOOK length L_textbook would resonate, full-wave (L itself resonates at f0): otahub.num.patch_sdm, the spectral-domain method of moments (edge-exact currents in both directions, exact slab Green's function), which an FDTD ringdown of the same patch (otahub.num.patch_fdtd, taken to zero cell size) matches to 0.013% in frequency and 0.2% in Q on two boards. Fitted as the ratio to f0 over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 (0.20% worst on 68 full-wave solutions, 0.13% on 8 held out), with no constant term, so it is exactly f0 on a vanishingly thin board. The transmission-line design with Hammerstad's fringing extension lands 0.5-1% LOW on the thinnest boards, 2.2-2.8% low at h = 0.01 lambda0 and up to 7% low on thick high-permittivity board - not the '1-3%' this spec's validity used to allow. NaN past h sqrt(eps_r)/lambda0 = 0.1."
         },
         {
           "metric": "self_conductance_S",
@@ -781,9 +806,9 @@
         "the G12 fit is valid over k0*L in [0.8, 3.3] and k0*W in [1.15, 3.25]. The design formulas keep any patch on eps_r between 1 and 12 inside that, but a hand-entered W or L outside it will make the 5th-order polynomial diverge rather than degrade",
         "W/h > 1, h < 0.05*lambda0",
         "transmission-line model throughout: it ignores surface waves, the feed probe's inductance, and any finite ground plane",
-        "L is the textbook transmission-line design; full-wave it resonates 0.5-7% below f0 (full_wave_resonance_hz) - build L_full_wave_m",
         "full-wave figures are fitted over eps_r 1-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and are NaN outside the last; lossless, infinite ground and substrate",
-        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%"
+        "directivity is the cavity current radiated through the slab, checked full-wave to 2.5%",
+        "L is the full-wave resonant length (NaN past h sqrt(eps_r)/lambda0 = 0.1); L_textbook is the transmission-line design, 0.5-7% longer"
       ],
       "known_cases": [
         {
@@ -884,10 +909,25 @@
           },
           "expect": {
             "full_wave_resonance_hz": 2331815081.0,
-            "L_full_wave_m": 0.028521125
+            "L_m": 0.028521125
           },
           "tol_pct": 0.5,
           "source": "Solved directly by otahub.num.patch_sdm for this outline, the inset notch not modelled: see rectangular_patch."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.001588,
+            "Z_target": 50.0
+          },
+          "expect": {
+            "L_m": 0.008555572,
+            "y0_m": 0.002952135,
+            "inset_fraction": 0.345054
+          },
+          "tol_pct": 0.8,
+          "source": "The Example 14.2 inset on the patch that resonates: the transmission-line fraction acos(sqrt(50/228.5007))/pi = 0.34505 of the full-wave length 0.8556 cm (otahub.num.patch_sdm), 0.2952 cm deep. On the textbook length it would be 0.3124 cm - on a patch that resonates at 9.53 GHz."
         }
       ],
       "references": [

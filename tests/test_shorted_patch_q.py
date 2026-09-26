@@ -116,7 +116,7 @@ def test_the_full_patch_comparison_uses_the_same_cavity_model(registry):
     for g in (dict(f0=2.4e9, eps_r=4.4, h=0.0016), dict(f0=1e10, eps_r=2.2, h=0.000787)):
         s = registry["quarter_wave_shorted_patch"].synthesize(**g).metrics
         r = registry["rectangular_patch"].synthesize(**g)
-        q = pq.radiation_q(*pq.rectangle(r.get("L") + 2 * r.get("dL"), r.get("W")), g["eps_r"], g["h"], g["f0"])
+        q = pq.radiation_q(*pq.rectangle(r.get("L_textbook") + 2 * r.get("dL"), r.get("W")), g["eps_r"], g["h"], g["f0"])
         assert s["full_patch_radiation_q"] == pytest.approx(q, rel=6e-3)
         assert r.metrics["radiation_q"] < s["full_patch_radiation_q"]
 

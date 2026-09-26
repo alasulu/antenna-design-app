@@ -158,7 +158,12 @@ def test_known_case_values_are_physically_plausible(key, case_index):
     for metric, value in design.metrics.items():
         if isinstance(value, complex) or not isinstance(value, (int, float)):
             continue
-        if math.isnan(value) or value == float("inf"):
+        if math.isnan(value):
+            # Specs return NaN on purpose outside a fitted domain (a horn past
+            # beam break-up, a patch on too thick a board). An expected value
+            # that comes out NaN is caught by the reference-matching test.
+            continue
+        if value == float("inf"):
             problems.append(f"{metric} is not finite ({value})")
             continue
         if value == float("-inf"):

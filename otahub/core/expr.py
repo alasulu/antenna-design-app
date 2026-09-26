@@ -168,10 +168,15 @@ def evaluate(expr: str, variables: Mapping[str, Any]) -> Any:
     namespace.update(variables)
     code = compile(tree, filename="<spec>", mode="eval")
     try:
-        return eval(code, {"__builtins__": {}}, namespace)  # noqa: S307 - validated above
+        value = eval(code, {"__builtins__": {}}, namespace)  # noqa: S307 - validated above
     except ExprError:
         raise
     except ZeroDivisionError as exc:
         raise ExprError(f"division by zero evaluating {expr!r}") from exc
     except Exception as exc:  # noqa: BLE001 - surface the spec's fault with context
         raise ExprError(f"failed evaluating {expr!r}: {type(exc).__name__}: {exc}") from exc
+    # np.where and friends return 0-d arrays for scalar inputs; hand back the
+    # scalar, so a geometry output is a number wherever it is consumed
+    if isinstance(value, np.ndarray) and value.ndim == 0:
+        return value[()]
+    return value
