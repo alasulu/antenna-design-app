@@ -21,7 +21,7 @@ import numpy as np
 
 from .dra import _Yee, matrix_pencil
 
-__all__ = ["ringdown", "extrapolate"]
+__all__ = ["ringdown", "extrapolate", "shorted_ringdown"]
 
 
 def ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, air: int | None = None,
@@ -63,3 +63,63 @@ def extrapolate(cells, values) -> float:
     x = 1.0 / np.asarray(cells, dtype=float)
     A = np.column_stack([np.ones_like(x), x])
     return float(np.linalg.lstsq(A, np.asarray(values, dtype=float), rcond=None)[0][0])
+
+
+# ---------------------------------------------------------------- a shorted (quarter-wave) patch
+#
+# A shorted patch has no mirror plane along its length, so y is modelled in full:
+# the grid's y = 0 electric wall sits behind a CPML layer on that side too, and
+# the short is a finite PEC plane - under the patch only, ground to patch.
+
+def _cpml_both(n: int, npml: int, half: bool, dt: float, m: int = 3, kappa_max: float = 5.0):
+    pos = np.arange(n) + (0.5 if half else 0.0)
+    last = n if half else n - 1
+    rho = np.maximum(np.clip((pos - (last - npml)) / npml, 0.0, 1.0), np.clip((npml - pos) / npml, 0.0, 1.0))
+    sig = 0.8 * (m + 1) * rho ** m
+    kap = 1.0 + (kappa_max - 1.0) * rho ** m
+    b = np.exp(-sig / kap * dt)
+    c = np.where(sig > 0, (b - 1.0) / kap, 0.0)
+    return kap, b, c, 0
+
+
+class _YeeHalf(_Yee):
+    """Half-space grid: PMC at x = 0, ground at z = 0, CPML on both y ends and at the far x and z ends."""
+
+    def __init__(self, shape, eps_cell, npml: int, dtype=np.float32):
+        super().__init__(shape, eps_cell, npml, dtype)
+        ny = shape[1]
+        self.p_int[1] = _cpml_both(ny + 1, npml, False, self.dt)
+        self.p_half[1] = _cpml_both(ny, npml, True, self.dt)
+
+
+def shorted_ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, air: int | None = None,
+                     npml: int = 12, periods: float = 30.0, dtype=np.float32) -> tuple[float, float]:
+    """(frequency in cycles per cell-time, total Q) of a quarter-wave patch shorted along one
+    end: nh slab height, nl length from the short to the open edge, nw half width, in cells."""
+    lam = 1.0 / f_guess
+    air = air or int(0.15 * lam) + 4
+    j0 = npml + air                              # the short's plane
+    shape = (nw + air + npml, j0 + nl + air + npml, nh + air + npml)
+    g = _YeeHalf(shape, lambda x, y, z: np.where(z < nh, eps_r, 1.0) + 0 * x + 0 * y, npml, dtype)
+    tau = 0.5 / f_guess
+    t0 = 3.0 * tau
+    steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
+    start = int((t0 + 3.0 * tau) / g.dt)
+    js, ks = j0 + nl - 2, nh // 2                # under the open edge
+    probe = np.empty(steps)
+    for n in range(steps):
+        g.step()
+        g.Ex[:nw, j0:j0 + nl + 1, nh] = 0.0      # the patch sheet
+        g.Ey[:nw + 1, j0:j0 + nl, nh] = 0.0
+        g.Ex[:nw, j0, :nh + 1] = 0.0             # the shorting wall: tangential E on the plane y = j0
+        g.Ez[:nw + 1, j0, :nh] = 0.0
+        t = (n + 1) * g.dt
+        g.Ez[0, js, ks] += math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
+        probe[n] = g.Ez[1, js - 1, ks]
+    dec = max(1, int(1.0 / (20.0 * f_guess * g.dt)))
+    s, a = matrix_pencil(probe[start::dec], dec * g.dt, modes=20)
+    f = s.imag / (2 * math.pi)
+    q = s.imag / (-2.0 * s.real)
+    ok = (f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
+    k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
+    return float(f[k]), float(q[k])

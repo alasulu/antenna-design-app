@@ -1,0 +1,157 @@
+{
+ "description": "FDTD (otahub.num.patch_fdtd) of the shorted and stacked patches. half_space_check: an unshorted eps_r 10.2 patch in the half-space grid and the quarter-space grid (same answer). shorted: quarter-wave patches with a full-width shorting wall at several cell sizes (nh cells across h), the geometry in wavelengths; full_patch_ratio is the rectangular patch's full-wave resonance ratio on the same board, for comparison. stacked: two sheets, the driven one on h = 4 cells of eps_r 2.2 (h = 0.0128 lambda), a 10-cell (0.032 lambda) air gap, the parasitic scaled by size_ratio in length; the coupled modes in units of f0, coarse grid only.",
+ "half_space_check": {
+  "quarter_space": 0.93241,
+  "half_space": 0.93241,
+  "Q": 48.961
+ },
+ "shorted": [
+  {
+   "eps_r": 10.2,
+   "h_lam": 0.0245,
+   "L_lam": 0.0735,
+   "W_lam": 0.2205,
+   "runs": [
+    {
+     "nh": 4,
+     "nl": 12,
+     "nw": 18,
+     "f_over_f0": 0.907565,
+     "Q": 92.318
+    },
+    {
+     "nh": 6,
+     "nl": 18,
+     "nw": 27,
+     "f_over_f0": 0.915857,
+     "Q": 91.09
+    },
+    {
+     "nh": 8,
+     "nl": 24,
+     "nw": 36,
+     "f_over_f0": 0.91994,
+     "Q": 90.494
+    }
+   ],
+   "full_patch_ratio": 0.94119
+  },
+  {
+   "eps_r": 2.2,
+   "h_lam": 0.02,
+   "L_lam": 0.16,
+   "W_lam": 0.4,
+   "runs": [
+    {
+     "nh": 4,
+     "nl": 32,
+     "nw": 40,
+     "f_over_f0": 0.948112,
+     "Q": 30.776
+    },
+    {
+     "nh": 6,
+     "nl": 48,
+     "nw": 60,
+     "f_over_f0": 0.951547,
+     "Q": 30.643
+    }
+   ],
+   "full_patch_ratio": 0.96435
+  }
+ ],
+ "stacked": {
+  "scan": [
+   {
+    "size_ratio": 0.96,
+    "cells": [
+     4,
+     50,
+     62,
+     10,
+     48,
+     58
+    ],
+    "modes": [
+     0.986,
+     1.3687
+    ]
+   },
+   {
+    "size_ratio": 1.16,
+    "cells": [
+     4,
+     50,
+     62,
+     10,
+     58,
+     72
+    ],
+    "modes": [
+     0.9469,
+     1.201
+    ]
+   },
+   {
+    "size_ratio": 1.24,
+    "cells": [
+     4,
+     50,
+     62,
+     10,
+     62,
+     77
+    ],
+    "modes": [
+     0.9188,
+     1.1644
+    ]
+   },
+   {
+    "size_ratio": 1.36,
+    "cells": [
+     4,
+     50,
+     62,
+     10,
+     68,
+     84
+    ],
+    "modes": [
+     0.8692,
+     1.1303
+    ]
+   }
+  ],
+  "default_two_grids": [
+   {
+    "cells": [
+     4,
+     50,
+     62,
+     10,
+     48,
+     58
+    ],
+    "modes": [
+     0.986,
+     1.3687
+    ]
+   },
+   {
+    "cells": [
+     6,
+     75,
+     93,
+     15,
+     72,
+     87
+    ],
+    "modes": [
+     0.9884,
+     1.3719
+    ]
+   }
+  ]
+ }
+}

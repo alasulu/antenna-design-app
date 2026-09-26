@@ -2705,9 +2705,45 @@ round from here on; the house rules are unchanged.
    remote, do not push); stop the loop with ScheduleWakeup stop: true and do not
    re-arm it.
 
+
+## The shorted and stacked patches: a wall that pulls lower, a stack sized backwards
+
+HANDOVER section 6 item 13, the first round under the finish line. The spectral
+MoM has neither a shorting wall nor a second metal layer, so both are done with
+the FDTD. `otahub/num/patch_fdtd.shorted_ringdown` runs a quarter-wave patch
+with a full-width shorting wall in a half-space grid: CPML on both ends of the
+length, since a shorted patch has no mirror plane along it. On a symmetric
+(unshorted) patch the half-space grid gives the quarter-space answer exactly.
+
+The shorted patch, textbook length, at FDTD cell sizes taken to zero:
+- eps_r 10.2, h = 0.0245 lambda0: 8.4% low (the full patch on the same board
+  5.9%); three grids, first-order convergence (difference ratio 2.03).
+- eps_r 2.2, h = 0.02 lambda0: 5.9% low (full patch 3.6%); two grids.
+- FR-4, h = 0.0128 lambda0: about 4% low (full patch 2.8%).
+The shorting wall adds its own lowering - the inductance of the current it
+carries to ground - which the transmission-line model has no term for, and it
+does not scale simply with h across these three boards. The spec now builds the
+textbook length times the full patch's full-wave ratio (keeping L_textbook),
+which closes most of the gap: the FDTD puts the corrected patch 1-3% low, and
+the spec says so and labels L an estimate. Its cavity-current radiation Q,
+times the surface-wave efficiency, runs about 10% above the FDTD's total Q on
+two boards - the rectangular patch's direction too.
+
+The stacked patch: the spec sized the parasitic at 0.95 of the driven patch,
+because "sitting in a lower-permittivity medium, it is usually made slightly
+SMALLER for the same resonance". That is backwards: in air a patch needs to be
+longer. An FDTD of the default stack (1.6 mm eps_r 2.2 at 2.4 GHz, a 0.03
+wavelength air gap) finds its coupled modes at 0.99 and 1.37 f0 - nothing near
+f0 but the first. Growing the parasitic lowers both (1.16: 0.95 / 1.20; 1.36:
+0.87 / 1.13), but at this gap they stay 25-38% apart for every ratio tried: too
+strongly coupled to straddle f0, so the default design is a single patch with
+extra height, not a double-tuned one. The driven patch now takes the full-wave
+length; the stack stays low confidence, and a two-layer solver with a feed
+model is future work.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2686 tests, 930/930 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2698 tests, 936/936 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2720,9 +2756,9 @@ integration; patch directivity from the cavity current through the slab, and
 the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved. Development runs to the finish line
-above (hard stop 2026-09-27 20:00): next, HANDOVER section 6 item 13 (the shorted
-patch and the stacked patch's length, full-wave), then items 12, 9, 5 and 4, then
-the wrap-up round that tags v1.0.
+above (hard stop 2026-09-27 20:00): item 13 is done; next, item 12 (the annular
+ring mode in patch_q, and PIFA), then items 9, 5 and 4, then the wrap-up round
+that tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

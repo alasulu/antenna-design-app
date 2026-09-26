@@ -144,6 +144,6 @@ def test_the_fit_against_a_fresh_solve(registry, eps_r, h_lam):
     f = 1e10
     h = h_lam * C0 / f
     d = registry["quarter_wave_shorted_patch"].synthesize(f0=f, eps_r=eps_r, h=h)
-    g = pq.shorted_rectangle(d.get("L") + d.get("dL"), d.get("W"))
+    g = pq.shorted_rectangle(d.get("L_textbook") + d.get("dL"), d.get("W"))
     q = pq.radiation_q(*g[:4], eps_r, h, f, wall=g[4])
     assert d.metrics["radiation_q"] == pytest.approx(q, rel=5e-3)
