@@ -2473,19 +2473,72 @@ rectangular patch's two-slot figure ignores its side walls too, which raise it
 both up by as much as 13-15% at eps_r 10.2. Both specs' directivity notes now
 say so; HANDOVER section 6 item 12 describes the family-wide revision.
 
+
+## Patch directivity, settled full-wave: every rectangular figure was 7.5-13% low
+
+The shorted-patch round left patch directivity in question. The rectangular
+family carried the two-slot formula; circular, triangular and annular carried
+free-space edge-current models; `patch_q`'s cavity current radiated through the
+slab disagreed with all of them. Deciding which is right needed a solver that
+does not assume the current, so this round built one.
+
+`otahub/num/patch_sdm.py` is a spectral-domain method of moments for a
+rectangular patch on a grounded slab: the exact spectral Green's function,
+entire-domain edge-conditioned currents in both directions, Galerkin testing, a
+contour over the surface-wave poles, reactance extrapolated from two
+truncations. It was checked before being believed: a vanishing dipole's space
+and surface waves against Jackson and Alexopoulos's thin-slab closed forms
+(0.4-2.4% and 0.002-0.9%, residues growing with thickness as they should);
+microstrip effective permittivity against Kirschning and Jansen (0.1-0.9%); the
+radiated power from the spectral reaction against a far-field integral (1 part
+in 10^4). Two things were caught on the way: an azimuthal quadrature with half
+the samples a product of two spectra needs (the reactance then wandered with
+truncation), and a Maxwell-only transverse profile that put a very wide patch's
+resonance 3.5% off - the current across a wide patch is flatter than the edge
+factor alone.
+
+What it found, directivity of the spec's own rectangular designs (largest basis):
+- air 9.53, eps_r 2.2 5.65, FR-4 4.39, eps_r 10.2 3.99; `patch_q` within 0.3-0.9%
+  of every one.
+- The two-slot formula: 8.58, 5.22, 4.06, 3.47 - 10%, 7.5%, 7.5% and 13% low. It
+  leaves out the non-radiating edges (2-10% of the answer, most on low eps_r)
+  and the substrate (up to 22% on electrically thick board).
+- The circular and triangular free-space models are exact on thin board but up
+  to 18% low on thick; the CP square's two-slot figure 6-10% low; the shorted
+  patch's single slot 5-35% high in the thin limit, and low on thick board.
+- The triangle is 0.07-0.33 dB below the rectangle, not "within 0.1 dB" - that
+  agreement was the rectangle's missing side walls.
+
+Six specs (rectangular, inset, CP, circular, triangular, shorted) now carry
+directivity as a thin-substrate value times a substrate factor. The thin value
+is exact as the board vanishes and goes to 3 as the patch shrinks: the circular
+and triangular keep their edge-current models for it, the rest fit patch_q as 3
+plus a series in 1/sqrt(eps_r) (0.074%). The factor is patch_q over thin,
+fitted with no constant term so it is exactly 1 on thin board (0.23%, 0.16% held
+out), and the directivity is NaN past h sqrt(eps_r)/lambda0 = 0.1. The circular
+patch's edge resistance stays on the free-space model and now says so.
+
+Not settled, and recorded as HANDOVER section 6 item 13: the full-wave solver
+puts the Hammerstad-length patch 1-2% low in frequency on thin board and about
+4% low at eps_r 10.2, and its radiation Q 7-10% below patch_q's on thick FR-4
+and 10.2 - but at eps_r 10.2 those move 1.7% and 14% across bases, too much to
+redesign on.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2627 tests, 869/869 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2653 tests, 881/881 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
-zone plates (ray tracing, Kirchhoff) and solid bodies of revolution (`bor`).
+zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
+printed patches on a grounded slab (`patch_sdm`, full-wave).
 The cone family (discone, biconical, conical monopole) is solved end to end, and
 fat dipoles to 0.025 wavelengths with a finite gap; patch bandwidths come from a
 solved radiation Q, the shorted patch's with its wall current; horn beamwidths,
 and the two-mode horns' efficiency and cross-polar levels, from aperture
-integration. Next candidates: patch directivity family-wide (side walls and
-substrate - HANDOVER section 6 item 12), the resonant slot array's 1/N bandwidth
-(needs a stated slot width for its element Q), and the Potter horn's step (needs
-mode matching to turn its TM11 fraction into a result).
+integration; patch directivity from the cavity current through the slab,
+checked full-wave. Next candidates: patch resonance and Q full-wave (HANDOVER
+section 6 item 13 - needs a better-converged basis), the resonant slot array's
+1/N bandwidth (needs a stated slot width for its element Q), and the Potter
+horn's step (needs mode matching to turn its TM11 fraction into a result).
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

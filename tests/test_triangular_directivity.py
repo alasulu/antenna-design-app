@@ -101,7 +101,7 @@ def _exact(k0a, nth=120, nph=240):
 def test_triangle_directivity_matches_its_own_integral(eps_r, registry):
     design = registry["triangular_patch"].synthesize(f0=2e9, eps_r=eps_r, h=1.6e-3)
     want = _exact(4 * math.pi / (3 * math.sqrt(eps_r)))
-    assert design.metrics["directivity_linear"] == pytest.approx(want, rel=1e-3)
+    assert design.metrics["directivity_thin_substrate_linear"] == pytest.approx(want, rel=1e-3)
 
 
 @pytest.mark.parametrize("h", [0.5e-3, 1.6e-3, 3.0e-3])
@@ -132,25 +132,28 @@ def test_small_patch_limit_is_the_magnetic_dipole(registry):
     previous = 4.0
     for eps_r in (50.0, 200.0, 1000.0, 1e4):
         value = registry["triangular_patch"].synthesize(
-            f0=2e9, eps_r=eps_r, h=1.6e-3).metrics["directivity_linear"]
+            f0=2e9, eps_r=eps_r, h=1.6e-3).metrics["directivity_thin_substrate_linear"]
         assert 3.0 <= value < previous
         previous = value
     assert value == pytest.approx(3.0, abs=5e-3)
 
 
-def test_triangle_matches_the_rectangle_it_replaces(registry):
+def test_triangle_gives_up_a_little_to_the_rectangle(registry):
     """The spec used to say the triangle runs 'roughly 1 dB below' a rectangular
-    patch. It does not: the two agree within 0.1 dB across the whole substrate
-    range, which is the actual case for the shape - a third less board area at
-    no cost in directivity. Two independently derived patterns agreeing this
-    closely is also a real cross-check on both."""
+    patch, and this test then said the two agree within 0.1 dB. The second was
+    an artifact: the rectangle's two-slot figure was missing its side walls.
+    With every wall counted on both, the triangle is 0.3 dB below on air and
+    under 0.1 dB below on high-permittivity board - a third less area for a
+    small cost."""
+    gaps = []
     for eps_r in (1.0, 2.2, 4.4, 10.2, 13.0):
         tri = registry["triangular_patch"].synthesize(
             f0=2e9, eps_r=eps_r, h=1.6e-3).metrics["directivity_linear"]
         rect = registry["rectangular_patch"].synthesize(
             f0=2e9, eps_r=eps_r, h=1.6e-3).metrics["directivity_linear"]
-        assert abs(10 * math.log10(tri / rect)) < 0.15, (
-            f"eps_r={eps_r}: triangle {tri:.4f} vs rectangle {rect:.4f}")
+        gaps.append(10 * math.log10(rect / tri))
+    assert all(0.05 < g < 0.4 for g in gaps), gaps
+    assert gaps == sorted(gaps, reverse=True), gaps
 
 
 def test_area_saving_is_real(registry):

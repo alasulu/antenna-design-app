@@ -441,8 +441,9 @@ def test_horn_efficiency_depends_only_on_the_flare_ratio(syn):
 
 
 def test_circular_patch_directivity_matches_its_own_quadrature(syn):
-    """The fit must track the integral it was fitted to, across substrates.
-    The value it replaced was a hard-coded 6.3 that was 84% high on eps_r 10.2."""
+    """The thin-substrate fit must track the integral it was fitted to, across
+    substrates. The value it replaced was a hard-coded 6.3 that was 84% high on
+    eps_r 10.2."""
     from scipy.integrate import quad
     from scipy.special import jv
 
@@ -456,7 +457,8 @@ def test_circular_patch_directivity_matches_its_own_quadrature(syn):
     for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
                          (10.2, 1.27e-3, 5.8e9)):
         d = syn("circular_patch", f0=f0, eps_r=eps_r, h=h)
-        assert d.metrics["directivity_linear"] == pytest.approx(
+        # the free-space edge-current integral is the THIN-substrate directivity
+        assert d.metrics["directivity_thin_substrate_linear"] == pytest.approx(
             exact(d.metrics["k0_ae"]), rel=3e-3), f"eps_r={eps_r}"
 
 
@@ -498,9 +500,12 @@ def test_circular_and_rectangular_patches_track_each_other(syn):
         previous = (dc, dr)
 
 
-def test_rectangular_patch_directivity_matches_the_two_slot_quadrature(syn):
-    """The closed form 2*D1/(1 + G12/G1) against a direct 2-D integration of
-    the same two-slot pattern."""
+def test_the_two_slot_model_leaves_out_the_side_walls(syn):
+    """The closed form 2*D1/(1 + G12/G1) this spec carried, as a direct 2-D
+    integration of the two-slot pattern. The complete cavity model - every
+    wall, or the patch current, the same field on a thin board - is above it,
+    by most on low-permittivity board: the non-radiating edges cancel in the
+    principal planes, not in the total power."""
     import numpy as np
 
     def sinc(x):
@@ -517,12 +522,13 @@ def test_rectangular_patch_directivity_matches_the_two_slot_quadrature(syn):
         prad = np.trapezoid(np.trapezoid(u*np.sin(T), ph, axis=1), th, axis=0)
         return 4*np.pi*u.max()/prad
 
+    ratios = []
     for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
                          (10.2, 1.27e-3, 5.8e9)):
         d = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
         k0 = 2*math.pi*f0/2.99792458e8
-        assert d.metrics["directivity_linear"] == pytest.approx(
-            grid(k0*d.get("W"), k0*d.get("L_eff")), rel=5e-3), f"eps_r={eps_r}"
+        ratios.append(d.metrics["directivity_thin_substrate_linear"]/grid(k0*d.get("W"), k0*d.get("L_eff")))
+    assert 1.11 > ratios[0] > ratios[1] > ratios[2] > 1.0, ratios
 
 
 def test_a_narrow_patch_slot_approaches_a_magnetic_dipole(syn):
@@ -573,22 +579,25 @@ def test_every_horn_efficiency_falls_away_from_its_optimum_flare(syn):
         assert etas[0.4] > etas[0.7] > etas[1.0] > etas[1.3], f"{key}: {etas}"
 
 
-def test_shorted_patch_is_the_single_slot_of_the_full_patch(syn):
+def test_shorted_patch_is_more_than_the_single_slot_of_the_full_patch(syn):
     """A quarter-wave shorted patch has one radiating edge where the full patch
-    has two, so its directivity must be exactly the single-slot term the
-    two-slot model is built from."""
+    has two - but its side edges carry in-phase fields and radiate too, so its
+    thin-substrate directivity sits BELOW the single slot the spec used to
+    carry, by less as the patch shrinks."""
     from scipy.special import sici
 
+    shortfall = []
     for eps_r, h, f0 in ((2.2, 1.588e-3, 10e9), (4.4, 1.6e-3, 2.4e9),
                          (10.2, 1.27e-3, 5.8e9)):
         d = syn("quarter_wave_shorted_patch", f0=f0, eps_r=eps_r, h=h)
         k0w = 2*math.pi*f0*d.get("W")/2.99792458e8
         i1 = -2 + math.cos(k0w) + k0w*sici(k0w)[0] + math.sin(k0w)/k0w
-        assert d.metrics["directivity_linear"] == pytest.approx(k0w**2/i1, rel=1e-9)
+        shortfall.append(1 - d.metrics["directivity_thin_substrate_linear"]/(k0w**2/i1))
         # and the full-patch comparison must match the standalone full patch
         full = syn("rectangular_patch", f0=f0, eps_r=eps_r, h=h)
         assert d.metrics["full_patch_directivity_linear"] == pytest.approx(
-            full.metrics["directivity_linear"], rel=2e-3)
+            full.metrics["directivity_linear"], rel=1e-9)
+    assert 0.03 < shortfall[2] < shortfall[1] < shortfall[0] < 0.2, shortfall
 
 
 def test_shorting_a_patch_costs_less_than_three_db_and_varies_with_substrate(syn):

@@ -1,0 +1,162 @@
+{
+ "description": "Spectral-domain MoM (otahub.num.patch_sdm) solutions of the rectangular_patch spec's own designs at f0 = 10 GHz: the dominant characteristic mode at its resonance, for growing basis sets (A: J_x with three transverse Chebyshev terms; B: plus longitudinal harmonics; C, D: plus transverse currents; E: the largest, sdm.BASIS_FULL). patch_q_D is the cavity current radiated through the slab; two_slot_D the formula the spec carried before. Directivity is converged to about 1% across bases; resonance and Q less so (see BUILD_STATE).",
+ "cases": [
+  {
+   "eps_r": 1.0,
+   "h_lam": 0.01,
+   "L_over_lambda0": 0.485716,
+   "W_over_lambda0": 0.5,
+   "patch_q_D": 9.46187,
+   "patch_q_Q": 59.215,
+   "two_slot_D": 8.58369,
+   "sets": [
+    {
+     "basis": "A x",
+     "f_res_over_f0": 0.98564,
+     "D": 9.09085,
+     "Q_rad": 60.951,
+     "efficiency": 1.0
+    },
+    {
+     "basis": "C +y4",
+     "f_res_over_f0": 0.98417,
+     "D": 9.52798,
+     "Q_rad": 58.624,
+     "efficiency": 1.0
+    },
+    {
+     "basis": "E +y7,x9",
+     "f_res_over_f0": 0.98385,
+     "D": 9.53491,
+     "Q_rad": 58.94,
+     "efficiency": 1.0
+    }
+   ]
+  },
+  {
+   "eps_r": 2.2,
+   "h_lam": 0.005,
+   "L_over_lambda0": 0.334987,
+   "W_over_lambda0": 0.395285,
+   "patch_q_D": 5.66697,
+   "patch_q_Q": 134.094,
+   "two_slot_D": 5.22445,
+   "sets": [
+    {
+     "basis": "A x",
+     "f_res_over_f0": 0.99002,
+     "D": 5.5061,
+     "Q_rad": 140.894,
+     "efficiency": 0.98332
+    },
+    {
+     "basis": "B x+n",
+     "f_res_over_f0": 0.98919,
+     "D": 5.51432,
+     "Q_rad": 139.642,
+     "efficiency": 0.98337
+    },
+    {
+     "basis": "C +y4",
+     "f_res_over_f0": 0.99736,
+     "D": 5.73001,
+     "Q_rad": 138.388,
+     "efficiency": 0.98336
+    },
+    {
+     "basis": "D +y7",
+     "f_res_over_f0": 0.99456,
+     "D": 5.6956,
+     "Q_rad": 130.812,
+     "efficiency": 0.9834
+    },
+    {
+     "basis": "E +y7,x9",
+     "f_res_over_f0": 0.99029,
+     "D": 5.64834,
+     "Q_rad": 135.227,
+     "efficiency": 0.98346
+    }
+   ]
+  },
+  {
+   "eps_r": 4.4,
+   "h_lam": 0.0128,
+   "L_over_lambda0": 0.235539,
+   "W_over_lambda0": 0.30429,
+   "patch_q_D": 4.39972,
+   "patch_q_Q": 75.884,
+   "two_slot_D": 4.05999,
+   "sets": [
+    {
+     "basis": "A x",
+     "f_res_over_f0": 0.98275,
+     "D": 4.32324,
+     "Q_rad": 75.562,
+     "efficiency": 0.9022
+    },
+    {
+     "basis": "C +y4",
+     "f_res_over_f0": 0.95901,
+     "D": 4.25205,
+     "Q_rad": 194.032,
+     "efficiency": 0.9048,
+     "note": "the dominant mode's eigenvalue has a pole near 0.976 f0 in this incomplete basis; the crossing found is below it and its Q is spurious. Its directivity is still within 3%. Set E has no pole."
+    },
+    {
+     "basis": "E +y7,x9",
+     "f_res_over_f0": 0.9824,
+     "D": 4.38778,
+     "Q_rad": 70.286,
+     "efficiency": 0.90259
+    }
+   ]
+  },
+  {
+   "eps_r": 10.2,
+   "h_lam": 0.0245,
+   "L_over_lambda0": 0.150434,
+   "W_over_lambda0": 0.211289,
+   "patch_q_D": 4.02294,
+   "patch_q_Q": 73.311,
+   "two_slot_D": 3.46601,
+   "sets": [
+    {
+     "basis": "A x",
+     "f_res_over_f0": 0.96909,
+     "D": 3.97,
+     "Q_rad": 69.029,
+     "efficiency": 0.74444
+    },
+    {
+     "basis": "B x+n",
+     "f_res_over_f0": 0.95369,
+     "D": 3.96256,
+     "Q_rad": 68.931,
+     "efficiency": 0.74856
+    },
+    {
+     "basis": "C +y4",
+     "f_res_over_f0": 0.95248,
+     "D": 3.96475,
+     "Q_rad": 74.986,
+     "efficiency": 0.74896
+    },
+    {
+     "basis": "D +y7",
+     "f_res_over_f0": 0.96273,
+     "D": 4.00016,
+     "Q_rad": 65.65,
+     "efficiency": 0.74633
+    },
+    {
+     "basis": "E +y7,x9",
+     "f_res_over_f0": 0.95725,
+     "D": 3.98522,
+     "Q_rad": 65.584,
+     "efficiency": 0.74769
+    }
+   ]
+  }
+ ]
+}

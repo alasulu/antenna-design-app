@@ -189,15 +189,37 @@
           "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.57% worst on 201 solved designs, 0.25% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%."
         },
         {
-          "metric": "directivity_linear",
-          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern)",
+          "metric": "directivity_thin_substrate_linear",
+          "expr": "3 + (5.0204434)*eps_r**(-1) + (-4.1960634)*eps_r**(-1.5) + (18.318598)*eps_r**(-2) + (-31.615653)*eps_r**(-2.5) + (33.922954)*eps_r**(-3) + (-14.984552)*eps_r**(-3.5)",
           "units_out": "-",
           "depends_on": [
-            "k0",
-            "W",
-            "g_pattern"
+            "eps_r"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. A family-wide revision is pending (HANDOVER section 6)."
+          "notes": "Broadside directivity of the cavity mode on a vanishingly thin board, where the patch current radiated through the slab and the magnetic currents on ALL the patch's walls are the same field. Solved by otahub.num.patch_q and fitted as 3 + a series in 1/sqrt(eps_r) (0.074%), so it goes to exactly 3 - a horizontal magnetic dipole over ground - as the patch shrinks. It is 2-10% above the two-slot formula: the fields along the non-radiating edges cancel in the principal planes but not in the total power."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.09625)*(h*f0*sqrt(eps_r)/c) + (1.965821)*(h*f0*sqrt(eps_r)/c)**2 + (10.51315)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-10.3964)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-36.17288)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-1.74659)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (36.19178)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (40.48285)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-11.60906)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-35.07335)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.18% worst on 154 solved designs, 0.13% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.99 to 1.22 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor; NaN past h sqrt(eps_r)/lambda0 = 0.1, where the cavity model stops. Checked full-wave: otahub.num.patch_sdm, a spectral-domain method of moments that solves for the patch current instead of assuming it, puts the rectangular patch's broadside directivity within 0.3-0.9%% of this on air, eps_r 2.2, FR-4 and eps_r 10.2. It replaces the two-slot formula 2 D1/(1 + G12/G1), which was 7.5% low on eps_r 2.2 and FR-4, 10% on air and 13% on eps_r 10.2 against the full-wave solution: it left out the non-radiating edges and the substrate."
         },
         {
           "metric": "directivity_dbi",
@@ -277,10 +299,10 @@
             "h": 0.001588
           },
           "expect": {
-            "directivity_linear": 5.441124
+            "directivity_linear": 6.19458
           },
           "tol_pct": 1.0,
-          "source": "Two-slot model at eps_r = 2.2: k0*W = 2.48365, k0*L_eff = 2.23742, giving D = 5.43769 (7.354 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +21% from that."
+          "source": "Two-slot model at eps_r = 2.2: k0*W = 2.48365, k0*L_eff = 2.23742, giving D = 5.43769 (7.354 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +21% from that. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 6.19458, against 5.44112 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -289,10 +311,10 @@
             "h": 0.0016
           },
           "expect": {
-            "directivity_linear": 4.060026
+            "directivity_linear": 4.39988
           },
           "tol_pct": 1.0,
-          "source": "Two-slot model at eps_r = 4.4: k0*W = 1.91191, k0*L_eff = 1.55424, giving D = 4.05865 (6.084 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +63% from that."
+          "source": "Two-slot model at eps_r = 4.4: k0*W = 1.91191, k0*L_eff = 1.55424, giving D = 4.05865 (6.084 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +63% from that. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 4.39988, against 4.06003 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -301,10 +323,10 @@
             "h": 0.00127
           },
           "expect": {
-            "directivity_linear": 3.466126
+            "directivity_linear": 4.02474
           },
           "tol_pct": 1.0,
-          "source": "Two-slot model at eps_r = 10.2: k0*W = 1.32757, k0*L_eff = 1.07302, giving D = 3.46670 (5.399 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +90% from that."
+          "source": "Two-slot model at eps_r = 10.2: k0*W = 1.32757, k0*L_eff = 1.07302, giving D = 3.46670 (5.399 dBi) by direct quadrature. The flat 6.6 this spec used to carry is +90% from that. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 4.02474, against 3.46613 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -344,6 +366,18 @@
           },
           "tol_pct": 0.8,
           "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 14.996, so a VSWR-2 bandwidth of 4.715%. The formula this spec used gave 0.000% - zero, for an air patch."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 3.0,
+            "h": 1e-06
+          },
+          "expect": {
+            "directivity_thin_substrate_linear": 4.80795
+          },
+          "tol_pct": 0.3,
+          "source": "otahub.num.patch_q solved directly on a board 3.3e-05 wavelengths thick - the thin limit the fit describes: 4.80795."
         }
       ],
       "references": [
@@ -609,15 +643,37 @@
           ]
         },
         {
-          "metric": "directivity_linear",
-          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern)",
+          "metric": "directivity_thin_substrate_linear",
+          "expr": "3 + (5.0204434)*eps_r**(-1) + (-4.1960634)*eps_r**(-1.5) + (18.318598)*eps_r**(-2) + (-31.615653)*eps_r**(-2.5) + (33.922954)*eps_r**(-3) + (-14.984552)*eps_r**(-3.5)",
           "units_out": "-",
           "depends_on": [
-            "k0",
-            "W",
-            "g_pattern"
+            "eps_r"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. A family-wide revision is pending (HANDOVER section 6)."
+          "notes": "Broadside directivity of the cavity mode on a vanishingly thin board, where the patch current radiated through the slab and the magnetic currents on ALL the patch's walls are the same field. Solved by otahub.num.patch_q and fitted as 3 + a series in 1/sqrt(eps_r) (0.074%), so it goes to exactly 3 - a horizontal magnetic dipole over ground - as the patch shrinks. It is 2-10% above the two-slot formula: the fields along the non-radiating edges cancel in the principal planes but not in the total power."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.09625)*(h*f0*sqrt(eps_r)/c) + (1.965821)*(h*f0*sqrt(eps_r)/c)**2 + (10.51315)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-10.3964)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-36.17288)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-1.74659)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (36.19178)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (40.48285)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-11.60906)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-35.07335)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.18% worst on 154 solved designs, 0.13% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.99 to 1.22 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor; NaN past h sqrt(eps_r)/lambda0 = 0.1, where the cavity model stops. Checked full-wave: otahub.num.patch_sdm, a spectral-domain method of moments that solves for the patch current instead of assuming it, puts the rectangular patch's broadside directivity within 0.3-0.9%% of this on air, eps_r 2.2, FR-4 and eps_r 10.2. It replaces the two-slot formula 2 D1/(1 + G12/G1), which was 7.5% low on eps_r 2.2 and FR-4, 10% on air and 13% on eps_r 10.2 against the full-wave solution: it left out the non-radiating edges and the substrate. The inset notch is not modelled; the patch outline is the rectangular patch's own."
         },
         {
           "metric": "directivity_dbi",
@@ -701,6 +757,30 @@
           },
           "tol_pct": 0.5,
           "source": "High permittivity, the other end of the fit range. Exact quadrature 567.5688 ohm, fit 567.5011."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016
+          },
+          "expect": {
+            "directivity_linear": 4.39988
+          },
+          "tol_pct": 0.5,
+          "source": "otahub.num.patch_q solved directly for this outline (the inset notch not modelled): 4.39988."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127
+          },
+          "expect": {
+            "directivity_linear": 4.02474
+          },
+          "tol_pct": 0.5,
+          "source": "otahub.num.patch_q solved directly for this outline (the inset notch not modelled): 4.02474."
         }
       ],
       "references": [
@@ -843,13 +923,37 @@
           ]
         },
         {
-          "metric": "directivity_linear",
+          "metric": "directivity_thin_substrate_linear",
           "expr": "(-1.5749262)*k0ae**5 + (7.8328863)*k0ae**4 + (-14.031725)*k0ae**3 + (13.773366)*k0ae**2 + (-5.4358965)*k0ae**1 + (3.9028535)",
           "units_out": "-",
           "depends_on": [
             "k0ae"
           ],
-          "notes": "Integrated from the TM110 far fields (Balanis 14-79/14-80), whose angular dependence is J0 -/+ J2 of k0*a_e*sin(theta), over the UPPER hemisphere only - the ground plane takes the rest. Fitted to that quadrature over k0*a_e in [0.45, 1.90], which is eps_r from 1 to 17; worst error 0.19%. This spec previously carried a hard-coded 6.3, which is 54% high on FR-4 and 84% high on eps_r = 10.2 - the very substrates a circular patch is chosen for."
+          "notes": "THIN-SUBSTRATE value, from the TM110 fields' J0 -/+ J2 edge currents radiating in free space over the ground - exact on a vanishingly thin board, where it and the patch current radiated through the slab are the same field. Integrated from the TM110 far fields (Balanis 14-79/14-80), whose angular dependence is J0 -/+ J2 of k0*a_e*sin(theta), over the UPPER hemisphere only - the ground plane takes the rest. Fitted to that quadrature over k0*a_e in [0.45, 1.90], which is eps_r from 1 to 17; worst error 0.19%. This spec previously carried a hard-coded 6.3, which is 54% high on FR-4 and 84% high on eps_r = 10.2 - the very substrates a circular patch is chosen for."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.27839)*(h*f0*sqrt(eps_r)/c) + (0.612378)*(h*f0*sqrt(eps_r)/c)**2 + (8.074368)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (5.128527)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-29.08869)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-41.17968)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (26.16697)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (76.19668)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-6.736776)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-46.97976)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.23% worst on 154 solved designs, 0.07% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.97 to 1.22 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor, which the free-space edge-current model this spec used alone leaves out - it read up to 18% low on electrically thick board. NaN past h sqrt(eps_r)/lambda0 = 0.1. The same model, full-wave checked on the rectangular patch to 0.3-0.9%."
         },
         {
           "metric": "directivity_dbi",
@@ -861,22 +965,22 @@
         },
         {
           "metric": "shape_integral",
-          "expr": "4.0/directivity_linear",
+          "expr": "4.0/directivity_thin_substrate_linear",
           "units_out": "-",
           "depends_on": [
-            "directivity_linear"
+            "directivity_thin_substrate_linear"
           ],
-          "notes": "the pattern integral itself, exposed because the radiation conductance is the same integral scaled"
+          "notes": "the free-space pattern integral itself (thin substrate), exposed because the radiation conductance is the same integral scaled"
         },
         {
           "metric": "radiation_conductance_S",
-          "expr": "pi*k0ae**2*(4.0/directivity_linear)/(8*eta0)",
+          "expr": "pi*k0ae**2*(4.0/directivity_thin_substrate_linear)/(8*eta0)",
           "units_out": "S",
           "depends_on": [
             "k0ae",
-            "directivity_linear"
+            "directivity_thin_substrate_linear"
           ],
-          "notes": "DERIVED HERE, NOT CHECKED AGAINST A PUBLISHED EXAMPLE. G = 2*P_rad/|V0|^2 from the same cavity-model fields as the directivity, which IS checked. The derivation is sound but the absolute level rests on the cavity model's edge-voltage normalisation, so treat the resistance below as a starting point to tune rather than a prediction."
+          "notes": "DERIVED HERE, NOT CHECKED AGAINST A PUBLISHED EXAMPLE. G = 2*P_rad/|V0|^2 from the same cavity-model fields as the directivity, which IS checked. The derivation is sound but the absolute level rests on the cavity model's edge-voltage normalisation, so treat the resistance below as a starting point to tune rather than a prediction. It is the free-space edge model's, like the thin-substrate directivity it shares its integral with; the substrate's effect on the radiated power (see substrate_directivity_factor) is NOT carried into it, so treat the edge and feed resistances as thin-substrate values."
         },
         {
           "metric": "edge_resistance_ohm",
@@ -950,10 +1054,11 @@
             "h": 0.001588
           },
           "expect": {
-            "directivity_linear": 5.5620315
+            "directivity_linear": 6.05718,
+            "directivity_thin_substrate_linear": 5.5620315
           },
           "tol_pct": 0.5,
-          "source": "k0*a_e = 1.25421 on eps_r = 2.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 5.56435 (7.454 dBi); the fit gives 5.56203. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +13% from the true value here."
+          "source": "k0*a_e = 1.25421 on eps_r = 2.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 5.56435 (7.454 dBi); the fit gives 5.56203. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +13% from the true value here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 6.05718, against 5.56203 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -962,10 +1067,11 @@
             "h": 0.0016
           },
           "expect": {
-            "directivity_linear": 4.0863686
+            "directivity_linear": 4.3002,
+            "directivity_thin_substrate_linear": 4.0863686
           },
           "tol_pct": 0.5,
-          "source": "k0*a_e = 0.87895 on eps_r = 4.4. Quadrature of the TM110 far fields over the upper hemisphere gives D = 4.08356 (6.110 dBi); the fit gives 4.08637. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +54% from the true value here."
+          "source": "k0*a_e = 0.87895 on eps_r = 4.4. Quadrature of the TM110 far fields over the upper hemisphere gives D = 4.08356 (6.110 dBi); the fit gives 4.08637. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +54% from the true value here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 4.30020, against 4.08637 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -974,10 +1080,11 @@
             "h": 0.00127
           },
           "expect": {
-            "directivity_linear": 3.4242518
+            "directivity_linear": 3.96638,
+            "directivity_thin_substrate_linear": 3.4242518
           },
           "tol_pct": 0.6,
-          "source": "k0*a_e = 0.57723 on eps_r = 10.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 3.42786 (5.350 dBi); the fit gives 3.42425. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +84% from the true value here."
+          "source": "k0*a_e = 0.57723 on eps_r = 10.2. Quadrature of the TM110 far fields over the upper hemisphere gives D = 3.42786 (5.350 dBi); the fit gives 3.42425. Confirmed independently on a 2-D angular grid to 0.0000%. The hard-coded 6.3 this spec used to carry is +84% from the true value here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 3.96638, against 3.42425 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -1352,14 +1459,37 @@
           "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
         },
         {
-          "metric": "directivity_linear",
-          "expr": "(k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W))",
+          "metric": "directivity_thin_substrate_linear",
+          "expr": "3 + (-0.1494725)*eps_r**(-1) + (-3.0845868)*eps_r**(-1.5) + (10.067863)*eps_r**(-2) + (-15.272172)*eps_r**(-2.5) + (11.261318)*eps_r**(-3) + (-3.2380016)*eps_r**(-3.5)",
           "units_out": "-",
           "depends_on": [
-            "k0",
-            "W"
+            "eps_r"
           ],
-          "notes": "The single radiating slot's directivity, D = (k0*W)^2/I1 over the half space - the same expression the full patch's two-slot model is built from; it tends to 3.0 as the slot narrows. INDICATIVE for the antenna: the side edges radiate too. With all three open walls the free-space cavity model gives 26% less on air, 16% less on eps_r 2.2, 10% on FR-4, 5% on eps_r 10.2; the substrate's own effect (otahub.num.patch_q's slab model) pushes the other way on high-permittivity board, to 15% MORE than this at eps_r 10.2. The rectangular patch's two-slot figure leaves its side walls out in the same way, so both are due one family-wide revision rather than this one alone."
+          "notes": "Broadside directivity on a vanishingly thin board, from otahub.num.patch_q with the shorting wall's current (on air it is the three open walls' magnetic currents, checked independently to 0.004%), fitted as 3 + a series in 1/sqrt(eps_r) (0.074%). The side edges radiate: this is 26% below the single slot on air, 16% on eps_r 2.2, 10% on FR-4, 5% on eps_r 10.2. It dips below 3 near eps_r 13 before returning to it."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.065393)*(h*f0*sqrt(eps_r)/c) + (1.317937)*(h*f0*sqrt(eps_r)/c)**2 + (15.9132)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-11.36221)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-27.15077)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-81.41651)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (14.23598)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (203.7813)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-4.049613)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-121.1409)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.23% worst on 154 solved designs, 0.16% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.98 to 1.36 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: thin-substrate directivity times the substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1. It replaces the single slot's (k0 W)^2/I1, which ignored the side edges (5-35% high in the thin limit) and the substrate, which pushes the other way on thick board."
         },
         {
           "metric": "directivity_dbi",
@@ -1430,14 +1560,14 @@
         },
         {
           "metric": "full_patch_directivity_linear",
-          "expr": "2*((k0*W)**2/(-2 + cos(k0*W) + k0*W*Si(k0*W) + sin(k0*W)/(k0*W)))/(1 + g_pattern_full)",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, (3 + (5.0204434)*eps_r**(-1) + (-4.1960634)*eps_r**(-1.5) + (18.318598)*eps_r**(-2) + (-31.615653)*eps_r**(-2.5) + (33.922954)*eps_r**(-3) + (-14.984552)*eps_r**(-3.5))*exp((1.09625)*(h*f0*sqrt(eps_r)/c) + (1.965821)*(h*f0*sqrt(eps_r)/c)**2 + (10.51315)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-10.3964)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-36.17288)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-1.74659)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (36.19178)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (40.48285)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-11.60906)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-35.07335)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
           "units_out": "-",
           "depends_on": [
-            "k0",
-            "W",
-            "g_pattern_full"
+            "eps_r",
+            "h",
+            "f0"
           ],
-          "notes": "what the same width would give with BOTH edges radiating"
+          "notes": "The rectangular patch's directivity on the same board, the same expression that spec uses."
         },
         {
           "metric": "directivity_lost_to_shorting_db",
@@ -1447,7 +1577,7 @@
             "full_patch_directivity_linear",
             "directivity_linear"
           ],
-          "notes": "Within the slot models, not the 3 dB usually assumed: two slots less than a half wavelength apart do not array perfectly, so removing one costs less - about 2.15 dB on eps_r 2.2 and 1.05 dB on FR-4. INDICATIVE, as the two directivities it compares are: counting every wall and the substrate the cost is larger on low-permittivity board (2.5-2.9 dB on eps_r 2.2, over 5 dB on air) and smaller on high (0.55 dB at eps_r 10.2). It falls with eps_r either way."
+          "notes": "Both directivities solved the same way. Shorting costs most on low-permittivity board - 5.6 dB on air, about 2.5-2.9 dB on eps_r 2.2 - and least on high (1.4 dB on FR-4, 0.5 dB at eps_r 10.2): the side edges that widen the shorted patch's bandwidth also spread its beam, and the full patch's two edges array less well as they crowd together. It was asserted to be 3 dB, then computed from slot models to be 1-2 dB."
         }
       ],
       "validity": [
@@ -1455,7 +1585,7 @@
         "assumes an ideal full-width shorting wall; real shorting posts or a partial wall shift the resonance downward",
         "the pattern is asymmetric - the single radiating edge tilts the beam off broadside, which the full patch's symmetry avoids",
         "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
-        "directivity is the single-slot model's and is indicative - the side edges radiate too (see its notes)"
+        "directivity is the cavity current radiated through the slab (with the wall's current), NaN past h sqrt(eps_r)/lambda0 = 0.1"
       ],
       "known_cases": [
         {
@@ -1490,10 +1620,10 @@
             "h": 0.001588
           },
           "expect": {
-            "directivity_linear": 3.312281
+            "directivity_linear": 3.63208
           },
           "tol_pct": 0.5,
-          "source": "Single radiating slot at k0*W = 2.48365: D = (k0*W)^2/I1 = 3.31228 (5.201 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is -0.4% from it here."
+          "source": "Single radiating slot at k0*W = 2.48365: D = (k0*W)^2/I1 = 3.31228 (5.201 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is -0.4% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 3.63208, against 3.31228 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -1502,10 +1632,10 @@
             "h": 0.0016
           },
           "expect": {
-            "directivity_linear": 3.184222
+            "directivity_linear": 3.16373
           },
           "tol_pct": 0.5,
-          "source": "Single radiating slot at k0*W = 1.91191: D = (k0*W)^2/I1 = 3.18422 (5.030 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +3.6% from it here."
+          "source": "Single radiating slot at k0*W = 1.91191: D = (k0*W)^2/I1 = 3.18422 (5.030 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +3.6% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 3.16373, against 3.18422 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -1514,10 +1644,10 @@
             "h": 0.00127
           },
           "expect": {
-            "directivity_linear": 3.088476
+            "directivity_linear": 3.54538
           },
           "tol_pct": 0.5,
-          "source": "Single radiating slot at k0*W = 1.32757: D = (k0*W)^2/I1 = 3.08848 (4.897 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +6.8% from it here."
+          "source": "Single radiating slot at k0*W = 1.32757: D = (k0*W)^2/I1 = 3.08848 (4.897 dBi). The same closed form the full patch is built from, checked there against 2-D pattern integration and against the narrow-slot limit of 3.0. The flat 3.3 this spec used to carry is +6.8% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 3.54538, against 3.08848 from the slot model this case used to expect."
         },
         {
           "given": {
@@ -1578,6 +1708,18 @@
           },
           "tol_pct": 0.8,
           "source": "Solved directly by otahub.num.patch_q for this design (not from the fit): the shorted patch's Q 128.755 with its wall current, the full patch's 73.082 on the same board, so a VSWR-2 bandwidth of 0.549%, 0.57 times the full patch's. The halved formula gave 0.575%."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.5,
+            "h": 1e-05
+          },
+          "expect": {
+            "directivity_thin_substrate_linear": 2.81436
+          },
+          "tol_pct": 0.3,
+          "source": "otahub.num.patch_q solved directly on a board 8.0e-05 wavelengths thick - the thin limit the fit describes: 2.81436."
         }
       ],
       "references": [
@@ -1730,14 +1872,38 @@
           "notes": "Exactly 4*pi/(3*sqrt(eps_r)) by construction - the single variable the far field depends on. A live check on the synthesis: if this drifts from 4.18879/sqrt(eps_r) the geometry no longer resonates where the spec says it does."
         },
         {
-          "metric": "directivity_linear",
+          "metric": "directivity_thin_substrate_linear",
           "expr": "3.0 + (k0*a_eff)**2*((-0.00042999369)*(k0*a_eff)**5 + (0.0034053154)*(k0*a_eff)**4 + (-0.010422684)*(k0*a_eff)**3 + (0.024430326)*(k0*a_eff)**2 + (-0.012626165)*(k0*a_eff)**1 + (0.22527526))",
           "units_out": "-",
           "depends_on": [
             "k0",
             "a_eff"
           ],
-          "notes": "Integrated from the cavity mode rather than assumed. The dominant Neumann eigenfunction of the equilateral triangle was found, not quoted: the six plane waves of magnitude k = 4*pi/(3*a) that live on the hexagonal star span a 2-D null space of the magnetic-wall condition, and the member symmetric about a median is the one a feed on that median excites. All THREE walls then radiate, as magnetic line currents M = 2*Ez*(z_hat x n_hat); each wall integral is exact in closed form because Ez restricted to a straight side is a sum of twelve exponentials. Only the hemisphere integral is numerical, and it converges to nine digits. The fit variable is k0*a_eff, which the synthesis pins to exactly 4*pi/(3*sqrt(eps_r)) whatever the substrate height, so D depends on eps_r ALONE. The form is D = 3 + (k0*a_eff)^2*g(k0*a_eff), which is right in the small-patch limit by construction rather than by luck: a vanishing patch is a horizontal magnetic dipole over a ground plane, D = 3 exactly, and the raw integral returns 3.0000039 at k0*a_eff = 0.0042. Worst fit error 0.028% over k0*a_eff 0.90 to 4.25, i.e. eps_r 1 to 21. The flat 5.0 this spec used to carry is 43% LOW on an air substrate and 47% HIGH on eps_r = 10.2."
+          "notes": "THIN-SUBSTRATE value, from all three walls' magnetic currents radiating in free space over the ground - exact on a vanishingly thin board, where it and the patch current radiated through the slab are the same field. Integrated from the cavity mode rather than assumed. The dominant Neumann eigenfunction of the equilateral triangle was found, not quoted: the six plane waves of magnitude k = 4*pi/(3*a) that live on the hexagonal star span a 2-D null space of the magnetic-wall condition, and the member symmetric about a median is the one a feed on that median excites. All THREE walls then radiate, as magnetic line currents M = 2*Ez*(z_hat x n_hat); each wall integral is exact in closed form because Ez restricted to a straight side is a sum of twelve exponentials. Only the hemisphere integral is numerical, and it converges to nine digits. The fit variable is k0*a_eff, which the synthesis pins to exactly 4*pi/(3*sqrt(eps_r)) whatever the substrate height, so D depends on eps_r ALONE. The form is D = 3 + (k0*a_eff)^2*g(k0*a_eff), which is right in the small-patch limit by construction rather than by luck: a vanishing patch is a horizontal magnetic dipole over a ground plane, D = 3 exactly, and the raw integral returns 3.0000039 at k0*a_eff = 0.0042. Worst fit error 0.028% over k0*a_eff 0.90 to 4.25, i.e. eps_r 1 to 21. The flat 5.0 this spec used to carry is 43% LOW on an air substrate and 47% HIGH on eps_r = 10.2."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.115999)*(h*f0*sqrt(eps_r)/c) + (1.827194)*(h*f0*sqrt(eps_r)/c)**2 + (10.01376)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-8.998443)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-36.21371)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (2.772106)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (37.44945)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (28.42998)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-12.3431)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-29.06432)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.18% worst on 154 solved designs, 0.12% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.99 to 1.22 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor, which the free-space edge-current model this spec used alone leaves out - it read up to 18% low on electrically thick board. NaN past h sqrt(eps_r)/lambda0 = 0.1. The same model, full-wave checked on the rectangular patch to 0.3-0.9%."
         },
         {
           "metric": "directivity_dbi",
@@ -1825,10 +1991,11 @@
           },
           "expect": {
             "k0_a_eff": 2.824082,
-            "directivity_linear": 5.30523
+            "directivity_linear": 5.35357,
+            "directivity_thin_substrate_linear": 5.30523
           },
-          "tol_pct": 0.2,
-          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 2.2: D = 5.30523 (7.247 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -6% from it here."
+          "tol_pct": 0.5,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 2.2: D = 5.30523 (7.247 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -6% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 5.35357, against 5.30523 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -1838,10 +2005,11 @@
           },
           "expect": {
             "k0_a_eff": 1.996927,
-            "directivity_linear": 4.01686
+            "directivity_linear": 4.19461,
+            "directivity_thin_substrate_linear": 4.01686
           },
-          "tol_pct": 0.2,
-          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 4.4: D = 4.01686 (6.039 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +24% from it here."
+          "tol_pct": 0.5,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 4.4: D = 4.01686 (6.039 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +24% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 4.19461, against 4.01686 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -1851,10 +2019,11 @@
           },
           "expect": {
             "k0_a_eff": 1.311561,
-            "directivity_linear": 3.40532
+            "directivity_linear": 3.57733,
+            "directivity_thin_substrate_linear": 3.40532
           },
-          "tol_pct": 0.2,
-          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 10.2: D = 3.40532 (5.322 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +47% from it here."
+          "tol_pct": 0.5,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 10.2: D = 3.40532 (5.322 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is +47% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 3.57733, against 3.40532 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -1864,10 +2033,11 @@
           },
           "expect": {
             "k0_a_eff": 4.18879,
-            "directivity_linear": 8.77068
+            "directivity_linear": 8.67513,
+            "directivity_thin_substrate_linear": 8.77068
           },
-          "tol_pct": 0.2,
-          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 1.0: D = 8.77068 (9.430 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -43% from it here."
+          "tol_pct": 0.5,
+          "source": "Hemisphere integration of the three magnetic wall currents of the dominant Neumann mode at eps_r = 1.0: D = 8.77068 (9.430 dBi). Gauss-Legendre in cos(theta) converges to nine digits and the wall integrals are closed form. The flat 5.0 this spec used to carry is -43% from it here. DIRECTIVITY now solved directly by otahub.num.patch_q for this design (not from the fit): 8.67513, against 8.77068 from the free-space edge-current model, kept as the thin-substrate value, this case used to expect."
         },
         {
           "given": {
@@ -2490,15 +2660,37 @@
           "notes": "3 dB axial-ratio band from the two-mode model: AR = (sqrt(4+x^2) + |x|)/(sqrt(4+x^2) - |x|) in x = 2Q(f-f0)/f0, so the band is 2 rho/sqrt(1-rho^2)/Q = 0.347107/Q with rho = (10^0.15 - 1)/(10^0.15 + 1). The cavity model on the real outline agrees to 4 digits. A quarter of the patch's own VSWR-2 band. Replaces an indicative 0.35 x one mode's band, which was 29% low."
         },
         {
-          "metric": "directivity_linear",
-          "expr": "2*((k0*L)**2/(-2 + cos(k0*L) + k0*L*Si(k0*L) + sin(k0*L)/(k0*L)))/(1 + g_pattern)",
+          "metric": "directivity_thin_substrate_linear",
+          "expr": "3 + (4.5605137)*eps_r**(-1) + (-4.5845992)*eps_r**(-1.5) + (20.35744)*eps_r**(-2) + (-35.084033)*eps_r**(-2.5) + (37.07771)*eps_r**(-3) + (-15.861798)*eps_r**(-3.5)",
           "units_out": "-",
           "depends_on": [
-            "k0",
-            "L",
-            "g_pattern"
+            "eps_r"
           ],
-          "notes": "Integrated from the two-slot model rather than assumed. Each radiating edge is a uniform magnetic line current of length W, so one slot has D1 = (k0*W)^2/I1 over the half space, and the pair gives D = 2*D1/(1 + G12/G1). Checked against a direct 2-D pattern integration at five aperture sizes, agreeing to 0.000%, and against the narrow-slot limit, where D1 goes to 3.0 - a magnetic dipole's 1.5 doubled by the ground plane. This spec previously carried a flat 6.6 for every substrate: 21% high on eps_r 2.2 and 90% high on eps_r 10.2, and LOW for a wide patch on thin low-permittivity board, where the true value passes 7.8. For the CP patch the two diagonal modes radiate the same pattern turned 90 degrees and in quadrature, so their cross terms cancel in power and the broadside directivity is the linear square's. INDICATIVE beyond the two-slot model: it leaves out the non-radiating side walls, whose fields cancel in the principal planes but not in total power - the complete cavity model (and otahub.num.patch_q, which matches it on air) puts the rectangular patch's directivity 10% higher on air, 8% on eps_r 2.2, 2% on eps_r 10.2, and the substrate's own effect adds up to 13% more at eps_r 10.2. The square here was not surveyed separately; a family-wide revision is pending (HANDOVER section 6)."
+          "notes": "Broadside directivity of the cavity mode on a vanishingly thin board, where the patch current radiated through the slab and the magnetic currents on ALL the patch's walls are the same field. Solved by otahub.num.patch_q and fitted as 3 + a series in 1/sqrt(eps_r) (0.074%), so it goes to exactly 3 - a horizontal magnetic dipole over ground - as the patch shrinks. It is 2-10% above the two-slot formula: the fields along the non-radiating edges cancel in the principal planes but not in the total power."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.10235)*(h*f0*sqrt(eps_r)/c) + (1.892245)*(h*f0*sqrt(eps_r)/c)**2 + (10.94572)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-13.93871)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-36.9085)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-1.735791)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (35.93375)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (41.18857)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-11.58913)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c) + (-32.98512)*(1/eps_r)**4*(h*f0*sqrt(eps_r)/c)**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "The substrate's own effect on the space wave, as the ratio of otahub.num.patch_q's directivity - the cavity current radiated through the grounded slab - to the thin-substrate value, fitted in 1/eps_r and h sqrt(eps_r)/lambda0 with no constant term, so it is exactly 1 on a vanishingly thin board: 0.19% worst on 154 solved designs, 0.12% on 10 held out, over eps_r 1-12, h/lambda0 0.003-0.05 and h sqrt(eps_r)/lambda0 <= 0.1. It spans 0.96 to 1.22 there - it matters most on electrically thick high-permittivity board."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: the thin-substrate directivity times the substrate factor; NaN past h sqrt(eps_r)/lambda0 = 0.1, where the cavity model stops. Checked full-wave: otahub.num.patch_sdm, a spectral-domain method of moments that solves for the patch current instead of assuming it, puts the rectangular patch's broadside directivity within 0.3-0.9%% of this on air, eps_r 2.2, FR-4 and eps_r 10.2. The two diagonal modes radiate the same pattern turned 90 degrees and in quadrature, so their cross terms cancel in power and the broadside directivity is the linear square's, computed here for the square side before the corners are cut. The two-slot formula it replaces was 6-10% low."
         },
         {
           "metric": "directivity_dbi",
@@ -2620,6 +2812,18 @@
           "tol_pct": 1.0,
           "tol_abs": 1e-09,
           "source": "perfect circular polarisation at the design frequency is the definition of the condition, not a prediction"
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 6.0,
+            "h": 1e-05
+          },
+          "expect": {
+            "directivity_thin_substrate_linear": 3.75717
+          },
+          "tol_pct": 0.3,
+          "source": "otahub.num.patch_q solved directly on a board 8.0e-05 wavelengths thick - the thin limit the fit describes: 3.75717."
         }
       ],
       "references": [

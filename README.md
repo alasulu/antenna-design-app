@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2627 tests, ~7 min
+python -m pytest tests/ -q                # 2653 tests, ~7.5 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -197,6 +197,7 @@ against an independent numerical model before being written into a spec:
 | Corner reflector image sets | Boundary condition on the plates | 1e-15 residual tangential E |
 | Diagonal horn aperture efficiency | Aperture integration | 8/π² = 0.8106 analytic vs 0.8110 numeric |
 | Diagonal and dual-mode horn beams, cross-polar levels | Two-component aperture transform (`horn_pattern`) | Diagonal efficiency to 1e-6 of its Fresnel form; TE11 limit to 1e-9 of the scalar routine |
+| Patch directivity (six shapes) | Spectral-domain MoM (`patch_sdm`), full-wave | Cavity current through the slab within 0.3-0.9%; two-slot formula 7.5-13% low |
 | Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
 
