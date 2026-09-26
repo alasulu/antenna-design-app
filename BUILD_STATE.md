@@ -2741,9 +2741,46 @@ extra height, not a double-tuned one. The driven patch now takes the full-wave
 length; the stack stays low confidence, and a two-layer solver with a feed
 model is future work.
 
+
+## The annular ring in patch_q, and a PIFA that is not a quarter wave
+
+HANDOVER section 6 item 12, the second round under the finish line.
+
+The annular ring: `otahub/num/patch_q.annulus` is its TM11 mode between
+magnetic walls at both edges, k from the lowest root of the Bessel
+cross-product. Checked against the two edge walls' magnetic ring currents in
+free space over the ground - a separate far-field model, written out in the
+test - it meets them to within 0.7% in Q and directivity on thin board (the
+rest is the slab, and it shrinks with h). A survey of 210 rings (8 held out) through
+the grounded slab then gave the spec what it lacked:
+- a substrate directivity factor, 1 on thin board and up to 1.20 on thick,
+  fitted 0.20% (0.12% held out); the free-space ring model alone reads up to 17%
+  low there, and directivity is now NaN past h sqrt(eps_r)/lambda0 = 0.1;
+- a radiation Q and VSWR-2 bandwidth - the ring had none - fitted in 1/eps_r,
+  h sqrt(eps_r)/lambda0 and 1/ratio: 0.10% worst, 0.63% held out. A fit in the
+  ratio itself was 15% off; the Q runs as 1/ratio. Not checked full-wave (the
+  MoM is rectangles only), so labelled an upper bound on thick board.
+The spec's own ring root (a cubic fit) is 0.1-0.15% off the exact root, within
+the 0.20% it declares.
+
+PIFA: the same half-space FDTD as the shorted patch, on air, taken to zero cell
+size on two quite different plates (h = 0.036 lambda, W = 0.12 lambda; h = 0.02
+lambda, W = 0.2 lambda): L + h is 0.2428 and 0.2423 of the plate's own resonant
+wavelength, not the 0.25 of the textbook rule, which builds a PIFA 3% low. The
+spectral MoM puts the unshorted plate of twice the length 6.7% and 3.1% higher
+than the shorted one - the wall's inductance again. The spec's L now uses
+0.2425, labelled a two-plate calibration; the textbook rule stays as a metric.
+The FDTD's radiation Q (19.5, 27.8) says the bandwidth formula 1.5 h/lambda0 is
+14-43% too wide, more on the taller plate; the cavity model's Q is 25-63% high
+on the same plates, so it cannot replace the formula, which stays labelled.
+Directivity needs a far-field transform the FDTD does not have (future work),
+and a real PIFA's pattern belongs to its ground plane anyway: it stays low
+confidence. The FR-4 shorted board's FDTD runs (4.2% low, full patch 2.8%) are
+now in the test data behind the number the spec quotes.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2698 tests, 936/936 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2745 tests, 946/946 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2755,10 +2792,11 @@ and the two-mode horns' efficiency and cross-polar levels, from aperture
 integration; patch directivity from the cavity current through the slab, and
 the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
-full-wave; the Potter horn's step is solved. Development runs to the finish line
-above (hard stop 2026-09-27 20:00): item 13 is done; next, item 12 (the annular
-ring mode in patch_q, and PIFA), then items 9, 5 and 4, then the wrap-up round
-that tags v1.0.
+full-wave; the Potter horn's step is solved; the annular ring has its own mode
+in patch_q, and the PIFA a length that resonates. Development runs to the finish
+line above (hard stop 2026-09-27 20:00): items 13 and 12 are done; next, item 9
+(the wide-strip equivalence), then items 5 and 4, then the wrap-up round that
+tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

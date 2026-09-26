@@ -19,7 +19,7 @@ shapes this is the derivation. Surface waves are not included: this is the
 radiation Q, as the bandwidth formulas it is compared with are.
 
 A shape is described by quadrature points inside it with psi and grad(psi) at
-each; `rectangle`, `disc` and `triangle` build the dominant modes. SI units.
+each; `rectangle`, `disc`, `annulus` and `triangle` build the dominant modes. SI units.
 
 A shorted patch also carries current down its shorting wall to the ground: a
 vertical current K_z per unit wall length, uniform over the height, equal to
@@ -38,11 +38,12 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from scipy.special import j1, jvp
+from scipy.optimize import brentq
+from scipy.special import j1, jv, jvp, yv, yvp
 
 from ..core.constants import C0, EPS0, ETA0, MU0
 
-__all__ = ["radiation_q", "rectangle", "shorted_rectangle", "disc", "triangle", "jackson_q", "slab_vertical_factor",
+__all__ = ["radiation_q", "rectangle", "shorted_rectangle", "disc", "annulus", "triangle", "jackson_q", "slab_vertical_factor",
            "directivity", "peak_directivity"]
 
 
@@ -150,6 +151,30 @@ def disc(a: float, n: int = 48):
     c, s = np.cos(P).ravel(), np.sin(P).ravel()
     grad = np.column_stack([dr * c - dp * s, dr * s + dp * c])
     return pts, Wt.ravel(), psi, grad
+
+
+def annulus(a: float, b: float, n: int = 48):
+    """TM11 of an annular ring, magnetic walls at rho = a and b: psi = [J1(k rho) Y1'(ka) -
+    Y1(k rho) J1'(ka)] cos(phi), with k the lowest root of J1'(ka) Y1'(kb) = J1'(kb) Y1'(ka)."""
+    g = lambda k: jvp(1, k * a) * yvp(1, k * b) - jvp(1, k * b) * yvp(1, k * a)
+    k0 = 2.0 / (a + b)                       # thin ring: k r_mean = 1
+    ks = np.linspace(0.5 * k0, 1.5 * k0, 400)
+    v = [g(x) for x in ks]
+    i = next(i for i in range(1, len(ks)) if np.sign(v[i]) != np.sign(v[i - 1]))
+    k = brentq(g, ks[i - 1], ks[i], xtol=1e-14 * k0)
+    xr, wr = np.polynomial.legendre.leggauss(n)
+    rho = a + 0.5 * (b - a) * (xr + 1)
+    nphi = 4 * n
+    phi = 2 * math.pi * np.arange(nphi) / nphi
+    R, P = np.meshgrid(rho, phi, indexing="ij")
+    W = np.outer(0.5 * (b - a) * wr * rho, np.full(nphi, 2 * math.pi / nphi))
+    A, B = yvp(1, k * a), jvp(1, k * a)
+    f = jv(1, k * R) * A - yv(1, k * R) * B
+    fd = k * (jvp(1, k * R) * A - yvp(1, k * R) * B)
+    c, s = np.cos(P), np.sin(P)
+    dr, dp = fd * c, -f * s / R
+    grad = np.column_stack([(dr * c - dp * s).ravel(), (dr * s + dp * c).ravel()])
+    return np.column_stack([(R * c).ravel(), (R * s).ravel()]), W.ravel(), (f * c).ravel(), grad
 
 
 def triangle(a: float, n: int = 60):

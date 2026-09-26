@@ -52,7 +52,7 @@ def test_ring_directivity_matches_its_own_quadrature(eps_r, ratio, registry):
     k0 = 2 * math.pi * 2e9 / 2.99792458e8
     k = design.get("k_diel")
     want = _exact(k0, k, design.get("a_in"), design.get("b_out"))
-    assert design.metrics["directivity_linear"] == pytest.approx(want, rel=2e-3)
+    assert design.metrics["directivity_thin_substrate_linear"] == pytest.approx(want, rel=2e-3)
 
 
 def test_ring_directivity_falls_with_permittivity(registry):
@@ -90,7 +90,7 @@ def test_ring_directivity_is_not_a_function_of_the_radius_ratio_alone(registry):
     for eps_r, ratio in ((4.4, 1.2), (8.0, 2.5)):
         d = registry["annular_ring_patch"].synthesize(
             f0=2e9, eps_r=eps_r, h=1.6e-3, ratio=ratio)
-        seen.append((k0 * d.get("b_out"), d.metrics["directivity_linear"]))
+        seen.append((k0 * d.get("b_out"), d.metrics["directivity_thin_substrate_linear"]))
     (kb1, d1), (kb2, d2) = seen
     assert abs(kb1 / kb2 - 1) < 0.10, "these two should share a k0*b"
     assert abs(d1 / d2 - 1) > 0.05, (

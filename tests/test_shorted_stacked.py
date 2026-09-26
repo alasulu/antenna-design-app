@@ -6,6 +6,8 @@ full-width shorting wall in a half-space grid (no mirror plane along the
 length); the stacked patch fits the quarter-space grid with a second sheet.
 Both specs now build lengths corrected with the rectangular patch's full-wave
 ratio; these tests pin what the FDTD says that correction does and does not do.
+The PIFA is the same shorted plate on air, and its length is calibrated on two
+such plates.
 """
 from __future__ import annotations
 
@@ -75,3 +77,28 @@ def test_the_coarsest_shorted_run_reproduces():
     f, q = pf.shorted_ringdown(b["eps_r"], r["nh"], r["nl"], r["nw"], 0.9 * cell)
     assert f / cell == pytest.approx(r["f_over_f0"], rel=2e-3)
     assert q == pytest.approx(r["Q"], rel=0.02)
+
+
+@pytest.mark.parametrize("plate", DATA["pifa"], ids=lambda p: f"h{p['h_lam']}")
+def test_the_pifa_resonates_short_of_a_quarter_wave(plate, registry):
+    """A full-width shorted plate on air: L + h is 0.2425 of its own resonant
+    wavelength on both plates, not 0.25, and it rings well below the unshorted
+    plate of twice the length (an independent solver, the spectral MoM)."""
+    runs = plate["runs"]
+    f = pf.extrapolate([r["nh"] for r in runs], [r["f_over_f0"] for r in runs])
+    assert (plate["L_lam"] + plate["h_lam"]) * f == pytest.approx(0.2425, rel=2e-3)
+    assert f < plate["doubled_plate_mom"]["f_over_f0"] - 0.025
+    d = registry["pifa"].synthesize(f0=1.8e9, h=plate["h_lam"] * f * 2.99792458e8 / 1.8e9, W=0.02)
+    assert (d.get("L") + d.get("h")) * 1.8e9 / 2.99792458e8 == pytest.approx(0.2425, rel=1e-9)
+
+
+def test_the_pifa_bandwidth_formula_is_too_wide(registry):
+    """The FDTD's radiation Q against the spec's 1.5 h/lambda0 at each plate's own
+    resonance: the formula is 14-43% too wide, more on the taller plate."""
+    over = []
+    for p in DATA["pifa"]:
+        f = pf.extrapolate([r["nh"] for r in p["runs"]], [r["f_over_f0"] for r in p["runs"]])
+        d = registry["pifa"].synthesize(f0=1e9, h=p["h_lam"] * f * 2.99792458e8 / 1e9, W=0.02)
+        over.append(d.metrics["fractional_bandwidth_vswr2"] * math.sqrt(2) * p["runs"][-1]["Q"] - 1)
+    assert all(o > 0.1 for o in over)
+    assert over[0] > over[1] + 0.2                          # h = 0.036 lambda against 0.02

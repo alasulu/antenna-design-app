@@ -1365,13 +1365,13 @@
       "synthesis": [
         {
           "output": "L",
-          "expr": "c/(4*f0) - h",
+          "expr": "0.2425*c/f0 - h",
           "units_out": "m",
           "depends_on": [
             "f0",
             "h"
           ],
-          "notes": "Full-width short (Ws = W): L + h = lambda/4. The general case interpolates toward L + W + h = lambda/4 as Ws/W falls, per Hirasawa & Haneishi."
+          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law; the narrow-short case below is still the textbook limit."
         }
       ],
       "analysis": [
@@ -1382,7 +1382,8 @@
           "depends_on": [
             "f0",
             "h"
-          ]
+          ],
+          "notes": "the textbook lambda/4 rule, kept for comparison: it resonates about 3% low (see L)"
         },
         {
           "metric": "resonant_length_narrow_short_m",
@@ -1403,19 +1404,20 @@
             "h",
             "f0"
           ],
-          "notes": "Indicative: PIFA bandwidth scales with height above ground. Roughly 30% accurate; real handset PIFAs are dominated by the ground-plane resonance."
+          "notes": "Indicative: PIFA bandwidth scales with height above ground. Roughly 30% accurate; real handset PIFAs are dominated by the ground-plane resonance. On the two FDTD plates above (radiation only, on air) the Q is 19.5 and 27.8, a VSWR-2 bandwidth of 3.6% and 2.5%; this formula, at each plate's own resonance, says 5.2% and 2.9%: 14-43% too wide, the error growing with height. The cavity model is no better here (its Q is 25-63% high on the same plates), so the formula stays, labelled."
         },
         {
           "metric": "directivity_dbi",
           "expr": "db10(2.5)",
           "units_out": "dBi",
-          "notes": "Indicative. A PIFA's pattern is largely set by the ground plane it sits on, not by the plate; treat this as a placeholder until simulated."
+          "notes": "Indicative. A PIFA's pattern is largely set by the ground plane it sits on, not by the plate; treat this as a placeholder until simulated. The FDTD here rings the plate down but has no far-field transform, and the cavity model's radiated power is 25-63% off on these plates, so no directivity is derived; it remains a placeholder."
         }
       ],
       "validity": [
         "h << lambda0",
         "assumes a ground plane large compared with the plate; handset ground planes are not, and the ground plane usually radiates more than the PIFA does",
-        "bandwidth and directivity entries are indicative, not derived"
+        "bandwidth and directivity entries are indicative, not derived",
+        "L is FDTD-calibrated on two air plates (h 0.02-0.036 lambda0, W 0.12-0.2 lambda0): 0.2425 wavelengths for L + h"
       ],
       "known_cases": [
         {
@@ -1425,11 +1427,23 @@
             "W": 0.02
           },
           "expect": {
-            "L_m": 0.035643,
-            "resonant_length_narrow_short_m": 0.015643
+            "resonant_length_narrow_short_m": 0.015643,
+            "resonant_length_full_short_m": 0.035643
           },
           "tol_pct": 2.0,
-          "source": "lambda/4 at 1.8 GHz = 41.64 mm; full-width short gives L = 41.64 - 6 = 35.64 mm. Hirasawa & Haneishi, Analysis, Design and Measurement of Small and Low-Profile Antennas"
+          "source": "lambda/4 at 1.8 GHz = 41.64 mm; full-width short gives L = 41.64 - 6 = 35.64 mm. Hirasawa & Haneishi, Analysis, Design and Measurement of Small and Low-Profile Antennas. (Now resonant_length_full_short_m, the textbook rule.)"
+        },
+        {
+          "given": {
+            "f0": 1800000000.0,
+            "h": 0.006,
+            "W": 0.02
+          },
+          "expect": {
+            "L_m": 0.0343887
+          },
+          "tol_pct": 0.3,
+          "source": "0.2425 wavelengths at 1.8 GHz is 40.39 mm, less the 6 mm height: 34.39 mm, against the lambda/4 rule's 35.64 mm. The constant is the mean of the two FDTD plates' L + h at resonance (0.2428 and 0.2423)."
         }
       ],
       "references": [
@@ -2438,7 +2452,7 @@
           ]
         },
         {
-          "metric": "directivity_linear",
+          "metric": "directivity_thin_substrate_linear",
           "expr": "(2.9922478) + (0.038186582)*(k0*b_out)**1 + (0.89081883)*(k0*b_out)**2 + (0.40451891)*(k0*b_out)**3 + (0.21312929)*(k0*b_out)**4 + (-0.011030037)*(k0*a_in)**1 + (1.6706666)*(k0*a_in)**1*(k0*b_out)**1 + (-2.4581593)*(k0*a_in)**1*(k0*b_out)**2 + (0.099127645)*(k0*a_in)**1*(k0*b_out)**3 + (1.2461995)*(k0*a_in)**2 + (3.4113999)*(k0*a_in)**2*(k0*b_out)**1 + (4.2731314)*(k0*a_in)**2*(k0*b_out)**2 + (-2.5468551)*(k0*a_in)**3 + (-2.8981153)*(k0*a_in)**3*(k0*b_out)**1 + (2.4413576)*(k0*a_in)**4",
           "units_out": "-",
           "depends_on": [
@@ -2446,7 +2460,32 @@
             "a_in",
             "b_out"
           ],
-          "notes": "Integrated from the TM11 cavity fields rather than assumed. The ring radiates from BOTH edge walls, each a phi-directed magnetic ring current with a cos(phi) dependence - the same source that gives the circular patch its J0 -/+ J2 pattern - so the far field is the superposition of two such rings, weighted by the cavity eigenfunction at each radius and opposite in sign because the outward normals oppose. Fitted over eps_r 2 to 13 and b/a 1.2 to 3, worst error 0.005%, and checked against a full 2-D angular grid. The flat 5.0 this spec used to carry is 5% LOW on eps_r 2.2 and 48% HIGH on eps_r 10.2 - wrong in both directions. Note the fit is in the two RADII, not in b/a: the directivity is genuinely two-dimensional, and two different (eps_r, b/a) pairs sharing a k0*b can differ by 13%."
+          "notes": "THIN-SUBSTRATE value, from the two edge walls' magnetic ring currents radiating in free space over the ground (exact as the board vanishes; otahub.num.patch_q's annular mode agrees with it to 0.13% there). Integrated from the TM11 cavity fields rather than assumed. The ring radiates from BOTH edge walls, each a phi-directed magnetic ring current with a cos(phi) dependence - the same source that gives the circular patch its J0 -/+ J2 pattern - so the far field is the superposition of two such rings, weighted by the cavity eigenfunction at each radius and opposite in sign because the outward normals oppose. Fitted over eps_r 2 to 13 and b/a 1.2 to 3, worst error 0.005%, and checked against a full 2-D angular grid. The flat 5.0 this spec used to carry is 5% LOW on eps_r 2.2 and 48% HIGH on eps_r 10.2 - wrong in both directions. Note the fit is in the two RADII, not in b/a: the directivity is genuinely two-dimensional, and two different (eps_r, b/a) pairs sharing a k0*b can differ by 13%."
+        },
+        {
+          "metric": "substrate_directivity_factor",
+          "expr": "exp((1.252811)*(h*f0*sqrt(eps_r)/c) + (-0.159902)*(h*f0*sqrt(eps_r)/c)*ratio + (0.03297442)*(h*f0*sqrt(eps_r)/c)*ratio**2 + (-1.541154)*(h*f0*sqrt(eps_r)/c)**2 + (3.300242)*(h*f0*sqrt(eps_r)/c)**2*ratio + (-0.6534142)*(h*f0*sqrt(eps_r)/c)**2*ratio**2 + (6.709655)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (3.397342)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*ratio + (-0.6892998)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*ratio**2 + (55.41308)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-59.70129)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*ratio + (11.69549)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*ratio**2 + (-23.38815)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-9.443275)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*ratio + (1.872247)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*ratio**2 + (-213.7006)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (200.2372)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*ratio + (-39.1682)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*ratio**2 + (12.45855)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (11.9822)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*ratio + (-2.328008)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*ratio**2 + (294.8278)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-252.3802)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*ratio + (49.17197)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*ratio**2)",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0",
+            "ratio"
+          ],
+          "notes": "The substrate's effect on the space wave: otahub.num.patch_q's directivity for the ring's own TM11 mode radiated through the grounded slab, over the thin-substrate value; no constant term in the thickness, so exactly 1 on a thin board. Fitted over eps_r 2-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and b/a 1.2-3: 0.20% worst on 210 solved designs, 0.12% on 8 held out; it spans 1.00 to 1.20."
+        },
+        {
+          "metric": "directivity_linear",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, directivity_thin_substrate_linear*substrate_directivity_factor, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "directivity_thin_substrate_linear",
+            "substrate_directivity_factor",
+            "eps_r",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: thin-substrate directivity times the substrate factor, as for the other patch shapes; NaN past h sqrt(eps_r)/lambda0 = 0.1. The free-space ring-current model alone reads up to 17% low on thick board."
         },
         {
           "metric": "directivity_dbi",
@@ -2464,6 +2503,27 @@
             "f0"
           ],
           "notes": "Narrow-ring approximation: the TM_n1 modes sit where the circumference is n wavelengths, so TM21 lands near 2*f0. The exact roots drift from this as the ring widens."
+        },
+        {
+          "metric": "radiation_q",
+          "expr": "exp((-1.853079) + (0.498747)*(1/ratio) + (10.20859)*(1/ratio)**2 + (-16.36825)*(1/ratio)**3 + (9.895294)*(1/ratio)**4 + (1.418248)*(h*f0*sqrt(eps_r)/c) + (-0.07532227)*(h*f0*sqrt(eps_r)/c)*(1/ratio) + (0.1013415)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**2 + (-0.06542697)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**3 + (0.01730918)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**4 + (-30.10884)*(h*f0*sqrt(eps_r)/c)**2 + (0.3622146)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio) + (-0.484874)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**2 + (0.3110082)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**3 + (-0.08173501)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**4 + (0.4961825)*(1/eps_r) + (-0.9474231)*(1/eps_r)*(1/ratio) + (1.405183)*(1/eps_r)*(1/ratio)**2 + (-1.018278)*(1/eps_r)*(1/ratio)**3 + (0.3009297)*(1/eps_r)*(1/ratio)**4 + (6.869782)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (2.119831)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*(1/ratio) + (-2.842441)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**2 + (1.827042)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**3 + (-0.4807098)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)*(1/ratio)**4 + (75.80462)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-4.078778)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio) + (5.636356)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**2 + (-3.766158)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**3 + (1.033925)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**4 + (-0.2622034)*(1/eps_r)**2 + (0.4672399)*(1/eps_r)**2*(1/ratio) + (-0.6230813)*(1/eps_r)**2*(1/ratio)**2 + (0.3972291)*(1/eps_r)**2*(1/ratio)**3 + (-0.1037371)*(1/eps_r)**2*(1/ratio)**4 + (-25.07397)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (0.09000354)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*(1/ratio) + (0.1115885)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*(1/ratio)**2 + (-0.2674997)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*(1/ratio)**3 + (0.1284696)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)*(1/ratio)**4 + (-109.9486)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (2.212907)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*(1/ratio) + (-0.4944559)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**2 + (-1.786752)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**3 + (1.067278)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**4 + (0.08430569)*(1/eps_r)**3 + (0.1504955)*(1/eps_r)**3*(1/ratio) + (-0.1689363)*(1/eps_r)**3*(1/ratio)**2 + (0.08125364)*(1/eps_r)**3*(1/ratio)**3 + (-0.01350705)*(1/eps_r)**3*(1/ratio)**4 + (18.64891)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (-4.042457)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*(1/ratio) + (5.191457)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*(1/ratio)**2 + (-3.144268)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*(1/ratio)**3 + (0.7700336)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)*(1/ratio)**4 + (114.9204)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (4.643206)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*(1/ratio) + (-9.321143)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**2 + (8.63029)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**3 + (-3.023751)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2*(1/ratio)**4)*eps_r/((1 - 1/eps_r + 0.4/eps_r**2)*(h*f0/c))",
+          "units_out": "-",
+          "depends_on": [
+            "eps_r",
+            "h",
+            "f0",
+            "ratio"
+          ],
+          "notes": "Radiation Q of the ring's TM11 mode, from otahub.num.patch_q (the mode between magnetic walls at both edges, k from the Bessel cross-product) radiated through the grounded slab; on thin board it agrees with the two edge walls' magnetic ring currents, computed independently, to 0.05-0.6%. Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r, h sqrt(eps_r)/lambda0 and a/b over eps_r 2-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and b/a 1.2-3: 0.10% worst on 210 designs, 0.63% on 8 held out. The spec had no bandwidth at all. NOT checked full-wave: the rectangular patch's cavity-current Q runs 1.6-28% above its full-wave one, so treat this as an upper bound on thick board."
+        },
+        {
+          "metric": "fractional_bandwidth_vswr2",
+          "expr": "(2-1)/(radiation_q*sqrt(2))",
+          "units_out": "-",
+          "depends_on": [
+            "radiation_q"
+          ],
+          "notes": "VSWR-2 bandwidth from the radiation Q: lossless, surface waves not counted, and a lower bound for the reason above."
         }
       ],
       "validity": [
@@ -2471,7 +2531,8 @@
         "cavity model with magnetic side walls and no fringing correction on the radii: real rings resonate a few percent low",
         "the exact resonance is transcendental; resonance_residual reports how far the design rule sits from it",
         "feeding a ring is awkward - a probe, a coupled microstrip line or an aperture all perturb the mode differently",
-        "the directivity fit covers eps_r 2 to 13 and b/a 1.2 to 3; outside that a degree-4 polynomial in two variables diverges rather than degrades"
+        "the thin-substrate directivity fit covers eps_r 2 to 13 and b/a 1.2 to 3 (on air it reads 5% high); outside that a degree-4 polynomial in two variables diverges rather than degrades",
+        "radiation Q, bandwidth and the substrate factor are fitted over eps_r 2-12, h/lambda0 0.003-0.05, h sqrt(eps_r)/lambda0 <= 0.1 and b/a 1.2-3; directivity is NaN past h sqrt(eps_r)/lambda0 = 0.1"
       ],
       "known_cases": [
         {
@@ -2521,10 +2582,10 @@
             "ratio": 2.0
           },
           "expect": {
-            "directivity_linear": 5.276016
+            "directivity_thin_substrate_linear": 5.276016
           },
           "tol_pct": 0.5,
-          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 2.0: D = 5.27639 (7.223 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -5% from it here."
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 2.0: D = 5.27639 (7.223 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -5% from it here. (Now the thin-substrate value.)"
         },
         {
           "given": {
@@ -2534,10 +2595,10 @@
             "ratio": 2.0
           },
           "expect": {
-            "directivity_linear": 3.978203
+            "directivity_thin_substrate_linear": 3.978203
           },
           "tol_pct": 0.5,
-          "source": "Quadrature of the two-ring TM11 far field at eps_r = 4.4, b/a = 2.0: D = 3.97824 (5.997 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +26% from it here."
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 4.4, b/a = 2.0: D = 3.97824 (5.997 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +26% from it here. (Now the thin-substrate value.)"
         },
         {
           "given": {
@@ -2547,10 +2608,10 @@
             "ratio": 2.0
           },
           "expect": {
-            "directivity_linear": 3.386171
+            "directivity_thin_substrate_linear": 3.386171
           },
           "tol_pct": 0.5,
-          "source": "Quadrature of the two-ring TM11 far field at eps_r = 10.2, b/a = 2.0: D = 3.38614 (5.297 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +48% from it here."
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 10.2, b/a = 2.0: D = 3.38614 (5.297 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is +48% from it here. (Now the thin-substrate value.)"
         },
         {
           "given": {
@@ -2560,10 +2621,55 @@
             "ratio": 3.0
           },
           "expect": {
-            "directivity_linear": 5.337916
+            "directivity_thin_substrate_linear": 5.337916
           },
           "tol_pct": 0.5,
-          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 3.0: D = 5.33839 (7.274 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -6% from it here."
+          "source": "Quadrature of the two-ring TM11 far field at eps_r = 2.2, b/a = 3.0: D = 5.33839 (7.274 dBi), confirmed on an independent 2-D angular grid to four decimals. The flat 5.0 this spec used to carry is -6% from it here. (Now the thin-substrate value.)"
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 4.4,
+            "h": 0.0016,
+            "ratio": 2.0
+          },
+          "expect": {
+            "radiation_q": 295.0298,
+            "fractional_bandwidth_vswr2": 0.00239673,
+            "directivity_linear": 4.20029
+          },
+          "tol_pct": 1.0,
+          "source": "otahub.num.patch_q solved directly for this ring (not the fits): radiation Q 295.030, so a VSWR-2 bandwidth of 0.240%; directivity 4.2003."
+        },
+        {
+          "given": {
+            "f0": 5800000000.0,
+            "eps_r": 10.2,
+            "h": 0.00127,
+            "ratio": 1.5
+          },
+          "expect": {
+            "radiation_q": 531.9329,
+            "fractional_bandwidth_vswr2": 0.00132932,
+            "directivity_linear": 3.92053
+          },
+          "tol_pct": 1.0,
+          "source": "otahub.num.patch_q solved directly for this ring (not the fits): radiation Q 531.933, so a VSWR-2 bandwidth of 0.133%; directivity 3.9205."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "eps_r": 2.2,
+            "h": 0.000787,
+            "ratio": 2.5
+          },
+          "expect": {
+            "radiation_q": 68.4007,
+            "fractional_bandwidth_vswr2": 0.01033772,
+            "directivity_linear": 5.58167
+          },
+          "tol_pct": 1.0,
+          "source": "otahub.num.patch_q solved directly for this ring (not the fits): radiation Q 68.401, so a VSWR-2 bandwidth of 1.034%; directivity 5.5817."
         }
       ],
       "references": [

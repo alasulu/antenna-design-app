@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-19,036 lines of Python, 23,878 lines of spec data, 2698 tests, 936/936 citable
+19,172 lines of Python, 23,984 lines of spec data, 2745 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -186,7 +186,9 @@ thick boards (the FR-4 check took 80 minutes at its finest grid). What the MoM
 cannot hold, the FDTD can: `patch_fdtd.shorted_ringdown` runs a quarter-wave
 patch with a full shorting wall in a half-space grid (checked against the
 quarter-space grid on a symmetric patch: identical), and two sheets make a
-stacked patch.
+stacked patch. On air the same grid is a PIFA: two plates put L + h at 0.2428 and
+0.2423 of their resonant wavelength, 3.1-6.7% below the unshorted plate of twice
+the length solved by the MoM.
 
 ### A fifth, for waveguide steps and flared horns
 
@@ -267,6 +269,7 @@ being written into a spec.
 | `diagonal_horn` | Aperture efficiency 8/π² = 0.8106, and at any flare exactly, as the E-plane sectoral phase factor times the H-plane sectoral efficiency in Fresnel integrals; beamwidth and cross-polar lobes against phase error and size | Aperture integration on a 2001² grid: 0.8110. `otahub/num/horn_pattern.py` transforms both field components: the Fresnel product to 1e-6; beam fit 0.07% (0.04% held out), cross-polar fit 0.003 dB. The lobes are −15.5 dB, not the −19 the notes claimed, and the edge-centre/corner phase wording was a factor of 2 out |
 | `annular_ring_patch` | Cubic correction to the narrow-ring rule | Bisection on the exact Bessel cross-product; 0.20% error against 2.71% uncorrected |
 | `annular_ring_patch` | Directivity from the TWO edge walls' magnetic ring currents, fitted in (k₀a, k₀b) | Quadrature and an independent 2-D angular grid agree to four decimals; replaces a hard-coded 5.0 that was 5% low at εr = 2.2 and 48% high at εr = 10.2 |
+| `annular_ring_patch` | TM11 radiation Q and substrate directivity factor, from `patch_q.annulus` through the slab | Meets the edge ring currents' Q and directivity to within 0.7% on thin board; fits 0.63% (Q) and 0.12% (factor) on held-out designs |
 | `one_wavelength_circular_loop` | Resonant circumference, driving-point resistance and broadside directivity, all as functions of the conductor thickness | A method-of-moments solve and an independent Fourier-mode solution of the same loop agree to 0.25% on impedance and four decimals on the current; replaces a fixed 1.09λ / 100 Ω / 3.4 dBi that were 2.6–5% long, 28–30% low and 5–6% low |
 | `quad_loop_square` | Resonant perimeter, resistance and directivity vs conductor thickness | Anchored to the circle's modal solution through an N-gon sequence (96-sided polygon 136.46 Ω against the modal circle's 137.07); replaces a 1.0218λ perimeter that is not resonant in free space at all |
 | `halo_loop` | Resonant ring size, resistance, peak directivity and azimuth ripple | Bent-wire MoM anchored by continuity to the straight dipole; the ripple is 2.7–3.3 dB against an asserted 1.5, and the spec's conductor length subtracted the gap twice |
@@ -343,6 +346,10 @@ enough to move the aperture phase about 20 degrees on a 10-wavelength horn, whic
 a first-order phasing length cannot see, so that length and the bandwidth are
 first-order and labelled so. The stepped-cone cascade that does see it exists
 (§3); a spec-level design built on it is the way out.
+
+`pifa` stays in the list with its length now FDTD-calibrated (§3): what keeps it
+there is that a real PIFA's bandwidth and pattern belong to its ground plane,
+which neither this toolkit nor the spec models.
 
 They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
@@ -749,8 +756,15 @@ known case only checks what it asserts.
    current radiated through the slab (`patch_q`) holds to 0.3-0.9%; the two-slot
    formula (7.5-13% low) and the free-space edge models (thin-substrate only)
    do not. Six specs now carry thin-substrate directivity times a substrate
-   factor. The annular ring keeps its free-space two-ring model (no annular mode
-   in `patch_q` yet), PIFA and stacked patch their assertions.
+   factor. The annular ring followed: `patch_q.annulus` is its TM11 mode (it
+   meets the two edge walls' ring currents to within 0.7% on thin board), so the
+   ring now carries a substrate factor (up to 1.20 on thick board) and a radiation
+   Q it never had. PIFA's length is FDTD-calibrated on two air plates (L + h =
+   0.2425 wavelengths: the lambda/4 rule resonates 3% low); its bandwidth
+   formula is 14-43% too wide against the FDTD's Q, and its directivity stays a
+   placeholder. **Left:** a far-field transform in the half-space FDTD, which
+   would give the PIFA a directivity - on a finite ground plane, which is what
+   sets a real PIFA's pattern.
 13. ~~**Patch resonance and Q, full-wave.**~~ - done for the rectangle, with an
    edge-exact basis and an FDTD check (§3); `rectangular_patch` and the inset
    patch build the full-wave length, and the CP square takes its side and Q0

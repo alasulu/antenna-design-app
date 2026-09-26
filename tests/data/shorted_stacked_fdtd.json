@@ -1,5 +1,5 @@
 {
- "description": "FDTD (otahub.num.patch_fdtd) of the shorted and stacked patches. half_space_check: an unshorted eps_r 10.2 patch in the half-space grid and the quarter-space grid (same answer). shorted: quarter-wave patches with a full-width shorting wall at several cell sizes (nh cells across h), the geometry in wavelengths; full_patch_ratio is the rectangular patch's full-wave resonance ratio on the same board, for comparison. stacked: two sheets, the driven one on h = 4 cells of eps_r 2.2 (h = 0.0128 lambda), a 10-cell (0.032 lambda) air gap, the parasitic scaled by size_ratio in length; the coupled modes in units of f0, coarse grid only.",
+ "description": "FDTD (otahub.num.patch_fdtd) of the shorted and stacked patches. half_space_check: an unshorted eps_r 10.2 patch in the half-space grid and the quarter-space grid (same answer). shorted: quarter-wave patches with a full-width shorting wall at several cell sizes (nh cells across h), the geometry in wavelengths; full_patch_ratio is the rectangular patch's full-wave resonance ratio on the same board, for comparison. stacked: two sheets, the driven one on h = 4 cells of eps_r 2.2 (h = 0.0128 lambda), a 10-cell (0.032 lambda) air gap, the parasitic scaled by size_ratio in length; the coupled modes in units of f0, coarse grid only. pifa: the same shorted plate on air (eps_r 1, a full-width short: a PIFA), at several cell sizes; doubled_plate_mom is otahub.num.patch_sdm's resonance and Q for the unshorted plate of twice the length, for comparison.",
  "half_space_check": {
   "quarter_space": 0.93241,
   "half_space": 0.93241,
@@ -58,6 +58,29 @@
     }
    ],
    "full_patch_ratio": 0.96435
+  },
+  {
+   "eps_r": 4.4,
+   "h_lam": 0.0128,
+   "L_lam": 0.1152,
+   "W_lam": 0.3072,
+   "runs": [
+    {
+     "nh": 4,
+     "nl": 36,
+     "nw": 48,
+     "f_over_f0": 0.968778,
+     "Q": 88.626
+    },
+    {
+     "nh": 6,
+     "nl": 54,
+     "nw": 72,
+     "f_over_f0": 0.972003,
+     "Q": 88.249
+    }
+   ],
+   "full_patch_ratio": 0.97212
   }
  ],
  "stacked": {
@@ -153,5 +176,64 @@
     ]
    }
   ]
- }
+ },
+ "pifa": [
+  {
+   "h_lam": 0.036,
+   "L_lam": 0.216,
+   "W_lam": 0.12,
+   "runs": [
+    {
+     "nh": 6,
+     "nl": 36,
+     "nw": 10,
+     "f_over_f0": 0.954177,
+     "Q": 19.412
+    },
+    {
+     "nh": 9,
+     "nl": 54,
+     "nw": 15,
+     "f_over_f0": 0.957219,
+     "Q": 19.447
+    },
+    {
+     "nh": 12,
+     "nl": 72,
+     "nw": 20,
+     "f_over_f0": 0.958724,
+     "Q": 19.464
+    }
+   ],
+   "doubled_plate_mom": {
+    "f_over_f0": 1.03215,
+    "Q": 34.119
+   }
+  },
+  {
+   "h_lam": 0.02,
+   "L_lam": 0.23,
+   "W_lam": 0.2,
+   "runs": [
+    {
+     "nh": 4,
+     "nl": 46,
+     "nw": 20,
+     "f_over_f0": 0.961913,
+     "Q": 27.821
+    },
+    {
+     "nh": 6,
+     "nl": 69,
+     "nw": 30,
+     "f_over_f0": 0.964362,
+     "Q": 27.816
+    }
+   ],
+   "doubled_plate_mom": {
+    "f_over_f0": 1.00051,
+    "Q": 51.94
+   }
+  }
+ ]
 }

@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2698 tests, ~10 min
+python -m pytest tests/ -q                # 2745 tests, ~10 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -201,6 +201,8 @@ against an independent numerical model before being written into a spec:
 | Rectangular patch resonance and Q | Spectral-domain MoM against FDTD ringdown (`patch_fdtd`) | 0.013-0.02% in frequency; the textbook design resonates 0.5-7% low |
 | Potter horn step | Mode matching (`waveguide_step`) against an axisymmetric FDTD (`bor_fdtd`) | 0.06% in TM11 share, 0.04 deg in phase |
 | Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
+| Annular ring Q and substrate factor | TM11 mode through the slab (`patch_q.annulus`) against the edge walls' ring currents | Within 0.7% on thin board; fits 0.63% (Q), 0.12% (factor) held out |
+| Shorted patch and PIFA length | Half-space FDTD ringdown (`patch_fdtd.shorted_ringdown`) | Textbook shorted patch 4-8% low; PIFA's lambda/4 rule 3% low (L + h = 0.2425 lambda) |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
 
 ### Planar arrays
