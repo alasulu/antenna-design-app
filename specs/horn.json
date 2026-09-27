@@ -1820,7 +1820,7 @@
           "unit": "-",
           "role": "assumption",
           "typical": "0.15",
-          "description": "TM11 share of the power the step launches, in phase with TE11 at the aperture once phased. The flare shifts it a little (see d_step); the aperture metrics take it as the aperture share."
+          "description": "TM11 share of the aperture power, in phase with TE11 - what the aperture metrics take. The step (d_step) is designed to LAUNCH it, which delivers it in phase at the aperture only on a horn whose step and phasing length are solved together (see d_step and phasing_length_m)."
         },
         {
           "symbol": "d_in_over_lambda",
@@ -1863,7 +1863,7 @@
             "tm11_fraction",
             "f0"
           ],
-          "notes": "SOLVED by mode matching (otahub.num.waveguide_step): the diameter of the step from the input guide that launches this TM11 share. The method is checked against an FDTD of the same step (otahub.num.bor_fdtd, axisymmetric at azimuthal order 1): extrapolated to zero cell size the two agree to 0.06% in the TM11 share and 0.04 degrees in its phase. Tabulated over input guides of 0.85-1.2 wavelengths and shares 0.03-0.45 and interpolated (the share it then launches is within 0.002 of the target); NaN where the input guide cannot launch that share below TE12 cutoff. It replaces an indicative 1.3 wavelengths. The flare shifts the share the aperture sees: an FDTD of a whole 10-wavelength horn launching 0.160 delivers 0.14 at the aperture."
+          "notes": "SOLVED for the LAUNCHED share by mode matching (otahub.num.waveguide_step): the diameter of the step from the input guide that launches this TM11 share. The method is checked against an FDTD of the same step (otahub.num.bor_fdtd, axisymmetric at azimuthal order 1): extrapolated to zero cell size the two agree to 0.06% in the TM11 share and 0.04 degrees in its phase. Tabulated over input guides of 0.85-1.2 wavelengths and shares 0.03-0.45 and interpolated (the share it then launches is within 0.002 of the target); NaN where the input guide cannot launch that share below TE12 cutoff. It replaces an indicative 1.3 wavelengths. That is the LAUNCHED share, and it is not the aperture's. The phasing guide is a TM11 resonator: TM11 is cut off in the input guide, so the step reflects it totally, and the start of the flare reflects part of it - so the share and phase at the aperture belong to the step and the phasing length jointly (otahub.num.waveguide_step.potter_aperture, the whole chain by GSM cascade; an FDTD of the same staircase follows it within a degree in phase and 0.02 in share on the designed horn, 5 degrees and 0.04 at the resonance's extremes). On a 10-wavelength horn from a 1.1-wavelength guide the share arriving in phase at the aperture runs from 0.001 to 0.24 as the step goes from 1.25 to 1.55 wavelengths, not monotonically, and a 5-wavelength horn's map is different again. For 0.15 in phase that horn needs a step of 1.478 wavelengths (launching about 0.24) and a phasing length of 0.879, not the 1.354 and 0.576 built here. INDICATIVE as a design for the aperture share."
         }
       ],
       "analysis": [
@@ -1934,7 +1934,7 @@
             "dm",
             "f0"
           ],
-          "notes": "SOLVED: the peak cross-polar level (Ludwig-3) in the 45-degree plane relative to the co-polar peak, from otahub.num.horn_pattern at dm = 3.16, 5.48 and 12 wavelengths over the fraction 0-0.4 (0.0025 steps around the null), interpolated linearly in the fraction and in 1/D^2; eight held-out solutions at 4.2 and 8 wavelengths agree to 0.03 dB. Held at the 12-wavelength values above that (worth about 0.05 dB), NaN below 3.15 wavelengths or past a fraction of 0.4. -17.6 dB with TE11 alone; a null of -34.1 to -34.5 dB near a fraction of 0.13; -32.2 dB at the default - so the INDICATIVE -30 dB this spec carried was about right at the design frequency. Only there: the two modes travel at different speeds, and the phase condition that cancels the cross-polar field drifts off with frequency."
+          "notes": "SOLVED: the peak cross-polar level (Ludwig-3) in the 45-degree plane relative to the co-polar peak, from otahub.num.horn_pattern at dm = 3.16, 5.48 and 12 wavelengths over the fraction 0-0.4 (0.0025 steps around the null), interpolated linearly in the fraction and in 1/D^2; eight held-out solutions at 4.2 and 8 wavelengths agree to 0.03 dB. Held at the 12-wavelength values above that (worth about 0.05 dB), NaN below 3.15 wavelengths or past a fraction of 0.4. -17.6 dB with TE11 alone; a null of -34.1 to -34.5 dB near a fraction of 0.13; -32.2 dB at the default - so the INDICATIVE -30 dB this spec carried was about right at the design frequency. Only there: the two modes travel at different speeds, and the phase condition that cancels the cross-polar field drifts off with frequency. For a horn that DELIVERS this share in phase at the aperture: the default built first-order does not, and sits at -21 dB at f0 (see phasing_length_m)."
         },
         {
           "metric": "tm11_fraction_for_equal_beams",
@@ -2020,7 +2020,7 @@
             "L",
             "f0"
           ],
-          "notes": "INDICATIVE - first-order. The length of the step's guide that brings TM11 into phase with TE11 at the aperture if the flare only delays the two modes. It does more: a generalised-scattering-matrix cascade of the stepped cone (otahub.num.waveguide_step.cascade, which an FDTD of the whole horn matches) puts the aperture phase of a 10-wavelength horn built this way 22 degrees off, where the cross-polar null needs it within about 5. Tune it in a full-wave solve; a spec-level cascade design is the next step."
+          "notes": "INDICATIVE - first-order, and wrong in kind as well as degree: the length of the step's guide that brings TM11 into phase with TE11 at the aperture if the flare only delayed the two modes and nothing came back. TM11 does come back - the phasing guide is a TM11 resonator (see d_step) - so the whole chain decides both phase and share. The default horn built this way (10 wavelengths, input guide 1.1, 0.15) delivers 0.151 at +26.5 degrees and moves -12.7 degrees per percent, so its cross-polar level at f0 is -21 dB, not the -32 the aperture metrics give, and its -30 dB window lies at 1.018-1.040 f0, wholly above the design frequency (GSM cascade of the whole chain, FDTD-checked). Solved jointly for 0.15 in phase, the same horn wants a step of 1.478 and a phasing length of 0.879 wavelengths; it then holds -32.2 dB at f0, -30 dB from 0.992 to 1.028 f0 (3.7%) and -25 dB over more than 9%, its phase moving only -5.5 degrees per percent. The joint solution moves with horn length and input guide and is not tabulated here: solve the chain for the horn in hand (otahub.num.waveguide_step.potter_aperture)."
         },
         {
           "metric": "aperture_phase_slope_deg_per_percent",
@@ -2034,7 +2034,7 @@
             "L",
             "f0"
           ],
-          "notes": "How fast the TM11-to-TE11 phase at the aperture moves with frequency, first-order (step from the tables, phasing and flare from the local propagation constants): about -8 degrees per percent on a 10-wavelength horn. The cascade gives -11.4 on the same horn, so this UNDERSTATES it by about a third."
+          "notes": "How fast the TM11-to-TE11 phase at the aperture moves with frequency, first-order (step from the tables, phasing and flare from the local propagation constants): about -8 degrees per percent on a 10-wavelength horn. The cascade gives -11.4 on the same horn, so this UNDERSTATES it by about a third. Both are for the modes' propagation alone. The whole chain of the first-order default, TM11 resonance and all, moves -12.7 degrees per percent; a jointly designed one -5.5 (see phasing_length_m)."
         },
         {
           "metric": "fractional_bandwidth_xpol_30db",
@@ -2044,7 +2044,7 @@
             "tm11_fraction",
             "aperture_phase_slope_deg_per_percent"
           ],
-          "notes": "The band over which the peak cross-polar level stays below -30 dB, from the window of aperture phase the aperture model tolerates at this TM11 share and the first-order phase slope. The window is LOPSIDED: TM11 leading TE11 spoils the null fast (+5.5 degrees at a share of 0.13), lagging slowly (-19 degrees), and since the phase falls with frequency the band reaches further above f0 than below. Zero where the design itself is above -30 dB (shares below about 0.1 or above 0.17). An UPPER BOUND: the cascade's slope is a third steeper than this first-order one, and the aperture share drifts too - about 2.5% here becomes 1.8% on a 10-wavelength horn at a share of 0.15. The 6% this spec carried is roughly the -25 dB band, not the -30."
+          "notes": "The band over which the peak cross-polar level stays below -30 dB, from the window of aperture phase the aperture model tolerates at this TM11 share and the first-order phase slope. The window is LOPSIDED: TM11 leading TE11 spoils the null fast (+5.5 degrees at a share of 0.13), lagging slowly (-19 degrees), and since the phase falls with frequency the band reaches further above f0 than below. Zero where the design itself is above -30 dB (shares below about 0.1 or above 0.17). INDICATIVE and not a bound either way: it assumes a horn in phase at f0 with the first-order slope. The horn this spec builds is not in phase - its null sits 2-3% above f0 - while a jointly designed 10-wavelength horn at 0.15 reaches 3.7% (see phasing_length_m). The 6% this spec carried is roughly the -25 dB band, not the -30."
         },
         {
           "metric": "aperture_phase_for_centred_band_deg",
@@ -2063,13 +2063,13 @@
             "tm11_fraction",
             "aperture_phase_slope_deg_per_percent"
           ],
-          "notes": "UPPER BOUND on the -25 dB cross-polar band, the same way: a window of about 52 degrees at shares of 0.1-0.16, so 6.4% first-order on a 10-wavelength horn at 0.15, about 4.5% with the cascade's slope."
+          "notes": "INDICATIVE: the -25 dB cross-polar band, the same way - a window of about 52 degrees at shares of 0.1-0.16, so 6.4% first-order on a 10-wavelength horn at 0.15. The horn this spec builds covers 5.3%, all of it above f0; a jointly designed one more than 9% (see phasing_length_m)."
         }
       ],
       "validity": [
-        "the step is SOLVED: d_step launches the stated TM11 share (mode matching, FDTD-checked to 0.06%); the flare then shifts the share the aperture sees by some hundredths",
+        "the step is SOLVED for the share it LAUNCHES (mode matching, FDTD-checked to 0.06%); what arrives at the aperture is another matter (next)",
         "aperture efficiency, beamwidths and cross-polar level are derived from the aperture fields for the stated TM11 share in phase, at the design frequency",
-        "the phasing length and the bandwidths are FIRST-ORDER and indicative: the flare's own mode conversion, which a stepped-cone cascade and an FDTD of the whole horn both show, moves the aperture phase by about 20 degrees on a 10-wavelength horn",
+        "the step and phasing length do not deliver the stated share in phase: the phasing guide is a TM11 resonator (cut off in the input guide, partly reflected where the flare starts), so share and phase at the aperture are set by step and phasing together - the first-order default lands at +26.5 degrees and -21 dB of cross-polar level at f0. The aperture metrics hold for a horn that delivers the share in phase, which needs the whole chain solved for its dimensions (otahub.num.waveguide_step.potter_aperture, FDTD-checked); the bandwidths are indicative",
         "the aperture phase error is the 3/8 wavelength that dm = sqrt(3 lambda L) implies; L is the slant length from the cone's apex",
         "the two cutoff diameters are exact, being Bessel zeros"
       ],

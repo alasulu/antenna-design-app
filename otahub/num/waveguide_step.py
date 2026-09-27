@@ -18,6 +18,15 @@ checked against `bor_fdtd`, an FDTD of the same step.
 
 What the horn needs from it: the share of the transmitted power carried by TM11
 and the phase of TM11 relative to TE11 at the step. SI units, exp(+j omega t).
+
+The launched share is not the aperture's. TM11 is cut off in the input guide, so
+the step reflects it totally, and the start of the flare - where TM11, barely
+above cutoff, sees its impedance change fast - reflects part of it: the phasing
+guide is a TM11 resonator. `potter_aperture` runs the whole chain; on a
+10-wavelength horn from a 1.1-wavelength guide the share arriving in phase at the
+aperture swings from 0.001 to 0.24 as the step goes from 1.25 to 1.55
+wavelengths, not monotonically, and an FDTD of the same staircase follows the
+cascade to a degree in phase.
 """
 from __future__ import annotations
 
@@ -28,7 +37,7 @@ from scipy.special import jn_zeros, jnp_zeros, jv, jvp
 
 from ..core.constants import C0, EPS0, MU0
 
-__all__ = ["modes", "step", "tm11_launch", "cascade", "aperture_share"]
+__all__ = ["modes", "step", "tm11_launch", "cascade", "aperture_share", "potter_profile", "potter_aperture"]
 
 
 def modes(radius: float, n_te: int, n_tm: int):
@@ -183,3 +192,29 @@ def aperture_share(b, section, radius: float, apex_distance: float, f: float, n:
         out[kind] = (amp, abs(amp) ** 2 * math.pi * den * _admittance(kind, chi / radius, k0).real)
     return (float(out["TM"][1] / (out["TE"][1] + out["TM"][1])),
             float(math.degrees(np.angle(out["TM"][0] / out["TE"][0]))))
+
+
+def potter_profile(d_in: float, d_step: float, ell: float, d_ap: float, slant: float, stair: float = 0.05,
+                   lead: float = 0.3):
+    """A Potter horn as a staircase for `cascade`, in wavelengths (so metres at f = c):
+    `lead` of the input guide, the step to d_step, `ell` of phasing guide, then a cone
+    from d_step to the aperture d_ap whose slant length from its apex is `slant`, cut into
+    stairs of axial length at most `stair` (each at the cone's radius mid-stair).
+    Returns (profile, axial distance from the apex to the aperture)."""
+    a1, a2 = d_step / 2, d_ap / 2
+    tan_t = (a2 / slant) / math.sqrt(1 - (a2 / slant) ** 2)
+    lf = (a2 - a1) / tan_t
+    n = max(4, int(math.ceil(lf / stair)))
+    cone = [((a1 + (i - 0.5) * lf / n * tan_t) if i < n else a2, lf / n) for i in range(1, n + 1)]
+    return [(d_in / 2, lead), (a1, ell)] + cone, math.sqrt(slant ** 2 - a2 ** 2)
+
+
+def potter_aperture(d_in: float, d_step: float, ell: float, d_ap: float, slant: float, f_ratio: float = 1.0,
+                    stair: float = 0.05, per: float = 18.0) -> tuple[float, float]:
+    """(TM11 share, TM11-to-TE11 phase in degrees) at the aperture of that horn, TE11 in,
+    at f_ratio times the frequency at which the dimensions are in wavelengths - the
+    whole chain at once: step, phasing guide and flare, and the TM11 that rattles between
+    the step (where it is cut off) and the start of the flare."""
+    prof, apex = potter_profile(d_in, d_step, ell, d_ap, slant, stair)
+    S, _, last = cascade(prof, C0 * f_ratio, per)
+    return aperture_share(S[2][:, 0], last, d_ap / 2, apex, C0 * f_ratio)

@@ -1,0 +1,803 @@
+{
+ "description": "otahub.num.waveguide_step: the Potter horn as one chain - input guide 1.1 lambda, step, phasing guide, cone to dm = sqrt(3 L lambda) - by GSM cascade, lengths in wavelengths, share = TM11 share of the aperture power and psi = TM11-to-TE11 phase at the aperture (degrees), spherical front removed. ell_scan: the spec's first-order default (L = 10, share 0.15) with its phasing length moved through a beat period and more. fdtd_ell: the same horn at N = 60 cells per wavelength in bor_fdtd at four phasing lengths (geometry in cells: input radius, step radius, phasing, aperture radius, cone length), against the cascade of that same staircase. design_curve_*: for each step, the phasing lengths that put the aperture in phase and the share there (stairs of 0.05). design: step and phasing solved jointly for 0.15 in phase at the aperture, stairs of 0.05 and of 0.025; stair_convergence: the 0.05 design rerun on finer stairs. fdtd_design: the 0.05 design in bor_fdtd at three resolutions against the cascade of each staircase. band: the 0.05 design ('casc') and the spec's first-order design ('first') across frequency.",
+ "first_order": {
+  "L": 10.0,
+  "d_in": 1.1,
+  "d_step": 1.354322111366743,
+  "ell": 0.5763116978207501,
+  "launched": 0.15
+ },
+ "ell_scan": [
+  {
+   "ell": 0.5763,
+   "share": 0.1508,
+   "psi": 26.46
+  },
+  {
+   "ell": 0.8441,
+   "share": 0.1385,
+   "psi": 61.84
+  },
+  {
+   "ell": 1.1118,
+   "share": 0.1673,
+   "psi": 117.46
+  },
+  {
+   "ell": 1.3796,
+   "share": 0.2565,
+   "psi": 160.59
+  },
+  {
+   "ell": 1.6474,
+   "share": 0.2729,
+   "psi": -170.17
+  },
+  {
+   "ell": 1.9152,
+   "share": 0.1694,
+   "psi": -137.68
+  },
+  {
+   "ell": 2.1829,
+   "share": 0.0841,
+   "psi": -95.39
+  },
+  {
+   "ell": 2.4507,
+   "share": 0.0411,
+   "psi": -22.53
+  },
+  {
+   "ell": 2.7185,
+   "share": 0.1362,
+   "psi": 40.01
+  },
+  {
+   "ell": 2.9862,
+   "share": 0.1976,
+   "psi": 62.61
+  },
+  {
+   "ell": 3.254,
+   "share": 0.1691,
+   "psi": 108.07
+  }
+ ],
+ "fdtd_ell": [
+  {
+   "geom": [
+    33,
+    41,
+    35,
+    164,
+    433
+   ],
+   "ell": 0.5833333333333334,
+   "cascade_share": 0.14206,
+   "cascade_psi": 15.217,
+   "fdtd_share": 0.12586,
+   "fdtd_psi": 14.107
+  },
+  {
+   "geom": [
+    33,
+    41,
+    59,
+    164,
+    433
+   ],
+   "ell": 0.9833333333333333,
+   "cascade_share": 0.1416,
+   "cascade_psi": 87.015,
+   "fdtd_share": 0.15356,
+   "fdtd_psi": 87.708
+  },
+  {
+   "geom": [
+    33,
+    41,
+    83,
+    164,
+    433
+   ],
+   "ell": 1.3833333333333333,
+   "cascade_share": 0.30473,
+   "cascade_psi": 150.003,
+   "fdtd_share": 0.34489,
+   "fdtd_psi": 146.713
+  },
+  {
+   "geom": [
+    33,
+    41,
+    107,
+    164,
+    433
+   ],
+   "ell": 1.7833333333333334,
+   "cascade_share": 0.23764,
+   "cascade_psi": -169.625,
+   "fdtd_share": 0.26497,
+   "fdtd_psi": -173.994
+  }
+ ],
+ "design_curve_10": [
+  {
+   "d_step": 1.23,
+   "share_min": 0.0,
+   "share_max": 0.0681,
+   "in_phase": []
+  },
+  {
+   "d_step": 1.25,
+   "share_min": 0.0004,
+   "share_max": 0.1023,
+   "in_phase": [
+    {
+     "ell": 0.216,
+     "share": 0.0008
+    },
+    {
+     "ell": 1.4691,
+     "share": 0.0168
+    }
+   ]
+  },
+  {
+   "d_step": 1.27,
+   "share_min": 0.0028,
+   "share_max": 0.2214,
+   "in_phase": [
+    {
+     "ell": 0.2167,
+     "share": 0.0034
+    },
+    {
+     "ell": 1.8823,
+     "share": 0.0061
+    }
+   ]
+  },
+  {
+   "d_step": 1.29,
+   "share_min": 0.0081,
+   "share_max": 0.261,
+   "in_phase": [
+    {
+     "ell": 0.2299,
+     "share": 0.0084
+    },
+    {
+     "ell": 1.9437,
+     "share": 0.0092
+    }
+   ]
+  },
+  {
+   "d_step": 1.31,
+   "share_min": 0.0168,
+   "share_max": 0.2273,
+   "in_phase": [
+    {
+     "ell": 0.2531,
+     "share": 0.0169
+    },
+    {
+     "ell": 2.1558,
+     "share": 0.0886
+    }
+   ]
+  },
+  {
+   "d_step": 1.33,
+   "share_min": 0.0286,
+   "share_max": 0.2784,
+   "in_phase": [
+    {
+     "ell": 0.288,
+     "share": 0.0324
+    },
+    {
+     "ell": 2.4066,
+     "share": 0.0374
+    }
+   ]
+  },
+  {
+   "d_step": 1.35,
+   "share_min": 0.0373,
+   "share_max": 0.2668,
+   "in_phase": [
+    {
+     "ell": 0.3448,
+     "share": 0.0633
+    },
+    {
+     "ell": 2.494,
+     "share": 0.0414
+    }
+   ]
+  },
+  {
+   "d_step": 1.365,
+   "share_min": 0.0535,
+   "share_max": 0.3199,
+   "in_phase": [
+    {
+     "ell": 0.4248,
+     "share": 0.1074
+    },
+    {
+     "ell": 2.6164,
+     "share": 0.0985
+    }
+   ]
+  },
+  {
+   "d_step": 1.37,
+   "share_min": 0.0581,
+   "share_max": 0.3334,
+   "in_phase": [
+    {
+     "ell": 0.4671,
+     "share": 0.1248
+    },
+    {
+     "ell": 2.7268,
+     "share": 0.1329
+    }
+   ]
+  },
+  {
+   "d_step": 1.375,
+   "share_min": 0.0621,
+   "share_max": 0.3445,
+   "in_phase": [
+    {
+     "ell": 0.5156,
+     "share": 0.1364
+    },
+    {
+     "ell": 2.826,
+     "share": 0.1211
+    }
+   ]
+  },
+  {
+   "d_step": 1.38,
+   "share_min": 0.066,
+   "share_max": 0.3537,
+   "in_phase": [
+    {
+     "ell": 0.5605,
+     "share": 0.1388
+    },
+    {
+     "ell": 2.8821,
+     "share": 0.1014
+    }
+   ]
+  },
+  {
+   "d_step": 1.385,
+   "share_min": 0.0699,
+   "share_max": 0.3605,
+   "in_phase": [
+    {
+     "ell": 0.5969,
+     "share": 0.1357
+    },
+    {
+     "ell": 2.9199,
+     "share": 0.0876
+    }
+   ]
+  },
+  {
+   "d_step": 1.39,
+   "share_min": 0.0745,
+   "share_max": 0.3666,
+   "in_phase": [
+    {
+     "ell": 0.6273,
+     "share": 0.1311
+    },
+    {
+     "ell": 2.9499,
+     "share": 0.0797
+    }
+   ]
+  },
+  {
+   "d_step": 1.395,
+   "share_min": 0.0745,
+   "share_max": 0.3696,
+   "in_phase": [
+    {
+     "ell": 0.6512,
+     "share": 0.126
+    },
+    {
+     "ell": 2.9753,
+     "share": 0.0756
+    }
+   ]
+  },
+  {
+   "d_step": 1.4,
+   "share_min": 0.0711,
+   "share_max": 0.371,
+   "in_phase": [
+    {
+     "ell": 0.6715,
+     "share": 0.1215
+    },
+    {
+     "ell": 2.9993,
+     "share": 0.0754
+    }
+   ]
+  },
+  {
+   "d_step": 1.41,
+   "share_min": 0.0685,
+   "share_max": 0.3701,
+   "in_phase": [
+    {
+     "ell": 0.7054,
+     "share": 0.1147
+    },
+    {
+     "ell": 3.0513,
+     "share": 0.0871
+    }
+   ]
+  },
+  {
+   "d_step": 1.45,
+   "share_min": 0.1078,
+   "share_max": 0.3519,
+   "in_phase": [
+    {
+     "ell": 0.8062,
+     "share": 0.1161
+    },
+    {
+     "ell": 3.5075,
+     "share": 0.1234
+    }
+   ]
+  },
+  {
+   "d_step": 1.46,
+   "share_min": 0.1073,
+   "share_max": 0.3783,
+   "in_phase": [
+    {
+     "ell": 0.8306,
+     "share": 0.1234
+    },
+    {
+     "ell": 3.5606,
+     "share": 0.1231
+    }
+   ]
+  },
+  {
+   "d_step": 1.47,
+   "share_min": 0.0996,
+   "share_max": 0.4004,
+   "in_phase": [
+    {
+     "ell": 0.8569,
+     "share": 0.1339
+    },
+    {
+     "ell": 3.6243,
+     "share": 0.1447
+    }
+   ]
+  },
+  {
+   "d_step": 1.48,
+   "share_min": 0.0969,
+   "share_max": 0.4176,
+   "in_phase": [
+    {
+     "ell": 0.8869,
+     "share": 0.1488
+    },
+    {
+     "ell": 3.7453,
+     "share": 0.2051
+    }
+   ]
+  },
+  {
+   "d_step": 1.5,
+   "share_min": 0.1057,
+   "share_max": 0.4393,
+   "in_phase": [
+    {
+     "ell": 0.9724,
+     "share": 0.1989
+    },
+    {
+     "ell": 4.0216,
+     "share": 0.1814
+    }
+   ]
+  },
+  {
+   "d_step": 1.55,
+   "share_min": 0.1244,
+   "share_max": 0.4349,
+   "in_phase": [
+    {
+     "ell": 1.3009,
+     "share": 0.2379
+    },
+    {
+     "ell": 4.541,
+     "share": 0.2385
+    }
+   ]
+  }
+ ],
+ "design_curve_5": [
+  {
+   "d_step": 1.25,
+   "share_min": 0.0001,
+   "share_max": 0.1237,
+   "in_phase": [
+    {
+     "ell": 1.9725,
+     "share": 0.0638
+    }
+   ]
+  },
+  {
+   "d_step": 1.29,
+   "share_min": 0.0006,
+   "share_max": 0.3654,
+   "in_phase": [
+    {
+     "ell": 0.3433,
+     "share": 0.0258
+    },
+    {
+     "ell": 2.1549,
+     "share": 0.0887
+    }
+   ]
+  },
+  {
+   "d_step": 1.33,
+   "share_min": 0.0064,
+   "share_max": 0.364,
+   "in_phase": [
+    {
+     "ell": 0.8947,
+     "share": 0.2002
+    },
+    {
+     "ell": 2.6589,
+     "share": 0.102
+    }
+   ]
+  },
+  {
+   "d_step": 1.35,
+   "share_min": 0.0102,
+   "share_max": 0.3237,
+   "in_phase": [
+    {
+     "ell": 0.9433,
+     "share": 0.1705
+    },
+    {
+     "ell": 3.1198,
+     "share": 0.2435
+    }
+   ]
+  },
+  {
+   "d_step": 1.37,
+   "share_min": 0.0196,
+   "share_max": 0.4302,
+   "in_phase": [
+    {
+     "ell": 0.9856,
+     "share": 0.1768
+    },
+    {
+     "ell": 3.2036,
+     "share": 0.1743
+    }
+   ]
+  },
+  {
+   "d_step": 1.39,
+   "share_min": 0.0297,
+   "share_max": 0.473,
+   "in_phase": [
+    {
+     "ell": 1.0417,
+     "share": 0.2141
+    },
+    {
+     "ell": 3.3709,
+     "share": 0.304
+    }
+   ]
+  },
+  {
+   "d_step": 1.41,
+   "share_min": 0.0262,
+   "share_max": 0.4667,
+   "in_phase": [
+    {
+     "ell": 1.1321,
+     "share": 0.297
+    }
+   ]
+  },
+  {
+   "d_step": 1.44,
+   "share_min": 0.0382,
+   "share_max": 0.4169,
+   "in_phase": [
+    {
+     "ell": 1.4791,
+     "share": 0.3916
+    }
+   ]
+  },
+  {
+   "d_step": 1.47,
+   "share_min": 0.0486,
+   "share_max": 0.4892,
+   "in_phase": [
+    {
+     "ell": 1.578,
+     "share": 0.3461
+    }
+   ]
+  },
+  {
+   "d_step": 1.5,
+   "share_min": 0.0454,
+   "share_max": 0.5404,
+   "in_phase": [
+    {
+     "ell": 1.6703,
+     "share": 0.3872
+    }
+   ]
+  },
+  {
+   "d_step": 1.53,
+   "share_min": 0.0592,
+   "share_max": 0.5398,
+   "in_phase": [
+    {
+     "ell": 1.8635,
+     "share": 0.5178
+    }
+   ]
+  },
+  {
+   "d_step": 1.56,
+   "share_min": 0.06,
+   "share_max": 0.5131,
+   "in_phase": [
+    {
+     "ell": 2.1133,
+     "share": 0.4741
+    }
+   ]
+  }
+ ],
+ "design": {
+  "stair_005": {
+   "d_step": 1.4806389911928919,
+   "ell": 0.8889458889806894,
+   "share": 0.14994507982145924,
+   "psi": -9.912109261264913e-12
+  },
+  "stair_0025": {
+   "d_step": 1.4778754053517327,
+   "ell": 0.8785001908244771,
+   "share": 0.14988633888162278,
+   "psi": 7.356136544685234e-09
+  }
+ },
+ "stair_convergence": [
+  {
+   "stair": 0.05,
+   "share": 0.14995,
+   "psi": -0.0
+  },
+  {
+   "stair": 0.025,
+   "share": 0.15536,
+   "psi": 0.287
+  },
+  {
+   "stair": 0.0125,
+   "share": 0.15706,
+   "psi": 0.377
+  }
+ ],
+ "fdtd_design": [
+  {
+   "N": 60,
+   "geom": [
+    33,
+    44,
+    53,
+    164,
+    421
+   ],
+   "cascade_share": 0.14122,
+   "cascade_psi": 8.042,
+   "fdtd_share": 0.12491,
+   "fdtd_psi": 7.69
+  },
+  {
+   "N": 90,
+   "geom": [
+    50,
+    67,
+    80,
+    246,
+    632
+   ],
+   "cascade_share": 0.14554,
+   "cascade_psi": -2.025,
+   "fdtd_share": 0.12968,
+   "fdtd_psi": -2.907
+  },
+  {
+   "N": 120,
+   "geom": [
+    66,
+    89,
+    107,
+    329,
+    842
+   ],
+   "cascade_share": 0.15725,
+   "cascade_psi": -0.248,
+   "fdtd_share": 0.14328,
+   "fdtd_psi": -1.038
+  }
+ ],
+ "band": {
+  "casc": [
+   {
+    "fr": 0.94,
+    "share": 0.18411,
+    "psi": 29.013
+   },
+   {
+    "fr": 0.95,
+    "share": 0.17155,
+    "psi": 23.444
+   },
+   {
+    "fr": 0.96,
+    "share": 0.16001,
+    "psi": 18.483
+   },
+   {
+    "fr": 0.97,
+    "share": 0.15219,
+    "psi": 14.095
+   },
+   {
+    "fr": 0.98,
+    "share": 0.14889,
+    "psi": 9.916
+   },
+   {
+    "fr": 0.99,
+    "share": 0.1491,
+    "psi": 5.291
+   },
+   {
+    "fr": 1.0,
+    "share": 0.14995,
+    "psi": -0.0
+   },
+   {
+    "fr": 1.01,
+    "share": 0.14972,
+    "psi": -5.672
+   },
+   {
+    "fr": 1.02,
+    "share": 0.14884,
+    "psi": -11.585
+   },
+   {
+    "fr": 1.03,
+    "share": 0.14636,
+    "psi": -17.282
+   },
+   {
+    "fr": 1.04,
+    "share": 0.14395,
+    "psi": -22.837
+   },
+   {
+    "fr": 1.05,
+    "share": 0.14272,
+    "psi": -28.431
+   },
+   {
+    "fr": 1.06,
+    "share": 0.14225,
+    "psi": -34.707
+   }
+  ],
+  "first": [
+   {
+    "fr": 0.97,
+    "share": 0.1814,
+    "psi": 69.675
+   },
+   {
+    "fr": 0.98,
+    "share": 0.17449,
+    "psi": 53.722
+   },
+   {
+    "fr": 0.99,
+    "share": 0.16374,
+    "psi": 39.67
+   },
+   {
+    "fr": 1.0,
+    "share": 0.1508,
+    "psi": 26.458
+   },
+   {
+    "fr": 1.01,
+    "share": 0.13473,
+    "psi": 14.199
+   },
+   {
+    "fr": 1.02,
+    "share": 0.11791,
+    "psi": 3.159
+   },
+   {
+    "fr": 1.03,
+    "share": 0.10228,
+    "psi": -7.038
+   },
+   {
+    "fr": 1.04,
+    "share": 0.08713,
+    "psi": -16.022
+   },
+   {
+    "fr": 1.05,
+    "share": 0.0742,
+    "psi": -23.546
+   },
+   {
+    "fr": 1.06,
+    "share": 0.06561,
+    "psi": -30.17
+   },
+   {
+    "fr": 1.07,
+    "share": 0.05992,
+    "psi": -37.348
+   }
+  ]
+ }
+}

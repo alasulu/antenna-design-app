@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-19,842 lines of Python, 23,984 lines of spec data, 2790 tests, 946/946 citable
+19,975 lines of Python, 23,984 lines of spec data, 2799 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -216,6 +216,14 @@ is taken to zero cell size (order about 1.4, set by the step's corner). On a who
 projections sit where the FDTD is converging (0.367 at 37.4 degrees against
 0.355 and 0.363 at 60 and 120 cells per wavelength).
 
+The whole chain matters more than either piece. `waveguide_step.potter_aperture`
+cascades input guide, step, phasing guide and cone together, and shows the phasing
+guide is a TM11 resonator: TM11 is cut off in the input guide, so the step
+reflects it totally, and the start of the flare reflects part of it. At one step,
+moving the phasing length swings the aperture share from 0.04 to 0.27 about a
+launched 0.15; the FDTD of the same staircase at four phasing lengths follows it
+(0.13 to 0.34, within 5 degrees and 0.04 at 60 cells per wavelength).
+
 **Limits that bite:** m = 1 only; perfectly conducting walls; the cascade models
 a staircase (fine steps approximate a smooth cone); the FDTD's finest horn run
 took 11 minutes.
@@ -376,12 +384,17 @@ Two of those are new in session 5 and both are honest about why:
 `stacked_patch`'s bandwidth multiplier is an expectation drawn from published
 designs rather than a computed result. `conical_horn_dual_mode` is most of the
 way out: its aperture is derived for a given TM11 share (0.62 was 0.506, the gain
-"advantage" a loss), and its step is now SOLVED by mode matching and checked by
-FDTD. What keeps it low is the phasing: the flare converts between TE11 and TM11
-enough to move the aperture phase about 20 degrees on a 10-wavelength horn, which
-a first-order phasing length cannot see, so that length and the bandwidth are
-first-order and labelled so. The stepped-cone cascade that does see it exists
-(§3); a spec-level design built on it is the way out.
+"advantage" a loss), and its step is SOLVED by mode matching and checked by FDTD.
+It was then taken end to end (§6 item 4), and that is what keeps it low: the
+phasing guide is a TM11 resonator, so the share and phase at the aperture belong
+to step and phasing jointly, not to the step. The first-order default horn
+delivers its 0.15 at +26.5 degrees, -21 dB of cross-polar level at f0 where the
+aperture metrics promise -32. Solved jointly by the whole-chain cascade (and
+checked by FDTD) the same horn needs a step of 1.478 wavelengths and a phasing
+length of 0.879, and then beats the spec's own first-order bandwidths (3.7% at
+-30 dB, over 9% at -25). The joint solution moves with horn length and input
+guide in a resonant, non-monotonic way, so it is a per-horn solve, not a table;
+the spec says so and points at `waveguide_step.potter_aperture`.
 
 `pifa` stays in the list with its length now FDTD-calibrated (§3): what keeps it
 there is that a real PIFA's bandwidth and pattern belong to its ground plane,
@@ -706,7 +719,12 @@ known case only checks what it asserts.
    but not individual director lengths, so its geometry is genuinely
    underdetermined and building it would mean inventing dimensions.
 4. **Validate a low-confidence archetype** end to end and either promote it or
-   record why it cannot be.
+   record why it cannot be. Done for `conical_horn_dual_mode` (the Potter horn),
+   with the second outcome: step, phasing guide and flare cascaded as one chain
+   (FDTD-checked) show the phasing guide resonates for TM11, so the horn the
+   spec builds misses its cross-polar null (-21 dB at f0, the -30 dB window 2-3%
+   above), while a jointly solved design of the default does better than the
+   spec's own bandwidths. The joint design is a per-horn solve; see §4.
 5. ~~**Planar arrays**~~ — done. Rectangular and triangular lattices, separable
    tapers, steering and exact directivity are in `otahub/arrays/planar.py`,
    with a `planar` CLI subcommand. Element patterns are now folded in
@@ -799,11 +817,11 @@ known case only checks what it asserts.
    surviving in the builder - and is fixed.
 11. ~~**The diagonal and dual-mode horns' fixed figures**~~ - done with the
    two-component aperture transform in `otahub/num/horn_pattern.py`. The Potter
-   horn's step is now solved too (§3, fifth reference). **Left:** design the
-   phasing length with the stepped-cone cascade rather than first-order - the
-   flare moves the aperture phase ~20 degrees and steepens its frequency slope
-   by a third - and tabulate it over horn length, input guide and share; that is
-   what would take the horn out of low confidence.
+   horn's step is now solved too (§3, fifth reference), and the whole chain
+   (item 4 above). **Left, as future work:** a spec-level table of jointly solved
+   Potter designs over horn length, input guide and share - hundreds of
+   whole-chain cascades, and a design map with several branches to choose
+   between.
 12. ~~**Patch directivity, family-wide.**~~ - done, with a full-wave arbiter
    (`otahub/num/patch_sdm.py`, §3) that settled which model is right: the cavity
    current radiated through the slab (`patch_q`) holds to 0.3-0.9%; the two-slot

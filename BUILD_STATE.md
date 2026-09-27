@@ -2848,9 +2848,53 @@ answer. At one-wavelength spacing the element's null on the horizon suppresses
 the grating lobes that the isotropic model spends power on: an 8 x 8 array's
 directivity is 3.9 times (5.9 dB) the isotropic-doubled figure.
 
+## The Potter horn end to end: its phasing guide is a TM11 resonator
+
+HANDOVER section 6 item 4, the fifth round under the finish line: take one
+low-confidence archetype end to end and either promote it or record why it
+cannot be. `conical_horn_dual_mode` was the one with a named way out - design
+the phasing with the stepped-cone cascade - so it was taken as one chain: input
+guide, step, phasing guide and cone cascaded together by generalised scattering
+matrices (`waveguide_step.potter_aperture`), with the FDTD (`bor_fdtd`) as the
+independent check.
+
+What it found:
+- The phasing guide resonates. TM11 is cut off in the input guide, so the step
+  reflects it totally, and the start of the flare - where TM11, barely above
+  cutoff, sees its impedance change fast - reflects part of it. At one step,
+  moving the phasing length through a beat period swings the aperture share
+  from 0.04 to 0.27 about a launched 0.15. The FDTD of the same staircase at
+  four phasing lengths follows it: 0.13 to 0.34, within 5 degrees and 0.04 at
+  60 cells per wavelength.
+- So the share at the aperture is not the launched share. On a 10-wavelength
+  horn from a 1.1-wavelength guide, the share that arrives in phase runs from
+  0.001 to 0.24 as the step goes from 1.25 to 1.55 wavelengths, not
+  monotonically; a 5-wavelength horn's map is different again.
+- The horn the spec builds misses its null. The first-order default (step
+  1.354, phasing 0.576 wavelengths) delivers 0.151 at +26.5 degrees and moves
+  -12.7 degrees per percent: -21 dB of cross-polar level at f0 where the
+  aperture metrics promise -32.2, and its -30 dB window lies at 1.018-1.040 f0,
+  wholly above the design frequency.
+- Solved jointly (step and phasing together, 0.15 in phase at the aperture) the
+  same horn wants a step of 1.478 wavelengths - launching 0.24 - and a phasing
+  length of 0.879. It holds -32.2 dB at f0, -30 dB from 0.992 to 1.028 f0 (3.7%)
+  and -25 dB over more than 9%, its phase moving only -5.5 degrees per percent:
+  better than the spec's own first-order bandwidths. The FDTD of that design at
+  60, 90 and 120 cells per wavelength agrees with the cascade of each staircase
+  within 0.9 degrees and 0.016 in share. Stairs of 0.05 and 0.025 wavelengths
+  put the design 0.2% apart in step and 1.2% in phasing length.
+
+Outcome: the horn stays LOW confidence, with the reason recorded. The joint
+solution moves with horn length and input guide through a resonant,
+several-branched map, so it is a per-horn solve rather than a formula or a small
+table; the spec's step is now labelled as a launched share, its phasing length
+and bandwidths as first-order with the whole-chain numbers above, and the tool
+to design a horn in hand is named. A spec-level table of joint designs is
+future work.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2790 tests, 946/946 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2799 tests, 946/946 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2864,10 +2908,10 @@ the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved; the annular ring has its own mode
 in patch_q, and the PIFA a length that resonates; the slot family's strip is
-solved as a strip; planar arrays take an element pattern. Development runs to
-the finish line above (hard stop 2026-09-27 20:00): items 13, 12, 9 and 5 are
-done; next, item 4 (the Potter horn end to end), then the wrap-up round that
-tags v1.0.
+solved as a strip; planar arrays take an element pattern; the Potter horn has
+been taken end to end and stays low confidence for a recorded reason. Development
+runs to the finish line above (hard stop 2026-09-27 20:00): items 13, 12, 9, 5
+and 4 are done; next and last, the wrap-up round that tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
