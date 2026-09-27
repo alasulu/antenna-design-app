@@ -15,6 +15,7 @@ python OTA_Hub_AntennaToolkit.py array -n 16 --taper chebyshev --sll -30
 python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --taper chebyshev --sll 30 --scan 45
 python OTA_Hub_AntennaToolkit.py planar --nx 12 --ny 12 --lattice triangular --d 0.62
 python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --scan 30 --element cos   # with an element pattern
+python OTA_Hub_AntennaToolkit.py planar --nx 33 --ny 33 --circle 8 --taper taylor-circular --sll 35 --thin 7
 python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
@@ -178,7 +179,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2801 tests, ~10 min
+python -m pytest tests/ -q                # 2824 tests, ~10 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -211,6 +212,7 @@ against an independent numerical model before being written into a spec:
 | Shorted patch and PIFA length | Half-space FDTD ringdown (`patch_fdtd.shorted_ringdown`) | Textbook shorted patch 4-8% low; PIFA's lambda/4 rule 3% low (L + h = 0.2425 lambda) |
 | Strip ↔ tube equivalence (a = w/4, the slot family's basis) | Spectral and rooftop strip MoMs (`strip`) against a rim-resolved tube (`bor`) | Solvers agree to 0.05%; the strip resonates ~0.1 w longer (its ends), the length law stays inside the strip's feed spread |
 | Planar array with an element pattern | Azimuthal-harmonic power kernel (`arrays.elements`) | Brute-force sphere integral to 1e-6; ideal-element 24 × 24 array within 0.02-0.9% of 4πA·cosθ/λ² |
+| Circular Taylor aperture, thinned arrays | Hankel transform of the distribution; Monte Carlo over seeded thinnings (`arrays.layouts`) | Pattern to 1e-10; sampled -40 dB design within ~1 dB (equal-area radius); expected pattern and directivity within MC noise |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
 
 ### Planar arrays
@@ -244,6 +246,24 @@ way mutual coupling enters. `planar --element cos` uses it. With ideal elements 
 24 × 24 array reaches `4πA·cosθ/λ²` to 0.02-0.9% out to 50°. The
 isotropic-doubled "ground plane" figure falls 2.5-3.5% short of that, because a
 real ground makes the element non-isotropic.
+
+Circular apertures and thinned arrays are in `otahub/arrays/layouts.py`: rings,
+concentric rings, any lattice clipped to a circle, and Taylor's circular
+distribution. Transformed back, it reproduces its closed-form pattern to 1e-10.
+Sampled on a clipped lattice, it holds a -40 dB design to about a decibel, provided
+the aperture radius is the equal-area one, sqrt(N A_cell/pi). Taking the outermost
+element plus half a spacing costs 2-5 dB. Statistical thinning keeps each element
+with the taper as its probability, and the mean pattern of the result is exact: the
+density-tapered pattern on a floor of sum p(1 - p). Monte Carlo confirms it, and
+confirms the expected directivity. `planar --circle 8 --taper taylor-circular
+--thin 7` uses all of it.
+
+Subarrays (`otahub/arrays/subarrays.py`): with one phase shifter per subarray, the
+pattern is exactly the subarray's broadside pattern times an array at the
+subarray period. Its quantisation lobes sit at that period's grating-lobe
+positions, weighed by the subarray pattern. On 2-wavelength subarrays scanned
+20 degrees, the lobe is 6.4 dB above the intended beam, which is why this
+architecture only suits small scans.
 
 ### Horns solved rather than assumed
 

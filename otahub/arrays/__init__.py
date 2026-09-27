@@ -1,6 +1,10 @@
 """Array layout, excitation and pattern synthesis."""
 from .elements import (ElementPattern, cosine, custom, element_directivity, isotropic,
                        power_kernel, short_dipole)
+from .layouts import (circular_taylor, clip_to_circle, concentric_rings, equal_area_radius, ring,
+                      taylor_circular_distribution, taylor_circular_pattern, thin,
+                      thinned_expected_directivity, thinned_expected_power)
+from .subarrays import directivity_toward, rect_subarray_groups, subarray_centres, subarray_steering
 from .factor import (array_factor, array_pattern, beam_broadening_factor,
                      broadside_directivity, grating_lobe_free_spacing,
                      has_grating_lobe, summarise)
@@ -22,4 +26,8 @@ __all__ = ["uniform", "binomial", "dolph_chebyshev", "taylor_nbar",
            "planar_pattern_cut", "planar_beam_cut", "grating_lobe_free_spacing_planar",
            "lattice_element_saving", "planar_summarise",
            "ElementPattern", "isotropic", "cosine", "short_dipole", "custom",
-           "power_kernel", "element_directivity"]
+           "power_kernel", "element_directivity",
+           "ring", "concentric_rings", "clip_to_circle", "taylor_circular_pattern",
+           "taylor_circular_distribution", "equal_area_radius", "circular_taylor", "thin",
+           "thinned_expected_power", "thinned_expected_directivity",
+           "rect_subarray_groups", "subarray_centres", "subarray_steering", "directivity_toward"]

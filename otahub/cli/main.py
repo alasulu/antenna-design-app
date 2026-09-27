@@ -409,10 +409,15 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
                           rectangular_lattice, separable_weights, taylor_nbar,
                           triangular_lattice, uniform)
 
+    import numpy as np
+
+    from ..arrays import layouts
+
     lattice = args.lattice.strip().lower()
     taper = args.taper.lower()
-    if taper not in TAPERS:
-        print(f"unknown taper {taper!r}; choose from {', '.join(TAPERS)}", file=sys.stderr)
+    circular = taper in ("taylor-circular", "circular-taylor")
+    if taper not in TAPERS and not circular:
+        print(f"unknown taper {taper!r}; choose from {', '.join(TAPERS)} or taylor-circular", file=sys.stderr)
         return 1
     sll = -abs(args.sll)
 
@@ -425,14 +430,17 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
 
     if lattice in ("rect", "rectangular", "square"):
         positions = rectangular_lattice(args.nx, args.ny, args.d, args.dy or args.d)
+        cell = args.d * (args.dy or args.d)
         try:
-            weights = separable_weights(line_taper(args.nx), line_taper(args.ny))
+            weights = ([1.0] * len(positions) if circular
+                       else separable_weights(line_taper(args.nx), line_taper(args.ny)))
         except ValueError as exc:
             print(f"cannot synthesise that taper: {exc}", file=sys.stderr)
             return 1
     elif lattice in ("tri", "triangular", "hex", "hexagonal"):
         positions = triangular_lattice(args.nx, args.ny, args.d)
-        if taper != "uniform":
+        cell = math.sqrt(3) / 2 * args.d ** 2
+        if taper != "uniform" and not circular:
             print("note: a triangular lattice is not separable, so the taper is "
                   "ignored and the array is excited uniformly", file=sys.stderr)
         weights = [1.0] * len(positions)
@@ -440,6 +448,24 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
         print(f"unknown lattice {args.lattice!r}; use rectangular or triangular",
               file=sys.stderr)
         return 1
+
+    weights = np.asarray(weights, dtype=float)
+    n_full = len(positions)
+    if args.circle is not None:
+        keep = np.hypot(positions[:, 0], positions[:, 1]) <= args.circle * (1 + 1e-12)
+        positions, weights = positions[keep], weights[keep]
+        if len(positions) == 0:
+            print(f"no element lies within {args.circle} lambda of the centre", file=sys.stderr)
+            return 1
+    if circular:
+        weights = layouts.circular_taylor(positions, sidelobe_db=sll, nbar=args.nbar, cell_area=cell)
+    thinned = None
+    if args.thin is not None:
+        density = weights / weights.max()
+        keep = layouts.thin(density, seed=args.thin)
+        thinned = (int(keep.sum()), len(positions), density)
+        thinned_from = positions
+        positions, weights = positions[keep], np.ones(int(keep.sum()))
 
     from ..arrays import elements as elem
     element = None
@@ -460,8 +486,18 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
     s = planar_summarise(positions, weights, args.scan, args.scan_phi,
                          half_space=args.ground_plane and element is None, element=element)
     label = "triangular" if lattice.startswith(("tri", "hex")) else "rectangular"
-    print(f"{s['elements']}-element {label} planar array, {taper} taper, "
+    shape = "" if args.circle is None else f", clipped to a circle of radius {args.circle:g} lambda"
+    print(f"{s['elements']}-element {label} planar array{shape}, {taper} taper, "
           f"d = {args.d:.3f} lambda")
+    if thinned is not None:
+        kept, total, density = thinned
+        floor = float(np.sum(density * (1 - density))) / float(density.sum()) ** 2
+        d_exp = layouts.thinned_expected_directivity(thinned_from, density, args.scan, args.scan_phi, element)
+        if element is None and args.ground_plane:
+            d_exp *= 2.0
+        print(f"  thinned (seed {args.thin}): {kept} of {total} elements kept, the taper as the "
+              f"keep probability; expected directivity {10 * math.log10(d_exp):.2f} dBi, mean "
+              f"sidelobe floor {10 * math.log10(floor):.1f} dB (peaks scatter above it)")
     print(f"  aperture           {s['aperture_x_lambda']:.3f} x "
           f"{s['aperture_y_lambda']:.3f} lambda")
     print(f"  beam               theta {s['scan_theta_deg']:.1f} deg from the "
@@ -676,7 +712,14 @@ def build_parser() -> argparse.ArgumentParser:
                     help="rectangular | triangular")
     pp.add_argument("--taper", default="uniform",
                     help="uniform | binomial | chebyshev | taylor | cosine, "
-                         "applied separably along each axis")
+                         "applied separably along each axis; or taylor-circular, Taylor's "
+                         "circular distribution over the equal-area disc (use with --circle)")
+    pp.add_argument("--nbar", type=int, default=5, help="Taylor nbar for taylor-circular")
+    pp.add_argument("--circle", type=float, default=None,
+                    help="keep only the elements within this radius (wavelengths) of the centre")
+    pp.add_argument("--thin", type=int, default=None, metavar="SEED",
+                    help="thin the array at random, keeping each element with the taper as its "
+                         "probability (reproducible for a given seed)")
     pp.add_argument("--sll", type=float, default=-30.0,
                     help="design sidelobe level in dB below the main beam; "
                          "either sign accepted")

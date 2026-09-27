@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop that ran to
 2026-09-27, when development closed at v1.0. **72 archetypes, 10 families,
-19,996 lines of Python, 23,984 lines of spec data, 2801 tests, 946/946 citable
+20,516 lines of Python, 23,984 lines of spec data, 2824 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -766,7 +766,16 @@ Deferred by the scope freeze, not blocked:
 13. ~~**A graded-edge spot check of the discone table.**~~ Done after v1.0: with
     both free edges graded its cutoffs hold to 0.05%; the decade is marginal
     (worst VSWR 2.00) at 30 degrees with a 0.9 disc and 25 with 0.6.
-14. **Planar arrays:** circular and thinned layouts, subarray architectures.
+14. ~~**Planar arrays: circular, thinned, subarrays.**~~ Done after v1.0.
+    Subarray-level steering (`otahub/arrays/subarrays.py`) factorises exactly
+    (1e-15) into the subarray pattern times an array at the subarray period,
+    whose quantisation lobes the subarray pattern weighs. Circular and thinned layouts
+    were done too (`otahub/arrays/layouts.py`, `planar --circle --taper
+    taylor-circular --thin`): Taylor's circular distribution transforms back to
+    its pattern to 1e-10 and, sampled over the equal-area radius, holds a -40 dB
+    design to about a decibel on a clipped lattice (the outer-element radius
+    costs 2-5 dB); a statistically thinned array's mean pattern and directivity
+    are exact expectations, confirmed by Monte Carlo.
 15. **Re-audit the session 1-4 specs, continued.** Every archetype passes the
     cases it declares, which is not the same as being right
     (`corner_reflector_90` had a null where its optimum is for four sessions).

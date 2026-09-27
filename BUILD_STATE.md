@@ -2971,3 +2971,41 @@ their VSWR-2 low cutoff re-solved on 24 and 48 segments per slant:
   is 2.00 within the mesh's resolution (1.995-2.004 over meshes and frequency
   grids). The spec's "a decade from 30 degrees" is marginal there, and now says
   so; the table is unchanged.
+
+## Circular, thinned and subarrayed planar arrays
+
+HANDOVER section 6, D.14, the second post-v1.0 round. Development is open again
+after v1.0 with no deadline (the finish line is fulfilled; v1.0 stays at a96a5c2),
+and the build loop is re-armed: section 6's group D first - the items that need
+only compute time - then group C, the ones that need a new solver; never the
+groups that need a CST/HFSS installation or measurement data. The planar module had
+rectangular and triangular lattices, separable tapers and (since item 5) element
+patterns. `otahub/arrays/layouts.py` adds circular apertures and thinning,
+`otahub/arrays/subarrays.py` subarray-level steering, and `planar` takes
+`--circle R`, `--taper taylor-circular [--nbar]` and `--thin SEED`.
+
+What was checked, and found:
+- Taylor's circular distribution (the circular aperture's counterpart of the
+  line's Taylor taper), Hankel-transformed back, reproduces its closed-form
+  pattern to 1e-10 at -25, -30 and -40 dB, whose peak sidelobes land 0.3-0.7 dB
+  below the design (nbar 4, 5 and 8 respectively).
+- Sampled on a lattice clipped to a circle, it holds the design only if the
+  aperture radius is the equal-area one, sqrt(N A_cell / pi): a -40 dB design on
+  797 elements then peaks at -39.1 to -40.4 dB across azimuths; taking the
+  outermost element's radius plus half a spacing - the obvious choice - leaves
+  the edge under-tapered and costs 2-5 dB (-34.5 to -35.8). The equal-area
+  radius is the default.
+- Statistical thinning (keep each element with the taper as its probability):
+  the mean pattern is exactly the density-tapered pattern on a floor of
+  sum p(1-p), and a ratio of expectations gives the mean directivity; 200-300
+  seeded thinnings of a 797-element circular aperture agree with both within
+  their sampling noise (0.2-0.4% in directivity). Kept to 45%, the array has
+  0.47 of the filled taper's directivity with isotropic elements, 0.64 with ideal ones, and a mean sidelobe floor of -29.3
+  dB, whatever the taper's design level.
+- Subarray-level steering factorises exactly (1e-15) into the subarray's
+  broadside pattern times an array at the subarray period. Its quantisation
+  lobes sit at that period's grating lobes, weighed by the subarray pattern:
+  on 2-wavelength subarrays (4 x 4 at half a wavelength) they are 17.9 dB down
+  at 3 degrees of scan, 7.9 at 8, and 6.4 dB ABOVE the beam at 20. The beam
+  loses the subarray pattern's value, S(u0)^2, and the directivity that to
+  within a quarter decibel.
