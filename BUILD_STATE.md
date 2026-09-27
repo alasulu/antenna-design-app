@@ -2909,10 +2909,44 @@ builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved; the annular ring has its own mode
 in patch_q, and the PIFA a length that resonates; the slot family's strip is
 solved as a strip; planar arrays take an element pattern; the Potter horn has
-been taken end to end and stays low confidence for a recorded reason. Development
-runs to the finish line above (hard stop 2026-09-27 20:00): items 13, 12, 9, 5
-and 4 are done; next and last, the wrap-up round that tags v1.0.
-See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
+been taken end to end and stays low confidence for a recorded reason. Every
+round of the finish line above ran; development is closed at v1.0 (next section).
+See `docs/HANDOVER.md` for what is verified, what is not, and the future work.
 
 The largest untested surface is unchanged: neither exporter has been run against a
 real CST or HFSS installation. Structurally validated only.
+
+## Development closed
+
+Closed on 2026-09-27, ahead of the 20:00 hard stop, at the commit tagged v1.0
+(a local tag; nothing pushed). The finish line's rounds all ran, in its order:
+
+- Potter horn step (be98981): solved by mode matching and checked by FDTD.
+- Item 13, shorted and stacked patches (5573aad): the wall pulls a shorted patch
+  4-8% low; the stack's parasitic had been sized backwards.
+- Item 12, annular ring and PIFA (a963f7b): the ring has its own mode, substrate
+  factor and Q; the lambda/4 PIFA rule resonates 3% low.
+- Item 9, wide strips (71fabd0): a = w/4 holds for a strip's body, not its ends;
+  the tube reference itself was 0.15-0.48% long at unresolved rims.
+- Item 5, element patterns (7c82f45): planar directivity stays exact with an
+  element; the isotropic "ground plane" figure was 2.5-3.5% low.
+- Item 4, one low-confidence archetype end to end (3fbba57): the Potter horn's
+  phasing guide is a TM11 resonator; the horn the spec builds sits at -21 dB of
+  cross-polar level at f0. It stays low confidence, with the reason recorded.
+- Wrap-up (this commit): HANDOVER section 6 rewritten as the final future-work
+  list; counts brought up to date; suite, doctor and check green.
+
+Final state: 72 archetypes in 10 families, 8 of them low confidence (cassegrain,
+conical_horn_dual_mode, ferrite_rod_loop, pifa, planar_monopole_circular,
+stacked_patch, vivaldi_tsa, waveguide_longitudinal_slot); 19,975 lines of Python,
+23,984 lines of spec data, 2799 tests, 946/946 known cases. Independent
+numerical references: wire MoM and Hallen, bodies of revolution (MoM and FDTD),
+DRA FDTD, patch spectral MoM and FDTD, strip MoMs, mode matching with GSM
+cascades, aperture integration, ray tracing and Kirchhoff diffraction.
+
+The largest untested surface is unchanged: neither exporter has been run against
+a real CST or HFSS installation. Everything still open is in docs/HANDOVER.md
+section 6, grouped as needing a CST/HFSS installation (A), measurement data (B),
+a new solver (C), or only compute time with the solvers already here (D, the
+items the scope freeze deferred). The build loop is stopped and not re-armed; a
+later session starts from section 6.

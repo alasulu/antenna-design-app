@@ -4,7 +4,8 @@ An open reimplementation of the Antenna Magus workflow: state electrical
 requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
-Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
+Built across five sessions on 2026-09-13/14 and a build loop that ran to
+2026-09-27, when development closed at v1.0. **72 archetypes, 10 families,
 19,975 lines of Python, 23,984 lines of spec data, 2799 tests, 946/946 citable
 known cases passing.**
 
@@ -72,9 +73,9 @@ Three consequences, in order of importance:
 form, rooftop basis, Galerkin testing, the singular part of the kernel removed
 analytically rather than quadratured. It exists because several archetypes
 (one-wavelength loop, quad loop, folded dipole) had no closed form to check
-against and no published number precise enough to cite, and because §6 item 4
-— validate a low-confidence archetype end to end — was previously marked
-impossible for want of a solver.
+against and no published number precise enough to cite, and because validating
+a low-confidence archetype end to end was previously marked impossible for want
+of a solver.
 
 It is validated by six independent checks, in `tests/test_mom.py`:
 
@@ -158,7 +159,7 @@ been computed ungraded on one mesh and was 0.15-0.48% long; it is redone. The
 cone tables' cutoffs were extrapolated from two meshes, and a first-order
 extrapolation of the ungraded tube lands within 0.05% of the graded answer, so
 they should stand; the discone's free disc edge was never graded, and a spot
-check with a graded disc is listed in §6.
+check with a graded disc is listed in §6 (D).
 
 ### A fourth, for printed patches
 
@@ -372,8 +373,8 @@ validity block on each archetype says where it stops.
 `planar_monopole_circular`, `stacked_patch`, `vivaldi_tsa`,
 `waveguide_longitudinal_slot`.
 
-**`halo_loop` was promoted out of this list**, which is §6 item 4 discharged
-for the first time. Every number it asserts is now solved rather than assumed,
+**`halo_loop` was promoted out of this list**, the first low-confidence
+archetype taken end to end. Every number it asserts is now solved rather than assumed,
 by a method of moments whose bent-wire path is anchored by continuity to the
 straight dipole. The remaining eight cannot follow it yet for a reason that is
 the same in every case: they are patches, horns, reflectors or slots, and a
@@ -385,7 +386,7 @@ Two of those are new in session 5 and both are honest about why:
 designs rather than a computed result. `conical_horn_dual_mode` is most of the
 way out: its aperture is derived for a given TM11 share (0.62 was 0.506, the gain
 "advantage" a loss), and its step is SOLVED by mode matching and checked by FDTD.
-It was then taken end to end (§6 item 4), and that is what keeps it low: the
+It was then taken end to end (the last round before v1.0), and that keeps it low: the
 phasing guide is a TM11 resonator, so the share and phase at the aperture belong
 to step and phasing jointly, not to the step. The first-order default horn
 delivers its 0.15 at +26.5 degrees, -21 dB of cross-polar level at f0 where the
@@ -693,159 +694,87 @@ known case only checks what it asserts.
 
 ---
 
-## 6. Recommended next steps
+## 6. Future work
 
-> **Finish line (set by the user, 2026-09-26).** Scope is frozen to the items open
-> here as of commit 53df1ab; development stops at 2026-09-27 20:00 local time,
-> followed by a wrap-up round that rewrites this section as the final future-work
-> list and tags v1.0. The full terms are in BUILD_STATE.md, section "Finish line".
-> Anything newly found goes into this section as future work, not a new round.
+Development closed on 2026-09-27 at v1.0 (see BUILD_STATE.md, "Development
+closed"). What follows is everything still open, grouped by what it needs. The
+items done in the last sessions - touchstone import, planar arrays and their
+element patterns, the DRA family's fits, the finite-gap and strip solvers, the
+cone bandwidths, the horn beams and the Potter step, patch directivity and
+full-wave resonance, the shorted, stacked, annular and PIFA patches - are
+described in §3 to §5 and in BUILD_STATE.md, and are not repeated here.
 
-1. **Execution-test the exporters** against real CST and HFSS installations.
-   This is the biggest gap, and session 5 did not touch it — the catalogue grew
-   by 32 archetypes while the exporter still builds geometry for 7. Start with
-   `half_wave_dipole` (simplest geometry, strongest analytical reference:
-   73.08 + j42.52 Ω at λ/2).
-2. ~~**Close the inset-patch discrepancy**~~ — done. The published figure was
-   right; the "direct integration" that disagreed with it was wrong. See §4.
-3. **Add geometry builders** for horns, which need a loft or truncated-pyramid
-   primitive — the one shape where I would be guessing at the API's structure
-   rather than just its parameter names, so it has been left alone. The
-   pyramidal horn's geometry is at least fully determined now: guide, aperture
-   and a length at which both flares meet the guide. The loop
-   family is now done (a torus turned out to be a direct primitive in both
-   tools). Yagi-Uda remains blocked for a different reason: the
-   spec gives boom length, reflector and driven lengths and a director count,
-   but not individual director lengths, so its geometry is genuinely
-   underdetermined and building it would mean inventing dimensions.
-4. **Validate a low-confidence archetype** end to end and either promote it or
-   record why it cannot be. Done for `conical_horn_dual_mode` (the Potter horn),
-   with the second outcome: step, phasing guide and flare cascaded as one chain
-   (FDTD-checked) show the phasing guide resonates for TM11, so the horn the
-   spec builds misses its cross-polar null (-21 dB at f0, the -30 dB window 2-3%
-   above), while a jointly solved design of the default does better than the
-   spec's own bandwidths. The joint design is a per-horn solve; see §4.
-5. ~~**Planar arrays**~~ — done. Rectangular and triangular lattices, separable
-   tapers, steering and exact directivity are in `otahub/arrays/planar.py`,
-   with a `planar` CLI subcommand. Element patterns are now folded in
-   (`otahub/arrays/elements.py`, `planar --element`): the element's power
-   pattern as azimuthal harmonics keeps the power integral exact, one Bessel
-   integral per separation, checked against brute-force sphere integration
-   (1e-6), the isotropic sinc kernel (1e-9), closed-form elements (cos^q, a
-   short dipole, a horizontal dipole over ground by its image), and the
-   aperture limit 4 pi A cos(theta)/lambda^2, which a 24 x 24 array of ideal
-   (cos theta) elements reaches to 0.02-0.9% out to 50 degrees. Found on the
-   way: the isotropic-doubled "ground plane" figure sits 2.5-3.5% (0.11-0.15 dB)
-   below that limit, because a real ground makes the element non-isotropic.
-   Mutual coupling enters only through a supplied embedded-element pattern.
-   Still missing: circular and thinned layouts and subarray architectures.
-6. ~~**Touchstone import**~~ — done. `otahub/utils/touchstone.py` plus a
-   `touchstone` CLI subcommand: reads v1.0 and v1.1 files in MA/DB/RI, any
-   frequency unit, S and Z parameters, with the two-port column-major exception
-   and arbitrary line wrapping handled. G and H parameter files are recognised
-   and refused rather than mis-converted.
-7. **Re-audit the session 1–4 specs** — continuing. A survey by how much each
-   archetype actually asserts put the sectoral horns at the bottom (one known
-   case asserting one quantity out of four produced); they have since been
-   rebuilt on exact theory. The same survey is the way to pick what to look at
-   next. Partly done otherwise: Two systematic audits now
-   run over the whole catalogue: the dimensional one (793 quantities against
-   scale invariance) and the cross-consistency one (23 relationships between
-   archetypes that must agree). Both are clean. What neither covers is an
-   archetype with no sibling and no dimensional quirk — those still need
-   reading against their source.
-   Every archetype passes the cases it declares; that is not the same as being
-   right. `corner_reflector_90` had a null where its optimum is and said so
-   confidently for four sessions. The archetypes carrying a single known case
-   are the place to start. Ranked by quantities asserted over quantities
-   produced, the bottom was `truncated_corner_cp_patch` (3 of 16), and auditing
-   it found three design-breaking errors (§5). `pyramidal_horn` was next and
-   turned out not to be buildable (§5). The ranking undercounts archetypes
-   already verified another way (`annular_ring_patch`, the inset patch); of the
-   ones it rightly flags, the waveguide slot family was next: Stevenson's g1
-   turned out inverted in the spec (§4). The corner reflectors followed: their
-   directivity held to 0.04 dB against an exact image solution, but the quoted
-   "input resistance" was an induced-EMF figure the feed never sees. That leaves
-   `stacked_patch`, which needs a full-wave solve this toolkit does not have.
-   After it, the "indicative" list: `prime_focus_parabolic` was done from it
-   (§5), and `offset_parabolic` after it - which needed its own 2-D
-   integration, because the tilted spreading loss makes the symmetric formula
-   up to 20% optimistic. `cylindrical_parabolic` followed, with a line feed's
-   cylindrical wave, and the dual reflectors after it, through an equivalent
-   paraboloid verified by ray tracing. That closes the reflector family's
-   asserted efficiency pairs. The hyperbolic and metal-plate lenses followed,
-   through a Snell's-law ray trace, and the Fresnel zone plate through Kirchhoff
-   diffraction (its gain had left the feed out altogether). `luneburg_lens`
-   keeps its 0.65 on purpose: in geometric optics a cos(theta) feed gives it a
-   perfectly uniform aperture, so its shortfall is construction - stepped shells, material loss - which ray
-   optics cannot see and which needs measured or full-wave data.
-8. ~~**Replace `rectangular_dra`'s borrowed Q**~~ — done, and the resonance
-   with it: the DWM had been solved along the height, which is the mode of a
-   VERTICAL magnetic dipole a ground plane shorts out. Deriving Q from the DWM
-   fields was tried and rejected: against a 3-D FDTD ringdown
-   (`otahub/num/dra.py`, itself checked on the exact hemisphere pole) the DWM
-   Q runs from 33% low to 26% high, and the DWM resonance from 10.6% high to
-   6.2% low. Both are now fitted to 150 ringdowns. `cylindrical_dra` followed:
-   its published Mongia & Bhartia fits are 6-9% low in resonance on every
-   puck with a/h <= 0.5 and 6-26% low in Q at εr <= 12, and are now replaced
-   by fits to 48 ringdowns, kept as a reported comparison. The DRA family has
-   no curve-fit physics left in it.
+### A. Needs a CST Studio or HFSS installation
 
-9. ~~**A finite-gap feed for the MoM.**~~ - answered with `otahub/num/bor.py`
-   instead: a straight conductor solved as a solid tube with a gap of physical
-   length. The answer is that past a = 0.005 wavelengths the resonance belongs
-   to the feed as much as the wire - gaps of a/2 to 4a spread the resonant length
-   +-0.3% at 0.005, +-0.9% at 0.01, +-2-4% at 0.015-0.025 wavelengths, and at
-   0.025 a gap of a/2 leaves no resonance at all. `resonant_dipole`'s length law
-   lies inside that spread throughout; the slot family is now checked to w/L of
-   about 0.09 and says plainly that past it L and R need a feed model. The wire
-   MoM itself still has only the delta gap. The strip to tube equivalence
-   a = w/4 for wide strips is now checked too, with a strip solver of its own
-   (`otahub/num/strip.py`, §3): it holds for the body, not the ends - the strip
-   resonates about 0.1 w longer than the tube, and at small gaps on wide strips
-   carries 4-11% less resistance - but the slot family's length law lies inside
-   the strip's own feed spread at every width solved (w/L 0.04-0.22). On the way
-   the tube itself was found under-resolved at its open rims; the fat-dipole
-   table is redone with graded rims (every length had been 0.15-0.48% long).
-   **Left, as future work:** a spot check of the discone table with its free
-   disc edge graded (the cone tables were extrapolated from two meshes, which
-   lands within 0.05% of the graded answer on a tube, so they should stand).
-10. ~~**`conical_monopole` and `biconical` bandwidths**~~ - done with
-   `otahub/num/bor.py`. Matched to its own Zc a bicone holds a decade from 10 to
-   65 degrees; a conical monopole in 50 ohm only from 30 to 55. The biconical
-   exporter was found still halving theta_h - the spec's old full-angle bug,
-   surviving in the builder - and is fixed.
-11. ~~**The diagonal and dual-mode horns' fixed figures**~~ - done with the
-   two-component aperture transform in `otahub/num/horn_pattern.py`. The Potter
-   horn's step is now solved too (§3, fifth reference), and the whole chain
-   (item 4 above). **Left, as future work:** a spec-level table of jointly solved
-   Potter designs over horn length, input guide and share - hundreds of
-   whole-chain cascades, and a design map with several branches to choose
-   between.
-12. ~~**Patch directivity, family-wide.**~~ - done, with a full-wave arbiter
-   (`otahub/num/patch_sdm.py`, §3) that settled which model is right: the cavity
-   current radiated through the slab (`patch_q`) holds to 0.3-0.9%; the two-slot
-   formula (7.5-13% low) and the free-space edge models (thin-substrate only)
-   do not. Six specs now carry thin-substrate directivity times a substrate
-   factor. The annular ring followed: `patch_q.annulus` is its TM11 mode (it
-   meets the two edge walls' ring currents to within 0.7% on thin board), so the
-   ring now carries a substrate factor (up to 1.20 on thick board) and a radiation
-   Q it never had. PIFA's length is FDTD-calibrated on two air plates (L + h =
-   0.2425 wavelengths: the lambda/4 rule resonates 3% low); its bandwidth
-   formula is 14-43% too wide against the FDTD's Q, and its directivity stays a
-   placeholder. **Left:** a far-field transform in the half-space FDTD, which
-   would give the PIFA a directivity - on a finite ground plane, which is what
-   sets a real PIFA's pattern.
-13. ~~**Patch resonance and Q, full-wave.**~~ - done for the rectangle, with an
-   edge-exact basis and an FDTD check (§3); `rectangular_patch` and the inset
-   patch build the full-wave length, and the CP square takes its side and Q0
-   full-wave (its cut-to-split relation stays the cavity model's - the MoM does
-   not model the cut). The shorted and stacked patches take the rectangle's
-   length correction, checked by FDTD spot checks (§3). **Left, as future work:**
-   a shorted-patch survey with the half-space FDTD (hours per board) to replace
-   the borrowed correction; a two-layer spectral solver with a feed model to
-   design the stack's gap and size ratio; and a full-wave solver of their own
-   shape for the circular and triangular patches.
+1. **Execution-test the exporters.** The largest gap in the toolkit: the
+   builders have only been checked structurally, never run. 43 of 72
+   archetypes have geometry. Start with `half_wave_dipole` (simplest geometry,
+   strongest reference: 73.08 + j42.52 ohm at lambda/2), then one of each
+   family.
+2. **Geometry builders for horns.** They need a loft or truncated-pyramid
+   primitive, the one construct whose API structure would be guessed rather
+   than just its parameter names. The pyramidal horn's geometry is fully
+   determined (guide, aperture, and a length at which both flares meet the
+   guide); the Potter horn's step and phasing guide are now solved as well.
+3. **Full-wave checks the in-house solvers cannot reach,** for four of the
+   eight low-confidence archetypes: `cassegrain` (its efficiencies are
+   geometric optics; subreflector diffraction and blockage need physical optics
+   or full wave), `vivaldi_tsa` (the feed transition sets the top of the band;
+   the gain scaling is good to about 2 dB), `planar_monopole_circular` (bandwidth
+   and directivity indicative), `waveguide_longitudinal_slot` (Stevenson's model
+   itself against a real guide, and mutual coupling between slots); and the
+   PIFA on a finite ground plane, whose pattern and bandwidth belong to the
+   ground.
+
+### B. Needs measurement data
+
+4. **`luneburg_lens`'s 0.65 efficiency.** In geometric optics a cos(theta) feed
+   gives it a perfectly uniform aperture, so its shortfall is construction -
+   stepped shells, material loss - which needs measured (or full-wave) data.
+5. **`ferrite_rod_loop`.** Needs a ferrite material model: permeability and
+   loss against frequency for the rod materials it is built from.
+6. **Handset PIFAs.** A real PIFA's bandwidth and pattern are set by the
+   handset's ground plane, which neither this toolkit nor the spec models;
+   measured data, or item 3.
+
+### C. Needs a new solver
+
+7. **A two-layer spectral MoM with a feed model** for `stacked_patch`: its gap
+   and size ratio. The FDTD shows the default stack's two modes 25-38% apart,
+   not straddling f0, so the stack needs a real design tool.
+8. **Full-wave solvers of their own shape** for the circular and triangular
+   patches (the spectral MoM is rectangles only); their resonance and Q are the
+   cavity model's through the slab, labelled as upper bounds on thick board.
+9. **A far-field transform in the half-space FDTD,** which would give the PIFA
+   a directivity (on an infinite ground plane; a finite one is item 3).
+10. **A finite gap for the wire MoM.** It still has only the delta gap;
+    `otahub/num/bor.py` and `otahub/num/strip.py` carry finite gaps for tubes
+    and strips.
+
+### D. Needs only compute time with the solvers already here
+
+Deferred by the scope freeze, not blocked:
+
+11. **A table of jointly solved Potter designs** over horn length, input guide
+    and share (`waveguide_step.potter_aperture`): hundreds of whole-chain
+    cascades, and a design map with several branches to choose between. Until
+    then the spec's step and phasing length are first-order and say so.
+12. **A shorted-patch survey with the half-space FDTD** (hours per board), to
+    replace the full patch's borrowed length correction, which leaves the
+    shorting wall's own 1-3% out.
+13. **A graded-edge spot check of the discone table.** The open tube needed its
+    rims graded (§3, third reference); the cone tables were extrapolated from
+    two meshes, which lands within 0.05% of the graded answer on a tube, but the
+    discone's free disc edge was never graded.
+14. **Planar arrays:** circular and thinned layouts, subarray architectures.
+15. **Re-audit the session 1-4 specs, continued.** Every archetype passes the
+    cases it declares, which is not the same as being right
+    (`corner_reflector_90` had a null where its optimum is for four sessions).
+    The survey ranking archetypes by quantities asserted over quantities
+    produced picks what to read next; the dimensional (793 quantities) and
+    cross-consistency (23 relationships) audits are clean, and what neither
+    covers is an archetype with no sibling and no dimensional quirk.
+
 ---
 
 ## 7. Conventions worth preserving

@@ -14,6 +14,7 @@ python OTA_Hub_AntennaToolkit.py guide WR-90 --f0 10GHz     # waveguides
 python OTA_Hub_AntennaToolkit.py array -n 16 --taper chebyshev --sll -30
 python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --taper chebyshev --sll 30 --scan 45
 python OTA_Hub_AntennaToolkit.py planar --nx 12 --ny 12 --lattice triangular --d 0.62
+python OTA_Hub_AntennaToolkit.py planar --nx 16 --ny 16 --scan 30 --element cos   # with an element pattern
 python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
@@ -21,6 +22,10 @@ python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dip
 python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
 ```
+
+**Status: v1.0, development closed 2026-09-27.** What is verified and how, what
+is not, and the remaining future work (grouped by whether it needs a CST/HFSS
+installation, measured data, or a new solver) are in `docs/HANDOVER.md`.
 
 ## The catalogue
 
