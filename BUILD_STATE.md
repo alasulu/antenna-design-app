@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3001 tests, 1026/1026 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3027 tests, 1034/1034 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3268,3 +3268,45 @@ The zenith directivity is a pattern property and holds: the real current reads
 0.01-0.04 dB higher. The induced-EMF resistance stays, labelled. NaN unless the
 dipole is exactly half a wavelength; its resonant length over ground is not
 carried and needs only compute time.
+
+## Where a dipole over ground resonates
+
+HANDOVER section 6 D.15, ninth loop iteration: the item the last round left
+open.
+
+`dipole_over_ground` now gives the real wire's driving point at exactly half a
+wavelength, but nobody builds that: a dipole is cut to resonance, and the spec
+did not say where that is over ground. `resonant_dipole` gives the free-space
+length, from the induced-EMF reactance.
+
+The dipole and its reversed image, solved together by the method of moments
+(64 segments each, delta gap) with the length searched for zero reactance, over
+heights 0.04-2.0 and wire 1e-5 to 2.7e-3 wavelengths:
+- The ground moves the resonance -5.2% to +3.2% from the same wire's in free
+  space: shortest near 0.17 wavelengths up (2-5% short), longer from a third of
+  a wavelength to 0.6 (most near 0.45), then swinging every half wavelength of
+  height and dying away. Fat wire swings furthest.
+- A dipole cut to `resonant_dipole`'s length and hung an eighth or a quarter of
+  a wave up carries +27 to +38 ohm of reactance; half a wave up, -11 to -19.
+- Cut to resonance, it presents 29-31 ohm at an eighth of a wave, 80-82 at a
+  quarter and 69-72 at a half, nearly independent of the wire - as the
+  free-space resonant dipole's 72 is. In 50 ohm that is 1.6-1.7:1 at both of
+  the low heights.
+- The induced-EMF input resistance the spec always carried describes a
+  half-wave length, yet lands within 4-10% of these resonant values at an
+  eighth and a quarter wave: shortening the real wire cancels most of its
+  excess over the textbook figure.
+Hallen's equation with the image in its kernel, evaluated at the MoM's resonant
+lengths, finds them resonant to 0.11 ohm and agrees on the resistance to 0.03%.
+
+The resonant length is a synthesis output, `L_resonant`, fitted as the same
+wire's free-space resonance plus the image's pull - the mutual impedance to the
+image times the phase, log and inverse-height terms that shaped last round's
+coupling factor: 4.5e-4 wavelengths worst (0.09%), 3.3e-4 on 48 held-out
+designs, where a wire cut to it shows 0.47 ohm of reactance at worst - about a
+tenth of what `resonant_dipole` leaves on a real wire in free space. The
+resonant resistance fits to 0.38% (0.25% held out). The same wire's own free-space resonance,
+solved the same way, sits 0.1-0.45% shorter than `resonant_dipole`'s
+induced-EMF length, which agrees with that spec's recorded -3 to +6 ohm of
+residual reactance. The exporter still draws the length the user asks for;
+setting `L_over_lambda` to `resonant_length_over_lambda` builds the resonant one.
