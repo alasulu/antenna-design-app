@@ -633,6 +633,114 @@ def cmd_touchstone(args: argparse.Namespace, reg: Registry) -> int:
     return 0
 
 
+def _potter_xpol(share: float, psi: float, d_ap: float, s: float) -> float:
+    """Peak cross-polar level (dB, 45-degree plane) of TE11 + TM11 at this share and phase."""
+    from ..num import horn_pattern as hp
+    f = hp.dual_mode(share, psi)
+    return hp.peak_cross(lambda t, ph: hp.disc_pattern(f, d_ap, s, t, ph), d_ap, math.pi / 4)
+
+
+def _window(frs, xs, level: float) -> dict | None:
+    """The contiguous band below `level` that holds f0 or, failing that, the nearest one:
+    ends interpolated, with whether it holds f0 and whether the sweep clipped it."""
+    runs, i = [], 0
+    while i < len(frs):
+        if xs[i] < level:
+            j = i
+            while j + 1 < len(frs) and xs[j + 1] < level:
+                j += 1
+            runs.append((i, j))
+            i = j + 1
+        else:
+            i += 1
+    if not runs:
+        return None
+
+    def edge(a, b):
+        return frs[a] + (frs[b] - frs[a]) * (level - xs[a]) / (xs[b] - xs[a])
+
+    lo, hi = min(runs, key=lambda r: 0.0 if frs[r[0]] <= 1.0 <= frs[r[1]] else
+                 min(abs(frs[r[0]] - 1.0), abs(frs[r[1]] - 1.0)))
+    f_lo = edge(lo, lo - 1) if lo > 0 else frs[0]
+    f_hi = edge(hi, hi + 1) if hi < len(frs) - 1 else frs[-1]
+    return dict(lo=f_lo, hi=f_hi, holds_f0=f_lo <= 1.0 <= f_hi, clipped=lo == 0 or hi == len(frs) - 1)
+
+
+def cmd_potter(args: argparse.Namespace, reg: Registry) -> int:
+    """The dual-mode horn's step and phasing length, solved as one chain.
+
+    The spec designs the step for the TM11 share it LAUNCHES and the phasing length
+    from local propagation constants; the phasing guide is a TM11 resonator, so what
+    arrives at the aperture belongs to both together. This solves them jointly with
+    the mode-matching cascade (otahub.num.waveguide_step.potter_design)."""
+    from ..core.constants import C0
+    from ..num import waveguide_step as ws
+
+    lam = C0 / args.f0
+    d = reg["conical_horn_dual_mode"].synthesize(f0=args.f0, L=args.L, tm11_fraction=args.share,
+                                                  d_in_over_lambda=args.d_in)
+    d_ap, slant = d.get("dm") / lam, args.L / lam
+    s_phase = (d_ap / 2) ** 2 / (2 * slant)
+    fo_step, fo_ell = d.get("d_step") / lam, d.metrics["phasing_length_m"] / lam
+    say = (lambda m: print(m, file=sys.stderr, flush=True)) if args.verbose else None
+
+    fo = ws.PotterChain(args.d_in, fo_step, d_ap, slant, 1.0, args.stair).at(fo_ell)
+    sols = ws.potter_design(args.d_in, d_ap, slant, args.share, args.phase, stair=args.stair,
+                            periods=args.periods, progress=say)
+    target_x = _potter_xpol(args.share, args.phase, d_ap, s_phase)
+    out: dict[str, Any] = dict(
+        f0_hz=args.f0, wavelength_m=lam, aperture_m=d.get("dm"), slant_m=args.L,
+        input_guide_m=args.d_in * lam, target_share=args.share, target_phase_deg=args.phase,
+        target_cross_pol_db=target_x,
+        first_order=dict(d_step_m=fo_step * lam, ell_m=fo_ell * lam, share=fo[0], phase_deg=fo[1],
+                         cross_pol_db=_potter_xpol(*fo, d_ap, s_phase)),
+        solutions=[dict(d_step_m=r["d_step"] * lam, ell_m=r["ell"] * lam, share=r["share"],
+                        phase_deg=r["phase_deg"], launched_share=r["launched_share"],
+                        phase_slope_deg_per_percent=r["phase_slope_deg_per_percent"]) for r in sols])
+
+    if args.band and sols:
+        frs = [round(0.95 + 0.01 * i, 2) for i in range(11)]
+        for key, (stp, ell) in (("first_order", (fo_step, fo_ell)), ("recommended", (sols[0]["d_step"], sols[0]["ell"]))):
+            xs = []
+            for fr in frs:
+                sh, ps = ws.PotterChain(args.d_in, stp, d_ap, slant, fr, args.stair).at(ell)
+                xs.append(_potter_xpol(sh, ps, d_ap * fr, s_phase * fr))
+                if say:
+                    say(f"{key} {fr:.2f} f0: share {sh:.3f} at {ps:+.1f} deg, cross-pol {xs[-1]:.1f} dB")
+            out.setdefault("band", {})[key] = dict(f_ratio=frs, cross_pol_db=xs, window_30db=_window(frs, xs, -30.0),
+                                                   window_25db=_window(frs, xs, -25.0))
+
+    if args.json:
+        print(json.dumps(out, indent=2))
+        return 0
+    mm = lambda x: f"{x * 1e3:.3f} mm ({x / lam:.4f} wavelengths)"
+    print(f"Dual-mode (Potter) horn at {engineering(args.f0, 'Hz')}: aperture {mm(d.get('dm'))}, "
+          f"slant {mm(args.L)}, input guide {mm(args.d_in * lam)}")
+    print(f"target: TM11 share {args.share:g} at {args.phase:+g} deg at the aperture "
+          f"(cross-polar {target_x:.1f} dB from the aperture model)")
+    f = out["first_order"]
+    print(f"\nfirst-order (the spec): step {mm(f['d_step_m'])}, phasing {mm(f['ell_m'])}")
+    print(f"  whole chain at f0: share {f['share']:.3f} at {f['phase_deg']:+.1f} deg, "
+          f"cross-polar {f['cross_pol_db']:.1f} dB")
+    if not sols:
+        print("\nno joint solution on the scanned steps; try another share, --periods 2, or another input guide")
+        return 1
+    print("\njoint solutions, flattest phase first (the flatter, the wider the cross-polar band):")
+    for i, r in enumerate(out["solutions"], 1):
+        print(f"  {i}. step {mm(r['d_step_m'])}, phasing {mm(r['ell_m'])}")
+        print(f"     launches {r['launched_share']:.3f}; aperture phase {r['phase_slope_deg_per_percent']:+.2f} deg "
+              f"per percent of frequency" + ("   <- recommended" if i == 1 else ""))
+    for key, b in out.get("band", {}).items():
+        w30, w25 = b["window_30db"], b["window_25db"]
+        fmt = lambda w: ("not reached in 0.95-1.05 f0" if not w else
+                         f"{w['lo']:.3f}-{w['hi']:.3f} f0 ({(w['hi'] - w['lo']) * 100:.1f}%"
+                         + (", reaching the sweep's edge" if w["clipped"] else "")
+                         + ("" if w["holds_f0"] else ", NOT holding f0") + ")")
+        print(f"\n{key.replace('_', '-')} band: -30 dB {fmt(w30)}, -25 dB {fmt(w25)}")
+        print("  " + "  ".join(f"{fr:.2f}:{x:.1f}" for fr, x in zip(b["f_ratio"], b["cross_pol_db"])))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="otahub", description="OTA Hub Antenna Toolkit — synthesise and analyse antennas.")
@@ -762,6 +870,22 @@ def build_parser() -> argparse.ArgumentParser:
     pn.add_argument("--eps-r", dest="eps_r", type=float, default=4.4)
     pn.add_argument("--f0", type=parse_quantity, help="frequency for guide wavelength")
     pn.set_defaults(func=cmd_line)
+
+    ph = sub.add_parser("potter", help="solve a dual-mode (Potter) horn's step and phasing length jointly")
+    ph.add_argument("--f0", type=parse_quantity, required=True, help="design frequency, e.g. 10GHz")
+    ph.add_argument("--L", type=parse_quantity, required=True, help="slant length of the cone, e.g. 0.3m")
+    ph.add_argument("--share", type=float, default=0.15, help="TM11 share of the aperture power (0.15)")
+    ph.add_argument("--d-in", dest="d_in", type=float, default=1.1,
+                    help="input guide diameter in wavelengths (1.1)")
+    ph.add_argument("--phase", type=float, default=0.0,
+                    help="TM11-to-TE11 phase wanted at the aperture, degrees (0; about -6 centres the -30 dB band)")
+    ph.add_argument("--stair", type=float, default=0.05, help="cone staircase step in wavelengths (0.05)")
+    ph.add_argument("--periods", type=int, default=1,
+                    help="beat periods of phasing guide to search (1 = shortest guides; longer ones are narrower-band)")
+    ph.add_argument("--band", action="store_true", help="also sweep 0.95-1.05 f0 for the cross-polar band (slow)")
+    ph.add_argument("--json", action="store_true")
+    ph.add_argument("-v", "--verbose", action="store_true", help="report progress on stderr")
+    ph.set_defaults(func=cmd_potter)
     return p
 
 

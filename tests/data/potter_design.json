@@ -1,0 +1,155 @@
+{
+ "_about": "otahub.num.waveguide_step.potter_design on the 10-wavelength default (input guide 1.1, aperture sqrt(30), slant 10 wavelengths, stair 0.05): every joint solution for a TM11 share of 0.13 in one beat period and of 0.15 in two, flattest aperture phase first; and bor_fdtd (60 cells per wavelength) of two of the 0.13 designs' quantised staircases at 0.99, 1.00 and 1.01 f0 against the cascade of the same staircase (scratch fd_slope.py).",
+ "share_013": [
+  {
+   "d_step": 1.4667613185434842,
+   "ell": 0.8480193336832859,
+   "share": 0.13000002082564535,
+   "phase_deg": 0.0,
+   "launched_share": 0.23246944571210626,
+   "phase_slope_deg_per_percent": -4.970631220551226
+  },
+  {
+   "d_step": 1.3910426843406896,
+   "ell": 0.6327066491333005,
+   "share": 0.1300003592917303,
+   "phase_deg": 0.0,
+   "launched_share": 0.17955791690753664,
+   "phase_slope_deg_per_percent": -8.142441593750831
+  },
+  {
+   "d_step": 1.3717842940181106,
+   "ell": 0.48416773758708526,
+   "share": 0.1300002613924584,
+   "phase_deg": 0.0,
+   "launched_share": 0.16442081772385317,
+   "phase_slope_deg_per_percent": -11.026109799274465
+  }
+ ],
+ "share_015_two_periods": [
+  {
+   "d_step": 1.4806697697465736,
+   "ell": 0.8890473875790024,
+   "share": 0.15000034945828242,
+   "phase_deg": 0.0,
+   "launched_share": 0.24077076479831888,
+   "phase_slope_deg_per_percent": -5.483076683985573
+  },
+  {
+   "d_step": 1.471341119256242,
+   "ell": 3.63515924914649,
+   "share": 0.14999776102362605,
+   "phase_deg": 0.0,
+   "launched_share": 0.23523863627432853,
+   "phase_slope_deg_per_percent": -12.569400676863012
+  },
+  {
+   "d_step": 1.437967207295994,
+   "ell": 3.427247278506963,
+   "share": 0.14999984320320117,
+   "phase_deg": 0.0,
+   "launched_share": 0.21412667622512235,
+   "phase_slope_deg_per_percent": -14.08541259343896
+  },
+  {
+   "d_step": 1.423263290426292,
+   "ell": 3.1782963920164473,
+   "share": 0.14999216201922874,
+   "phase_deg": 0.0,
+   "launched_share": 0.2040398966594533,
+   "phase_slope_deg_per_percent": -21.054757632702845
+  }
+ ],
+ "fdtd_slope": [
+  {
+   "tag": "flat",
+   "N": 60,
+   "geom": [
+    33,
+    44,
+    51,
+    164,
+    423
+   ],
+   "design": {
+    "L": 10.0,
+    "d_in": 1.1,
+    "d_step": 1.4668,
+    "ell": 0.848
+   },
+   "rows": [
+    {
+     "fr": 0.99,
+     "cascade_share": 0.12872049280646633,
+     "cascade_psi": 8.0576161988614,
+     "fdtd_share": 0.11295714358043712,
+     "fdtd_psi": 8.132359466588506,
+     "secs": 55
+    },
+    {
+     "fr": 1.0,
+     "cascade_share": 0.12868351412406362,
+     "cascade_psi": 3.0046256222558783,
+     "fdtd_share": 0.11180137567681563,
+     "fdtd_psi": 2.5805534670310615,
+     "secs": 63
+    },
+    {
+     "fr": 1.01,
+     "cascade_share": 0.1278418262098543,
+     "cascade_psi": -2.4739369135771465,
+     "fdtd_share": 0.10931230753272106,
+     "fdtd_psi": -3.4283296545774578,
+     "secs": 63
+    }
+   ],
+   "cascade_slope": -5.265776556219279,
+   "fdtd_slope": -5.780344560582989
+  },
+  {
+   "tag": "steep",
+   "N": 60,
+   "geom": [
+    33,
+    41,
+    29,
+    164,
+    433
+   ],
+   "design": {
+    "L": 10.0,
+    "d_in": 1.1,
+    "d_step": 1.3718,
+    "ell": 0.4842
+   },
+   "rows": [
+    {
+     "fr": 0.99,
+     "cascade_share": 0.13472518367824074,
+     "cascade_psi": 18.17391553895283,
+     "fdtd_share": 0.12187283852595372,
+     "fdtd_psi": 16.98703469287027,
+     "secs": 54
+    },
+    {
+     "fr": 1.0,
+     "cascade_share": 0.12843923564114063,
+     "cascade_psi": 5.966032441652918,
+     "fdtd_share": 0.11225005735861977,
+     "fdtd_psi": 4.3035661788500965,
+     "secs": 62
+    },
+    {
+     "fr": 1.01,
+     "cascade_share": 0.1208184625137849,
+     "cascade_psi": -5.52141470272059,
+     "fdtd_share": 0.10281197606611829,
+     "fdtd_psi": -7.831592981883677,
+     "secs": 62
+    }
+   ],
+   "cascade_slope": -11.847665120836709,
+   "fdtd_slope": -12.40931383737697
+  }
+ ]
+}

@@ -19,6 +19,7 @@ python OTA_Hub_AntennaToolkit.py planar --nx 33 --ny 33 --circle 8 --taper taylo
 python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
+python OTA_Hub_AntennaToolkit.py potter --f0 10GHz --L 0.3 --band   # a dual-mode horn's step and phasing, solved jointly
 
 python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
@@ -179,7 +180,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 3027 tests, ~10 min
+python -m pytest tests/ -q                # 3037 tests, ~15 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -288,6 +289,20 @@ optimum these give 0.64870, 0.64276 and 0.51440 against the pinned 0.65, 0.64
 and 0.51 — and away from it they give the right answer instead of a badly wrong
 one. Gain now peaks at the optimum flare, which is the property that makes it
 optimum.
+
+### A Potter horn designed as one chain
+
+The dual-mode horn's step launches TM11 and its phasing guide brings it into
+phase at the aperture - but TM11 is cut off in the input guide, so the phasing
+guide is a resonator and the share that arrives belongs to both dimensions
+together. The spec's first-order horn lands 26.5 degrees out and at -21 dB of
+cross-polar level where -32 is promised. `potter` solves step and phasing
+jointly with the mode-matching cascade (`waveguide_step.potter_design`), and
+lists every solution: there are several, and at a share of 0.13 on a
+10-wavelength horn the flattest has twice the cross-polar band of the steepest
+(an FDTD confirms both). `--band` sweeps 0.95-1.05 f0 and reports the -30 and
+-25 dB windows for the first-order and the recommended design. It takes about
+a minute, or four with the band.
 
 ### Cross-consistency between archetypes
 

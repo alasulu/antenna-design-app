@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-21,371 lines of Python, 24,942 lines of spec data, 3027 tests, 1034/1034 citable
+21,759 lines of Python, 24,942 lines of spec data, 3037 tests, 1034/1034 citable
 known cases passing.**
 
 ---
@@ -226,6 +226,15 @@ moving the phasing length swings the aperture share from 0.04 to 0.27 about a
 launched 0.15; the FDTD of the same staircase at four phasing lengths follows it
 (0.13 to 0.34, within 5 degrees and 0.04 at 60 cells per wavelength).
 
+`potter_design` designs a horn with it: `PotterChain` cascades everything either
+side of the phasing guide once per step, so a phasing length costs two small star
+products; the step is scanned, every in-phase phasing length followed as a branch
+and each crossing of the target share refined, flattest aperture phase first.
+`otahub potter` is the command. A whole-chain cascade takes 0.9 s on a
+10-wavelength horn (it took 26 before the mode profiles were built by the J1'
+recurrence for all modes at once and the coupling integrals became one matrix
+product - identical to 1e-12).
+
 **Limits that bite:** m = 1 only; perfectly conducting walls; the cascade models
 a staircase (fine steps approximate a smooth cone); the FDTD's finest horn run
 took 11 minutes.
@@ -395,8 +404,8 @@ aperture metrics promise -32. Solved jointly by the whole-chain cascade (and
 checked by FDTD) the same horn needs a step of 1.478 wavelengths and a phasing
 length of 0.879, and then beats the spec's own first-order bandwidths (3.7% at
 -30 dB, over 9% at -25). The joint solution moves with horn length and input
-guide in a resonant, non-monotonic way, so it is a per-horn solve, not a table;
-the spec says so and points at `waveguide_step.potter_aperture`.
+guide in a resonant, non-monotonic way, so it is a per-horn solve, not a table,
+and more than one: `otahub potter` solves the horn in hand and lists them all.
 
 `pifa` stays in the list with its length now FDTD-calibrated (§3): what keeps it
 there is that a real PIFA's bandwidth and pattern belong to its ground plane,
@@ -701,6 +710,7 @@ known case only checks what it asserts.
 | `open_ended_waveguide` | Gain `(8/π²)·4πab/λ²`, the large-aperture limit, which vanishes for a small aperture (where the directivity is a magnetic dipole's 3): WR-90 read 2.48/4.20/6.07 dBi at 8.2/10/12.4 GHz where its TE10 aperture in the infinite ground plane the spec assumes has 5.82/6.31/7.08 - 1.0-3.3 dB low, while the spec set aside the published ~6 dBi as "flanged". Now the aperture integrated over the hemisphere, confirmed by a planar-kernel sum to 0.003 dB, fitted to 0.04%; its effective area is D/(4πab/λ²) = 1.32 times its physical one for WR-90 at 10 GHz (the old 'aperture efficiency' was 8/π² whatever the size) |
 | `yagi_uda` | Gain fitted to NBS Technical Note 688's optimised designs and labelled dBi - but NBS tabulates gain over a half-wave dipole, so the spec read 1.9-2.1 dB low. The six designs solved in free space by the MoM and, independently, by coupled Hallen equations (agreeing within 0.08 dB) give 8.9-16.1 dBi; NBS's figures read as dBd sit within a third of a decibel of them. The E-plane beamwidth `55/sqrt(boom)` was 27-45% too wide on short booms, the director-count rule missed three of six designs, and front-to-back was quoted as −20 dB |
 | `dipole_over_ground` | Its feed resistance was the induced-EMF R11 − R12(2h), which assumes a sinusoidal current on a vanishing wire - so it ignored the wire radius it asked for - and it carried no reactance. The dipole and its reversed image solved together by the MoM (Hallen's equation with the image in its kernel agrees to 0.05% once the feed gap is the same width) present 5-50% more resistance over heights 0.05-2 λ: 97.6 Ω a quarter wave up on 1e-4 λ wire where the spec said 85.6, 35-47 Ω at λ/8 where it said 32. The reactance is +75-79 Ω at λ/4 and +77-94 at λ/8 against about +45 in free space. Subtracting the induced-EMF mutual impedance from the free dipole's driving point fails low (1.8-3.8 times the resistance at 0.05 λ), and half_wave_dipole's own fit is too loose to subtract from at 6 Ω, so the spec now carries its own free-dipole term and a coupling factor ρ, fitted by least squares weighted to relative error. The zenith directivity holds to 0.04 dB. Nor did it say where the dipole resonates: the ground pulls the real wire's resonance −5.2% to +3.2% from its free-space length, so a dipole cut to `resonant_dipole` and hung λ/8 or λ/4 up carries +27 to +38 Ω of reactance. Cut to resonance there it presents 29-31 and 80-82 Ω whatever the wire; now carried as `L_resonant` and its resistance |
+| `conical_horn_dual_mode` | Its joint design - step and phasing solved together, which the spec named as the way to build it - is not one design. On the 10-wavelength default at a share of 0.13 there are three (steps 1.37, 1.39 and 1.47 wavelengths), whose aperture phase moves -11.0, -8.1 and -5.0 degrees per percent: the cross-polar band of one is twice another's. An FDTD of the flattest and steepest staircases at 0.99-1.01 f0 gives -5.8 and -12.4 against the cascade's -5.3 and -11.8. A phasing guide a beat longer is in phase again and gives three more at 0.15, all two to four times steeper. `otahub potter` now finds them all and recommends the flattest |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -724,6 +734,14 @@ element patterns, the DRA family's fits, the finite-gap and strip solvers, the
 cone bandwidths, the horn beams and the Potter step, patch directivity and
 full-wave resonance, the shorted, stacked, annular and PIFA patches - are
 described in §3 to §5 and in BUILD_STATE.md, and are not repeated here.
+
+**Finish line 2** (set by the user on 2026-09-27; the full text is in
+BUILD_STATE.md, "Finish line 2"): every item in groups C and D below, and an
+independent-solver examination of the three archetypes never yet examined
+(`bowtie`, `equiangular_spiral`, `archimedean_spiral`), is to be done under the
+house rules or recorded here as infeasible with its reason. Then this section is
+rewritten as the final list - groups A and B, anything infeasible, anything
+newly found - and the project is tagged v2.0. Groups A and B are out of scope.
 
 ### A. Needs a CST Studio or HFSS installation
 
@@ -778,10 +796,14 @@ described in §3 to §5 and in BUILD_STATE.md, and are not repeated here.
 
 Deferred by the scope freeze, not blocked:
 
-11. **A table of jointly solved Potter designs** over horn length, input guide
-    and share (`waveguide_step.potter_aperture`): hundreds of whole-chain
-    cascades, and a design map with several branches to choose between. Until
-    then the spec's step and phasing length are first-order and say so.
+11. ~~**A table of jointly solved Potter designs.**~~ Done after v1.0 as a
+    per-horn tool instead, since the map is resonant and many-branched:
+    `otahub potter` (`waveguide_step.potter_design`) scans the step, follows
+    every in-phase phasing length, and lists every joint solution flattest
+    first, with the cross-polar band on request. The branches matter: at a
+    share of 0.13 the default horn has three designs whose bandwidths differ
+    twofold (FDTD-confirmed). The spec's own step and phasing stay first-order
+    and point at the command.
 12. **A shorted-patch survey with the half-space FDTD** (hours per board), to
     replace the full patch's borrowed length correction, which leaves the
     shorting wall's own 1-3% out.

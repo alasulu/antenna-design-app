@@ -31,13 +31,15 @@ cascade to a degree in phase.
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 
 import numpy as np
-from scipy.special import jn_zeros, jnp_zeros, jv, jvp
+from scipy.special import j0, j1, jn_zeros, jnp_zeros
 
 from ..core.constants import C0, EPS0, MU0
 
-__all__ = ["modes", "step", "tm11_launch", "cascade", "aperture_share", "potter_profile", "potter_aperture"]
+__all__ = ["modes", "step", "tm11_launch", "cascade", "aperture_share", "potter_profile", "potter_aperture",
+           "PotterChain", "potter_design"]
 
 
 def modes(radius: float, n_te: int, n_tm: int):
@@ -47,26 +49,48 @@ def modes(radius: float, n_te: int, n_tm: int):
 
 def _radial(kind: str, kc: float, r):
     """(e_rho, e_phi) radial profiles; e_rho multiplies cos(phi), e_phi sin(phi)."""
-    x = kc * r
-    with np.errstate(invalid="ignore", divide="ignore"):
-        jr = np.where(r > 0, jv(1, x) / np.where(r > 0, r, 1), kc / 2)
-    if kind == "TE":
-        return -jr, kc * jvp(1, x)
-    return -kc * jvp(1, x), jr
+    p = _profiles([(kind, kc)], np.asarray(r, dtype=float))[0]
+    return p[0], p[1]
 
 
 def _profiles(mode_list, r):
-    """(n_modes, 2, len(r)) radial profiles."""
-    return np.array([np.stack(_radial(k, kc, r)) for k, kc in mode_list])
+    """(n_modes, 2, len(r)) radial profiles, all modes at once.
+
+    J1(x)/r and kc J1'(x), with J1' = J0 - J1/x (the recurrence, exact, and far
+    cheaper than a general derivative formula); both tend to kc/2 on the axis."""
+    r = np.asarray(r, dtype=float)
+    kc = np.array([k for _, k in mode_list], dtype=float)[:, None]
+    te = np.array([kind == "TE" for kind, _ in mode_list])[:, None]
+    x = kc * r[None, :]
+    safe = np.where(x > 0, x, 1.0)
+    jr = np.where(x > 0, kc * j1(safe) / safe, kc / 2)          # J1(kc r)/r
+    dj = np.where(x > 0, kc * (j0(safe) - j1(safe) / safe), kc / 2)   # kc J1'(kc r)
+    e_rho = np.where(te, -jr, -dj)
+    e_phi = np.where(te, dj, jr)
+    return np.stack([e_rho, e_phi], axis=1)
+
+
+@lru_cache(maxsize=None)
+def _gauss(n: int):
+    return np.polynomial.legendre.leggauss(n)
 
 
 def _gram(A, B, a: float, n: int = 400):
     """pi * int_0^a (e_rho e_rho' + e_phi e_phi') r dr for every pair of A and B."""
-    x, w = np.polynomial.legendre.leggauss(n)
+    x, w = _gauss(n)
     r = 0.5 * a * (x + 1)
     wr = 0.5 * a * w * r
     PA, PB = _profiles(A, r), _profiles(B, r)
-    return math.pi * (np.einsum("ict,jct,t->ij", PA, PB, wr))
+    nt = 2 * len(r)
+    return math.pi * ((PA * wr).reshape(len(A), nt) @ PB.reshape(len(B), nt).T)
+
+
+def _norms(A, a: float, n: int = 400):
+    """The diagonal of _gram(A, A, a), without the rest of it."""
+    x, w = _gauss(n)
+    r = 0.5 * a * (x + 1)
+    PA = _profiles(A, r)
+    return math.pi * np.sum(PA * PA * (0.5 * a * w * r), axis=(1, 2))
 
 
 def _admittance(kind: str, kc: float, k0: float) -> complex:
@@ -118,7 +142,7 @@ def _section(radius: float, per: float, k0: float):
     n = max(3, int(round(per * radius)))
     M = modes(radius, n, n)
     Y = np.array([_admittance(*m, k0) for m in M])
-    N = np.diag(_gram(M, M, radius)).copy()
+    N = _norms(M, radius)
     beta = np.array([complex(np.sqrt(k0 * k0 - kc * kc + 0j)) for _, kc in M])
     beta = np.where(beta.imag > 0, -beta, beta)
     return M, Y, N, beta
@@ -179,7 +203,7 @@ def aperture_share(b, section, radius: float, apex_distance: float, f: float, n:
     apex_distance behind the aperture - the form the aperture model (horn_pattern) takes."""
     k0 = 2 * math.pi * f / C0
     M = section[0]
-    x, w = np.polynomial.legendre.leggauss(n)
+    x, w = _gauss(n)
     r = 0.5 * radius * (x + 1)
     w = 0.5 * radius * w
     field = np.tensordot(b, _profiles(M, r), axes=(0, 0))
@@ -218,3 +242,138 @@ def potter_aperture(d_in: float, d_step: float, ell: float, d_ap: float, slant: 
     prof, apex = potter_profile(d_in, d_step, ell, d_ap, slant, stair)
     S, _, last = cascade(prof, C0 * f_ratio, per)
     return aperture_share(S[2][:, 0], last, d_ap / 2, apex, C0 * f_ratio)
+
+
+# ---------------------------------------------------------------- designing a Potter horn jointly
+
+class PotterChain:
+    """The whole chain at one step diameter, with the phasing length left free.
+
+    Everything before the phasing guide (input guide and step) and everything after
+    it (the start of the flare and the cone) are cascaded once; the phasing guide
+    between them is only a phase per mode, so a new phasing length costs two small
+    star products instead of a whole cascade. Dimensions in wavelengths at f_ratio = 1.
+    """
+
+    def __init__(self, d_in: float, d_step: float, d_ap: float, slant: float, f_ratio: float = 1.0,
+                 stair: float = 0.05, per: float = 18.0, lead: float = 0.3):
+        prof, self.apex = potter_profile(d_in, d_step, 0.0, d_ap, slant, stair, lead)
+        self.f = C0 * f_ratio
+        self.radius = d_ap / 2
+        self.A = cascade(prof[:2], self.f, per)[0]
+        self.B, first, self.last = cascade([(d_step / 2, 0.0)] + prof[2:], self.f, per)
+        self.beta = first[3]
+        M = first[0]
+        i_tm = next(k for k, m in enumerate(M) if m[0] == "TM")
+        self.beat = 2 * math.pi / (self.beta[0].real - self.beta[i_tm].real)   # TE11-TM11 beat length [m]
+
+    def at(self, ell: float) -> tuple[float, float]:
+        """(TM11 share, TM11-to-TE11 phase in degrees) at the aperture for phasing length ell."""
+        d = np.diag(np.exp(-1j * self.beta * ell))
+        z = np.zeros_like(d)
+        S = _star(_star(self.A, (z, d, d, z)), self.B)
+        return aperture_share(S[2][:, 0], self.last, self.radius, self.apex, self.f)
+
+    def in_phase(self, phase_deg: float = 0.0, n: int = 48, periods: int = 1) -> list[tuple[float, float]]:
+        """Every phasing length in `periods` beat periods [0, periods * beat) that puts
+        TM11 at phase_deg, with the share it delivers there: [(ell, share), ...]. A guide
+        one beat longer is in phase again but delivers another share - the TM11 that
+        rattles in it has gone round a different phase - so each period is its own design."""
+        from scipy.optimize import brentq
+
+        def err(e):
+            return (self.at(e)[1] - phase_deg + 180.0) % 360.0 - 180.0
+
+        es = np.linspace(0.0, periods * self.beat, periods * n + 1)
+        v = [err(e) for e in es]
+        out = []
+        for i in range(periods * n):
+            if v[i] <= 0.0 < v[i + 1] or v[i] >= 0.0 > v[i + 1]:
+                if abs(v[i + 1] - v[i]) < 180.0:                        # a crossing, not the wrap
+                    e = brentq(err, es[i], es[i + 1], xtol=1e-9)
+                    out.append((e, self.at(e)[0]))
+        return out
+
+
+def potter_design(d_in: float, d_ap: float, slant: float, share: float = 0.15, phase_deg: float = 0.0,
+                  steps=None, stair: float = 0.05, per: float = 18.0, slope: bool = True,
+                  periods: int = 1, progress=None) -> list[dict]:
+    """Step diameter and phasing length that deliver `share` of TM11 at `phase_deg` at the
+    aperture, the whole chain solved together. Dimensions in wavelengths.
+
+    The share that arrives in phase is not monotonic in the step (the phasing guide is a
+    TM11 resonator), so there is not one answer: the step is scanned over `steps`
+    (default 1.23 to 1.70 wavelengths, 0.01 apart), every in-phase phasing length within a
+    beat period (or `periods` of them: a guide a beat longer is another design, usually a
+    narrower-band one) is followed from one step to the next as a branch, and each crossing
+    of the target share is refined. Returns every solution found, each with the aperture
+    phase's slope against frequency (degrees per percent, the number that sets the
+    cross-polar bandwidth) when `slope`, flattest first.
+    """
+    if steps is None:
+        steps = np.round(np.arange(max(1.23, d_in + 0.02), min(1.70, d_ap - 0.05) + 1e-9, 0.01), 6)
+    note = progress or (lambda *_: None)
+    rows = []
+    for ds in steps:
+        ch = PotterChain(d_in, ds, d_ap, slant, 1.0, stair, per)
+        rows.append((float(ds), ch.beat, ch.in_phase(phase_deg, periods=periods)))
+        note(f"step {ds:.3f}: " + ", ".join(f"ell {e:.3f} share {p:.3f}" for e, p in rows[-1][2]))
+
+    # link roots into branches by continuity of the phasing length (modulo the beat)
+    branches: list[list[tuple[float, float, float]]] = []
+    last_index: list[int] = []
+    for i, (ds, beat, roots) in enumerate(rows):
+        used = set()
+        for b, br in enumerate(branches):
+            if last_index[b] != i - 1:
+                continue
+            _, pe, _ = br[-1]
+            best = None
+            for k, (e, p) in enumerate(roots):
+                if k in used:
+                    continue
+                gap = abs(e - pe)
+                if gap < 0.3 and (best is None or gap < best[0]):
+                    best = (gap, k)
+            if best is not None:
+                used.add(best[1])
+                br.append((ds, roots[best[1]][0], roots[best[1]][1]))
+                last_index[b] = i
+        for k, (e, p) in enumerate(roots):
+            if k not in used:
+                branches.append([(ds, e, p)])
+                last_index.append(i)
+
+    from scipy.optimize import brentq
+    out = []
+    for br in branches:
+        for (d0, e0, p0), (d1, e1, p1) in zip(br, br[1:]):
+            if (p0 - share) * (p1 - share) > 0:
+                continue
+            cache = {}
+
+            def share_err(ds, e_guess=e0):
+                ch = PotterChain(d_in, ds, d_ap, slant, 1.0, stair, per)
+                roots = ch.in_phase(phase_deg, periods=periods)
+                if not roots:
+                    raise ValueError("branch lost")
+                e, p = min(roots, key=lambda r: abs(r[0] - e_guess))
+                cache[ds] = (e, p)
+                return p - share
+
+            try:
+                ds = brentq(share_err, d0, d1, xtol=1e-5)
+            except ValueError:
+                continue
+            e, p = cache[ds]
+            sol = dict(d_step=ds, ell=e, share=p, phase_deg=phase_deg, launched_share=tm11_launch(d_in, ds)[0])
+            if slope:
+                ph = [PotterChain(d_in, ds, d_ap, slant, fr, stair, per).at(e)[1] for fr in (0.99, 1.01)]
+                sol["phase_slope_deg_per_percent"] = ((ph[1] - ph[0] + 180.0) % 360.0 - 180.0) / 2
+            note(f"solution: step {ds:.4f} ell {e:.4f} share {p:.4f}"
+                 + (f" slope {sol['phase_slope_deg_per_percent']:+.2f} deg/%" if slope else ""))
+            out.append(sol)
+    if slope:
+        out.sort(key=lambda r: abs(r["phase_slope_deg_per_percent"]))
+    return out
+
