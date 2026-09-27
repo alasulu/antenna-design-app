@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-21,187 lines of Python, 24,669 lines of spec data, 2969 tests, 1018/1018 citable
+21,316 lines of Python, 24,803 lines of spec data, 3001 tests, 1026/1026 citable
 known cases passing.**
 
 ---
@@ -308,7 +308,7 @@ being written into a spec.
 | Archetype | Result | Independent check |
 |---|---|---|
 | `long_wire_travelling` | Rr = (η/2π)[γ + ln(2kl) − Ci(2kl) − 1 + sin(2kl)/(2kl)], integrated from the pattern | Matches quadrature at every length tested; reduces to 80π²(l/λ)² as l → 0 |
-| `dipole_over_ground` | Zenith directivity from image theory with exact mutual impedance | Hemisphere integration agrees to five digits; mutual Z reproduces −12.5 −j29.9 Ω at d = λ/2 |
+| `dipole_over_ground` | Zenith directivity from image theory with exact mutual impedance; and now the driving point a real half-wave wire presents, as Z_self − ρ·Z12 fitted over height 0.05-2.0 λ and wire 1e-5 to 2.7e-3 λ | Hemisphere integration agrees to five digits; mutual Z reproduces −12.5 −j29.9 Ω at d = λ/2. The dipole and its reversed image solved together by the MoM: fit 0.26%/0.19% in R/X, 0.40%/0.20% on 48 held-out designs; Hallen's equation with the image in its kernel meets the MoM to 0.05% at the same gap width; the real current's zenith directivity sits 0.01-0.04 dB above the spec's |
 | `turnstile_dipole` | On-axis D equals a single dipole's; element plane exactly 3 dB down | Spherical integration of the summed-power pattern |
 | `v_antenna_travelling`, `rhombic` | Axial directivity fitted to a four-leg travelling-wave model | 1.3% max fit error over 1.5–12 λ; axial lobe confirmed to be the global peak at the design angle |
 | `corner_reflector_90`, `corner_reflector_60` | Image array factors; and now the driving-point impedance of the half-wave element, fitted over spacing and radius | Summed field leaves ~1e-15 tangential E on the plates. `otahub/num/corner.py` solves dipole plus images as one MoM problem: directivity within 0.04 dB of the specs everywhere tested, power balance to 1e-5, impedance fit within 2.2 ohm of fresh solves off its grid |
@@ -700,6 +700,7 @@ known case only checks what it asserts.
 | `multiturn_small_loop` | Two things. It tuned with Wheeler's current-sheet inductance, good for coils longer than about 0.8 of their radius, while its own close winding (l = 2.2 N b) makes them a few tenths of that: against N coaxial rings (Maxwell's mutual inductances; within 0.8% of Wheeler on long coils and 0.1% of the MoM on a 4-turn loop) Wheeler reads up to 52% low there (up to 21% on the spec's own designs tried), so the tuning capacitor came out that much too big. And every electrical law assumes a uniform current, which the MoM on closed windings shows holding (within about 15%) only to 0.05 wavelengths of wire - while the spec's own 50 ohm design at C = 0.1 lambda asked for 51 turns and 5.1 wavelengths, and Balanis's Example 5.2 has 2. Now the ring-model inductance tunes it, and the electrical metrics are NaN past 0.06 wavelengths of wire, with the textbook law kept alongside |
 | `open_ended_waveguide` | Gain `(8/π²)·4πab/λ²`, the large-aperture limit, which vanishes for a small aperture (where the directivity is a magnetic dipole's 3): WR-90 read 2.48/4.20/6.07 dBi at 8.2/10/12.4 GHz where its TE10 aperture in the infinite ground plane the spec assumes has 5.82/6.31/7.08 - 1.0-3.3 dB low, while the spec set aside the published ~6 dBi as "flanged". Now the aperture integrated over the hemisphere, confirmed by a planar-kernel sum to 0.003 dB, fitted to 0.04%; its effective area is D/(4πab/λ²) = 1.32 times its physical one for WR-90 at 10 GHz (the old 'aperture efficiency' was 8/π² whatever the size) |
 | `yagi_uda` | Gain fitted to NBS Technical Note 688's optimised designs and labelled dBi - but NBS tabulates gain over a half-wave dipole, so the spec read 1.9-2.1 dB low. The six designs solved in free space by the MoM and, independently, by coupled Hallen equations (agreeing within 0.08 dB) give 8.9-16.1 dBi; NBS's figures read as dBd sit within a third of a decibel of them. The E-plane beamwidth `55/sqrt(boom)` was 27-45% too wide on short booms, the director-count rule missed three of six designs, and front-to-back was quoted as −20 dB |
+| `dipole_over_ground` | Its feed resistance was the induced-EMF R11 − R12(2h), which assumes a sinusoidal current on a vanishing wire - so it ignored the wire radius it asked for - and it carried no reactance. The dipole and its reversed image solved together by the MoM (Hallen's equation with the image in its kernel agrees to 0.05% once the feed gap is the same width) present 5-50% more resistance over heights 0.05-2 λ: 97.6 Ω a quarter wave up on 1e-4 λ wire where the spec said 85.6, 35-47 Ω at λ/8 where it said 32. The reactance is +75-79 Ω at λ/4 and +77-94 at λ/8 against about +45 in free space. Subtracting the induced-EMF mutual impedance from the free dipole's driving point fails low (1.8-3.8 times the resistance at 0.05 λ), and half_wave_dipole's own fit is too loose to subtract from at 6 Ω, so the spec now carries its own free-dipole term and a coupling factor ρ, fitted by least squares weighted to relative error. The zenith directivity holds to 0.04 dB |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -805,7 +806,11 @@ Deferred by the scope freeze, not blocked:
     aperture). `cavity_backed_slot` was read and holds; `normal_mode_helix`'s
     axial ratio holds against the MoM even on 2 wavelengths of wire; and
     `quarter_wave_monopole` now carries the driving point a real wire presents
-    beside the induced-EMF pair, as `half_wave_dipole` does. Never yet
+    beside the induced-EMF pair, as `half_wave_dipole` does. `dipole_over_ground`
+    had the same induced-EMF limitation, worse: 5-50% low over height, with
+    no reactance (§5); it now carries the dipole-and-image driving point at
+    exactly λ/2. Its resonant length over ground is not carried - it needs
+    only compute time (a root in L per height and radius). Never yet
     examined, and beyond the wire solvers: `bowtie`, `equiangular_spiral`,
     `archimedean_spiral` (they need a planar surface solver). Every archetype passes the
     cases it declares, which is not the same as being right

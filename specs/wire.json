@@ -244,7 +244,7 @@
           "depends_on": [
             "t"
           ],
-          "notes": "What a real wire presents at exactly half a wavelength: 78.0 ohm on 1e-5 lambda wire rising to 94.7 on 2.7e-3 - 7% to 30% above the canonical 73.08, because the real current is fatter than a sinusoid near the ends. It tends to 73.08 only as the wire vanishes, and slowly, logarithmically. Worst fit error 0.25%. Method of moments (otahub/num/mom.py), delta-gap fed. The INDUCED-EMF closed forms this archetype also carries are exact for an ASSUMED sinusoidal current on a vanishingly thin wire; they are a different quantity from what a real wire presents at its terminals, which is what this is. The difference is not mesh error: an independent Hallen solve agrees with the MoM, and feeding the MoM the sinusoidal current instead reproduces the induced-EMF value to 0.3%."
+          "notes": "What a real wire presents at exactly half a wavelength: 78.0 ohm on 1e-5 lambda wire rising to 94.7 on 2.7e-3 - 7% to 30% above the canonical 73.08, because the real current is fatter than a sinusoid near the ends. It tends to 73.08 only as the wire vanishes, and slowly, logarithmically. Worst fit error 0.25%. Method of moments (otahub/num/mom.py), delta-gap fed. The INDUCED-EMF closed forms this archetype also carries are exact for an ASSUMED sinusoidal current on a vanishingly thin wire; they are a different quantity from what a real wire presents at its terminals, which is what this is. The difference is not mesh error: an independent Hallen solve agrees with the MoM, and feeding the MoM the sinusoidal current instead reproduces the induced-EMF value to 0.3%. Its data follow a delta gap about an 80th of the dipole wide (its test, 64 segments, reads 0.1-0.9% lower). On fat wire the driving point depends on the gap: halving it raises R about 0.6% at 1e-3 wavelengths and 1.5% at 2.7e-3 (exact kernel) - the delta gap's own capacitance, a property of the feed model rather than the antenna."
         },
         {
           "metric": "input_reactance_driving_point_ohm",
@@ -1501,7 +1501,7 @@
       "key": "dipole_over_ground",
       "name": "Horizontal dipole over a ground plane",
       "family": "wire",
-      "summary": "Horizontal half-wave dipole at height h above a perfect conductor, solved by image theory with exact mutual impedance.",
+      "summary": "Horizontal half-wave dipole at height h above a perfect conductor, by image theory: the textbook induced-EMF feed resistance and zenith directivity, and the driving point a real wire presents, from the dipole and its image solved together.",
       "freq_range_hz": [
         100000.0,
         300000000000.0
@@ -1533,7 +1533,8 @@
           "name": "wire radius",
           "unit": "m",
           "role": "assumption",
-          "typical": "1e-4"
+          "typical": "1e-4",
+          "description": "enters only the driving-point metrics; the induced-EMF ones assume a vanishing wire, which is why they ignore it"
         },
         {
           "symbol": "L",
@@ -1581,6 +1582,16 @@
             "h"
           ],
           "notes": "the image sits as far below the plane as the dipole sits above it, with reversed current"
+        },
+        {
+          "output": "t",
+          "expr": "log10(c/f0/aw)",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "aw"
+          ],
+          "notes": "log10(lambda/aw), the wire-gauge variable the driving-point fit is written in"
         }
       ],
       "analysis": [
@@ -1624,7 +1635,73 @@
             "self_resistance_ohm",
             "mutual_resistance_ohm"
           ],
-          "notes": "MINUS, because the image current is reversed. This is why a low horizontal dipole feeds at 30 ohm rather than 73."
+          "notes": "MINUS, because the image current is reversed. This is why a low horizontal dipole feeds at 30 ohm rather than 73. INDUCED-EMF: the resistance an assumed sinusoidal current on a vanishingly thin wire would present, which is why the wire radius never enters it. Over the driving-point metrics' range it reads 5-34% below what a real wire presents (12% at a quarter wave on 1e-4 wavelength wire, 23% on 1.3e-3); kept because it is the textbook figure and the directivity below is consistent with it."
+        },
+        {
+          "metric": "mutual_impedance_ohm",
+          "expr": "mutual_resistance_ohm + 1j*mutual_reactance_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "mutual_resistance_ohm",
+            "mutual_reactance_ohm"
+          ],
+          "notes": "induced-EMF mutual impedance to the image, the pair above"
+        },
+        {
+          "metric": "self_impedance_driving_point_ohm",
+          "expr": "np.where((abs(L*f0/c - 0.5) < 1e-6)*(t >= 2.5685)*(t <= 5.0001), (73.1630281+41.9099843j) + (15.2218358+8.55959483j)*(1/(t - 1.5)) + (6.45599956-2.09687379j)*(1/(t - 1.5))**2 + (-2.41722015+2.52883833j)*(1/(t - 1.5))**3 + (3.60751212-5.87864134j)*(1/(t - 1.5))**4, (inf - inf)*(1 + 1j))",
+          "units_out": "ohm",
+          "depends_on": [
+            "L",
+            "f0",
+            "t"
+          ],
+          "notes": "The same half-wave dipole alone in free space, at its terminals: method of moments (otahub/num/mom.py), delta gap one 64th of the dipole wide, the gap half_wave_dipole is tested at, fitted in 1/(t - 1.5) to 0.001 ohm. Carried here rather than borrowed: half_wave_dipole's own fit follows a gap about an 80th wide, 0.1-0.9% higher on fat wire, which is nothing at 80 ohm but too much to subtract from - at 0.05 wavelengths up the feed resistance is 6 ohm out of 80. NaN unless L = lambda/2 and the wire is 1e-5 to 2.7e-3 wavelengths."
+        },
+        {
+          "metric": "image_coupling_factor",
+          "expr": "((1.00485399+0.0132521461j) + (0.194008773-0.34515437j)*(1/(t - 1.5)) + (0.109963845+0.180162335j)*(1/(t - 1.5))**2 + (-0.0485948306-0.2895047j)*(1/(t - 1.5))**3) + ((-0.0118466976-0.0222884035j) + (0.252058816+0.429692306j)*(1/(t - 1.5)) + (-0.182723447-0.332611059j)*(1/(t - 1.5))**2 + (0.211875611+0.412658648j)*(1/(t - 1.5))**3)*mutual_impedance_ohm/100 + ((-0.00318952099-0.000320955972j) + (0.0233114156-0.011034275j)*(1/(t - 1.5)) + (-0.0522438342-0.0019782501j)*(1/(t - 1.5))**2 + (0.0495223104+0.00678606832j)*(1/(t - 1.5))**3)*exp(-4j*pi*(h*f0/c)) + ((-0.00036445989+0.00013187305j) + (0.00773839755-0.0102217268j)*(1/(t - 1.5)) + (-0.00545344009+0.00183298939j)*(1/(t - 1.5))**2 + (0.00571266963-0.00323901077j)*(1/(t - 1.5))**3)*exp(-4j*pi*(h*f0/c))/(h*f0/c) + ((0.000322631654+0.000134949254j) + (-0.00591739575+0.0091264658j)*(1/(t - 1.5)) + (0.00520838187+0.00295788684j)*(1/(t - 1.5))**2 + (-0.00489541383-0.00137693822j)*(1/(t - 1.5))**3)/(h*f0/c)",
+          "units_out": "-",
+          "depends_on": [
+            "t",
+            "h",
+            "f0",
+            "mutual_impedance_ohm"
+          ],
+          "notes": "rho in Z_in = Z_self - rho Z12: how much more strongly the real current couples to its image than the induced-EMF mutual impedance says. 1.06-1.34 - j(0.02-0.44), growing with the wire radius, with a ripple of a few percent that repeats every half wavelength of height. Fitted by least squares weighted to the relative error of R and X, because at low height R is a small difference of large numbers."
+        },
+        {
+          "metric": "input_impedance_driving_point_ohm",
+          "expr": "np.where((abs(L*f0/c - 0.5) < 1e-6)*(h*f0/c >= 0.0499)*(h*f0/c <= 2.0001)*(t >= 2.5685)*(t <= 5.0001), self_impedance_driving_point_ohm - image_coupling_factor*mutual_impedance_ohm, (inf - inf)*(1 + 1j))",
+          "units_out": "ohm",
+          "depends_on": [
+            "L",
+            "f0",
+            "h",
+            "t",
+            "self_impedance_driving_point_ohm",
+            "image_coupling_factor",
+            "mutual_impedance_ohm"
+          ],
+          "notes": "What a real wire exactly half a wavelength long presents at its terminals over perfect ground: the dipole and its reversed image solved together by the method of moments (64 segments each, delta gap), fitted to 0.26% in R and 0.19% in X over heights 0.04-2.0 and wire 1e-5 to 2.7e-3 wavelengths, 0.40% and 0.20% on 48 held-out designs. Hallen's equation with the image in its kernel, an independent solver, meets the MoM to 0.05% at the same gap width. On fat wire a narrower delta gap raises R further (4% at 2.5e-3 wavelengths for a gap half as wide): that is the feed model's own capacitance, not the antenna. NaN unless L = lambda/2 and h is 0.05-2.0 wavelengths."
+        },
+        {
+          "metric": "input_resistance_driving_point_ohm",
+          "expr": "np.real(input_impedance_driving_point_ohm)",
+          "units_out": "ohm",
+          "depends_on": [
+            "input_impedance_driving_point_ohm"
+          ],
+          "notes": "The real wire's feed resistance: 97.5 ohm a quarter wave up on 1e-4 wavelength wire where the induced-EMF figure says 85.6, 35-47 ohm at an eighth of a wave where it says 32, and 6-7 at 0.05 wavelengths. The obvious shortcut - the free dipole's driving point minus the induced-EMF mutual impedance - is within 3.4% above 0.2 wavelengths on 1e-5 wavelength wire but 13% on 2.7e-3, and reads 1.8-3.8 times too high at 0.05, where the image reshapes the current."
+        },
+        {
+          "metric": "input_reactance_driving_point_ohm",
+          "expr": "np.imag(input_impedance_driving_point_ohm)",
+          "units_out": "ohm",
+          "depends_on": [
+            "input_impedance_driving_point_ohm"
+          ],
+          "notes": "+75-79 ohm a quarter wave up and +77-94 at an eighth, against about +45 in free space and the induced-EMF 72 and 71: the image makes a low dipole more inductive, so it must be cut shorter than in free space to resonate. The resonant length over ground is not carried."
         },
         {
           "metric": "array_factor_zenith",
@@ -1646,7 +1723,7 @@
             "L",
             "input_resistance_ohm"
           ],
-          "notes": "Directivity straight up. Reproduced to five digits by direct numerical integration over the upper hemisphere."
+          "notes": "Directivity straight up. Reproduced to five digits by direct numerical integration over the upper hemisphere. Directivity belongs to the pattern, which barely feels the current's shape: the method of moments with the real current reads 0.01-0.04 dB higher at heights 0.05-0.4 wavelengths across wire 1e-5 to 2.7e-3."
         },
         {
           "metric": "zenith_directivity_dbi",
@@ -1677,7 +1754,8 @@
         "perfectly conducting, infinite ground plane; real earth is lossier and tilts the low-angle lobe",
         "zenith is the pattern peak only for h <= lambda/4 and at h = lambda/4 + n*lambda/2; elsewhere read first_lobe_elevation_deg",
         "mutual impedance formula is the half-wave side-by-side result, so it is exact only near L = lambda/2",
-        "no conductor loss: at h = lambda/8 the feed resistance falls to 32 ohm and loss matters more than these figures suggest"
+        "no conductor loss: at h = lambda/8 a real wire's feed resistance is 35-47 ohm (induced EMF: 32) and at 0.05 wavelengths 6-7, where loss matters far more than these figures suggest",
+        "driving-point metrics: exactly half a wavelength long, h 0.05-2.0 wavelengths, wire radius 1e-5 to 2.7e-3 wavelengths; NaN elsewhere"
       ],
       "known_cases": [
         {
@@ -1706,7 +1784,7 @@
             "zenith_directivity_dbi": 8.7043
           },
           "tol_pct": 0.5,
-          "source": "A dipole one eighth of a wavelength up has HIGHER zenith directivity than one at a quarter wave (8.70 vs 7.48 dBi), because the image adds in phase and the feed resistance collapses to 32 ohm. Confirmed by hemisphere integration."
+          "source": "A dipole one eighth of a wavelength up has HIGHER zenith directivity than one at a quarter wave (8.70 vs 7.48 dBi), because the image adds in phase and the induced-EMF feed resistance collapses to 32 ohm (a real wire presents 35-47). Confirmed by hemisphere integration."
         },
         {
           "given": {
@@ -1719,6 +1797,62 @@
           },
           "tol_pct": 0.5,
           "source": "cos(theta) = lambda/(4h) = 0.5 puts the lobe at 60 deg from zenith, i.e. 30 deg elevation - the standard half-wave-high dipole result"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.25,
+            "L_over_lambda": 0.5,
+            "aw": 0.0001
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 97.611,
+            "input_reactance_driving_point_ohm": 76.747
+          },
+          "tol_pct": 1.0,
+          "source": "Direct method-of-moments solve of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel at the same gap width agrees to 0.05%."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.125,
+            "L_over_lambda": 0.5,
+            "aw": 0.001
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 40.971,
+            "input_reactance_driving_point_ohm": 86.309
+          },
+          "tol_pct": 1.0,
+          "source": "Direct method-of-moments solve of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel at the same gap width agrees to 0.05%."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.07,
+            "L_over_lambda": 0.5,
+            "aw": 2e-05
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 11.96,
+            "input_reactance_driving_point_ohm": 51.123
+          },
+          "tol_pct": 1.0,
+          "source": "Direct method-of-moments solve of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel at the same gap width agrees to 0.05%."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 1.2,
+            "L_over_lambda": 0.5,
+            "aw": 0.0025
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 90.295,
+            "input_reactance_driving_point_ohm": 55.746
+          },
+          "tol_pct": 1.0,
+          "source": "Direct method-of-moments solve of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel at the same gap width agrees to 0.05%."
         }
       ],
       "references": [
