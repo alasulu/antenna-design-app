@@ -4,9 +4,9 @@ An open reimplementation of the Antenna Magus workflow: state electrical
 requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
-Built across five sessions on 2026-09-13/14 and a build loop that ran to
-2026-09-27, when development closed at v1.0. **72 archetypes, 10 families,
-20,790 lines of Python, 24,323 lines of spec data, 2892 tests, 982/982 citable
+Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
+on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
+20,874 lines of Python, 24,403 lines of spec data, 2910 tests, 996/996 citable
 known cases passing.**
 
 ---
@@ -688,6 +688,7 @@ known case only checks what it asserts.
 | Spec | Error |
 |---|---|
 | `leaky_wave_line_source` | "Directivity" `2(L/λ)·cosθ·(1−e^(−2αL))` was 5 dB low at the default (10.7 dBi against 15.7 by direct integration). It used the free-space line source's 2L/λ for a slit radiating into a half space, a planar aperture's cosθ foreshortening that a line source does not have (its beam narrows in the scan plane and opens round the axis, so directivity holds as it scans), and the load loss, which belongs in the gain. Now 4L/λ times the exponential aperture's taper efficiency, fitted to the integral within 3.5% (1.1% held out), plus a separate gain. The beamwidth now carries the leak's taper (0.922 at the default αL, not 0.88) |
+| `open_ended_waveguide` | Gain `(8/π²)·4πab/λ²`, the large-aperture limit, which vanishes for a small aperture (where the directivity is a magnetic dipole's 3): WR-90 read 2.48/4.20/6.07 dBi at 8.2/10/12.4 GHz where its TE10 aperture in the infinite ground plane the spec assumes has 5.82/6.31/7.08 - 1.0-3.3 dB low, while the spec set aside the published ~6 dBi as "flanged". Now the aperture integrated over the hemisphere, confirmed by a planar-kernel sum to 0.003 dB, fitted to 0.04%; its effective area is D/(4πab/λ²) = 1.32 times its physical one for WR-90 at 10 GHz (the old 'aperture efficiency' was 8/π² whatever the size) |
 | `yagi_uda` | Gain fitted to NBS Technical Note 688's optimised designs and labelled dBi - but NBS tabulates gain over a half-wave dipole, so the spec read 1.9-2.1 dB low. The six designs solved in free space by the MoM and, independently, by coupled Hallen equations (agreeing within 0.08 dB) give 8.9-16.1 dBi; NBS's figures read as dBd sit within a third of a decibel of them. The E-plane beamwidth `55/sqrt(boom)` was 27-45% too wide on short booms, the director-count rule missed three of six designs, and front-to-back was quoted as −20 dB |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
@@ -788,9 +789,10 @@ Deferred by the scope freeze, not blocked:
     lowest-ranked unaudited archetypes were `leaky_wave_line_source` and
     `waveguide_slot_array_travelling_wave`; both had directivity 3.5-5 dB low
     (§5, "Found after v1.0"), and so had `yagi_uda` (NBS's dBd read as
-    dBi). Never yet examined by any round: `open_ended_waveguide`,
-    `normal_mode_helix`, `bowtie`, `cavity_backed_slot`, `equiangular_spiral`,
-    `archimedean_spiral`, `quarter_wave_monopole`. Every archetype passes the
+    dBi) and `open_ended_waveguide` (a large-aperture formula on a small
+    aperture). `cavity_backed_slot` was read and holds. Never yet examined:
+    `normal_mode_helix`, `bowtie`, `equiangular_spiral`, `archimedean_spiral`,
+    `quarter_wave_monopole`. Every archetype passes the
     cases it declares, which is not the same as being right
     (`corner_reflector_90` had a null where its optimum is for four sessions).
     The survey ranking archetypes by quantities asserted over quantities

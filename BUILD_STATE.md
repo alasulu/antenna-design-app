@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2892 tests, 982/982 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2910 tests, 996/996 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3090,3 +3090,31 @@ What it found:
 - Front-to-back was quoted as -20 dB; a ratio is positive. It stays indicative:
   the two solvers put it anywhere from 13 to 27 dB and neither is converged in a
   back lobe that is a near-cancellation.
+
+## The open-ended waveguide had a large-aperture formula on a small aperture
+
+HANDOVER section 6 D.15, third loop iteration, on the archetypes no round had
+examined. `open_ended_waveguide` gave its gain as (8/pi^2) 4 pi a b/lambda^2 -
+2.48, 4.20 and 6.07 dBi for WR-90 at 8.2, 10 and 12.4 GHz - and set the
+published "~6 dBi" aside as a flanged figure, while its own validity assumed an
+infinite ground plane.
+
+The TE10 aperture in an infinite ground plane was integrated over the
+hemisphere directly (the x-directed magnetic current 2E over the plane) and,
+independently, summed as a grid of magnetic dipoles through the planar power
+kernel of item 5. The two agree to 0.003 dB; a vanishing aperture returns the
+magnetic dipole's 4.77 dBi (D = 3), and a 6 x 3 wavelength one reaches the
+taper efficiency 8/pi^2 within 2%. WR-90 has 5.82, 6.31 and 7.08 dBi: the spec
+was 1.0-3.3 dB low. Its formula is the large-aperture limit, which goes to zero
+for a small aperture; a guide this small has an effective area larger than its
+physical one.
+
+`directivity_dbi` is now fitted to the integral over the single-mode range
+(a/lambda 0.5-1, b/a 0.3-0.6; 0.04% worst, 0.02% held out; NaN outside), gain
+equals it (lossless, the aperture mismatch neglected and labelled so),
+the old `aperture_efficiency` (8/pi^2 at any size) is now
+`effective_to_physical_area`, D/(4 pi a b/lambda^2) - 1.32 for WR-90 at 10 GHz,
+1.75 at 8.2 - with the TE10 taper's own 8/pi^2 as `taper_efficiency`.
+
+Also read on the way: `cavity_backed_slot` (twice the open slot's directivity
+and impedance for the half space) holds.

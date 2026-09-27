@@ -24,7 +24,7 @@ python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
 ```
 
-**Status: v1.0, development closed 2026-09-27.** What is verified and how, what
+**Status: v1.0 tagged 2026-09-27; development continues after it.** What is verified and how, what
 is not, and the remaining future work (grouped by whether it needs a CST/HFSS
 installation, measured data, or a new solver) are in `docs/HANDOVER.md`.
 
@@ -179,7 +179,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2892 tests, ~10 min
+python -m pytest tests/ -q                # 2910 tests, ~10 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
