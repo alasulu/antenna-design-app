@@ -16,6 +16,7 @@ import math
 import numpy as np
 
 from ..core.pattern import Pattern
+from .elements import ElementPattern, power_kernel
 
 __all__ = [
     "rectangular_lattice", "triangular_lattice", "separable_weights",
@@ -115,8 +116,9 @@ def planar_array_factor(positions, weights, theta, phi,
 
 def planar_directivity(positions, weights, scan_theta_deg: float = 0.0,
                        scan_phi_deg: float = 0.0,
-                       half_space: bool = False) -> float:
-    """Directivity of isotropic elements on an arbitrary planar layout.
+                       half_space: bool = False,
+                       element: ElementPattern | None = None) -> float:
+    """Directivity toward the scan direction on an arbitrary planar layout.
 
     Exact, not integrated numerically. The average of exp(j*k.d) over the
     sphere is sin(kd)/(kd), so the radiated power is a double sum over
@@ -127,10 +129,27 @@ def planar_directivity(positions, weights, scan_theta_deg: float = 0.0,
     case: the array can only radiate upward, so the same beam carries all the
     power. Without it, isotropic elements radiate equally up and down and half
     the power goes into the mirror beam.
+
+    With an `element` pattern (see `elements`) the kernel is that pattern's
+    power integral instead of sinc, still exact, and the element decides which
+    hemispheres radiate - so `half_space` does not apply. The figure is toward
+    the scan direction; a sloping element pattern can pull the peak slightly
+    off it (toward broadside), which this deliberately does not chase.
     """
     pos = np.asarray(positions, dtype=float)
     w0 = np.asarray(weights, dtype=complex)
     w = w0 * steering_phase(pos, scan_theta_deg, scan_phi_deg)
+    if element is not None:
+        if half_space:
+            raise ValueError("an element pattern sets its own hemisphere; half_space does not apply")
+        diff = np.round((pos[:, None, :] - pos[None, :, :]).reshape(-1, 2), 9)
+        uniq, inv = np.unique(diff, axis=0, return_inverse=True)
+        Kd = power_kernel(element, uniq)[inv.ravel()].reshape(len(pos), len(pos))
+        den = float(np.real((w[:, None] * np.conj(w)[None, :] * Kd).sum()))
+        if den <= 0:
+            raise ValueError("degenerate array: no radiated power")
+        pk = float(element(math.radians(scan_theta_deg), math.radians(scan_phi_deg)))
+        return 4.0 * math.pi * pk * abs(w0.sum()) ** 2 / den
     sep = np.linalg.norm(pos[:, None, :] - pos[None, :, :], axis=-1)
     # The peak is at the SCAN direction, where the steering phase cancels and
     # the elements add as their bare weights. Summing the steered weights
@@ -145,7 +164,7 @@ def planar_directivity(positions, weights, scan_theta_deg: float = 0.0,
 
 def planar_pattern_cut(positions, weights, phi_deg: float = 0.0,
                        scan_theta_deg: float = 0.0, scan_phi_deg: float = 0.0,
-                       n_theta: int = 2001) -> Pattern:
+                       n_theta: int = 2001, element: ElementPattern | None = None) -> Pattern:
     """One azimuth cut, as a :class:`Pattern` so the beamwidth and sidelobe
     machinery applies.
 
@@ -173,6 +192,8 @@ def planar_pattern_cut(positions, weights, phi_deg: float = 0.0,
     for (x, y), wi in zip(pos, w):
         af = af + wi * np.exp(2j * math.pi * (x * u + y * v))
     power = np.abs(af) ** 2
+    if element is not None:
+        power = power * element(np.abs(psi), np.where(psi < 0, phi_r + math.pi, phi_r))
     theta_axis = psi + math.pi / 2
     return Pattern(theta_axis, np.array([phi_r]), power[:, None])
 
@@ -200,7 +221,7 @@ def _beam_basis(scan_theta_deg: float, scan_phi_deg: float):
 
 def planar_beam_cut(positions, weights, plane: str = "scan",
                     scan_theta_deg: float = 0.0, scan_phi_deg: float = 0.0,
-                    n_theta: int = 2001) -> Pattern:
+                    n_theta: int = 2001, element: ElementPattern | None = None) -> Pattern:
     """Great-circle cut THROUGH the beam, in the scan plane or across it.
 
     A fixed-azimuth cut only contains the beam when the array is unscanned or
@@ -252,7 +273,10 @@ def planar_beam_cut(positions, weights, plane: str = "scan",
     af = np.zeros(psi.shape, dtype=complex)
     for (x, y), wi in zip(pos, w):
         af = af + wi * np.exp(2j * math.pi * (x * dirs[:, 0] + y * dirs[:, 1]))
-    return Pattern(theta_axis, np.array([0.0]), (np.abs(af) ** 2)[:, None])
+    power = np.abs(af) ** 2
+    if element is not None:
+        power = power * element(np.arccos(np.clip(dirs[:, 2], -1.0, 1.0)), np.arctan2(dirs[:, 1], dirs[:, 0]))
+    return Pattern(theta_axis, np.array([0.0]), power[:, None])
 
 # ------------------------------------------------------------------ lattices, limits
 
@@ -296,7 +320,8 @@ def lattice_element_saving() -> float:
 
 def planar_summarise(positions, weights, scan_theta_deg: float = 0.0,
                      scan_phi_deg: float = 0.0,
-                     half_space: bool = False) -> dict:
+                     half_space: bool = False,
+                     element: ElementPattern | None = None) -> dict:
     """Everything a planar-array designer wants in one call."""
     from ..core.pattern import first_sidelobe_db, hpbw_deg
     from .tapers import taper_efficiency
@@ -311,15 +336,20 @@ def planar_summarise(positions, weights, scan_theta_deg: float = 0.0,
         "aperture_y_lambda": float(np.ptp(pos[:, 1])),
         "taper_efficiency": taper_efficiency(w),
     }
-    d = planar_directivity(pos, w, scan_theta_deg, scan_phi_deg, half_space)
+    d = planar_directivity(pos, w, scan_theta_deg, scan_phi_deg, half_space, element)
     out["directivity"] = d
     out["directivity_dbi"] = 10.0 * math.log10(d)
     out["half_space"] = half_space
+    out["element"] = "isotropic" if element is None else element.name
+    if element is not None:
+        from .elements import element_directivity
+        out["element_directivity_dbi"] = 10.0 * math.log10(element_directivity(
+            element, math.radians(scan_theta_deg), math.radians(scan_phi_deg)))
     # Cuts through the BEAM, not at fixed azimuth: a scanned array's beam is
     # not in the phi = 90 plane, and measuring a sidelobe against a cut that
     # misses the beam reports nonsense.
     for label, plane in (("scan_plane", "scan"), ("cross_plane", "cross")):
-        cut = planar_beam_cut(pos, w, plane, scan_theta_deg, scan_phi_deg)
+        cut = planar_beam_cut(pos, w, plane, scan_theta_deg, scan_phi_deg, element=element)
         try:
             out[f"hpbw_{label}_deg"] = hpbw_deg(cut, 0.0)
         except ValueError:

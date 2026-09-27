@@ -2816,9 +2816,41 @@ What it found:
   within 0.05% of the graded answer; a graded spot check of the discone's free
   disc edge is listed as future work.
 
+## Element patterns in planar arrays: the "ground plane" figure was 2.5-3.5% low
+
+HANDOVER section 6 item 5, the fourth round under the finish line. The planar
+module computed directivity for isotropic elements only, exactly, as a double
+sum over sinc(k d). `otahub/arrays/elements.py` keeps it exact with an element:
+the element's power pattern, written as azimuthal harmonics (an FFT over
+azimuth), turns each pair's power integral into one Bessel integral in
+cos(theta) per hemisphere, and pairs are reduced to unique separations.
+Built in: isotropic, cos^q (ground-backed), and a short dipole along x or y,
+optionally at a height over ground; any pattern can be supplied, including a
+measured embedded-element pattern - the only way mutual coupling enters.
+`planar_directivity`, the beam cuts, `planar_summarise` and `planar --element`
+take it.
+
+Checked four ways: the kernel against brute-force sphere integration (1e-6 or
+better, three elements); an isotropic element against the old sinc formula
+(1e-9, scanned, random layouts); single elements against closed forms - cos^q
+gives 2(q+1), a short dipole 1.5, a horizontal short dipole over ground its
+image result 4 sin^2(kh) over Balanis's power bracket (1e-9); and whole
+arrays against brute-force integration of the element times array pattern
+(1e-5).
+
+What it found: with ideal (cos theta) elements a uniform 24 x 24 array at half a
+wavelength reaches the aperture limit 4 pi A cos(theta)/lambda^2 to 0.02% at
+broadside, 0.3% at 30 degrees and 0.9% at 50. The isotropic model's
+"--ground-plane" figure - the full-space result doubled - sits 2.5-3.5%
+(0.11-0.15 dB) below that limit, because a real ground makes the element
+non-isotropic; it is kept as it was and the element option is the better
+answer. At one-wavelength spacing the element's null on the horizon suppresses
+the grating lobes that the isotropic model spends power on: an 8 x 8 array's
+directivity is 3.9 times (5.9 dB) the isotropic-doubled figure.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2768 tests, 946/946 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2790 tests, 946/946 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2832,9 +2864,10 @@ the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved; the annular ring has its own mode
 in patch_q, and the PIFA a length that resonates; the slot family's strip is
-solved as a strip. Development runs to the finish line above (hard stop
-2026-09-27 20:00): items 13, 12 and 9 are done; next, item 5 (element patterns
-in planar arrays), then item 4, then the wrap-up round that tags v1.0.
+solved as a strip; planar arrays take an element pattern. Development runs to
+the finish line above (hard stop 2026-09-27 20:00): items 13, 12, 9 and 5 are
+done; next, item 4 (the Potter horn end to end), then the wrap-up round that
+tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a

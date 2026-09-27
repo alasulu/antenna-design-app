@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2768 tests, ~10 min
+python -m pytest tests/ -q                # 2790 tests, ~10 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -204,6 +204,7 @@ against an independent numerical model before being written into a spec:
 | Annular ring Q and substrate factor | TM11 mode through the slab (`patch_q.annulus`) against the edge walls' ring currents | Within 0.7% on thin board; fits 0.63% (Q), 0.12% (factor) held out |
 | Shorted patch and PIFA length | Half-space FDTD ringdown (`patch_fdtd.shorted_ringdown`) | Textbook shorted patch 4-8% low; PIFA's lambda/4 rule 3% low (L + h = 0.2425 lambda) |
 | Strip ↔ tube equivalence (a = w/4, the slot family's basis) | Spectral and rooftop strip MoMs (`strip`) against a rim-resolved tube (`bor`) | Solvers agree to 0.05%; the strip resonates ~0.1 w longer (its ends), the length law stays inside the strip's feed spread |
+| Planar array with an element pattern | Azimuthal-harmonic power kernel (`arrays.elements`) | Brute-force sphere integral to 1e-6; ideal-element 24 × 24 array within 0.02-0.9% of 4πA·cosθ/λ² |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
 
 ### Planar arrays
@@ -225,6 +226,18 @@ the triangular unit cell is `2/√3` larger in area — **13.40% fewer elements*
 for the same grating-lobe-free scan volume. A test recomputes that from the
 primitive vectors, and another confirms by brute force that a grating lobe
 appears just past the limit and not before.
+
+Elements need not be isotropic. `otahub/arrays/elements.py` folds an element's
+power pattern into the same exact double sum: written as azimuthal harmonics,
+its power integral against `exp(j k·d)` becomes one Bessel integral per
+separation, matching brute-force sphere integration to 1e-6 or better. Built in:
+`cos^q` (ground-backed; `q = 1` is the ideal element of a large matched array),
+and a short dipole along x or y, optionally over ground; any other pattern can
+be supplied, including a measured embedded-element pattern, which is the only
+way mutual coupling enters. `planar --element cos` uses it. With ideal elements a
+24 × 24 array reaches `4πA·cosθ/λ²` to 0.02-0.9% out to 50°. The
+isotropic-doubled "ground plane" figure falls 2.5-3.5% short of that, because a
+real ground makes the element non-isotropic.
 
 ### Horns solved rather than assumed
 

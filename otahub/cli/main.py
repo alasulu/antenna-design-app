@@ -441,8 +441,24 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
               file=sys.stderr)
         return 1
 
+    from ..arrays import elements as elem
+    element = None
+    spec = (args.element or "isotropic").strip().lower()
+    kind, _, val = spec.partition(":")
+    try:
+        if kind == "cos":
+            element = elem.cosine(float(val) if val else 1.0)
+        elif kind in ("dipole-x", "dipole-y"):
+            element = elem.short_dipole(kind[-1], float(val) if val else None)
+        elif kind != "isotropic":
+            raise ValueError(f"unknown element {args.element!r}")
+    except ValueError as exc:
+        print(f"{exc}; use isotropic, cos[:q], dipole-x[:height] or dipole-y[:height]", file=sys.stderr)
+        return 1
+    if element is not None and args.ground_plane:
+        print("note: the element pattern sets the hemisphere itself; --ground-plane is ignored", file=sys.stderr)
     s = planar_summarise(positions, weights, args.scan, args.scan_phi,
-                         half_space=args.ground_plane)
+                         half_space=args.ground_plane and element is None, element=element)
     label = "triangular" if lattice.startswith(("tri", "hex")) else "rectangular"
     print(f"{s['elements']}-element {label} planar array, {taper} taper, "
           f"d = {args.d:.3f} lambda")
@@ -450,10 +466,15 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
           f"{s['aperture_y_lambda']:.3f} lambda")
     print(f"  beam               theta {s['scan_theta_deg']:.1f} deg from the "
           f"normal, phi {s['scan_phi_deg']:.1f} deg")
-    print(f"\n  directivity        {s['directivity_dbi']:.2f} dBi"
-          + ("  (ground-plane backed)" if args.ground_plane else
-             "  (isotropic elements, so half the power goes into the mirror beam;"
-             " pass --ground-plane for the one-sided figure)"))
+    if element is not None:
+        print(f"\n  element            {s['element']}, {s['element_directivity_dbi']:.2f} dBi on its own "
+              f"toward the beam")
+        print(f"  directivity        {s['directivity_dbi']:.2f} dBi toward the beam, element pattern included")
+    else:
+        print(f"\n  directivity        {s['directivity_dbi']:.2f} dBi"
+              + ("  (ground-plane backed)" if args.ground_plane else
+                 "  (isotropic elements, so half the power goes into the mirror beam;"
+                 " pass --ground-plane for the one-sided figure)"))
     print(f"  half-power beam    {s['hpbw_scan_plane_deg']:.3f} deg in the scan plane, "
           f"{s['hpbw_cross_plane_deg']:.3f} deg across it")
     print(f"  first sidelobe     {s['sidelobe_scan_plane_db']:.2f} dB in the scan plane, "
@@ -666,6 +687,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help="azimuth of the scan direction in degrees")
     pp.add_argument("--ground-plane", dest="ground_plane", action="store_true",
                     help="report the one-sided directivity of a backed array")
+    pp.add_argument("--element", default="isotropic",
+                    help="element pattern: isotropic | cos[:q] (cos^q power, ground-backed; "
+                         "q = 1 is the ideal matched-array element) | dipole-x[:height] | "
+                         "dipole-y[:height] (a short dipole, optionally that many wavelengths "
+                         "over ground)")
     pp.set_defaults(func=cmd_planar)
 
     pt = sub.add_parser("touchstone",

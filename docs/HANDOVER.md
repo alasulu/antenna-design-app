@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-19,516 lines of Python, 23,984 lines of spec data, 2768 tests, 946/946 citable
+19,842 lines of Python, 23,984 lines of spec data, 2790 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -709,10 +709,18 @@ known case only checks what it asserts.
    record why it cannot be.
 5. ~~**Planar arrays**~~ — done. Rectangular and triangular lattices, separable
    tapers, steering and exact directivity are in `otahub/arrays/planar.py`,
-   with a `planar` CLI subcommand. Still missing: circular and thinned
-   layouts, subarray architectures, and element-pattern embedding (the module
-   assumes isotropic elements, so real gains need the element pattern folded
-   in separately).
+   with a `planar` CLI subcommand. Element patterns are now folded in
+   (`otahub/arrays/elements.py`, `planar --element`): the element's power
+   pattern as azimuthal harmonics keeps the power integral exact, one Bessel
+   integral per separation, checked against brute-force sphere integration
+   (1e-6), the isotropic sinc kernel (1e-9), closed-form elements (cos^q, a
+   short dipole, a horizontal dipole over ground by its image), and the
+   aperture limit 4 pi A cos(theta)/lambda^2, which a 24 x 24 array of ideal
+   (cos theta) elements reaches to 0.02-0.9% out to 50 degrees. Found on the
+   way: the isotropic-doubled "ground plane" figure sits 2.5-3.5% (0.11-0.15 dB)
+   below that limit, because a real ground makes the element non-isotropic.
+   Mutual coupling enters only through a supplied embedded-element pattern.
+   Still missing: circular and thinned layouts and subarray architectures.
 6. ~~**Touchstone import**~~ — done. `otahub/utils/touchstone.py` plus a
    `touchstone` CLI subcommand: reads v1.0 and v1.1 files in MA/DB/RI, any
    frequency unit, S and Z parameters, with the two-port column-major exception

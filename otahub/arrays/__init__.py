@@ -1,4 +1,6 @@
 """Array layout, excitation and pattern synthesis."""
+from .elements import (ElementPattern, cosine, custom, element_directivity, isotropic,
+                       power_kernel, short_dipole)
 from .factor import (array_factor, array_pattern, beam_broadening_factor,
                      broadside_directivity, grating_lobe_free_spacing,
                      has_grating_lobe, summarise)
@@ -18,4 +20,6 @@ __all__ = ["uniform", "binomial", "dolph_chebyshev", "taylor_nbar",
            "rectangular_lattice", "triangular_lattice", "separable_weights",
            "steering_phase", "planar_array_factor", "planar_directivity",
            "planar_pattern_cut", "planar_beam_cut", "grating_lobe_free_spacing_planar",
-           "lattice_element_saving", "planar_summarise"]
+           "lattice_element_saving", "planar_summarise",
+           "ElementPattern", "isotropic", "cosine", "short_dipole", "custom",
+           "power_kernel", "element_directivity"]
