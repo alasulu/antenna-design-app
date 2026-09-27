@@ -1553,6 +1553,13 @@
           "name": "spacing to image",
           "unit": "m",
           "role": "derived"
+        },
+        {
+          "symbol": "L_resonant",
+          "name": "resonant length over this ground",
+          "unit": "m",
+          "role": "derived",
+          "description": "the length at which a real wire at this height and radius has zero input reactance; set L_over_lambda to resonant_length_over_lambda to build it"
         }
       ],
       "synthesis": [
@@ -1592,6 +1599,39 @@
             "aw"
           ],
           "notes": "log10(lambda/aw), the wire-gauge variable the driving-point fit is written in"
+        },
+        {
+          "output": "mutual_resistance_half_wave_ohm",
+          "expr": "(eta0/(4*pi))*(2*Ci(4*pi*h*f0/c) - Ci(2*pi*(sqrt(4*(h*f0/c)**2 + 0.25) + 0.5)) - Ci(2*pi*(sqrt(4*(h*f0/c)**2 + 0.25) - 0.5)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "h",
+            "f0"
+          ],
+          "notes": "induced-EMF mutual resistance of half-wave dipoles at the image spacing, whatever L is: a variable the resonance fits are written in"
+        },
+        {
+          "output": "mutual_reactance_half_wave_ohm",
+          "expr": "-(eta0/(4*pi))*(2*Si(4*pi*h*f0/c) - Si(2*pi*(sqrt(4*(h*f0/c)**2 + 0.25) + 0.5)) - Si(2*pi*(sqrt(4*(h*f0/c)**2 + 0.25) - 0.5)))",
+          "units_out": "ohm",
+          "depends_on": [
+            "h",
+            "f0"
+          ],
+          "notes": "its reactive partner"
+        },
+        {
+          "output": "L_resonant",
+          "expr": "np.where(((h*f0/c) >= 0.0499)*((h*f0/c) <= 2.0001)*(t >= 2.5685)*(t <= 5.0001), ((0.499964734) + (-0.0480152421)*(1/(t - 1.5)) + (0.0234008685)*(1/(t - 1.5))**2 + (-0.0159649277)*(1/(t - 1.5))**3 + (0.00931714454)*(1/(t - 1.5))**4 + (-0.00071334679)*(1/(t - 1.5))**5 + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.000628635299) + (0.00733282021)*(1/(t - 1.5)) + (0.00770751644)*(1/(t - 1.5))**2) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((0.00374750923) + (0.0885937)*(1/(t - 1.5)) + (-0.0281041676)*(1/(t - 1.5))**2) + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)**2)*((0.00107577314) + (-0.00917457926)*(1/(t - 1.5)) + (-0.00310309561)*(1/(t - 1.5))**2) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)**2)*((-0.000552694718) + (0.00250716461)*(1/(t - 1.5)) + (-0.0125640912)*(1/(t - 1.5))**2) + np.real(exp(-4j*pi*(h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.00010152179) + (0.000764829561)*(1/(t - 1.5)) + (-6.08902331e-05)*(1/(t - 1.5))**2) + np.imag(exp(-4j*pi*(h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.000183918357) + (0.000828257447)*(1/(t - 1.5)) + (-0.00149662625)*(1/(t - 1.5))**2) + np.real(log((h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((0.000912687985) + (0.00265102881)*(1/(t - 1.5)) + (0.03749952)*(1/(t - 1.5))**2) + np.imag(log((h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.00136085794) + (0.00209670933)*(1/(t - 1.5)) + (-0.0314242582)*(1/(t - 1.5))**2) + np.real((h*f0/c)*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.000613784849) + (-0.00341346764)*(1/(t - 1.5)) + (-0.032123119)*(1/(t - 1.5))**2) + np.imag((h*f0/c)*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((0.00101283834) + (-0.00271562538)*(1/(t - 1.5)) + (0.0181676546)*(1/(t - 1.5))**2) + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)/(h*f0/c))*((0.000140844632) + (0.000359203895)*(1/(t - 1.5)) + (0.00554706568)*(1/(t - 1.5))**2) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)/(h*f0/c))*((-0.000311920344) + (-0.000189186358)*(1/(t - 1.5)) + (-0.00990292269)*(1/(t - 1.5))**2))*c/f0, inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "h",
+            "f0",
+            "t",
+            "mutual_resistance_half_wave_ohm",
+            "mutual_reactance_half_wave_ohm"
+          ],
+          "notes": "Where a real wire at this height resonates: the dipole and its reversed image solved together by the method of moments (64 segments each, delta gap) and the length searched for zero reactance, then fitted as the same wire's free-space resonance plus the image's pull, over heights 0.04-2.0 and wire 1e-5 to 2.7e-3 wavelengths: 4.5e-4 wavelengths worst (0.09%), 3.3e-4 on 48 held-out designs, where the wire cut to it shows 0.47 ohm of reactance at worst. Hallen's equation with the image in its kernel finds the solved resonances resonant to 0.11 ohm. NaN outside that range."
         }
       ],
       "analysis": [
@@ -1701,7 +1741,49 @@
           "depends_on": [
             "input_impedance_driving_point_ohm"
           ],
-          "notes": "+75-79 ohm a quarter wave up and +77-94 at an eighth, against about +45 in free space and the induced-EMF 72 and 71: the image makes a low dipole more inductive, so it must be cut shorter than in free space to resonate. The resonant length over ground is not carried."
+          "notes": "+75-79 ohm a quarter wave up and +77-94 at an eighth, against about +45 in free space and the induced-EMF 72 and 71: the image makes a low dipole more inductive, so it must be cut shorter than in free space to resonate. Where it resonates is resonant_length_over_lambda."
+        },
+        {
+          "metric": "resonant_length_over_lambda",
+          "expr": "L_resonant*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "L_resonant",
+            "f0"
+          ],
+          "notes": "The ground moves the resonance -5.2% to +3.2% from the same wire's in free space: shortest near 0.17 wavelengths up (2-5% short), longer from a third of a wavelength to 0.6 (most near 0.45), then swinging every half wavelength of height and dying away. A dipole cut to resonant_dipole's free-space length and hung an eighth or a quarter of a wave up carries +27 to +38 ohm of reactance; half a wave up, -11 to -19."
+        },
+        {
+          "metric": "resonant_length_shift_pct",
+          "expr": "100*(resonant_length_over_lambda/((0.499964734) + (-0.0480152421)*(1/(t - 1.5)) + (0.0234008685)*(1/(t - 1.5))**2 + (-0.0159649277)*(1/(t - 1.5))**3 + (0.00931714454)*(1/(t - 1.5))**4 + (-0.00071334679)*(1/(t - 1.5))**5) - 1)",
+          "units_out": "-",
+          "depends_on": [
+            "resonant_length_over_lambda",
+            "t"
+          ],
+          "notes": "against the same wire's own resonance in free space, solved the same way (not resonant_dipole's induced-EMF length, which is 0.1-0.45% longer)"
+        },
+        {
+          "metric": "resonant_resistance_ohm",
+          "expr": "np.where(((h*f0/c) >= 0.0499)*((h*f0/c) <= 2.0001)*(t >= 2.5685)*(t <= 5.0001), (72.9933656) + (-3.92056365)*(1/(t - 1.5)) + (2.99220876)*(1/(t - 1.5))**2 + (3.10436021)*(1/(t - 1.5))**3 + (-5.01636055)*(1/(t - 1.5))**4 + (3.04372884)*(1/(t - 1.5))**5 + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-101.575396) + (18.2953831)*(1/(t - 1.5)) + (-19.2479853)*(1/(t - 1.5))**2 + (19.1413921)*(1/(t - 1.5))**3) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((0.660987341) + (22.5500403)*(1/(t - 1.5)) + (-6.29499137)*(1/(t - 1.5))**2 + (-2.59121372)*(1/(t - 1.5))**3) + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)**2)*((-0.0731396834) + (1.24174894)*(1/(t - 1.5)) + (-1.16899542)*(1/(t - 1.5))**2 + (1.14117446)*(1/(t - 1.5))**3) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)**2)*((0.463919599) + (-21.6559235)*(1/(t - 1.5)) + (17.1130607)*(1/(t - 1.5))**2 + (-12.8007783)*(1/(t - 1.5))**3) + np.real(exp(-4j*pi*(h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-0.0584202955) + (0.238301085)*(1/(t - 1.5)) + (-0.693191763)*(1/(t - 1.5))**2 + (0.649958478)*(1/(t - 1.5))**3) + np.imag(exp(-4j*pi*(h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((0.111489421) + (-0.840984991)*(1/(t - 1.5)) + (2.03951852)*(1/(t - 1.5))**2 + (-2.01032547)*(1/(t - 1.5))**3) + np.real(log((h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-3.39371285) + (24.3269591)*(1/(t - 1.5)) + (-31.9603797)*(1/(t - 1.5))**2 + (40.2734385)*(1/(t - 1.5))**3) + np.imag(log((h*f0/c))*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((2.32535841) + (-16.7713735)*(1/(t - 1.5)) + (24.4731452)*(1/(t - 1.5))**2 + (-30.0556221)*(1/(t - 1.5))**3) + np.real((h*f0/c)*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((3.03255179) + (-21.6652478)*(1/(t - 1.5)) + (27.8614382)*(1/(t - 1.5))**2 + (-35.5760867)*(1/(t - 1.5))**3) + np.imag((h*f0/c)*((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100))*((-1.29934872) + (9.28818572)*(1/(t - 1.5)) + (-15.2198486)*(1/(t - 1.5))**2 + (17.9941602)*(1/(t - 1.5))**3) + np.real(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)/(h*f0/c))*((-0.462625027) + (3.23254204)*(1/(t - 1.5)) + (-4.29749553)*(1/(t - 1.5))**2 + (5.51792121)*(1/(t - 1.5))**3) + np.imag(((mutual_resistance_half_wave_ohm + 1j*mutual_reactance_half_wave_ohm)/100)/(h*f0/c))*((0.775289901) + (-5.40319793)*(1/(t - 1.5)) + (7.22840657)*(1/(t - 1.5))**2 + (-9.30645933)*(1/(t - 1.5))**3), inf - inf)",
+          "units_out": "ohm",
+          "depends_on": [
+            "h",
+            "f0",
+            "t",
+            "mutual_resistance_half_wave_ohm",
+            "mutual_reactance_half_wave_ohm"
+          ],
+          "notes": "What the resonant-cut wire presents: 29-31 ohm an eighth of a wave up, 80-82 at a quarter, 69-72 at a half - nearly independent of the wire, as the free-space resonant dipole's 72 is. Fitted to the same solutions, 0.38% worst, 0.25% held out; Hallen agrees to 0.03%. The induced-EMF input_resistance_ohm describes a half-wave length but lands within 4-10% of these at an eighth and a quarter wave, because shortening the real wire cancels most of its excess."
+        },
+        {
+          "metric": "resonant_vswr_in_50_ohm",
+          "expr": "max(resonant_resistance_ohm, 50.0)/min(resonant_resistance_ohm, 50.0)",
+          "units_out": "-",
+          "depends_on": [
+            "resonant_resistance_ohm"
+          ],
+          "notes": "the resonant-cut dipole fed directly from 50 ohm: 1.6-1.7 at both an eighth and a quarter wave up"
         },
         {
           "metric": "array_factor_zenith",
@@ -1755,7 +1837,8 @@
         "zenith is the pattern peak only for h <= lambda/4 and at h = lambda/4 + n*lambda/2; elsewhere read first_lobe_elevation_deg",
         "mutual impedance formula is the half-wave side-by-side result, so it is exact only near L = lambda/2",
         "no conductor loss: at h = lambda/8 a real wire's feed resistance is 35-47 ohm (induced EMF: 32) and at 0.05 wavelengths 6-7, where loss matters far more than these figures suggest",
-        "driving-point metrics: exactly half a wavelength long, h 0.05-2.0 wavelengths, wire radius 1e-5 to 2.7e-3 wavelengths; NaN elsewhere"
+        "driving-point metrics: exactly half a wavelength long, h 0.05-2.0 wavelengths, wire radius 1e-5 to 2.7e-3 wavelengths; NaN elsewhere",
+        "resonance metrics: heights 0.05-2.0 wavelengths, wire radius 1e-5 to 2.7e-3 wavelengths; NaN elsewhere"
       ],
       "known_cases": [
         {
@@ -1853,6 +1936,62 @@
           },
           "tol_pct": 1.0,
           "source": "Direct method-of-moments solve of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel at the same gap width agrees to 0.05%."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.25,
+            "L_over_lambda": 0.5,
+            "aw": 0.0001
+          },
+          "expect": {
+            "resonant_length_over_lambda": 0.47384,
+            "resonant_resistance_ohm": 81.423
+          },
+          "tol_pct": 0.5,
+          "source": "Direct method-of-moments search for zero reactance of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel, at the resonant length found, gives the same resistance to 0.03% and under 0.08 ohm of reactance."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.125,
+            "L_over_lambda": 0.5,
+            "aw": 0.001
+          },
+          "expect": {
+            "resonant_length_over_lambda": 0.45933,
+            "resonant_resistance_ohm": 29.832
+          },
+          "tol_pct": 0.5,
+          "source": "Direct method-of-moments search for zero reactance of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel, at the resonant length found, gives the same resistance to 0.03% and under 0.08 ohm of reactance."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.5,
+            "L_over_lambda": 0.5,
+            "aw": 2e-05
+          },
+          "expect": {
+            "resonant_length_over_lambda": 0.49208,
+            "resonant_resistance_ohm": 69.372
+          },
+          "tol_pct": 0.5,
+          "source": "Direct method-of-moments search for zero reactance of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel, at the resonant length found, gives the same resistance to 0.03% and under 0.08 ohm of reactance."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "h_over_lambda": 0.07,
+            "L_over_lambda": 0.5,
+            "aw": 0.0025
+          },
+          "expect": {
+            "resonant_length_over_lambda": 0.46115,
+            "resonant_resistance_ohm": 10.475
+          },
+          "tol_pct": 0.5,
+          "source": "Direct method-of-moments search for zero reactance of the dipole and its reversed image, 64 segments each with a delta gap (scratch script, not the fit); Hallen's equation with the image in its kernel, at the resonant length found, gives the same resistance to 0.03% and under 0.08 ohm of reactance."
         }
       ],
       "references": [

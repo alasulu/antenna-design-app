@@ -9,6 +9,12 @@ the image in its kernel agrees once the feed gap is the same width. The obvious
 shortcut - the free dipole's driving point minus the induced-EMF mutual
 impedance - works well up high and fails low, where the image reshapes the
 current. The zenith directivity, a pattern property, survives to 0.04 dB.
+
+Where it resonates: the ground pulls the resonance 5% shorter or 3% longer than
+the same wire's in free space, depending on the height, so a dipole cut to the
+free-space length and hung at an eighth or a quarter of a wave carries some
++30 ohm of reactance. Cut to resonance there it presents 29-31 and 80-82 ohm
+whatever the wire, as the free-space resonant dipole presents 72.
 """
 from __future__ import annotations
 
@@ -25,22 +31,22 @@ C = 2.99792458e8
 K = 2 * math.pi
 
 
-def _pair(h, a, n=64):
-    """The half-wave dipole at height h and its image, reversed, fed together (wavelengths)."""
-    z = np.linspace(-0.25, 0.25, n + 1)
+def _pair(h, a, n=64, L=0.5):
+    """The dipole at height h and its image, reversed, fed together (wavelengths)."""
+    z = np.linspace(-L / 2, L / 2, n + 1)
     real = np.stack([z, 0 * z, 0 * z + h], axis=1)
     image = np.stack([z, 0 * z, 0 * z - h], axis=1)[::-1]
     return mom.solve(mom.WireModel([mom.Wire(real, a), mom.Wire(image, a)]), (n // 2 - 1, (n - 1) + n // 2 - 1))
 
 
-def _mom(h, a):
-    s = _pair(h, a)
+def _mom(h, a, L=0.5):
+    s = _pair(h, a, L=L)
     return complex(1 / s.currents[31])
 
 
-def _hallen_over_ground(a, h, n=64, nq=48):
-    """Hallen's equation for the half-wave dipole; the image enters the kernel as -G(R')."""
-    hh = 0.25
+def _hallen_over_ground(a, h, n=64, nq=48, L=0.5):
+    """Hallen's equation for the dipole; the image enters the kernel as -G(R')."""
+    hh = L / 2
     z = np.linspace(-hh, hh, n + 1)
     d = z[1] - z[0]
     nb = n - 1
@@ -127,3 +133,52 @@ def test_outside_its_range_the_driving_point_is_nan(registry, h, a, L):
     m = _spec(registry, h, a, L)
     assert math.isnan(m["input_resistance_driving_point_ohm"]) and math.isnan(m["input_reactance_driving_point_ohm"])
     assert math.isfinite(m["input_resistance_ohm"])
+
+
+def _resonance(registry, h, a):
+    m = _spec(registry, h, a)
+    return m["resonant_length_over_lambda"], m["resonant_resistance_ohm"]
+
+
+@pytest.mark.parametrize("h,a", [(0.058, 4e-5), (0.14, 1.8e-3), (0.27, 2e-5), (0.46, 6e-4), (0.83, 2.6e-3), (1.62, 1.2e-4)])
+def test_the_wire_resonates_at_the_resonant_length(registry, h, a):
+    L, R = _resonance(registry, h, a)
+    z = _mom(h, a, L)
+    assert abs(z.imag) < 1.5 and z.real == pytest.approx(R, rel=5e-3)
+
+
+@pytest.mark.parametrize("h,a", [(0.09, 3e-4), (0.33, 1.5e-3)])
+def test_hallen_finds_the_same_resonance(registry, h, a):
+    L, R = _resonance(registry, h, a)
+    z = _hallen_over_ground(a, h, L=L)
+    assert abs(z.imag) < 1.5 and z.real == pytest.approx(R, rel=6e-3)
+
+
+@pytest.mark.parametrize("a", [1e-5, 1e-3])
+def test_a_free_space_cut_is_off_resonance_over_ground(registry, a):
+    L = registry["resonant_dipole"].synthesize(f0=C, aw=a).metrics["length_over_lambda"]
+    assert _mom(0.125, a, L).imag > 25 and _mom(0.25, a, L).imag > 25
+    assert _mom(0.5, a, L).imag < -10
+
+
+def test_the_resonant_resistance_barely_depends_on_the_wire(registry):
+    for h, lo, hi in ((0.125, 29.0, 31.5), (0.25, 80.0, 82.5), (0.5, 69.0, 72.0)):
+        rs = [_resonance(registry, h, a)[1] for a in (1e-5, 1e-4, 1e-3, 2.7e-3)]
+        assert all(lo < r < hi for r in rs), (h, rs)
+    emf = _spec(registry, 0.25, 1e-4)["input_resistance_ohm"]
+    assert 1.03 < emf / _resonance(registry, 0.25, 1e-4)[1] < 1.08
+
+
+@pytest.mark.parametrize("a", [1e-5, 1e-4, 2.7e-3])
+def test_the_ground_pulls_the_resonance_short_low_and_long_higher(registry, a):
+    low = _spec(registry, 0.17, a)["resonant_length_shift_pct"]
+    high = _spec(registry, 0.45, a)["resonant_length_shift_pct"]
+    assert low < -1.8 and high > 1.0
+    assert abs(_spec(registry, 1.95, a)["resonant_length_shift_pct"]) < 1.0
+
+
+@pytest.mark.parametrize("h,a", [(0.04, 1e-4), (2.1, 1e-4), (0.25, 5e-3), (0.25, 5e-6)])
+def test_outside_its_range_the_resonance_is_nan(registry, h, a):
+    m = _spec(registry, h, a)
+    for k in ("resonant_length_over_lambda", "resonant_resistance_ohm", "resonant_vswr_in_50_ohm"):
+        assert math.isnan(m[k]), k
