@@ -1,0 +1,173 @@
+{
+ "description": "The six optimised NBS Yagis (Viezbicke, NBS Technical Note 688): reflector 0.2 lambda behind the driven element (0.47 lambda here; the gain barely depends on it), directors at the tabulated lengths and spacing, element diameter 0.0085 lambda, all in wavelengths. Solved in free space, lossless: mom = otahub.num.mom (exact kernel) at segments of 0.02 and 0.0125 and extrapolated linearly in segment length; hallen = coupled Hallen equations, point-matched, 40 and 80 segments per element. quoted = NBS's tabulated gain, which is over a half-wave dipole. Beamwidths from the 0.0125 MoM pattern; front-to-back from both solvers, unconverged.",
+ "designs": [
+  {
+   "boom": 0.4,
+   "reflector": 0.482,
+   "directors": [
+    0.424
+   ],
+   "spacing": 0.2,
+   "quoted_dbd": 7.1
+  },
+  {
+   "boom": 0.8,
+   "reflector": 0.482,
+   "directors": [
+    0.428,
+    0.424,
+    0.428
+   ],
+   "spacing": 0.2,
+   "quoted_dbd": 9.2
+  },
+  {
+   "boom": 1.2,
+   "reflector": 0.482,
+   "directors": [
+    0.428,
+    0.42,
+    0.42,
+    0.428
+   ],
+   "spacing": 0.25,
+   "quoted_dbd": 10.2
+  },
+  {
+   "boom": 2.2,
+   "reflector": 0.482,
+   "directors": [
+    0.432,
+    0.415,
+    0.407,
+    0.398,
+    0.39,
+    0.39,
+    0.39,
+    0.39,
+    0.398,
+    0.407
+   ],
+   "spacing": 0.2,
+   "quoted_dbd": 12.25
+  },
+  {
+   "boom": 3.2,
+   "reflector": 0.482,
+   "directors": [
+    0.428,
+    0.42,
+    0.407,
+    0.398,
+    0.394,
+    0.39,
+    0.386,
+    0.386,
+    0.386,
+    0.386,
+    0.386,
+    0.386,
+    0.386,
+    0.386,
+    0.386
+   ],
+   "spacing": 0.2,
+   "quoted_dbd": 13.4
+  },
+  {
+   "boom": 4.2,
+   "reflector": 0.475,
+   "directors": [
+    0.424,
+    0.424,
+    0.42,
+    0.407,
+    0.403,
+    0.398,
+    0.394,
+    0.39,
+    0.39,
+    0.39,
+    0.39,
+    0.39,
+    0.39
+   ],
+   "spacing": 0.308,
+   "quoted_dbd": 14.2
+  }
+ ],
+ "solved": [
+  {
+   "boom": 0.4,
+   "mom_002": 8.827376779508008,
+   "mom_00125": 8.864899139384466,
+   "mom_extrap": 8.92743640584523,
+   "hallen_40": 8.932286307342128,
+   "hallen_80": 9.004611317852923,
+   "hpbw_e": 60.1,
+   "hpbw_h": 89.5,
+   "fb_mom": 15.773728137794862,
+   "fb_hallen": 14.855334489509541
+  },
+  {
+   "boom": 0.8,
+   "mom_002": 11.089599474458856,
+   "mom_00125": 11.134238860536833,
+   "mom_extrap": 11.20863783733346,
+   "hallen_40": 11.187945828506027,
+   "hallen_80": 11.230292135594977,
+   "hpbw_e": 48.5,
+   "hpbw_h": 59.300000000000004,
+   "fb_mom": 16.110227926733593,
+   "fb_hallen": 13.24976802867578
+  },
+  {
+   "boom": 1.2,
+   "mom_002": 12.200248224316397,
+   "mom_00125": 12.269936038329716,
+   "mom_extrap": 12.386082395018581,
+   "hallen_40": 12.361617241769679,
+   "hallen_80": 12.43448713026239,
+   "hpbw_e": 42.5,
+   "hpbw_h": 48.900000000000006,
+   "fb_mom": 22.630465955097023,
+   "fb_hallen": 15.694969864487652
+  },
+  {
+   "boom": 2.2,
+   "mom_002": 14.137450051160974,
+   "mom_00125": 14.171394938086356,
+   "mom_extrap": 14.227969749628661,
+   "hallen_40": 14.209850334672893,
+   "hallen_80": 14.223177593489744,
+   "hpbw_e": 35.8,
+   "hpbw_h": 39.2,
+   "fb_mom": 25.35500025697417,
+   "fb_hallen": 19.010023635165233
+  },
+  {
+   "boom": 3.2,
+   "mom_002": 15.311015649383314,
+   "mom_00125": 15.333157904670365,
+   "mom_extrap": 15.370061663482117,
+   "hallen_40": 15.348825401149746,
+   "hallen_80": 15.33628497776538,
+   "hpbw_e": 31.0,
+   "hpbw_h": 33.0,
+   "fb_mom": 26.629417654436875,
+   "fb_hallen": 21.50622953782522
+  },
+  {
+   "boom": 4.2,
+   "mom_002": 15.953843763409042,
+   "mom_00125": 16.00825673844832,
+   "mom_extrap": 16.098945030180452,
+   "hallen_40": 16.076414209649453,
+   "hallen_80": 16.101716644547235,
+   "hpbw_e": 28.60000000000001,
+   "hpbw_h": 30.200000000000003,
+   "fb_mom": 23.299133587090335,
+   "fb_hallen": 19.989955619921133
+  }
+ ]
+}

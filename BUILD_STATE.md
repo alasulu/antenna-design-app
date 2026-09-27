@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2799 tests, 946/946 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2892 tests, 982/982 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2908,10 +2908,13 @@ the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved; the annular ring has its own mode
 in patch_q, and the PIFA a length that resonates; the slot family's strip is
-solved as a strip; planar arrays take an element pattern; the Potter horn has
-been taken end to end and stays low confidence for a recorded reason. Every
-round of the finish line above ran; development is closed at v1.0 (next section).
-See `docs/HANDOVER.md` for what is verified, what is not, and the future work.
+solved as a strip; planar arrays take an element pattern, and circular,
+thinned and subarrayed layouts; the Potter horn has been taken end to end and
+stays low confidence for a recorded reason. Every round of the finish line above
+ran and v1.0 was tagged (next section); development then reopened with no
+deadline, and the post-v1.0 rounds follow it - HANDOVER section 6's group D
+first, then group C. See `docs/HANDOVER.md` for what is verified, what is not,
+and the future work.
 
 The largest untested surface is unchanged: neither exporter has been run against a
 real CST or HFSS installation. Structurally validated only.
@@ -3054,3 +3057,36 @@ dipole along the guide on the wall as a ground plane):
   is 0.993 lambda0, legal by the old rule, and keeps 0.69);
 - the beamwidth used (N - 1) d for the aperture and read 2-10% wide; 0.886
   lambda/(N d cos theta) is within 0.1% of the exact pattern.
+
+## The Yagi's gain was in dB over a dipole, labelled dBi
+
+HANDOVER section 6 D.15, second iteration of the loop. Counting how often each
+archetype had come up in any round found eight that none had examined; of those
+the wire solvers can reach, `yagi_uda` carries the most-used claim - its gain,
+a fit to the six optimised designs of NBS Technical Note 688 (Viezbicke),
+called "7.1 to 14.2 dBi".
+
+The six designs were built as tabulated (reflector 0.2 lambda behind the driven
+element, the director lengths and spacings, element diameter 0.0085 lambda) and
+solved in free space, lossless, by two methods that share nothing: the thin-wire
+MoM, taken to zero segment length, and coupled Hallen equations - one per wire,
+a homogeneous constant for each parasitic element, point matching - written for
+this check and carried in its test. They agree within 0.08 dB: 8.93, 11.21,
+12.39, 14.23, 15.37 and 16.10 dBi for booms of 0.4 to 4.2 wavelengths; the
+driven element's length moves them by under 0.01 dB.
+
+What it found:
+- NBS tabulates gain over a half-wave dipole. The spec fitted those numbers as
+  dBi and read 1.9-2.1 dB low; read as dBd, NBS's measured figures sit 0.04 dB
+  below to 0.32 dB above the solved designs. `gain_dbi` is now fitted to the
+  solved designs (0.085 dB worst), with `gain_dbd` beside it.
+- The E-plane beamwidth, 55/sqrt(boom), was 27-45% too wide on short booms (87
+  degrees at 0.4 wavelengths where the design has 60); now a power law in the
+  boom fitted to the solved patterns (1.7%), with a new H-plane beamwidth
+  (2.9%).
+- The director count, round(3 x boom), missed three of the six designs (the
+  NBS spacing is 0.25 at 1.2 wavelengths and 0.308 at 4.2, not 0.2); now the
+  table's counts.
+- Front-to-back was quoted as -20 dB; a ratio is positive. It stays indicative:
+  the two solvers put it anywhere from 13 to 27 dB and neither is converged in a
+  back lobe that is a near-cancellation.

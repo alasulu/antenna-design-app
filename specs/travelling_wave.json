@@ -1830,27 +1830,45 @@
       "analysis": [
         {
           "metric": "gain_dbi",
-          "expr": "6.98798*log10(boom_over_lambda) + 9.82944",
+          "expr": "7.014578*log10(boom_over_lambda) + 11.80295",
           "units_out": "dBi",
           "depends_on": [
             "boom_over_lambda"
           ],
-          "notes": "Least-squares fit to the six optimised NBS/Viezbicke designs (boom 0.4 to 4.2 lambda, gain 7.1 to 14.2 dBi). Max residual 0.18 dB across the tabulated points. Valid ONLY for optimised designs on that curve - an arbitrary Yagi does far worse."
+          "notes": "SOLVED: the six optimised NBS designs (Viezbicke, NBS Technical Note 688 - reflector 0.2 lambda behind the driven element, the tabulated director lengths and spacings, element diameter 0.0085 lambda) built and solved in free space, lossless, by two independent methods - the thin-wire method of moments (otahub.num.mom, taken to zero segment length) and coupled Hallen equations with point matching - which agree within 0.08 dB: 8.93, 11.21, 12.39, 14.23, 15.37 and 16.10 dBi for booms of 0.4 to 4.2 wavelengths. Fitted in log10(boom), 0.085 dB worst. This spec fitted NBS's tabulated 7.1 to 14.2 dB and called them dBi; NBS quotes gain over a half-wave dipole, so it read 1.9-2.1 dB low. Read as dBd, NBS's measured figures sit 0.04 dB below to 0.32 dB above the solved ones. Valid only for designs on that optimised curve - an arbitrary Yagi of the same boom does worse."
+        },
+        {
+          "metric": "gain_dbd",
+          "expr": "gain_dbi - 2.15",
+          "units_out": "dB",
+          "depends_on": [
+            "gain_dbi"
+          ],
+          "notes": "The same over a half-wave dipole (2.15 dBi), the unit NBS tabulated in."
         },
         {
           "metric": "front_to_back_db",
-          "expr": "-20.0",
+          "expr": "20.0",
           "units_out": "dB",
-          "notes": "Indicative: optimised NBS designs achieve roughly 20 dB F/B. Not derived."
+          "notes": "INDICATIVE, not derived: optimised NBS designs aim at roughly 20 dB. The ratio is positive (the spec had -20). Both solvers put it anywhere from 13 to 27 dB across the six designs and neither is converged in it - the back lobe is a near-cancellation, sensitive to the driven element's length and the mesh - so no figure is derived here."
         },
         {
           "metric": "hpbw_e_deg",
-          "expr": "55.0/np.sqrt(boom_over_lambda)",
+          "expr": "45.14432*boom_over_lambda**(-0.3155967)",
           "units_out": "deg",
           "depends_on": [
             "boom_over_lambda"
           ],
-          "notes": "Indicative scaling for an end-fire array; accuracy roughly 15%"
+          "notes": "SOLVED: E-plane (the plane of the elements and the boom) half-power beamwidth of the same six solved designs, fitted as a power of the boom: 1.7% worst. 60 degrees at 0.4 wavelengths, 28.6 at 4.2. The 55/sqrt(boom) this spec carried was 27-45% too wide on short booms (87 degrees at 0.4)."
+        },
+        {
+          "metric": "hpbw_h_deg",
+          "expr": "exp(3.985182 - 0.4887951*log(boom_over_lambda) + 0.06377835*log(boom_over_lambda)**2)",
+          "units_out": "deg",
+          "depends_on": [
+            "boom_over_lambda"
+          ],
+          "notes": "SOLVED the same way: H-plane half-power beamwidth, 2.9% worst on the six designs; wider than the E plane, 89.5 degrees at 0.4 wavelengths and 30.2 at 4.2."
         },
         {
           "metric": "boom_length_m",
@@ -1862,12 +1880,12 @@
         },
         {
           "metric": "director_count_nbs",
-          "expr": "np.round(boom_over_lambda*3.0)",
+          "expr": "np.round(np.interp(boom_over_lambda, [0.4, 0.8, 1.2, 2.2, 3.2, 4.2], [1, 3, 4, 10, 15, 13]))",
           "units_out": "-",
           "depends_on": [
             "boom_over_lambda"
           ],
-          "notes": "Indicative director count for the NBS designs, which space directors at roughly 0.3 lambda. Use the tables for an actual build."
+          "notes": "The NBS designs' director counts: 1, 3, 4, 10, 15 and 13 at booms of 0.4, 0.8, 1.2, 2.2, 3.2 and 4.2 wavelengths (their spacing is 0.2 lambda except 0.25 at 1.2 and 0.308 at 4.2), interpolated between. The round(3 x boom) this spec used missed three of the six. Use the NBS tables for an actual build."
         }
       ],
       "validity": [
@@ -1875,7 +1893,8 @@
         "element lengths and spacings must come from the NBS tables (see the tables field); the fit gives the achievable gain, not a recipe",
         "gain saturates: doubling the boom past about 4 lambda buys under 1 dB",
         "input impedance is low (20-30 ohm) and strongly dependent on director spacing; not modelled here",
-        "F/B and beamwidth entries are indicative, not derived"
+        "F/B and beamwidth entries are indicative, not derived",
+        "gain and beamwidths are for the NBS optimised designs at element diameter 0.0085 lambda, solved in free space and lossless; front-to-back is indicative"
       ],
       "tables": {
         "nbs_optimised": {
@@ -1927,12 +1946,12 @@
             "boom_over_lambda": 1.2
           },
           "expect": {
-            "gain_dbi": 10.3835,
+            "gain_dbi": 12.3861,
             "boom_length_m": 1.19917,
             "reflector_length_m": 0.481666
           },
-          "tol_pct": 2.0,
-          "source": "NBS tabulated gain for a 1.2 lambda boom is 10.2 dBi; the fit gives 10.38 dBi (0.18 dB high, the fit's worst point). Boom = 1.2 lambda = 1.199 m at 300 MHz. Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976"
+          "tol_pct": 1.0,
+          "source": "NBS tabulated 10.20 dB over a half-wave dipole for a 1.2-wavelength boom (Viezbicke, NBS Technical Note 688) - 12.35 dBi. That design built and solved (otahub.num.mom, taken to zero segment length): 12.386 dBi; coupled Hallen equations give 12.434. The fit is checked against the solve, not against NBS."
         },
         {
           "given": {
@@ -1940,10 +1959,10 @@
             "boom_over_lambda": 4.2
           },
           "expect": {
-            "gain_dbi": 14.1847
+            "gain_dbi": 16.0989
           },
-          "tol_pct": 1.5,
-          "source": "NBS tabulated gain for a 4.2 lambda boom is 14.2 dBi; the fit gives 14.185 dBi. Viezbicke, NBS Technical Note 688, 1976"
+          "tol_pct": 1.0,
+          "source": "NBS tabulated 14.20 dB over a half-wave dipole for a 4.2-wavelength boom (Viezbicke, NBS Technical Note 688) - 16.35 dBi. That design built and solved (otahub.num.mom, taken to zero segment length): 16.099 dBi; coupled Hallen equations give 16.102. The fit is checked against the solve, not against NBS."
         },
         {
           "given": {
@@ -1951,10 +1970,112 @@
             "boom_over_lambda": 0.4
           },
           "expect": {
-            "gain_dbi": 7.04858
+            "gain_dbi": 8.9274
           },
-          "tol_pct": 1.5,
-          "source": "NBS tabulated gain for a 0.4 lambda boom is 7.1 dBi. Viezbicke, Yagi Antenna Design, NBS Technical Note 688, 1976"
+          "tol_pct": 1.0,
+          "source": "NBS tabulated 7.10 dB over a half-wave dipole for a 0.4-wavelength boom (Viezbicke, NBS Technical Note 688) - 9.25 dBi. That design built and solved (otahub.num.mom, taken to zero segment length): 8.927 dBi; coupled Hallen equations give 9.005. The fit is checked against the solve, not against NBS."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 0.8
+          },
+          "expect": {
+            "gain_dbi": 11.2086
+          },
+          "tol_pct": 1.0,
+          "source": "NBS 0.8-wavelength design (3 directors) solved in free space: 11.209 dBi by the method of moments, 11.230 by coupled Hallen equations; NBS tabulated 9.20 dB over a half-wave dipole."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 2.2
+          },
+          "expect": {
+            "gain_dbi": 14.228
+          },
+          "tol_pct": 1.0,
+          "source": "NBS 2.2-wavelength design (10 directors) solved in free space: 14.228 dBi by the method of moments, 14.223 by coupled Hallen equations; NBS tabulated 12.25 dB over a half-wave dipole."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 3.2
+          },
+          "expect": {
+            "gain_dbi": 15.3701
+          },
+          "tol_pct": 1.0,
+          "source": "NBS 3.2-wavelength design (15 directors) solved in free space: 15.370 dBi by the method of moments, 15.336 by coupled Hallen equations; NBS tabulated 13.40 dB over a half-wave dipole."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 0.4
+          },
+          "expect": {
+            "hpbw_e_deg": 60.1,
+            "hpbw_h_deg": 89.5
+          },
+          "tol_pct": 3.5,
+          "source": "Half-power widths of the solved NBS 0.4-wavelength design (method of moments, E plane through the elements and boom, H plane across them), read off its pattern: 60.1 and 89.5 degrees."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 0.4
+          },
+          "expect": {
+            "director_count_nbs": 1.0
+          },
+          "tol_pct": 0.5,
+          "source": "The NBS table's director count for this boom: 1."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 1.2
+          },
+          "expect": {
+            "hpbw_e_deg": 42.5,
+            "hpbw_h_deg": 48.9
+          },
+          "tol_pct": 3.5,
+          "source": "Half-power widths of the solved NBS 1.2-wavelength design (method of moments, E plane through the elements and boom, H plane across them), read off its pattern: 42.5 and 48.9 degrees."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 1.2
+          },
+          "expect": {
+            "director_count_nbs": 4.0
+          },
+          "tol_pct": 0.5,
+          "source": "The NBS table's director count for this boom: 4."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 4.2
+          },
+          "expect": {
+            "hpbw_e_deg": 28.6,
+            "hpbw_h_deg": 30.2
+          },
+          "tol_pct": 3.5,
+          "source": "Half-power widths of the solved NBS 4.2-wavelength design (method of moments, E plane through the elements and boom, H plane across them), read off its pattern: 28.6 and 30.2 degrees."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "boom_over_lambda": 4.2
+          },
+          "expect": {
+            "director_count_nbs": 13.0
+          },
+          "tol_pct": 0.5,
+          "source": "The NBS table's director count for this boom: 13."
         }
       ],
       "references": [
