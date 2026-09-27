@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2924 tests, 1002/1002 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2946 tests, 1006/1006 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3163,3 +3163,37 @@ it needs a full-wave solve of the horn - the FDTD far-field transform already
 listed as C.9, which now names these horns too. The specs keep the conventional
 figure and say how far above it a real horn is likely to read; a test pins the
 spread.
+
+## The multi-turn small loop: a short coil tuned with a long-coil formula, and a winding too long to be small
+
+HANDOVER section 6 D.15, sixth loop iteration. `multiturn_small_loop` asserted 5
+of its 18 outputs; the rest came from two formulas used outside their reach.
+
+Inductance. It tuned with Wheeler's current-sheet formula, and said itself that
+this needs a winding longer than about 0.8 of its radius - while its own close
+winding makes the length 2.2 N b, a few tenths of the radius or less. Against N
+coaxial rings (Maxwell's mutual inductance between coaxial circles, each ring
+its own mu0 a (ln(8a/b) - 2)), which meet Wheeler within 0.5-0.8% on long coils
+and a method-of-moments model within 0.1% on a 4-turn loop well below
+self-resonance, Wheeler reads up to 21% low on the spec's own designs tried and up
+to 52% low across its stated range (few turns of thin wire). The tuning capacitor came
+out that much too big, and a loop tuned with it resonates up to a third below
+f0. The ring model is now fitted over N 2-50, a/b 50-2000 and pitch 2.2-6 wire
+radii (2.7% worst on 504 windings, 0.4% on 20 held out) and tunes it; Wheeler's
+figure stays, labelled.
+
+Uniform current. Every electrical law here - Rr = 20 pi^2 N^2 (C/lambda)^4,
+omega L, Q - assumes the current is the same all round the winding. The method
+of moments on closed windings (the winding plus a return lead, fed on the
+winding; one turn agrees with the Fourier-series loop solution to 2%) says
+that holds within about 15% up to 0.05 wavelengths of total wire, then departs
+fast - 35-96% by 0.1 - as the turns' capacitance draws the winding toward its
+self-resonance near 0.2-0.3 wavelengths. The spec's synthesis ignored it: its
+50 ohm target at C = 0.1 lambda asked for 51 turns and 5.1 wavelengths of wire,
+and the Balanis example among its known cases (8 turns of radius lambda/25) has
+2. Within the limit a winding cannot reach tens of ohms at all - a few
+milliohms at C = 0.1 lambda. Radiation resistance, efficiency, gain, impedance,
+Q and bandwidth are now NaN past 0.06 wavelengths of wire; the textbook law is
+kept as radiation_resistance_uniform_current_ohm (the Balanis cases now assert
+that), with the winding's wire length and the largest radiation resistance
+within the limit beside it.

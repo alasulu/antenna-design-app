@@ -883,7 +883,7 @@
           "output": "N",
           "expr": "np.ceil(np.sqrt(Rin_target/(20*pi**2*C_over_lambda**4)))",
           "units_out": "-",
-          "notes": "Turns needed for a target radiation resistance, from Rr = 20*pi^2*N^2*(C/lambda)^4. Rounded up to an integer. Note this sizes Rr, not the terminal resistance, which also contains Rloss.",
+          "notes": "Turns for a target radiation resistance from the uniform-current law Rr = 20 pi^2 N^2 (C/lambda)^4, rounded up. That law holds only while the whole winding is electrically small - about 0.06 wavelengths of wire, see winding_wire_over_lambda - and within that limit Rr cannot exceed 20 pi^2 (0.06)^2 (C/lambda)^2 (max_radiation_resistance_small_ohm): a few milliohms at C = 0.1 lambda. A 50 ohm target at C = 0.1 lambda asks for 51 turns and 5.1 wavelengths of wire - a long helix, not a small loop - and the electrical metrics then return NaN rather than the law's 50 ohm.",
           "depends_on": [
             "Rin_target",
             "C_over_lambda"
@@ -901,34 +901,65 @@
         },
         {
           "output": "L_tune",
-          "expr": "mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))",
+          "expr": "np.where(N < 1.5, mu0*(C/(2*pi))*(log(8*C/(2*pi*b)) - 2), np.where((N >= 1.999)*(N <= 50.001)*(C/(2*pi*b) >= 49.99)*(C/(2*pi*b) <= 2000.1)*(l_coil/(N*b) >= 2.199)*(l_coil/(N*b) <= 6.001), mu0*N**2*(C/(2*pi))*exp((-0.17202564) + (-0.2274047)*log(l_coil/(N*b)) + (-0.011755419)*log(l_coil/(N*b))**2 + (-0.27097029)*log(N) + (-0.34179136)*log(N)*log(l_coil/(N*b)) + (-0.049866146)*log(N)*log(l_coil/(N*b))**2 + (-0.13529933)*log(N)**2 + (-0.0041232393)*log(N)**2*log(l_coil/(N*b)) + (-0.00052638449)*log(N)**2*log(l_coil/(N*b))**2 + (-0.012324287)*log(N)**3 + (-0.003933125)*log(N)**3*log(l_coil/(N*b)) + (-0.00012156032)*log(N)**4 + (0.68905599)*log(C/(2*pi*b)) + (0.10473937)*log(C/(2*pi*b))*log(l_coil/(N*b)) + (0.0073809729)*log(C/(2*pi*b))*log(l_coil/(N*b))**2 + (0.15530363)*log(C/(2*pi*b))*log(N) + (0.086077563)*log(C/(2*pi*b))*log(N)*log(l_coil/(N*b)) + (0.0056254876)*log(C/(2*pi*b))*log(N)*log(l_coil/(N*b))**2 + (0.039279985)*log(C/(2*pi*b))*log(N)**2 + (0.0043774857)*log(C/(2*pi*b))*log(N)**2*log(l_coil/(N*b)) + (0.0021845183)*log(C/(2*pi*b))*log(N)**3 + (-0.10849319)*log(C/(2*pi*b))**2 + (-0.019825344)*log(C/(2*pi*b))**2*log(l_coil/(N*b)) + (-0.00063910212)*log(C/(2*pi*b))**2*log(l_coil/(N*b))**2 + (-0.033468191)*log(C/(2*pi*b))**2*log(N) + (-0.0069881642)*log(C/(2*pi*b))**2*log(N)*log(l_coil/(N*b)) + (-0.0036111176)*log(C/(2*pi*b))**2*log(N)**2 + (0.011465834)*log(C/(2*pi*b))**3 + (0.0012469886)*log(C/(2*pi*b))**3*log(l_coil/(N*b)) + (0.0023665813)*log(C/(2*pi*b))**3*log(N) + (-0.00053120696)*log(C/(2*pi*b))**4), inf - inf))",
           "units_out": "H",
-          "notes": "Wheeler current-sheet inductance of the N-turn winding, used to pick the tuning capacitor.",
+          "notes": "Inductance of the winding, used to pick the tuning capacitor: N coaxial rings with Maxwell's exact mutual inductance between them and each ring's own mu0 a (ln(8a/b) - 2), fitted over N 2-50, a/b 50-2000 and winding pitch 2.2-6 wire radii (2.7% worst on 504 windings, 0.4% on 20 held out; NaN outside; a single turn is the ring formula itself). The ring model meets Wheeler's formula within 0.8% on long coils and the method of moments within 0.1% on a 4-turn loop well below self-resonance. This spec tuned with Wheeler's current-sheet formula, which it said needs l_coil > 0.8a - while its own close winding makes l_coil = 2.2 N b, a few tenths of a or less: there Wheeler reads up to 52% LOW (up to 21% on the designs tried), the capacitor comes out that much too big, and the loop resonates up to a third of the way below f0.",
           "depends_on": [
             "N",
             "C",
+            "b",
             "l_coil"
           ]
         },
         {
           "output": "C_tune",
-          "expr": "1.0/((2*pi*f0)**2*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))",
+          "expr": "1.0/((2*pi*f0)**2*L_tune)",
           "units_out": "F",
-          "notes": "Series capacitance to resonate the multi-turn loop at f0.",
+          "notes": "Series capacitance to resonate the winding at f0, from L_tune (not Wheeler's formula).",
           "depends_on": [
             "f0",
-            "N",
-            "C",
-            "l_coil"
+            "L_tune"
           ]
         }
       ],
       "analysis": [
         {
-          "metric": "radiation_resistance_ohm",
+          "metric": "winding_wire_over_lambda",
+          "expr": "N*C*f0/c",
+          "units_out": "-",
+          "depends_on": [
+            "N",
+            "C",
+            "f0"
+          ],
+          "notes": "Total wire in the winding, in wavelengths: what decides whether the current is uniform. The small-loop metrics hold to about 0.05."
+        },
+        {
+          "metric": "radiation_resistance_uniform_current_ohm",
           "expr": "20*pi**2*N**2*(C*f0/c)**4",
           "units_out": "ohm",
-          "notes": "Rr = 20*pi^2*N^2*(C/lambda)^4 = 31171*N^2*(A/lambda^2)^2. The N^2 law is exact for coincident turns.",
+          "depends_on": [
+            "N",
+            "C",
+            "f0"
+          ],
+          "notes": "The textbook law at any size - Balanis's Example 5.2 among them, which puts 50 ohm on 8 turns of radius lambda/25: 2 wavelengths of wire, far outside the law's reach. Kept for the textbook comparison; radiation_resistance_ohm is the one to design with."
+        },
+        {
+          "metric": "max_radiation_resistance_small_ohm",
+          "expr": "20*pi**2*0.060**2*(C*f0/c)**2",
+          "units_out": "ohm",
+          "depends_on": [
+            "C",
+            "f0"
+          ],
+          "notes": "The most radiation resistance a winding of this turn size can have while its whole wire stays within the limit: a multi-turn small loop cannot reach tens of ohms."
+        },
+        {
+          "metric": "radiation_resistance_ohm",
+          "expr": "np.where(N*C*f0/c <= 0.060, 20*pi**2*N**2*(C*f0/c)**4, inf - inf)",
+          "units_out": "ohm",
+          "notes": "The uniform-current law 20 pi^2 N^2 (C/lambda)^4, within the winding length where it holds; NaN beyond. Against the method of moments on closed multi-turn loops (winding plus return lead, fed on the winding; one turn checked against the Fourier-series loop solution to 2%): within about 15% up to 0.05 wavelengths of wire, 35-96% high by 0.1 wavelengths as the current stops being uniform and the turns' capacitance draws the winding toward self-resonance, which comes near 0.2-0.3 wavelengths of wire. The N^2 law itself is exact for coincident turns carrying the same current; it is the current that stops obeying. Cut off at 0.06 wavelengths of wire.",
           "depends_on": [
             "N",
             "C",
@@ -977,17 +1008,12 @@
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "expr": "radiation_resistance_ohm/(radiation_resistance_ohm + loss_resistance_ohm)",
           "units_out": "-",
           "notes": "e_cd = Rr/(Rr + Rohmic), with the proximity factor included.",
           "depends_on": [
-            "N",
-            "C",
-            "f0",
-            "b",
-            "Rp_ratio",
-            "mu_r_c",
-            "sigma"
+            "radiation_resistance_ohm",
+            "loss_resistance_ohm"
           ]
         },
         {
@@ -999,24 +1025,27 @@
         },
         {
           "metric": "gain_dbi",
-          "expr": "10*np.log10(1.5*(20*pi**2*N**2*(C*f0/c)**4/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))))",
+          "expr": "10*np.log10(1.5*radiation_efficiency)",
           "units_out": "dBi",
           "notes": "G = e_cd*D0.",
           "depends_on": [
-            "N",
-            "C",
-            "f0",
-            "b",
-            "Rp_ratio",
-            "mu_r_c",
-            "sigma"
+            "radiation_efficiency"
           ]
+        },
+        {
+          "metric": "inductance_H",
+          "expr": "L_tune",
+          "units_out": "H",
+          "depends_on": [
+            "L_tune"
+          ],
+          "notes": "The winding's inductance from the coaxial-ring model (see L_tune); what the impedance, Q and tuning use."
         },
         {
           "metric": "inductance_wheeler_H",
           "expr": "mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))",
           "units_out": "H",
-          "notes": "Wheeler current-sheet solenoid formula L = mu0*N^2*pi*a^2/(l_coil + 0.9*a). ~1% accurate for l_coil > 0.8*a; degrades for very short (pancake) windings.",
+          "notes": "Wheeler's current-sheet formula mu0 N^2 pi a^2/(l_coil + 0.9 a), kept for comparison: within 1.2-2.9% of the ring model for l_coil > 0.8 a, but up to 52% LOW on the short close-wound windings this spec's l_coil = 2.2 N b produces. Not used for tuning.",
           "depends_on": [
             "N",
             "C",
@@ -1036,50 +1065,35 @@
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma)) + 1j*(2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))",
+          "expr": "(radiation_resistance_ohm + loss_resistance_ohm) + 1j*(2*pi*f0*inductance_H)",
           "units_out": "ohm",
-          "notes": "Zin = Rr + Rohmic + j*omega*L_wheeler (untuned).",
+          "notes": "Zin = Rr + Rohmic + j omega L (untuned), L from the ring model; NaN past the winding-length limit. The method of moments puts X within about 7% of omega L up to 0.05 wavelengths of wire, then rising as the turns' capacitance takes hold.",
           "depends_on": [
-            "N",
-            "C",
+            "radiation_resistance_ohm",
+            "loss_resistance_ohm",
             "f0",
-            "b",
-            "Rp_ratio",
-            "l_coil",
-            "mu_r_c",
-            "sigma"
+            "inductance_H"
           ]
         },
         {
           "metric": "quality_factor",
-          "expr": "(2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))",
+          "expr": "(2*pi*f0*inductance_H)/(radiation_resistance_ohm + loss_resistance_ohm)",
           "units_out": "-",
           "notes": "Q = omega*L/(Rr + Rohmic). Higher N raises both L (as N^2) and R (as ~N), so Q rises roughly as N -- multi-turn loops are narrower, not wider.",
           "depends_on": [
-            "N",
-            "C",
             "f0",
-            "b",
-            "Rp_ratio",
-            "l_coil",
-            "mu_r_c",
-            "sigma"
+            "inductance_H",
+            "radiation_resistance_ohm",
+            "loss_resistance_ohm"
           ]
         },
         {
           "metric": "fractional_bandwidth_vswr2",
-          "expr": "1.0/((2*pi*f0*(mu0*N**2*(C/(2*pi))**2*pi/(l_coil + 0.9*(C/(2*pi)))))/(20*pi**2*N**2*(C*f0/c)**4 + (N*C/(2*pi*b))*(1.0+Rp_ratio)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))*np.sqrt(2.0))",
+          "expr": "1.0/(quality_factor*np.sqrt(2.0))",
           "units_out": "-",
           "notes": "FBW(VSWR<=2) = 0.7071/Q.",
           "depends_on": [
-            "N",
-            "C",
-            "f0",
-            "b",
-            "Rp_ratio",
-            "l_coil",
-            "mu_r_c",
-            "sigma"
+            "quality_factor"
           ]
         }
       ],
@@ -1087,9 +1101,10 @@
         "C < lambda/3 for every turn, and the whole winding electrically small (l_coil << lambda)",
         "N^2 law requires the turns to be close together compared with lambda (they are, by construction)",
         "operate well below the winding's self-resonant frequency; inter-turn capacitance is not modelled",
-        "Wheeler formula: l_coil > 0.8*a for 1% accuracy; for flat spiral (pancake) windings use a dedicated spiral formula",
         "Rp_ratio is an empirical input, not a prediction -- the default 1.0 is a placeholder, not a measurement",
-        "skin-effect loss expression requires b/delta > ~3"
+        "skin-effect loss expression requires b/delta > ~3",
+        "the whole winding electrically small: N*C below about 0.06 wavelengths of wire (winding_wire_over_lambda), or the current is not uniform - radiation resistance, efficiency, gain, impedance, Q and bandwidth are NaN beyond it",
+        "inductance fitted over N 2-50, a/b 50-2000 and winding pitch l_coil/N of 2.2-6 wire radii (NaN outside); inter-turn capacitance, which raises the apparent inductance toward self-resonance, is not in it"
       ],
       "known_cases": [
         {
@@ -1100,10 +1115,10 @@
             "C": 0.7534612
           },
           "expect": {
-            "radiation_resistance_ohm": 50.40448
+            "radiation_resistance_uniform_current_ohm": 50.40448
           },
           "tol_pct": 1.0,
-          "source": "Balanis, Antenna Theory 4th ed., Example 5.2: eight-turn loop of radius lambda/25, quoted ~50.43 ohm"
+          "source": "Balanis, Antenna Theory 4th ed., Example 5.2: eight-turn loop of radius lambda/25, quoted ~50.43 ohm (The uniform-current law: this winding carries 2.0 wavelengths of wire, far past where it holds.)"
         },
         {
           "given": {
@@ -1112,10 +1127,10 @@
             "N": 1
           },
           "expect": {
-            "radiation_resistance_ohm": 0.78757
+            "radiation_resistance_uniform_current_ohm": 0.78757
           },
           "tol_pct": 1.0,
-          "source": "Same geometry, N=1, demonstrating the exact N^2 scaling (50.40448/0.787570 = 64 = 8^2)"
+          "source": "Same geometry, N=1, demonstrating the exact N^2 scaling (50.40448/0.787570 = 64 = 8^2) (The uniform-current law: this winding carries 0.3 wavelengths of wire, far past where it holds.)"
         },
         {
           "given": {
@@ -1124,10 +1139,10 @@
             "N": 10
           },
           "expect": {
-            "radiation_resistance_ohm": 78.757
+            "radiation_resistance_uniform_current_ohm": 78.757
           },
           "tol_pct": 1.0,
-          "source": "N^2 scaling check: 100x the single-turn value"
+          "source": "N^2 scaling check: 100x the single-turn value (The uniform-current law: this winding carries 2.5 wavelengths of wire, far past where it holds.)"
         },
         {
           "given": {
@@ -1141,8 +1156,7 @@
           },
           "expect": {
             "loss_resistance_skin_only_ohm": 2.502853,
-            "loss_resistance_ohm": 2.502853,
-            "radiation_efficiency": 0.95272
+            "loss_resistance_ohm": 2.502853
           },
           "tol_pct": 1.5,
           "source": "Balanis eq. 5-24a with Rp/R0 = 0: Rohmic = (N*a/b)*Rs = 8*119.917*2.60895e-3"
@@ -1158,6 +1172,78 @@
           },
           "tol_pct": 2.0,
           "source": "Wheeler 1928 current-sheet formula; a = 0.05 m, l = 0.05 m, N = 10. Classic inch form a^2*N^2/(9a+10l) gives 10.36 uH"
+        },
+        {
+          "given": {
+            "f0": 1000000.0,
+            "C": 1.8849555921538759,
+            "b": 0.001,
+            "N": 10,
+            "l_coil": 0.022
+          },
+          "expect": {
+            "inductance_H": 0.000154386
+          },
+          "tol_pct": 3.0,
+          "source": "10 coaxial rings of radius 0.3 m, wire radius 0.001 m, pitch 2.2 wire radii: Maxwell's mutual inductances plus each ring's mu0 a (ln(8a/b) - 2), summed directly (not the fit): 0.0001544 H; Wheeler's formula gives 0.0001217."
+        },
+        {
+          "given": {
+            "f0": 1000000.0,
+            "C": 0.3141592653589793,
+            "b": 0.0005,
+            "N": 40,
+            "l_coil": 0.1
+          },
+          "expect": {
+            "inductance_H": 0.000108189
+          },
+          "tol_pct": 3.0,
+          "source": "40 coaxial rings of radius 0.05 m, wire radius 0.0005 m, pitch 5 wire radii: Maxwell's mutual inductances plus each ring's mu0 a (ln(8a/b) - 2), summed directly (not the fit): 0.0001082 H; Wheeler's formula gives 0.0001089."
+        },
+        {
+          "given": {
+            "f0": 1000000.0,
+            "C": 0.7539822368615503,
+            "b": 0.0015,
+            "N": 6,
+            "l_coil": 0.0198
+          },
+          "expect": {
+            "inductance_H": 1.75198e-05
+          },
+          "tol_pct": 3.0,
+          "source": "6 coaxial rings of radius 0.12 m, wire radius 0.0015 m, pitch 2.2 wire radii: Maxwell's mutual inductances plus each ring's mu0 a (ln(8a/b) - 2), summed directly (not the fit): 1.752e-05 H; Wheeler's formula gives 1.601e-05."
+        },
+        {
+          "given": {
+            "f0": 99930819.33333333,
+            "C": 0.06,
+            "b": 9.549296585513722e-05,
+            "N": 2,
+            "l_coil": 0.0007639437268410977,
+            "Rp_ratio": 0.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 0.00013205
+          },
+          "tol_pct": 10.0,
+          "source": "A closed 2-turn loop of circumference 0.02 lambda (0.04 wavelengths of wire, inside the limit), wire radius a/100, pitch 4 wire radii, solved by the method of moments (winding and return lead, fed on the winding, 48 segments a turn): R = 0.000132 ohm, against the uniform-current law's 0.0001263. The law is within about 15% up to 0.05 wavelengths of wire; the tolerance says so."
+        },
+        {
+          "given": {
+            "f0": 99930819.33333333,
+            "C": 0.03,
+            "b": 4.774648292756861e-05,
+            "N": 4,
+            "l_coil": 0.0007639437268410977,
+            "Rp_ratio": 0.0
+          },
+          "expect": {
+            "radiation_resistance_ohm": 3.4255e-05
+          },
+          "tol_pct": 10.0,
+          "source": "A closed 4-turn loop of circumference 0.01 lambda (0.04 wavelengths of wire, inside the limit), wire radius a/100, pitch 4 wire radii, solved by the method of moments (winding and return lead, fed on the winding, 48 segments a turn): R = 3.425e-05 ohm, against the uniform-current law's 3.158e-05. The law is within about 15% up to 0.05 wavelengths of wire; the tolerance says so."
         }
       ],
       "references": [
