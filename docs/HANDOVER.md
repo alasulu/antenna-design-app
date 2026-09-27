@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-20,936 lines of Python, 24,468 lines of spec data, 2921 tests, 1002/1002 citable
+21,005 lines of Python, 24,472 lines of spec data, 2924 tests, 1002/1002 citable
 known cases passing.**
 
 ---
@@ -407,6 +407,14 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
 
 ### Known open discrepancies
 
+**Sectoral horns across their waveguide-sized dimension.** Their gain is the
+aperture-power (Balanis) form, exact for large apertures. Integrating the far
+field instead puts the default H-plane horn 0.6-1.7 dB higher and the E-plane
+horn 0.2-1.1 dB higher, depending on the aperture model (a Huygens aperture in
+free space, or the aperture in a ground plane), and those two disagree with each
+other by about a decibel there. Only a full-wave solve can settle it (§6, C.9);
+the specs say so and keep the conventional figure.
+
 - ~~**`half_wave_slot` resonates at a thin dipole's length.**~~ **Resolved.**
   By Babinet a slot resonates where its complementary dipole does, and that
   dipole's radius is a quarter of the slot width. The slot carried a thin
@@ -755,8 +763,10 @@ described in §3 to §5 and in BUILD_STATE.md, and are not repeated here.
 8. **Full-wave solvers of their own shape** for the circular and triangular
    patches (the spectral MoM is rectangles only); their resonance and Q are the
    cavity model's through the slab, labelled as upper bounds on thick board.
-9. **A far-field transform in the half-space FDTD,** which would give the PIFA
-   a directivity (on an infinite ground plane; a finite one is item 3).
+9. **A far-field transform in the FDTD,** which would give the PIFA a
+   directivity (on an infinite ground plane; a finite one is item 3), and would
+   settle the sectoral horns' gain across their waveguide-sized dimension, where
+   the aperture models disagree by about a decibel (§4).
 10. **A finite gap for the wire MoM.** It still has only the delta gap;
     `otahub/num/bor.py` and `otahub/num/strip.py` carry finite gaps for tubes
     and strips.

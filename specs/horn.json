@@ -636,7 +636,8 @@
             "b1",
             "a_wg",
             "f0"
-          ]
+          ],
+          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2), which takes the radiated power to be the power crossing the aperture. That is exact for a large aperture; across the unflared dimension, a_wg (0.76 wavelengths for WR-90 at 10 GHz), it is not. Integrating the far field instead puts the default horn (14.44 dBi here) 0.2 to 1.1 dB higher, depending on the aperture model - a Huygens aperture radiating into all space, or the same aperture in a ground plane - and the two models disagree with each other by about 1 dB there. Only a full-wave solve of the horn can say which; until then this figure is the conventional one, and a real horn is likely to read somewhat higher."
         },
         {
           "metric": "directivity_balanis_form",
@@ -677,7 +678,8 @@
       "validity": [
         "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
         "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
-        "b1 and a_wg must both be at least a wavelength or the aperture model fails"
+        "b1 and a_wg must both be at least a wavelength or the aperture model fails",
+        "gain is the aperture-power (Balanis) form; with one aperture dimension at waveguide size, far-field aperture models put it 0.2 to 1.1 dB higher at the default, and only a full-wave solve can settle which"
       ],
       "known_cases": [
         {
@@ -900,7 +902,8 @@
             "a1",
             "b_wg",
             "f0"
-          ]
+          ],
+          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2), which takes the radiated power to be the power crossing the aperture. That is exact for a large aperture; across the unflared dimension, b_wg (0.34 wavelengths for WR-90 at 10 GHz), it is not. Integrating the far field instead puts the default horn (11.76 dBi here) 0.6 to 1.7 dB higher, depending on the aperture model - a Huygens aperture radiating into all space, or the same aperture in a ground plane - and the two models disagree with each other by about 1 dB there. Only a full-wave solve of the horn can say which; until then this figure is the conventional one, and a real horn is likely to read somewhat higher."
         },
         {
           "metric": "directivity_balanis_form",
@@ -942,7 +945,8 @@
       "validity": [
         "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
         "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
-        "b1 and a_wg must both be at least a wavelength or the aperture model fails"
+        "b1 and a_wg must both be at least a wavelength or the aperture model fails",
+        "gain is the aperture-power (Balanis) form; with one aperture dimension at waveguide size, far-field aperture models put it 0.6 to 1.7 dB higher at the default, and only a full-wave solve can settle which"
       ],
       "known_cases": [
         {

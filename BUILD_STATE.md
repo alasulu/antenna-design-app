@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2921 tests, 1002/1002 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2924 tests, 1002/1002 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3141,3 +3141,25 @@ on four other helices on either side of circular polarisation: each turn's
 loop and dipole parts scale with the same local current, so the ratio does not
 care how the current varies. The remaining unexamined archetypes (the bowtie
 and the two spirals) need a planar surface solver.
+
+## A sweep for the patterns: the sectoral horns' narrow side is model-dependent
+
+HANDOVER section 6 D.15, fifth loop iteration. The re-audit's recent finds
+shared a few patterns - load loss folded into directivity, a cos(theta) on line
+sources, dBd read as dBi, a large-aperture formula on a small aperture - so the
+whole catalogue's directivity and gain expressions were scanned for them. The
+first three turned up nothing new. The fourth pointed at the sectoral horns,
+whose gain is the aperture-power form (Balanis) while one aperture dimension
+stays at waveguide size.
+
+Integrated in the far field (the ground-plane model reproduces the open-ended
+waveguide's verified 6.309 dBi), the default horns read higher than their
+conventional figure, by an amount that depends on the aperture model: the
+H-plane horn (5.48 x 0.34 wavelengths) 11.76 dBi, against 12.36 in a ground
+plane and 13.42 as a Huygens aperture in free space; the E-plane horn (0.76 x
+4.47) 14.44, against 15.59 in a ground plane and 14.67 as a Huygens aperture. The two models disagree by about a decibel
+across the narrow dimension, so this is not a correction the toolkit can make:
+it needs a full-wave solve of the horn - the FDTD far-field transform already
+listed as C.9, which now names these horns too. The specs keep the conventional
+figure and say how far above it a real horn is likely to read; a test pins the
+spread.
