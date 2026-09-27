@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2969 tests, 1018/1018 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3001 tests, 1026/1026 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3227,3 +3227,44 @@ aperture and the tuning capacitor on it. The uniform-current laws stay,
 labelled, for the textbook comparison; the circle's loss case now has the real
 loop's efficiency and Q (at 0.25 wavelengths round its radiation resistance is
 2.3 times the law's).
+
+## The dipole over ground: an induced-EMF feed on a wire it never looked at
+
+HANDOVER section 6 D.15, eighth loop iteration.
+
+`dipole_over_ground` gave a horizontal half-wave dipole's feed resistance over
+perfect ground as R11 - R12(2h), the induced-EMF pair for an assumed sinusoidal
+current on a vanishing wire. It asked for a wire radius and never used it, and
+it carried no reactance. Solved as it is - the dipole and its reversed image
+together by the method of moments, 64 segments each with a delta gap - a real
+wire presents:
+- 5-50% more resistance over heights 0.05-2 wavelengths and wire 1e-5 to 2.7e-3
+  wavelengths: 97.6 ohm a quarter wave up on 1e-4 wavelength wire where the
+  spec said 85.6, and 35-47 at an eighth where it said 32;
+- +75-79 ohm of reactance a quarter wave up and +77-94 at an eighth, against
+  about +45 in free space: a low dipole is far more inductive and has to be cut
+  shorter to resonate.
+Hallen's equation with the image in its kernel, sharing nothing with the MoM,
+meets it to 0.02-0.05% once the feed gap is the same width. At different gap
+widths the two sat 7% apart on fat wire - the delta gap's own capacitance,
+which a narrower gap raises (4% at 2.5e-3 wavelengths for a gap half as wide).
+
+The obvious shortcut - the free dipole's driving point minus the induced-EMF
+mutual impedance - is within 3.4% above 0.2 wavelengths on thin wire and 13% on
+fat, but reads the resistance 1.8-3.8 times too high at 0.05, where the image
+reshapes the current. What works is Z_self - rho Z12, with rho = 1.06-1.34 -
+j(0.02-0.44): the real current couples to its image more strongly than a
+sinusoid would, the more so on fat wire. rho is fitted over 1/(t - 1.5), t =
+log10(lambda/aw), by least squares weighted to the relative error of R and X -
+unweighted, dropping a single point swung one coefficient ninefold, because at
+low height R is 6 ohm out of 80. Fit 0.26% in R and 0.19% in X, 0.40% and
+0.20% on 48 held-out designs. The free-dipole term is the spec's own, to 0.001
+ohm: half_wave_dipole's fit follows a gap about an 80th of the dipole wide
+where its test uses a 64th, 0.1-0.9% apart on fat wire - nothing at 80 ohm, too
+much to subtract down to 6. That gap convention was nowhere recorded; its note
+now says so.
+
+The zenith directivity is a pattern property and holds: the real current reads
+0.01-0.04 dB higher. The induced-EMF resistance stays, labelled. NaN unless the
+dipole is exactly half a wavelength; its resonant length over ground is not
+carried and needs only compute time.
