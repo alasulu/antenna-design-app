@@ -792,7 +792,7 @@
             "cone_half_angle_deg",
             "disc_ratio"
           ],
-          "notes": "SOLVED, then tabulated: the slant (from the ideal apex) at which VSWR in 50 ohm first falls to 2, found by otahub.num.bor - the exact axisymmetric surface problem, solid cone and disc, the finite feed below - on meshes of 24 and 48 segments per slant, extrapolated (the 48-segment answer is within 0.4% of the limit). Bilinear in half angle (20-50 deg, 5 deg steps) and disc ratio (0.6-0.9); 0.9% worst on 6 held-out designs between the grid points. The quarter-wave rule this replaces falls 3-23% short at 20-35 degrees and 33-58% short at 45-50, 12% at the default - wider cones start working later, not earlier."
+          "notes": "SOLVED, then tabulated: the slant (from the ideal apex) at which VSWR in 50 ohm first falls to 2, found by otahub.num.bor - the exact axisymmetric surface problem, solid cone and disc, the finite feed below - on meshes of 24 and 48 segments per slant, extrapolated (the 48-segment answer is within 0.4% of the limit). Bilinear in half angle (20-50 deg, 5 deg steps) and disc ratio (0.6-0.9); 0.9% worst on 6 held-out designs between the grid points. The quarter-wave rule this replaces falls 3-23% short at 20-35 degrees and 33-58% short at 45-50, 12% at the default - wider cones start working later, not earlier. The survey left the two free edges - the cone's base rim and the disc's rim - on uniform segments, where the current is edge-singular; rebuilt with both graded, the extrapolated cutoff lands within 0.05% of this table at six designs."
         },
         {
           "output": "slant",
@@ -909,7 +909,7 @@
             "cone_half_angle_deg",
             "disc_ratio"
           ],
-          "notes": "SOLVED, tabulated: the highest VSWR in 50 ohm between 2 f_low and 10 f_low, once the low-frequency roll-off is behind - the margin inside the band. It is 1.86 at the default; 1.48-2.00 across the cones that hold the decade, and 2.07-2.41 on the 20-25 degree cones that do not."
+          "notes": "SOLVED, tabulated: the highest VSWR in 50 ohm between 2 f_low and 10 f_low, once the low-frequency roll-off is behind - the margin inside the band. It is 1.86 at the default; 1.48-2.00 across the cones that hold the decade, and 2.07-2.41 on the 20-25 degree cones that do not. At 30 degrees with a 0.9 disc, and at 25 with 0.6, the peak sits at 2.00 within the mesh's resolution (1.995-2.004 over meshes and frequency grids, graded edges or not): there the decade is marginal, and any real feed will decide it."
         },
         {
           "metric": "directivity_dbi",

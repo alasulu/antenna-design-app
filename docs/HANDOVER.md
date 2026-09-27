@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop that ran to
 2026-09-27, when development closed at v1.0. **72 archetypes, 10 families,
-19,975 lines of Python, 23,984 lines of spec data, 2799 tests, 946/946 citable
+19,996 lines of Python, 23,984 lines of spec data, 2801 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -157,9 +157,10 @@ to 0.0025, where segments halved eight times toward each rim
 (`strip.tube_profile`) sit at 0.4446 from 0.01 down. The fat-dipole table had
 been computed ungraded on one mesh and was 0.15-0.48% long; it is redone. The
 cone tables' cutoffs were extrapolated from two meshes, and a first-order
-extrapolation of the ungraded tube lands within 0.05% of the graded answer, so
-they should stand; the discone's free disc edge was never graded, and a spot
-check with a graded disc is listed in §6 (D).
+extrapolation of the ungraded tube lands within 0.05% of the graded answer. The
+discone was spot-checked after v1.0 with both its free edges graded (the cone's
+base rim and the disc's rim): its cutoffs hold to 0.05% at six designs, and its
+worst in-band VSWR moves by under 0.01.
 
 ### A fourth, for printed patches
 
@@ -762,10 +763,9 @@ Deferred by the scope freeze, not blocked:
 12. **A shorted-patch survey with the half-space FDTD** (hours per board), to
     replace the full patch's borrowed length correction, which leaves the
     shorting wall's own 1-3% out.
-13. **A graded-edge spot check of the discone table.** The open tube needed its
-    rims graded (§3, third reference); the cone tables were extrapolated from
-    two meshes, which lands within 0.05% of the graded answer on a tube, but the
-    discone's free disc edge was never graded.
+13. ~~**A graded-edge spot check of the discone table.**~~ Done after v1.0: with
+    both free edges graded its cutoffs hold to 0.05%; the decade is marginal
+    (worst VSWR 2.00) at 30 degrees with a 0.9 disc and 25 with 0.6.
 14. **Planar arrays:** circular and thinned layouts, subarray architectures.
 15. **Re-audit the session 1-4 specs, continued.** Every archetype passes the
     cases it declares, which is not the same as being right

@@ -261,5 +261,102 @@
    "ratio": 0.6,
    "k": 0.31507
   }
- ]
+ ],
+ "graded_check": {
+  "about": "Spot check of the free edges, which the survey left ungraded: the spec's own design rebuilt at six grid points and its VSWR-2 low cutoff re-solved on 24 and 48 segments per slant, with no grading and with the segments halved eight times toward the cone's base rim and the disc's rim; k in slant wavelengths. ungraded_extrap reproduces the survey's extrapolation; graded_extrap is the graded pair extrapolated the same way. worst: highest VSWR on 33 frequencies from 2 to 10 f_low at 48 segments, ungraded and graded, for the four designs nearest VSWR 2.",
+  "cutoff": [
+   {
+    "th": 20.0,
+    "ratio": 0.7,
+    "k_table": 0.28475,
+    "n24_lev0": 0.287446,
+    "n24_lev8": 0.284059,
+    "n48_lev0": 0.286097,
+    "n48_lev8": 0.284481,
+    "ungraded_extrap": 0.284748,
+    "graded_extrap": 0.284902
+   },
+   {
+    "th": 25.0,
+    "ratio": 0.6,
+    "k_table": 0.29645,
+    "n24_lev0": 0.299573,
+    "n24_lev8": 0.295865,
+    "n48_lev0": 0.298009,
+    "n48_lev8": 0.296238,
+    "ungraded_extrap": 0.296446,
+    "graded_extrap": 0.296611
+   },
+   {
+    "th": 30.0,
+    "ratio": 0.7,
+    "k_table": 0.28008,
+    "n24_lev0": 0.282098,
+    "n24_lev8": 0.279968,
+    "n48_lev0": 0.281088,
+    "n48_lev8": 0.280019,
+    "ungraded_extrap": 0.280079,
+    "graded_extrap": 0.280069
+   },
+   {
+    "th": 45.0,
+    "ratio": 0.6,
+    "k_table": 0.35619,
+    "n24_lev0": 0.359426,
+    "n24_lev8": 0.356795,
+    "n48_lev0": 0.357806,
+    "n48_lev8": 0.356535,
+    "ungraded_extrap": 0.356186,
+    "graded_extrap": 0.356275
+   },
+   {
+    "th": 40.0,
+    "ratio": 0.8,
+    "k_table": 0.3075,
+    "n24_lev0": 0.310152,
+    "n24_lev8": 0.308579,
+    "n48_lev0": 0.308828,
+    "n48_lev8": 0.308061,
+    "ungraded_extrap": 0.307505,
+    "graded_extrap": 0.307543
+   },
+   {
+    "th": 50.0,
+    "ratio": 0.9,
+    "k_table": 0.35564,
+    "n24_lev0": 0.358282,
+    "n24_lev8": 0.356473,
+    "n48_lev0": 0.356958,
+    "n48_lev8": 0.356071,
+    "ungraded_extrap": 0.355634,
+    "graded_extrap": 0.35567
+   }
+  ],
+  "worst": [
+   {
+    "th": 25.0,
+    "ratio": 0.6,
+    "ungraded": 1.9953,
+    "graded": 2.0024
+   },
+   {
+    "th": 25.0,
+    "ratio": 0.9,
+    "ungraded": 2.0796,
+    "graded": 2.0817
+   },
+   {
+    "th": 30.0,
+    "ratio": 0.8,
+    "ungraded": 1.9696,
+    "graded": 1.9703
+   },
+   {
+    "th": 30.0,
+    "ratio": 0.9,
+    "ungraded": 2.0037,
+    "graded": 2.0035
+   }
+  ]
+ }
 }

@@ -90,3 +90,24 @@ def test_the_spec_dimensions_cross_vswr_2_at_f_low(registry, th, ratio):
     assert _vswr(sol.input_impedance) == pytest.approx(2.0, abs=0.06)
     D, _ = bor.directivity(sol)
     assert 10 * math.log10(D) == pytest.approx(d.metrics["directivity_dbi"], abs=0.1)
+
+
+def test_grading_the_free_edges_leaves_the_cutoffs_where_they_were():
+    """The survey never graded the cone's base rim or the disc's rim. Rebuilt with
+    both graded, the extrapolated low cutoff lands within 0.05% of the table at six
+    designs; the ungraded rebuild reproduces the table's own extrapolation."""
+    for r in DATA["graded_check"]["cutoff"]:
+        assert r["ungraded_extrap"] == pytest.approx(r["k_table"], abs=3e-5)
+        assert r["graded_extrap"] == pytest.approx(r["k_table"], rel=6e-4)
+        assert abs(r["n48_lev8"] / r["k_table"] - 1) < abs(r["n48_lev0"] / r["k_table"] - 1)
+
+
+def test_the_decade_is_marginal_where_the_ripple_touches_two():
+    """Grading moves the worst in-band VSWR by under 0.01; at 30 degrees with a 0.9
+    disc (and 25 with 0.6) it sits at 2.00 within the mesh's resolution."""
+    w = {(r["th"], r["ratio"]): r for r in DATA["graded_check"]["worst"]}
+    for r in w.values():
+        assert abs(r["graded"] - r["ungraded"]) < 0.01
+    for key in ((30.0, 0.9), (25.0, 0.6)):
+        assert abs(w[key]["graded"] - 2.0) < 0.006
+    assert w[(30.0, 0.8)]["graded"] < 1.98 and w[(25.0, 0.9)]["graded"] > 2.07

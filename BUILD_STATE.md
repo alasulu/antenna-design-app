@@ -2950,3 +2950,24 @@ section 6, grouped as needing a CST/HFSS installation (A), measurement data (B),
 a new solver (C), or only compute time with the solvers already here (D, the
 items the scope freeze deferred). The build loop is stopped and not re-armed; a
 later session starts from section 6.
+
+## Reopened after v1.0: the discone's free edges, graded - its table stands
+
+After the v1.0 closure the user asked to continue. The post-v1.0 phase works
+through HANDOVER section 6, group D - the items that need only compute time with
+the solvers already here - in order of cost; v1.0 stays where it is and new work
+goes on master after it. The 20:00 hard stop belonged to the finish line.
+
+First, D.13: the discone survey had left both free edges - the cone's base rim
+and the disc's rim - on uniform segments, where the current is edge-singular
+and an ungraded mesh converges slowly (the open tube was 0.15-0.48% long for
+it). Six of the spec's own designs were rebuilt with both edges graded and
+their VSWR-2 low cutoff re-solved on 24 and 48 segments per slant:
+- the ungraded rebuild reproduces the table's own extrapolation to 1e-5, and the
+  graded pair, extrapolated the same way, lands within 0.05% of it at all six;
+  the survey's two-mesh extrapolation had absorbed the rim error;
+- the worst in-band VSWR moves by under 0.01 with grading, but two designs sit
+  right on the line: at 30 degrees with a 0.9 disc and at 25 with 0.6 the peak
+  is 2.00 within the mesh's resolution (1.995-2.004 over meshes and frequency
+  grids). The spec's "a decade from 30 degrees" is marginal there, and now says
+  so; the table is unchanged.
