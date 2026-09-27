@@ -173,7 +173,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 2745 tests, ~10 min
+python -m pytest tests/ -q                # 2768 tests, ~10 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
@@ -203,6 +203,7 @@ against an independent numerical model before being written into a spec:
 | Annular ring resonance | Bisection on the Bessel cross-product | Fit error 0.20%, vs 2.71% for the textbook narrow-ring rule |
 | Annular ring Q and substrate factor | TM11 mode through the slab (`patch_q.annulus`) against the edge walls' ring currents | Within 0.7% on thin board; fits 0.63% (Q), 0.12% (factor) held out |
 | Shorted patch and PIFA length | Half-space FDTD ringdown (`patch_fdtd.shorted_ringdown`) | Textbook shorted patch 4-8% low; PIFA's lambda/4 rule 3% low (L + h = 0.2425 lambda) |
+| Strip ↔ tube equivalence (a = w/4, the slot family's basis) | Spectral and rooftop strip MoMs (`strip`) against a rim-resolved tube (`bor`) | Solvers agree to 0.05%; the strip resonates ~0.1 w longer (its ends), the length law stays inside the strip's feed spread |
 | Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
 
 ### Planar arrays

@@ -1,0 +1,494 @@
+{
+ "description": "otahub.num.strip: a flat strip of width w in free space against an open tube of radius a = w/4 (otahub.num.bor, rim-graded), lengths in wavelengths. natural: the length at which the dominant characteristic mode resonates - the strip by the spectral MoM (BASIS_FULL, k_max 1600), the tube on segments of 0.005. rooftop_check: the rooftop MoM's natural resonance at w = 0.04 on three meshes, against the spectral one. rim: the tube's natural resonance at a = 0.01 as the segment halves, ungraded and graded. fed: both fed across the same central gap; the strip's resonance and resistance on two meshes (to be taken to zero cell size), the tube's converged (null: the tube has no resonance between 0.38 and 0.50). thin_wire: the exact-kernel thin-wire MoM's delta-gap resonance at a = 0.002 as its mesh refines.",
+ "natural": [
+  {
+   "w": 0.01,
+   "L_strip": 0.46518,
+   "L_tube": 0.46391
+  },
+  {
+   "w": 0.02,
+   "L_strip": 0.4577,
+   "L_tube": 0.45562
+  },
+  {
+   "w": 0.04,
+   "L_strip": 0.44864,
+   "L_tube": 0.44455
+  },
+  {
+   "w": 0.06,
+   "L_strip": 0.44308,
+   "L_tube": 0.43704
+  },
+  {
+   "w": 0.08,
+   "L_strip": 0.43944,
+   "L_tube": 0.43143
+  },
+  {
+   "w": 0.1,
+   "L_strip": 0.4373,
+   "L_tube": 0.42711
+  },
+  {
+   "w": 0.12,
+   "L_strip": 0.43616,
+   "L_tube": 0.42406
+  }
+ ],
+ "rooftop_check": {
+  "w": 0.04,
+  "meshes": [
+   {
+    "nx": 60,
+    "ny": 6,
+    "L": 0.45
+   },
+   {
+    "nx": 90,
+    "ny": 9,
+    "L": 0.44945
+   },
+   {
+    "nx": 120,
+    "ny": 12,
+    "L": 0.44918
+   }
+  ],
+  "spectral": 0.44864,
+  "spectral_larger_basis": 0.44853
+ },
+ "rim": {
+  "a": 0.01,
+  "ungraded": [
+   {
+    "seg": 0.02,
+    "L": 0.44864
+   },
+   {
+    "seg": 0.01,
+    "L": 0.44673
+   },
+   {
+    "seg": 0.005,
+    "L": 0.44575
+   },
+   {
+    "seg": 0.0025,
+    "L": 0.44489
+   }
+  ],
+  "graded": [
+   {
+    "seg": 0.01,
+    "L": 0.44456
+   },
+   {
+    "seg": 0.005,
+    "L": 0.44456
+   }
+  ]
+ },
+ "fed": [
+  {
+   "w": 0.02,
+   "gap": 0.0025,
+   "gap_over_a": 0.5,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 2,
+     "L": 0.466177,
+     "R": 73.127
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 4,
+     "L": 0.465849,
+     "R": 73.423
+    }
+   ],
+   "L_tube": 0.464049,
+   "R_tube": 73.972
+  },
+  {
+   "w": 0.02,
+   "gap": 0.005,
+   "gap_over_a": 1.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 2,
+     "L": 0.46571,
+     "R": 72.871
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 4,
+     "L": 0.465243,
+     "R": 73.073
+    }
+   ],
+   "L_tube": 0.463126,
+   "R_tube": 73.404
+  },
+  {
+   "w": 0.02,
+   "gap": 0.01,
+   "gap_over_a": 2.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 2,
+     "L": 0.465087,
+     "R": 72.563
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 4,
+     "L": 0.464527,
+     "R": 72.693
+    }
+   ],
+   "L_tube": 0.462171,
+   "R_tube": 72.867
+  },
+  {
+   "w": 0.02,
+   "gap": 0.02,
+   "gap_over_a": 4.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 4,
+     "L": 0.464402,
+     "R": 72.267
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 8,
+     "L": 0.463721,
+     "R": 72.333
+    }
+   ],
+   "L_tube": 0.461186,
+   "R_tube": 72.408
+  },
+  {
+   "w": 0.04,
+   "gap": 0.005,
+   "gap_over_a": 0.5,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 2,
+     "L": 0.463214,
+     "R": 75.399
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 4,
+     "L": 0.463308,
+     "R": 75.987
+    }
+   ],
+   "L_tube": 0.461278,
+   "R_tube": 77.803
+  },
+  {
+   "w": 0.04,
+   "gap": 0.01,
+   "gap_over_a": 1.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 2,
+     "L": 0.461618,
+     "R": 74.458
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 4,
+     "L": 0.461392,
+     "R": 74.807
+    }
+   ],
+   "L_tube": 0.458279,
+   "R_tube": 75.777
+  },
+  {
+   "w": 0.04,
+   "gap": 0.02,
+   "gap_over_a": 2.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 4,
+     "L": 0.459959,
+     "R": 73.575
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 8,
+     "L": 0.459411,
+     "R": 73.725
+    }
+   ],
+   "L_tube": 0.455498,
+   "R_tube": 74.156
+  },
+  {
+   "w": 0.04,
+   "gap": 0.04,
+   "gap_over_a": 4.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 6,
+     "gap_cells": 8,
+     "L": 0.457918,
+     "R": 72.772
+    },
+    {
+     "nx": 120,
+     "ny": 12,
+     "gap_cells": 16,
+     "L": 0.457226,
+     "R": 72.848
+    }
+   ],
+   "L_tube": 0.452867,
+   "R_tube": 73.02
+  },
+  {
+   "w": 0.08,
+   "gap": 0.01,
+   "gap_over_a": 0.5,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 2,
+     "L": 0.470814,
+     "R": 83.345
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 4,
+     "L": 0.47245,
+     "R": 84.969
+    }
+   ],
+   "L_tube": 0.479094,
+   "R_tube": 97.131
+  },
+  {
+   "w": 0.08,
+   "gap": 0.02,
+   "gap_over_a": 1.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 4,
+     "L": 0.464454,
+     "R": 79.241
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 8,
+     "L": 0.464527,
+     "R": 79.719
+    }
+   ],
+   "L_tube": 0.46154,
+   "R_tube": 83.497
+  },
+  {
+   "w": 0.08,
+   "gap": 0.04,
+   "gap_over_a": 2.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 8,
+     "L": 0.458045,
+     "R": 75.808
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 16,
+     "L": 0.457639,
+     "R": 75.983
+    }
+   ],
+   "L_tube": 0.451219,
+   "R_tube": 77.264
+  },
+  {
+   "w": 0.08,
+   "gap": 0.08,
+   "gap_over_a": 4.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 16,
+     "L": 0.451968,
+     "R": 73.872
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 32,
+     "L": 0.451347,
+     "R": 73.948
+    }
+   ],
+   "L_tube": 0.443468,
+   "R_tube": 74.374
+  },
+  {
+   "w": 0.1,
+   "gap": 0.0125,
+   "gap_over_a": 0.5,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 2,
+     "L": 0.482508,
+     "R": 90.914
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 4,
+     "L": 0.486728,
+     "R": 94.439
+    }
+   ],
+   "L_tube": null,
+   "R_tube": null
+  },
+  {
+   "w": 0.1,
+   "gap": 0.025,
+   "gap_over_a": 1.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 4,
+     "L": 0.4698,
+     "R": 82.48
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 8,
+     "L": 0.470329,
+     "R": 83.192
+    }
+   ],
+   "L_tube": 0.47054,
+   "R_tube": 90.615
+  },
+  {
+   "w": 0.1,
+   "gap": 0.05,
+   "gap_over_a": 2.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 8,
+     "L": 0.45943,
+     "R": 76.979
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 16,
+     "L": 0.459186,
+     "R": 77.192
+    }
+   ],
+   "L_tube": 0.451948,
+   "R_tube": 79.132
+  },
+  {
+   "w": 0.1,
+   "gap": 0.1,
+   "gap_over_a": 4.0,
+   "strip_meshes": [
+    {
+     "nx": 60,
+     "ny": 8,
+     "gap_cells": 16,
+     "L": 0.45064,
+     "R": 74.492
+    },
+    {
+     "nx": 120,
+     "ny": 16,
+     "gap_cells": 32,
+     "L": 0.450122,
+     "R": 74.564
+    }
+   ],
+   "L_tube": 0.440578,
+   "R_tube": 75.146
+  }
+ ],
+ "thin_wire": {
+  "a": 0.002,
+  "meshes": [
+   {
+    "segments": 40,
+    "L": 0.47192
+   },
+   {
+    "segments": 80,
+    "L": 0.4714
+   },
+   {
+    "segments": 160,
+    "L": 0.47117
+   },
+   {
+    "segments": 320,
+    "L": 0.47118
+   }
+  ],
+  "graded_tube_small_gap": [
+   {
+    "gap": 0.001,
+    "L": 0.4704
+   },
+   {
+    "gap": 0.0005,
+    "L": 0.47058
+   }
+  ]
+ }
+}

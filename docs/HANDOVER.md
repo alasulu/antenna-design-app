@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14. **72 archetypes, 10 families,
-19,172 lines of Python, 23,984 lines of spec data, 2745 tests, 946/946 citable
+19,516 lines of Python, 23,984 lines of spec data, 2768 tests, 946/946 citable
 known cases passing.**
 
 ---
@@ -149,6 +149,17 @@ current.
 no cross-polar; perfectly conducting, zero-thickness sheets; a surface cannot
 reach the axis (stop it at a small radius, where a feed tube goes).
 
+**An open rim needs a graded mesh.** The current on a thin sheet's free edge is
+singular, and uniform segments converge on it slowly: an open tube's resonance
+at a = 0.01 moved 0.4486, 0.4467, 0.4458, 0.4449 as the segment halved from 0.02
+to 0.0025, where segments halved eight times toward each rim
+(`strip.tube_profile`) sit at 0.4446 from 0.01 down. The fat-dipole table had
+been computed ungraded on one mesh and was 0.15-0.48% long; it is redone. The
+cone tables' cutoffs were extrapolated from two meshes, and a first-order
+extrapolation of the ungraded tube lands within 0.05% of the graded answer, so
+they should stand; the discone's free disc edge was never graded, and a spot
+check with a graded disc is listed in §6.
+
 ### A fourth, for printed patches
 
 `otahub/num/patch_sdm.py` is a spectral-domain method of moments for a rectangular
@@ -208,6 +219,31 @@ projections sit where the FDTD is converging (0.367 at 37.4 degrees against
 **Limits that bite:** m = 1 only; perfectly conducting walls; the cascade models
 a staircase (fine steps approximate a smooth cone); the FDTD's finest horn run
 took 11 minutes.
+
+### A sixth, for flat strips
+
+`otahub/num/strip.py` solves a flat strip in free space - the Babinet complement
+of a slot - two ways. `SpectralStrip` is the patch MoM with the ground and slab
+removed (free-space sheet impedances in its spectral Green's function, the same
+edge-exact basis); it has no feed and gives the natural resonance.
+`RooftopStrip` is a space-domain mixed-potential MoM (Glisson-Wilton rooftops on
+an edge-graded mesh, the static cell integral in closed form), which carries a
+finite gap feed like `bor`'s; it converges at first order and is taken to zero
+cell size. On the natural resonance of a 0.04-wavelength strip the two agree to
+0.05%.
+
+What it settled: the equivalent radius a = w/4 holds for the body of the strip,
+not its ends. The strip resonates about 0.1 w longer than the rim-resolved open
+tube of radius w/4 (0.27% at w = 0.01 to 2.9% at 0.12, in proportion to w), and
+fed across the same gap it is 0.07-0.09 w longer with the same resistance to
+2.5% for gaps of 2a and more; at gaps of a or less on wide strips its
+resistance falls 4-11% below the tube's (a ring-shaped gap holds more
+capacitance than a straight one). The slot family's thin-wire length law at
+a = w/4 lies inside the strip's own feed spread at every width solved.
+
+**Limits that bite:** free space, zero thickness, rectangular strips; the
+rooftop solver's cost grows as the square of its cell count (a 120 x 16 mesh
+takes minutes per frequency point).
 
 ### Independent first-principles checks
 
@@ -737,8 +773,17 @@ known case only checks what it asserts.
    0.025 a gap of a/2 leaves no resonance at all. `resonant_dipole`'s length law
    lies inside that spread throughout; the slot family is now checked to w/L of
    about 0.09 and says plainly that past it L and R need a feed model. The wire
-   MoM itself still has only the delta gap. What remains unchecked is the strip
-   to tube equivalence a = w/4 for WIDE strips, which needs a strip solver.
+   MoM itself still has only the delta gap. The strip to tube equivalence
+   a = w/4 for wide strips is now checked too, with a strip solver of its own
+   (`otahub/num/strip.py`, §3): it holds for the body, not the ends - the strip
+   resonates about 0.1 w longer than the tube, and at small gaps on wide strips
+   carries 4-11% less resistance - but the slot family's length law lies inside
+   the strip's own feed spread at every width solved (w/L 0.04-0.22). On the way
+   the tube itself was found under-resolved at its open rims; the fat-dipole
+   table is redone with graded rims (every length had been 0.15-0.48% long).
+   **Left, as future work:** a spot check of the discone table with its free
+   disc edge graded (the cone tables were extrapolated from two meshes, which
+   lands within 0.05% of the graded answer on a tube, so they should stand).
 10. ~~**`conical_monopole` and `biconical` bandwidths**~~ - done with
    `otahub/num/bor.py`. Matched to its own Zc a bicone holds a decade from 10 to
    65 degrees; a conical monopole in 50 ohm only from 30 to 55. The biconical

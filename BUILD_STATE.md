@@ -2778,9 +2778,47 @@ and a real PIFA's pattern belongs to its ground plane anyway: it stays low
 confidence. The FR-4 shorted board's FDTD runs (4.2% low, full patch 2.8%) are
 now in the test data behind the number the spec quotes.
 
+## The strip and its tube: a = w/4 holds for the body, not the ends
+
+HANDOVER section 6 item 9, the third round under the finish line. The slot
+family takes its length and resistance from the complementary strip dipole
+through the round-wire laws at a = w/4; nothing had checked that on wide strips.
+`otahub/num/strip.py` solves the strip two ways that share only the geometry:
+the patch MoM with the ground and slab removed (edge-exact currents, natural
+resonance), and a rooftop mixed-potential MoM that takes a finite gap feed. On a
+0.04-wavelength strip's natural resonance they agree to 0.05%.
+
+What it found:
+- The strip resonates longer than the open tube of radius w/4 by about 0.1 w:
+  0.27% at w = 0.01 lambda to 2.9% at 0.12, in proportion to w. The ends differ
+  (a tube's rim is 1.57 w round); the body does not.
+- Fed across the same gap it is 0.07-0.09 w longer, with the same resistance to
+  2.5% for gaps of 2a and more. At gaps of a or less on a wide strip the two
+  part: the strip's resistance is 4-11% lower (a ring-shaped gap holds more
+  capacitance than a straight one), and at w = 0.1, gap a/2, the tube has no
+  resonance left while the strip still has one.
+- What the slot family uses - the thin-wire length law at a = w/4 - lies inside
+  the strip's own feed spread at every width solved (w/L 0.04-0.22); the
+  resistance law sits 1.7-2.2% above its small-gap end up to w/L 0.09 and inside
+  the spread beyond. At w/L = 0.18 the strip's spread is +-2.5% and 74-87 ohm (a
+  410-479 ohm slot) where the tube said +-3.9% and 74-97. The slot specs' L and R
+  stand; their notes and validity now say how they were checked.
+- The tube reference was itself under-resolved. An open rim carries an
+  edge-singular current, and `bor` on uniform segments converges on it slowly
+  (0.4486, 0.4467, 0.4458, 0.4449 as the segment halves; graded toward the rims,
+  0.4446 from the first). The fat-dipole table had been computed ungraded on one
+  mesh and every length was 0.15-0.48% long. Redone, resonant_dipole's length law
+  sits 0.2-0.35% above the tube's feed spread at aw <= 0.005 rather than inside
+  it - within the fit's declared 0.42%, and the converged exact-kernel thin-wire
+  MoM sits between them (0.4712 at aw = 0.002; tube 0.4706, law 0.4720). The
+  spec's validity said "inside the spread throughout"; it now says where.
+- The cone tables were extrapolated from two meshes, which on the tube lands
+  within 0.05% of the graded answer; a graded spot check of the discone's free
+  disc edge is listed as future work.
+
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2745 tests, 946/946 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2768 tests, 946/946 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2793,10 +2831,10 @@ integration; patch directivity from the cavity current through the slab, and
 the rectangular patch's resonance, Q and surface waves full-wave - and it
 builds the length that resonates, and the CP square takes its side and Q0
 full-wave; the Potter horn's step is solved; the annular ring has its own mode
-in patch_q, and the PIFA a length that resonates. Development runs to the finish
-line above (hard stop 2026-09-27 20:00): items 13 and 12 are done; next, item 9
-(the wide-strip equivalence), then items 5 and 4, then the wrap-up round that
-tags v1.0.
+in patch_q, and the PIFA a length that resonates; the slot family's strip is
+solved as a strip. Development runs to the finish line above (hard stop
+2026-09-27 20:00): items 13, 12 and 9 are done; next, item 5 (element patterns
+in planar arrays), then item 4, then the wrap-up round that tags v1.0.
 See `docs/HANDOVER.md` for what is verified, what is not, and next steps.
 
 The largest untested surface is unchanged: neither exporter has been run against a
