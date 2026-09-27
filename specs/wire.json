@@ -613,6 +613,16 @@
             "h"
           ],
           "notes": "the equivalent dipole formed with the image"
+        },
+        {
+          "output": "t",
+          "expr": "log10(c/f0/aw)",
+          "units_out": "-",
+          "depends_on": [
+            "f0",
+            "aw"
+          ],
+          "notes": "log10(lambda/aw), the same thickness variable resonant_dipole uses"
         }
       ],
       "analysis": [
@@ -620,7 +630,7 @@
           "metric": "radiation_resistance_ohm",
           "expr": "0.5*((eta0/(2*pi))*(gamma_e + log(k0*L) - Ci(k0*L) + 0.5*sin(k0*L)*(Si(2*k0*L) - 2*Si(k0*L)) + 0.5*cos(k0*L)*(gamma_e + log(k0*L/2) + Ci(2*k0*L) - 2*Ci(k0*L))))",
           "units_out": "ohm",
-          "notes": "half the dipole value: same radiated power into half the space. 36.54 ohm.",
+          "notes": "Induced-EMF: half the half-wave dipole's 73.08 - same radiated power into half the space - for an ASSUMED sinusoidal current on a vanishing wire; 36.54 ohm. What a real wire presents at its base is input_resistance_driving_point_ohm.",
           "depends_on": [
             "k0",
             "L"
@@ -644,7 +654,8 @@
           "depends_on": [
             "radiation_resistance_ohm",
             "input_reactance_ohm"
-          ]
+          ],
+          "notes": "The induced-EMF pair, 36.54 + j21.26: the textbook figure. A delta-gap-fed wire of finite radius presents the driving-point pair."
         },
         {
           "metric": "directivity_linear",
@@ -663,12 +674,40 @@
           "expr": "39.04",
           "units_out": "deg",
           "notes": "elevation half-power beamwidth measured from the horizon upward"
+        },
+        {
+          "metric": "input_resistance_driving_point_ohm",
+          "expr": "0.5*((1.3593262)*t**4 + (-22.795029)*t**3 + (143.56654)*t**2 + (-405.4805)*t**1 + (516.13305))",
+          "units_out": "ohm",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "What a real wire presents at its base at exactly a quarter wave over a perfect ground plane: by image theory exactly half the driving-point resistance of the half-wave dipole of the same wire (half_wave_dipole's method-of-moments fit), 39.0 ohm on 1e-5 lambda wire rising to 47.4 on 2.7e-3 - not the induced-EMF 36.54 beside it, which assumes a sinusoidal current on a vanishing wire. The monopole of 2h solved directly as a dipole by the method of moments and by Hallen's equation, halved, agrees within 0.4%."
+        },
+        {
+          "metric": "input_reactance_driving_point_ohm",
+          "expr": "0.5*((-0.67143032)*t**4 + (10.800342)*t**3 + (-64.147905)*t**2 + (165.46905)*t**1 + (-109.7717))",
+          "units_out": "ohm",
+          "depends_on": [
+            "t"
+          ],
+          "notes": "Half the dipole's driving-point reactance: 22.2 to 23.3 ohm over the fitted range, against the induced-EMF 21.26."
+        },
+        {
+          "metric": "input_impedance_driving_point_ohm",
+          "expr": "input_resistance_driving_point_ohm + 1j*input_reactance_driving_point_ohm",
+          "units_out": "ohm",
+          "depends_on": [
+            "input_resistance_driving_point_ohm",
+            "input_reactance_driving_point_ohm"
+          ]
         }
       ],
       "validity": [
         "infinite, perfectly conducting ground plane",
         "a finite ground plane raises Rin and tilts the pattern upward; below about 0.25*lambda radius the effect is severe",
-        "real earth is lossy: ground loss often exceeds radiation resistance at HF"
+        "real earth is lossy: ground loss often exceeds radiation resistance at HF",
+        "the driving-point metrics cover aw from 1e-5 to 2.7e-3 wavelengths, as half_wave_dipole's do"
       ],
       "known_cases": [
         {
@@ -684,6 +723,32 @@
           },
           "tol_pct": 0.5,
           "source": "Half the half-wave dipole impedance: 36.5 + j21.25 ohm; D = 5.15 dBi. Balanis, Antenna Theory 4th ed., Ch. 4"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 9.993081933333333e-05
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 40.1651,
+            "input_reactance_driving_point_ohm": 22.6606,
+            "radiation_resistance_ohm": 36.5398
+          },
+          "tol_pct": 1.0,
+          "source": "A quarter-wave monopole of radius 1e-04 lambda over perfect ground is, by image theory, half a half-wave dipole: that dipole solved directly (not the fit) by the method of moments, exact kernel, 120 segments, 80.330+45.321j ohm, and by Hallen's equation 80.342+45.356j; halved, 40.165+22.661j ohm at the base - against the induced-EMF 36.54 + j21.26, which does not depend on the wire."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 0.0009993081933333333
+          },
+          "expect": {
+            "input_resistance_driving_point_ohm": 43.2668,
+            "input_reactance_driving_point_ohm": 23.3063,
+            "radiation_resistance_ohm": 36.5398
+          },
+          "tol_pct": 1.0,
+          "source": "A quarter-wave monopole of radius 1e-03 lambda over perfect ground is, by image theory, half a half-wave dipole: that dipole solved directly (not the fit) by the method of moments, exact kernel, 120 segments, 86.534+46.613j ohm, and by Hallen's equation 86.810+46.966j; halved, 43.267+23.306j ohm at the base - against the induced-EMF 36.54 + j21.26, which does not depend on the wire."
         }
       ],
       "references": [

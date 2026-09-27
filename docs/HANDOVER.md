@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-20,874 lines of Python, 24,403 lines of spec data, 2910 tests, 996/996 citable
+20,936 lines of Python, 24,468 lines of spec data, 2921 tests, 1002/1002 citable
 known cases passing.**
 
 ---
@@ -790,9 +790,12 @@ Deferred by the scope freeze, not blocked:
     `waveguide_slot_array_travelling_wave`; both had directivity 3.5-5 dB low
     (§5, "Found after v1.0"), and so had `yagi_uda` (NBS's dBd read as
     dBi) and `open_ended_waveguide` (a large-aperture formula on a small
-    aperture). `cavity_backed_slot` was read and holds. Never yet examined:
-    `normal_mode_helix`, `bowtie`, `equiangular_spiral`, `archimedean_spiral`,
-    `quarter_wave_monopole`. Every archetype passes the
+    aperture). `cavity_backed_slot` was read and holds; `normal_mode_helix`'s
+    axial ratio holds against the MoM even on 2 wavelengths of wire; and
+    `quarter_wave_monopole` now carries the driving point a real wire presents
+    beside the induced-EMF pair, as `half_wave_dipole` does. Never yet
+    examined, and beyond the wire solvers: `bowtie`, `equiangular_spiral`,
+    `archimedean_spiral` (they need a planar surface solver). Every archetype passes the
     cases it declares, which is not the same as being right
     (`corner_reflector_90` had a null where its optimum is for four sessions).
     The survey ranking archetypes by quantities asserted over quantities

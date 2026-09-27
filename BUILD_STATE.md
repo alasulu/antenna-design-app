@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2910 tests, 996/996 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2921 tests, 1002/1002 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3118,3 +3118,26 @@ the old `aperture_efficiency` (8/pi^2 at any size) is now
 
 Also read on the way: `cavity_backed_slot` (twice the open slot's directivity
 and impedance for the half space) holds.
+
+## The monopole's driving point, and a helix that holds
+
+HANDOVER section 6 D.15, fourth loop iteration: the last two never-examined
+archetypes the wire solvers can reach.
+
+`quarter_wave_monopole` carried only the induced-EMF pair, 36.54 + j21.26 ohm,
+which assumes a sinusoidal current on a vanishing wire - the distinction
+`half_wave_dipole` has drawn since session 5, where the real wire's driving
+point is 7-30% higher. By image theory the monopole over a perfect ground plane
+is exactly half its dipole, so it now carries the driving-point pair as half
+the dipole's method-of-moments fit: 39.0 to 47.4 ohm resistance over wire radii
+of 1e-5 to 2.7e-3 wavelengths (40.2 + j22.5 at 1e-4). Checked by solving the
+doubled dipole directly, by the MoM and by Hallen's equation (agreeing within
+0.3%), and halving; known cases come from those solves, not the fit.
+
+`normal_mode_helix` holds. Its axial ratio, Kraus's 2 S lambda/C^2, is derived
+for a uniform current, and the spec's own default carries 2.1 wavelengths of
+wire - far from uniform - yet the MoM gives 1.223 against 1.216, and within 1%
+on four other helices on either side of circular polarisation: each turn's
+loop and dipole parts scale with the same local current, so the ratio does not
+care how the current varies. The remaining unexamined archetypes (the bowtie
+and the two spirals) need a planar surface solver.
