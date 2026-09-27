@@ -3009,3 +3009,48 @@ What was checked, and found:
   at 3 degrees of scan, 7.9 at 8, and 6.4 dB ABOVE the beam at 20. The beam
   loses the subarray pattern's value, S(u0)^2, and the directivity that to
   within a quarter decibel.
+
+## The re-audit resumed: two travelling-wave directivities 3.5-5 dB low
+
+HANDOVER section 6, D.15, the first iteration of the re-armed build loop. The
+remaining group-D items were weighed: the Potter design table's design map is
+resonant and several-branched (a table interpolated across branch jumps would
+mislead), the shorted-patch survey needs hours of FDTD per board, and the
+re-audit is the item that has found real errors every time it ran. Ranked by
+quantities asserted over quantities produced, the lowest unaudited archetypes
+were `waveguide_slot_array_travelling_wave` (3 of 12) and
+`leaky_wave_line_source` (3 of 9) - both asserting only their beam angle.
+
+`leaky_wave_line_source`, checked against the source integrated directly (an
+x-directed magnetic line current exp(-(alpha + j beta) x) in a ground plane;
+with the angle taken from the line's axis the element pattern is sin^2 and the
+directivity a one-dimensional integral, which a two-dimensional grid confirms):
+- its "directivity", 2(L/lambda) cos(theta)(1 - exp(-2 alpha L)), was 10.7 dBi
+  at the default where the source has 15.7. Three mistakes: the free-space line
+  source's 2L/lambda for a slit radiating into a half space (3 dB); a planar
+  aperture's cos(theta) foreshortening, which a line source does not have - its
+  beam narrows in the scan plane but opens round the axis, and the integral
+  holds 15.7 dBi from 37 to 57 degrees (1.8 dB at the default); and the load
+  loss, which belongs in the gain (0.5 dB);
+- now 4L/lambda times the exponential aperture's taper efficiency
+  (2/(alpha L)) tanh(alpha L/2), with a small fitted correction in 1/L: 3.5%
+  worst over beta/k0 0.3-0.85, L 5-40 wavelengths and alpha L 0.3-3, 1.1% on 10
+  held out; a gain metric carries the load loss;
+- the beamwidth now carries the leak's taper, k(alpha L) lambda/(L cos theta)
+  with k solved exactly (0.886 uniform, 0.922 at the default, 1.14 at alpha L =
+  3): within 2.2% of the integrated pattern up to about a beamwidth from
+  endfire. The element pattern pulls the pattern's peak 0.1-1 degree toward
+  broadside of asin(beta/k0).
+
+`waveguide_slot_array_travelling_wave`, checked against the array computed
+exactly (the planar power kernel of item 5 with the slot's element, a magnetic
+dipole along the guide on the wall as a ground plane):
+- the same three mistakes in discrete form: 14.5 dBi at the default where the
+  array has 18.0. Now 4 N d/lambda, within 2% for N 10-40, spacings 0.6-0.9
+  wavelengths and beams to 30 degrees - while no grating lobe is in real space;
+- the grating-lobe limit at a scanned beam is 1/(1 + |sin theta|) wavelengths of
+  spacing, not the "below 1" the spec gave; past it the array loses 11-45% of
+  4 N d/lambda and the directivity is now NaN (0.75 guide wavelengths at 10 GHz
+  is 0.993 lambda0, legal by the old rule, and keeps 0.69);
+- the beamwidth used (N - 1) d for the aperture and read 2-10% wide; 0.886
+  lambda/(N d cos theta) is within 0.1% of the exact pattern.

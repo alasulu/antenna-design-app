@@ -1078,14 +1078,15 @@
         },
         {
           "metric": "beamwidth_deg",
-          "expr": "deg(0.88*(c/f0)/(array_length_m*cos(asin(sin_beam_angle))))",
+          "expr": "deg(0.8859*(c/f0)/(N*spacing*cos(asin(sin_beam_angle))))",
           "units_out": "deg",
           "depends_on": [
+            "N",
+            "spacing",
             "f0",
-            "array_length_m",
             "sin_beam_angle"
           ],
-          "notes": "uniform aperture, widened by 1/cos(theta) because a scanned aperture presents a shorter projection"
+          "notes": "Half-power beamwidth of N uniformly excited slots: 0.886 lambda/(N d cos theta). The aperture a discrete array presents is N d, not the (N - 1) d between its end slots this spec used, which read 2-10% wide (N/(N-1)). Checked against the array's pattern computed exactly (otahub.arrays, slot element included): within 0.1%."
         },
         {
           "metric": "radiation_efficiency",
@@ -1105,16 +1106,36 @@
           ]
         },
         {
+          "metric": "grating_lobe_free_spacing_m",
+          "expr": "(c/f0)/(1 + abs(sin_beam_angle))",
+          "units_out": "m",
+          "depends_on": [
+            "f0",
+            "sin_beam_angle"
+          ],
+          "notes": "The largest slot spacing that keeps every grating lobe out of real space at this beam angle: lambda/(1 + |sin theta|). The 'd/lambda0 below 1' limit holds only at broadside."
+        },
+        {
           "metric": "directivity_dbi",
-          "expr": "db10(2*array_length_m*(f0/c)*cos(asin(sin_beam_angle))*(1 - load_fraction))",
+          "expr": "np.where(spacing < (c/f0)/(1 + abs(sin_beam_angle)), db10(4*N*spacing*f0/c), inf - inf)",
           "units_out": "dBi",
           "depends_on": [
-            "array_length_m",
+            "N",
+            "spacing",
             "f0",
-            "sin_beam_angle",
+            "sin_beam_angle"
+          ],
+          "notes": "SOLVED: 4 N d/lambda - N uniformly excited broad-wall slots (magnetic dipoles along the guide) on the guide wall as a ground plane, radiating into the half space above it. Against the exact directivity of that array (the planar power kernel with the slot's element pattern, otahub.arrays) it holds within 2% for N 10-40, spacings 0.6-0.9 lambda and beams within 30 degrees of broadside, as long as no grating lobe is in real space; once one is, the array loses 11-45% and this is NaN. It does not fall with scan: a line array's beam narrows in the scan plane and opens round the guide. This spec had 2 (N-1) d cos(theta) (1 - load_fraction)/lambda: the free-space line source's 2L/lambda, a planar aperture's cos(theta) a line array does not have, and the load loss, which belongs in the gain - 14.5 dBi at the default, where the array has 18.0."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "directivity_dbi + db10(1 - load_fraction)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_dbi",
             "load_fraction"
           ],
-          "notes": "line-source directivity 2L/lambda, foreshortened by cos(theta) and reduced by the load loss"
+          "notes": "Directivity less the power burnt in the load (a lossless guide otherwise): what the old 'directivity' entry was reaching for. 17.8 dBi at the default."
         },
         {
           "metric": "broadside_spacing_m",
@@ -1129,9 +1150,10 @@
       ],
       "validity": [
         "d must stay clear of lambda_g/2: at exactly broadside the slot reflections add in phase and the array will not match. That is the reason this variant exists",
-        "d/lambda0 below 1 to keep grating lobes out of real space",
+        "d/lambda0 below 1/(1 + |sin theta|) to keep grating lobes out of real space (below 1 only at broadside); past it the directivity is NaN",
         "uniform slot excitation assumed; a real travelling-wave array tapers the offsets along the guide to hold the aperture distribution as power drains away",
-        "beam angle shifts with frequency - useful for frequency scanning, a nuisance otherwise"
+        "beam angle shifts with frequency - useful for frequency scanning, a nuisance otherwise",
+        "directivity and gain are for the slots radiating into the half space above the broad wall, as on an infinite ground plane; a guide in free space without a flange radiates round its edges and reads lower"
       ],
       "known_cases": [
         {
@@ -1179,6 +1201,74 @@
           },
           "tol_pct": 1.0,
           "source": "Below half a guide wavelength the beam squints the other way, back toward the feed - sin(theta) = 0.75509 - 0.83899 = -0.08390"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 20,
+            "d_over_lambdag": 0.6,
+            "load_fraction": 0.05
+          },
+          "expect": {
+            "directivity_dbi": 18.0248,
+            "gain_dbi": 17.8021,
+            "beamwidth_deg": 3.2212
+          },
+          "tol_pct": 1.0,
+          "source": "The array computed exactly (not the formula): 20 uniformly excited slots 0.7947 wavelengths apart on WR-90 at 10.0 GHz, each a magnetic dipole along the guide on the wall as a ground plane, beam 7.23 degrees from broadside; the planar power kernel with that element (otahub.arrays) gives 18.025 dBi toward the beam, 17.802 dBi of gain with 5% burnt in the load, and a half-power width of 3.2212 degrees in the scan plane."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 20,
+            "d_over_lambdag": 0.45,
+            "load_fraction": 0.05
+          },
+          "expect": {
+            "directivity_dbi": 16.8228,
+            "gain_dbi": 16.6,
+            "beamwidth_deg": 4.2747
+          },
+          "tol_pct": 1.0,
+          "source": "The array computed exactly (not the formula): 20 uniformly excited slots 0.5960 wavelengths apart on WR-90 at 10.0 GHz, each a magnetic dipole along the guide on the wall as a ground plane, beam -4.81 degrees from broadside; the planar power kernel with that element (otahub.arrays) gives 16.823 dBi toward the beam, 16.600 dBi of gain with 5% burnt in the load, and a half-power width of 4.2747 degrees in the scan plane."
+        },
+        {
+          "given": {
+            "f0": 9000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 32,
+            "d_over_lambdag": 0.56,
+            "load_fraction": 0.08
+          },
+          "expect": {
+            "directivity_dbi": 20.1916,
+            "gain_dbi": 19.8294,
+            "beamwidth_deg": 1.9459
+          },
+          "tol_pct": 1.0,
+          "source": "The array computed exactly (not the formula): 32 uniformly excited slots 0.8176 wavelengths apart on WR-90 at 9.0 GHz, each a magnetic dipole along the guide on the wall as a ground plane, beam 4.21 degrees from broadside; the planar power kernel with that element (otahub.arrays) gives 20.192 dBi toward the beam, 19.829 dBi of gain with 8% burnt in the load, and a half-power width of 1.9459 degrees in the scan plane."
+        },
+        {
+          "given": {
+            "f0": 11000000000.0,
+            "a_wg": 0.02286,
+            "b_wg": 0.01016,
+            "N": 12,
+            "d_over_lambdag": 0.62,
+            "load_fraction": 0.03
+          },
+          "expect": {
+            "directivity_dbi": 15.6818,
+            "gain_dbi": 15.5495,
+            "beamwidth_deg": 5.5543
+          },
+          "tol_pct": 1.0,
+          "source": "The array computed exactly (not the formula): 12 uniformly excited slots 0.7722 wavelengths apart on WR-90 at 11.0 GHz, each a magnetic dipole along the guide on the wall as a ground plane, beam 8.94 degrees from broadside; the planar power kernel with that element (otahub.arrays) gives 15.682 dBi toward the beam, 15.550 dBi of gain with 3% burnt in the load, and a half-power width of 5.5543 degrees in the scan plane."
         }
       ],
       "references": [

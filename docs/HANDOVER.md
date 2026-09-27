@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop that ran to
 2026-09-27, when development closed at v1.0. **72 archetypes, 10 families,
-20,516 lines of Python, 23,984 lines of spec data, 2824 tests, 946/946 citable
+20,658 lines of Python, 24,202 lines of spec data, 2862 tests, 970/970 citable
 known cases passing.**
 
 ---
@@ -683,6 +683,13 @@ known case only checks what it asserts.
 | `short_dipole` | `20π²(L/λ)²` was labelled the uniform-current value. It is the triangular one. The second metric then quartered an already-triangular value, **under-reporting a real short dipole by 4×** |
 | `cassegrain` | `magnification` was a hard-coded `1.0` placeholder |
 
+### Found after v1.0, by the continuing re-audit
+
+| Spec | Error |
+|---|---|
+| `leaky_wave_line_source` | "Directivity" `2(L/λ)·cosθ·(1−e^(−2αL))` was 5 dB low at the default (10.7 dBi against 15.7 by direct integration). It used the free-space line source's 2L/λ for a slit radiating into a half space, a planar aperture's cosθ foreshortening that a line source does not have (its beam narrows in the scan plane and opens round the axis, so directivity holds as it scans), and the load loss, which belongs in the gain. Now 4L/λ times the exponential aperture's taper efficiency, fitted to the integral within 3.5% (1.1% held out), plus a separate gain. The beamwidth now carries the leak's taper (0.922 at the default αL, not 0.88) |
+| `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
+
 ### Test-guard and CLI bugs found in session 5
 
 | Bug | Consequence |
@@ -776,7 +783,11 @@ Deferred by the scope freeze, not blocked:
     design to about a decibel on a clipped lattice (the outer-element radius
     costs 2-5 dB); a statistically thinned array's mean pattern and directivity
     are exact expectations, confirmed by Monte Carlo.
-15. **Re-audit the session 1-4 specs, continued.** Every archetype passes the
+15. **Re-audit the session 1-4 specs, continued.** After v1.0 the survey's
+    lowest-ranked unaudited archetypes were `leaky_wave_line_source` and
+    `waveguide_slot_array_travelling_wave`; both had directivity 3.5-5 dB low
+    (§5, "Found after v1.0"). Next on the ranking: `top_loaded_monopole`,
+    `v_antenna_travelling`, `planar_monopole_rectangular`. Every archetype passes the
     cases it declares, which is not the same as being right
     (`corner_reflector_90` had a null where its optimum is for four sessions).
     The survey ranking archetypes by quantities asserted over quantities

@@ -2624,7 +2624,7 @@
           "depends_on": [
             "beta_over_k0"
           ],
-          "notes": "sin(theta) = beta/k0, measured from broadside. Approaches endfire well above cutoff and swings toward broadside as the guide nears cutoff - but never reaches it, which is the classic leaky-wave broadside blind spot."
+          "notes": "sin(theta) = beta/k0, measured from broadside. Approaches endfire well above cutoff and swings toward broadside as the guide nears cutoff - but never reaches it, which is the classic leaky-wave broadside blind spot. That is the array factor's peak. The slit's own element pattern (cos theta in power along the scan plane) pulls the pattern's peak toward broadside: 0.5 degrees at the default, 0.1-1 degree on long sources, up to 4 near endfire on short ones."
         },
         {
           "metric": "beam_from_axis_deg",
@@ -2636,15 +2636,25 @@
           "notes": "the same beam measured from the guide axis"
         },
         {
+          "metric": "attenuation_over_length_np",
+          "expr": "2*pi*alpha_norm*L_over_lambda",
+          "units_out": "-",
+          "depends_on": [
+            "alpha_norm",
+            "L_over_lambda"
+          ],
+          "notes": "alpha L in nepers: the leakage accumulated along the source. 1.13 at the default, which radiates 90% of the power before the load."
+        },
+        {
           "metric": "beamwidth_deg",
-          "expr": "deg(0.88*lambda0/(L*cos(asin(beta_over_k0))))",
+          "expr": "deg(np.interp(2*pi*alpha_norm*L_over_lambda, [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0], [0.88589, 0.88759, 0.89268, 0.90118, 0.91311, 0.92852, 0.94745, 0.96995, 0.99607, 1.0259, 1.05949, 1.0969, 1.1382, 1.18342, 1.2326, 1.28571, 1.3427])/(L_over_lambda*cos(asin(beta_over_k0))))",
           "units_out": "deg",
           "depends_on": [
-            "lambda0",
-            "L",
+            "alpha_norm",
+            "L_over_lambda",
             "beta_over_k0"
           ],
-          "notes": "Uniform-aperture beamwidth widened by 1/cos(theta) as the beam scans off broadside - a scanned aperture looks shorter"
+          "notes": "Half-power beamwidth in the scan plane: k(alpha L) lambda/(L cos theta). The aperture is not uniform - the wave leaks away along it, amplitude exp(-alpha x) - so k is the exponential aperture's own half-power width, solved exactly and tabulated in alpha L: 0.886 (the uniform aperture's 0.88 this spec carried) as alpha L goes to 0, 0.922 at the default 1.13, 1.14 at 3. Checked against the pattern of the line source integrated directly (element pattern included): within 2.2% from broadside to about a beamwidth short of endfire; closer to endfire the 1/cos(theta) widening overstates it, by up to 21% for a 5-wavelength source with beta/k0 = 0.85."
         },
         {
           "metric": "radiation_efficiency",
@@ -2659,23 +2669,33 @@
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(2*(L/lambda0)*cos(asin(beta_over_k0))*(1 - exp(-2*alpha_norm*k0*L)))",
+          "expr": "db10(4*L_over_lambda*(2/(2*pi*alpha_norm*L_over_lambda))*tanh(pi*alpha_norm*L_over_lambda)*exp(0.2540568/L_over_lambda + 0.02966731*(2*pi*alpha_norm) + -0.00471408*beta_over_k0**2/L_over_lambda + 0.02054802*(2*pi*alpha_norm)**2*L_over_lambda))",
           "units_out": "dBi",
           "depends_on": [
-            "L",
-            "lambda0",
-            "beta_over_k0",
+            "L_over_lambda",
             "alpha_norm",
-            "k0"
+            "beta_over_k0"
           ],
-          "notes": "Line-source directivity 2L/lambda, foreshortened by cos(theta) and reduced by the power lost to the termination"
+          "notes": "SOLVED: 4L/lambda times the exponential aperture's taper efficiency (2/(alpha L)) tanh(alpha L/2), with a small fitted correction in 1/L - the directivity of a leaky line source in a ground plane radiating into the half space above it (an x-directed magnetic line current exp(-(alpha + j beta) x), its element pattern included). Fitted to direct integration of that source over beta/k0 0.3-0.85, L 5-40 wavelengths and alpha L 0.3-3: 3.5% worst on 80 designs, 1.1% on 10 held out; without the correction it reads up to 11% low on short sources. It does NOT fall as the beam scans: the beam narrows in the scan plane but opens round the guide's axis, and a line source's directivity holds (15.7 dBi at 37, 49 and 57 degrees at the default). This spec had 2(L/lambda) cos(theta) (1 - exp(-2 alpha L)): the free-space line source's 2L/lambda, a planar aperture's cos(theta) that a line source does not have, and the power lost to the load, which belongs in the gain - 10.7 dBi at the default where the source has 15.7. A slit in a bare guide, with no ground plane, radiates round the guide too and sits up to 3 dB lower (12.7 dBi for an isotropic cross-section)."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "directivity_dbi + db10(radiation_efficiency)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_dbi",
+            "radiation_efficiency"
+          ],
+          "notes": "Directivity times the fraction of the power radiated before the load (a lossless guide otherwise): what the old 'directivity' entry was reaching for. 15.2 dBi at the default."
         }
       ],
       "validity": [
         "uniform (non-periodic) leakage, so only the forward quadrant is scanned; a periodic structure scans through broadside using the n = -1 harmonic",
         "beam angle assumes the leakage is weak enough not to perturb beta, true for alpha/k0 below about 0.05",
         "no beam squint correction for the slit's own reactance",
-        "the guide must be above cutoff: below it the wave is evanescent and nothing radiates"
+        "the guide must be above cutoff: below it the wave is evanescent and nothing radiates",
+        "directivity, gain and beamwidth are for the slit in a ground plane, radiating into the half space; a slit in a bare guide sits up to 3 dB lower in directivity",
+        "directivity fitted over beta/k0 0.3-0.85, L 5-40 wavelengths and alpha L 0.3-3 (3.5% worst); the beamwidth formula needs the beam at least a beamwidth from endfire"
       ],
       "known_cases": [
         {
@@ -2715,6 +2735,114 @@
           },
           "tol_pct": 0.5,
           "source": "Top of the X band, completing the scan range"
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 10.0,
+            "alpha_norm": 0.018
+          },
+          "expect": {
+            "directivity_dbi": 15.7026,
+            "gain_dbi": 15.2249
+          },
+          "tol_pct": 1.0,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 10 wavelengths in a ground plane, beta/k0 = 0.7550 from WR-90's TE10 at 10.0 GHz, alpha/k0 = 0.018 (alpha L = 1.131): 4 pi U/P = 15.703 dBi, 89.6% radiated before the load so gain 15.225 dBi; half-power width 7.896 degrees in the scan plane, peak 48.55 degrees from broadside against asin(beta/k0) = 49.03."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 10.0,
+            "alpha_norm": 0.018
+          },
+          "expect": {
+            "beamwidth_deg": 7.8958
+          },
+          "tol_pct": 2.5,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 10 wavelengths in a ground plane, beta/k0 = 0.7550 from WR-90's TE10 at 10.0 GHz, alpha/k0 = 0.018 (alpha L = 1.131): 4 pi U/P = 15.703 dBi, 89.6% radiated before the load so gain 15.225 dBi; half-power width 7.896 degrees in the scan plane, peak 48.55 degrees from broadside against asin(beta/k0) = 49.03. The beamwidth formula's 1/cos(theta) is good to about 2% this far from endfire."
+        },
+        {
+          "given": {
+            "f0": 8200000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 20.0,
+            "alpha_norm": 0.009
+          },
+          "expect": {
+            "directivity_dbi": 18.6585,
+            "gain_dbi": 18.1809
+          },
+          "tol_pct": 1.0,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 20 wavelengths in a ground plane, beta/k0 = 0.6005 from WR-90's TE10 at 8.2 GHz, alpha/k0 = 0.009 (alpha L = 1.131): 4 pi U/P = 18.659 dBi, 89.6% radiated before the load so gain 18.181 dBi; half-power width 3.293 degrees in the scan plane, peak 36.85 degrees from broadside against asin(beta/k0) = 36.90."
+        },
+        {
+          "given": {
+            "f0": 8200000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 20.0,
+            "alpha_norm": 0.009
+          },
+          "expect": {
+            "beamwidth_deg": 3.2932
+          },
+          "tol_pct": 2.5,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 20 wavelengths in a ground plane, beta/k0 = 0.6005 from WR-90's TE10 at 8.2 GHz, alpha/k0 = 0.009 (alpha L = 1.131): 4 pi U/P = 18.659 dBi, 89.6% radiated before the load so gain 18.181 dBi; half-power width 3.293 degrees in the scan plane, peak 36.85 degrees from broadside against asin(beta/k0) = 36.90. The beamwidth formula's 1/cos(theta) is good to about 2% this far from endfire."
+        },
+        {
+          "given": {
+            "f0": 12400000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 20.0,
+            "alpha_norm": 0.009
+          },
+          "expect": {
+            "directivity_dbi": 18.6165,
+            "gain_dbi": 18.1388
+          },
+          "tol_pct": 1.0,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 20 wavelengths in a ground plane, beta/k0 = 0.8487 from WR-90's TE10 at 12.4 GHz, alpha/k0 = 0.009 (alpha L = 1.131): 4 pi U/P = 18.616 dBi, 89.6% radiated before the load so gain 18.139 dBi; half-power width 4.923 degrees in the scan plane, peak 57.82 degrees from broadside against asin(beta/k0) = 58.08."
+        },
+        {
+          "given": {
+            "f0": 12400000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 20.0,
+            "alpha_norm": 0.009
+          },
+          "expect": {
+            "beamwidth_deg": 4.9226
+          },
+          "tol_pct": 2.5,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 20 wavelengths in a ground plane, beta/k0 = 0.8487 from WR-90's TE10 at 12.4 GHz, alpha/k0 = 0.009 (alpha L = 1.131): 4 pi U/P = 18.616 dBi, 89.6% radiated before the load so gain 18.139 dBi; half-power width 4.923 degrees in the scan plane, peak 57.82 degrees from broadside against asin(beta/k0) = 58.08. The beamwidth formula's 1/cos(theta) is good to about 2% this far from endfire."
+        },
+        {
+          "given": {
+            "f0": 9000000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 14.0,
+            "alpha_norm": 0.012
+          },
+          "expect": {
+            "directivity_dbi": 17.182,
+            "gain_dbi": 16.6214
+          },
+          "tol_pct": 1.0,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 14 wavelengths in a ground plane, beta/k0 = 0.6850 from WR-90's TE10 at 9.0 GHz, alpha/k0 = 0.012 (alpha L = 1.056): 4 pi U/P = 17.182 dBi, 87.9% radiated before the load so gain 16.621 dBi; half-power width 5.118 degrees in the scan plane, peak 43.07 degrees from broadside against asin(beta/k0) = 43.23."
+        },
+        {
+          "given": {
+            "f0": 9000000000.0,
+            "a": 0.02286,
+            "L_over_lambda": 14.0,
+            "alpha_norm": 0.012
+          },
+          "expect": {
+            "beamwidth_deg": 5.1179
+          },
+          "tol_pct": 2.5,
+          "source": "Direct integration of the line source (not the fit): an x-directed magnetic line current exp(-(alpha + j beta) x) over 14 wavelengths in a ground plane, beta/k0 = 0.6850 from WR-90's TE10 at 9.0 GHz, alpha/k0 = 0.012 (alpha L = 1.056): 4 pi U/P = 17.182 dBi, 87.9% radiated before the load so gain 16.621 dBi; half-power width 5.118 degrees in the scan plane, peak 43.07 degrees from broadside against asin(beta/k0) = 43.23. The beamwidth formula's 1/cos(theta) is good to about 2% this far from endfire."
         }
       ],
       "references": [
