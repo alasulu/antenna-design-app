@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3027 tests, 1034/1034 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3037 tests, 1034/1034 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -2911,9 +2911,10 @@ in patch_q, and the PIFA a length that resonates; the slot family's strip is
 solved as a strip; planar arrays take an element pattern, and circular,
 thinned and subarrayed layouts; the Potter horn has been taken end to end and
 stays low confidence for a recorded reason. Every round of the finish line above
-ran and v1.0 was tagged (next section); development then reopened with no
-deadline, and the post-v1.0 rounds follow it - HANDOVER section 6's group D
-first, then group C. See `docs/HANDOVER.md` for what is verified, what is not,
+ran and v1.0 was tagged (next section); development then reopened, and the
+post-v1.0 rounds follow it - since 2026-09-27 under "Finish line 2" (its own
+section below): HANDOVER section 6's groups C and D and the three never-examined
+archetypes, then a wrap-up round and a v2.0 tag. See `docs/HANDOVER.md` for what is verified, what is not,
 and the future work.
 
 The largest untested surface is unchanged: neither exporter has been run against a
@@ -3310,3 +3311,89 @@ solved the same way, sits 0.1-0.45% shorter than `resonant_dipole`'s
 induced-EMF length, which agrees with that spec's recorded -3 to +6 ohm of
 residual reactance. The exporter still draws the length the user asks for;
 setting `L_over_lambda` to `resonant_length_over_lambda` builds the resonant one.
+
+## A Potter horn designed as one chain - and "the" joint design is several
+
+HANDOVER section 6 D.11, tenth loop iteration. The item asked for a table of
+jointly solved Potter designs; the round that found the phasing guide is a TM11
+resonator had already concluded the map is resonant and many-branched, a
+per-horn solve rather than a table, and pointed the spec at
+`waveguide_step.potter_aperture` - a Python function that evaluates one horn,
+not a way to design one. So this round made the design tool.
+
+First the solver had to be fast enough to search with. A whole-chain cascade of
+the 10-wavelength default took 25.6 s, 98% of it in the mode-overlap integrals:
+scipy's general Bessel-derivative formula (13.7 s), per-mode Python loops over
+the radial profiles, a 400-point quadrature rule rebuilt on every call, and an
+einsum where a matrix product would do. With J1' = J0 - J1/x for all modes at
+once, a cached rule, a BLAS product and only the diagonal where only the
+diagonal was used, it takes 0.88 s - 29 times faster, identical to 1e-12 on the
+step, the launch and two whole horns.
+
+`PotterChain` cascades everything either side of the phasing guide once per
+step, so a phasing length costs two small star products (it matches
+potter_aperture to 1e-13). `potter_design` scans the step, finds every in-phase
+phasing length in a beat period (or more), links them into branches, refines
+each crossing of the target share and ranks the solutions by how fast the
+aperture phase moves with frequency. On the default horn at 0.15 it finds the
+recorded joint design in a minute (step 1.48067 against 1.48064, phasing 0.88905
+against 0.88895, -5.48 degrees per percent against -5.5). `otahub potter`
+puts it in front of a designer, with `--band` for the cross-polar windows: the
+first-order horn's -30 dB window comes out at 1.018-1.040 f0, not holding f0,
+and the recommended one's at 0.992-1.029 (3.7%), both as recorded.
+
+What it found: "the" joint design is not one.
+- At a share of 0.13 the default horn has three designs - steps 1.37, 1.39 and
+  1.47 wavelengths - whose aperture phase moves -11.0, -8.1 and -5.0 degrees
+  per percent. The cross-polar band of one is twice another's.
+- An FDTD (bor_fdtd, 60 cells per wavelength) of the flattest and steepest
+  staircases at 0.99, 1.00 and 1.01 f0 gives -5.8 and -12.4 degrees per
+  percent against the cascade's -5.3 and -11.8 on the same staircases, phases
+  within 2.3 degrees and shares within 0.02.
+- A phasing guide one beat longer is in phase again but delivers another share,
+  the TM11 in it having gone round a different phase: at 0.15 it adds three
+  more designs, 2.3 to 3.8 times steeper than the short one.
+At 0.15 on this horn the in-phase share on the shortest guides peaks at 0.139
+before rising through 0.15 once, so there it is one design - which is why the
+earlier round saw a single answer.
+
+The first version of the branch-following linked phasing lengths only if they
+moved less than 0.08 wavelengths per 0.01 of step; near the resonance they move
+0.09-0.12, and it found two of the three designs at 0.13 and none of the longer
+guides. It now links within 0.3, well inside the beat of 2.8 that separates
+periods.
+
+The spec's step and phasing stay first-order, labelled so, and now point at the
+command. Nothing in the aperture metrics changed.
+
+## Finish line 2
+
+Set by the user on 2026-09-27 (relayed by the VS Code session), replacing the
+open-ended scope development has had since v1.0.
+
+1. Scope: HANDOVER section 6 groups C and D as they stood at f109245, plus the
+   three never-examined archetypes.
+   - D.11, the Potter design table: done in the round above, as a per-horn tool.
+   - D.12, the shorted-patch FDTD survey.
+   - C.10, a finite gap for the wire MoM.
+   - C.9, the FDTD far-field transform: it settles the sectoral horns' gain
+     discrepancy and gives the PIFA a directivity.
+   - C.8, full-wave solvers for the circular and triangular patches.
+   - C.7, a two-layer spectral MoM for `stacked_patch`.
+   - D.15, the re-audit, closed by examining `bowtie`, `equiangular_spiral` and
+     `archimedean_spiral` with a planar surface solver, so that all 72 of 72
+     archetypes have been examined at least once by an independent solver.
+   The order is a suggestion, to be taken by value and dependencies.
+2. Done means the house rules. An item that proves infeasible after a genuine
+   attempt - its new physics cannot be verified against an independent model -
+   is written up in HANDOVER with the reason, and development moves on rather
+   than looping on it. Fixes within an item's own scope get done; anything new
+   beyond these items goes into section 6 as future work, not into a new round.
+3. When all of 1 are done or recorded as infeasible, a final wrap-up round:
+   rewrite HANDOVER section 6 as the final list (only group A, needing CST/HFSS;
+   group B, needing measured data; anything infeasible with its reason; anything
+   newly found); update the README and HANDOVER counts; run the full suite,
+   doctor and check; add a "Project complete" section to this file, last as
+   always; commit and tag that commit v2.0 - local only, no push, v1.0 left where
+   it is; and stop the build loop without re-arming it.
+4. No deadline.
