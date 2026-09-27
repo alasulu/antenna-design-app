@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 2946 tests, 1006/1006 known cases.
+S1-S5 done. 72 archetypes, 10 families, 2969 tests, 1018/1018 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3197,3 +3197,33 @@ Q and bandwidth are now NaN past 0.06 wavelengths of wire; the textbook law is
 kept as radiation_resistance_uniform_current_ohm (the Balanis cases now assert
 that), with the winding's wire length and the largest radiation resistance
 within the limit beside it.
+
+## The single-turn small loops: a third of a wavelength is not small
+
+HANDOVER section 6 D.15, seventh loop iteration: the two single-turn loops, which
+share the multi-turn loop's laws.
+
+`small_circular_loop` and `small_square_loop` used the uniform-current laws -
+Rr = 20 pi^2 (C/lambda)^4 and its square-loop twin, omega L - out to a third of
+a wavelength round, the circle saying the quartic law was within 2.3% there.
+That compared the law with the uniform-current integral; a real loop's current
+is not uniform. Solved with its actual current - the Fourier-series loop
+solution (otahub.num.loop_modal) for the circle, the method of moments for the
+square (the two meet on the circle to 0.1-0.8%) - the loop's resistance is:
+- within 5% of the law only to about 0.05 wavelengths round (0.06 of perimeter
+  for the square);
+- 12-17% above it at 0.1 wavelengths, the specs' own default, and 11-13% for
+  the square;
+- 3 to 15 times it at a third of a wavelength, where the specs drew their line.
+The current's cos(phi) part radiates like an electric dipole, whose resistance
+grows as the size squared rather than to the fourth, so it takes over fast; the
+reactance runs 4-8% above omega L at 0.1 wavelengths.
+
+Both specs now carry the driving point - resistance and reactance, fitted to
+those solutions up to 0.30 wavelengths round and wire radii 0.001-0.05 of the
+loop's (circle 1.6% and 0.8%, square 2.2% and 1.1%), single turns only, NaN
+beyond - and build efficiency, gain, impedance, Q, bandwidth, effective
+aperture and the tuning capacitor on it. The uniform-current laws stay,
+labelled, for the textbook comparison; the circle's loss case now has the real
+loop's efficiency and Q (at 0.25 wavelengths round its radiation resistance is
+2.3 times the law's).
