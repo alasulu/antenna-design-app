@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-22,020 lines of Python, 24,976 lines of spec data, 3055 tests, 1036/1036 citable
+22,530 lines of Python, 25,076 lines of spec data, 3078 tests, 1043/1043 citable
 known cases passing.**
 
 ---
@@ -270,6 +270,26 @@ a = w/4 lies inside the strip's own feed spread at every width solved.
 **Limits that bite:** free space, zero thickness, rectangular strips; the
 rooftop solver's cost grows as the square of its cell count (a 120 x 16 mesh
 takes minutes per frequency point).
+
+### A seventh, for flat sheets of any outline
+
+`otahub/num/rwg.py` solves flat metal of any outline in free space: triangles,
+Rao-Wilton-Glisson functions on their edges, Galerkin testing of the
+mixed-potential EFIE, the static part of every near interaction integrated in
+closed form in the sheet's plane (Wilton's formulas at d = 0, written so the
+cancellation beyond an edge's end cannot round to zero), the matrix streamed
+from triangle-corner blocks so a 10,000-unknown sheet fits in memory. Feeds: a
+finite gap (as `bor`, `strip` and `mom`) or a delta gap across a line of edges.
+Against `RooftopStrip` on the same strip with the same gap it meets it in the
+mesh limit to 0.04% (w = 0.02) and 0.2% (0.06) in resistance, and converges
+faster; against the wire MoM at w/4 it agrees on the narrow strip (1.1%), and the
+wire reads the wide one's resistance 5% high - `strip.py`'s own finding. Power
+balances the far field to 1e-6 to 7e-4. It is what examined the bowtie and the
+two spirals (§5).
+
+**Limits that bite:** zero thickness, free space (no substrate), dense
+matrices (the largest solved here had 8,400 unknowns); an elongated structured mesh is
+used for the spirals, and their input impedance depends on the feed region.
 
 ### Independent first-principles checks
 
@@ -719,6 +739,8 @@ known case only checks what it asserts.
 | `dipole_over_ground` | Its feed resistance was the induced-EMF R11 − R12(2h), which assumes a sinusoidal current on a vanishing wire - so it ignored the wire radius it asked for - and it carried no reactance. The dipole and its reversed image solved together by the MoM (Hallen's equation with the image in its kernel agrees to 0.05% once the feed gap is the same width) present 5-50% more resistance over heights 0.05-2 λ: 97.6 Ω a quarter wave up on 1e-4 λ wire where the spec said 85.6, 35-47 Ω at λ/8 where it said 32. The reactance is +75-79 Ω at λ/4 and +77-94 at λ/8 against about +45 in free space. Subtracting the induced-EMF mutual impedance from the free dipole's driving point fails low (1.8-3.8 times the resistance at 0.05 λ), and half_wave_dipole's own fit is too loose to subtract from at 6 Ω, so the spec now carries its own free-dipole term and a coupling factor ρ, fitted by least squares weighted to relative error. The zenith directivity holds to 0.04 dB. Nor did it say where the dipole resonates: the ground pulls the real wire's resonance −5.2% to +3.2% from its free-space length, so a dipole cut to `resonant_dipole` and hung λ/8 or λ/4 up carries +27 to +38 Ω of reactance. Cut to resonance there it presents 29-31 and 80-82 Ω whatever the wire; now carried as `L_resonant` and its resistance |
 | `conical_horn_dual_mode` | Its joint design - step and phasing solved together, which the spec named as the way to build it - is not one design. On the 10-wavelength default at a share of 0.13 there are three (steps 1.37, 1.39 and 1.47 wavelengths), whose aperture phase moves -11.0, -8.1 and -5.0 degrees per percent: the cross-polar band of one is twice another's. An FDTD of the flattest and steepest staircases at 0.99-1.01 f0 gives -5.8 and -12.4 against the cascade's -5.3 and -11.8. A phasing guide a beat longer is in phase again and gives three more at 0.15, all two to four times steeper. `otahub potter` now finds them all and recommends the flattest |
 | `quarter_wave_shorted_patch` | Its length corrected the open edge with the full patch's full-wave ratio and quoted the shorting wall's remainder as 1-3% low, from three thin boards. A half-space FDTD survey of its own patch - eleven boards, eps_r 2.2 to 10.2 and h sqrt(eps_r)/lambda0 0.035 to 0.095, 4 to 12 cells across the slab, extrapolated to zero cell size - found it 1.2-11% low, most on thick low-permittivity board (eps_r 2.2 at 0.095: 0.894 f0), because the wall's inductance grows with its height. The wall now has its own length factor, up to 12% shorter; built to it, held-out boards resonate at 0.998 (eps_r 3.0), 0.997-1.000 (6.15) and 0.988-0.990 f0 (2.5 at 0.085) |
+| `bowtie` | Its directivity (2.3 dBi) and bandwidth (4:1) were indicative. Solved with the planar RWG solver: broadside directivity at f_low is 2.30-2.53 dBi for flares 30-90 degrees - right at f_low - but not 'fairly flat with frequency': the 90-degree bowtie's broadside climbs to 3.5 dBi at 1.75 f_low and the beam then splits (-3.7 dBi at 3 f_low, -19 at 3.5). Its f_low impedance is 148-208 ohm with +135 to +186 ohm reactance, not Mushiake's 188, which it approaches (166-216 ohm) only from 2.5 f_low; against eta0/2 it holds VSWR 2 from f_low to at least 4 f_low. Directivity and the f_low impedance are now solved, over flare |
+| `archimedean_spiral`, `equiangular_spiral` | Both put f_low where the outer circumference is one wavelength and quoted about 1.8 dBi (1.5) per side and an axial ratio near 1 dB. Solved: at f_low the axial ratio is 16 and 21 dB - not circular - and falls through 3 dB only at 1.33 f_low (Archimedean, six turns) and 2.29 f_low (equiangular, a = 0.221), by bisection of direct solves; the broadside directivity is 3.5-2.7 dBi at f_low rising to about 6 dBi at 4 f_low, 5.5 and 5.2 dBi at the band's geometric middle. The input impedance depends on the feed region (the equiangular spiral's moved 154 - j67 to 188 - j43 ohm when only its inner radius changed, its axial ratio 0.15 dB), so Mushiake's 188 stays the infinite sheet's. The circular-polarisation band edge, directivity and axial ratio are now solved for the specs' geometries |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -843,9 +865,11 @@ Deferred by the scope freeze, not blocked:
     had the same induced-EMF limitation, worse: 5-50% low over height, with
     no reactance (§5); it now carries the dipole-and-image driving point at
     exactly λ/2, and where a real wire resonates over that ground (the
-    ground moves it -5% to +3% from free space). Never yet
-    examined, and beyond the wire solvers: `bowtie`, `equiangular_spiral`,
-    `archimedean_spiral` (they need a planar surface solver). Every archetype passes the
+    ground moves it -5% to +3% from free space). The last three never
+    examined - `bowtie`, `equiangular_spiral`, `archimedean_spiral` - were
+    examined under Finish line 2 with a new planar solver (`rwg`, §3), so all
+    72 archetypes have now been checked by an independent solver at least
+    once (§5). Every archetype passes the
     cases it declares, which is not the same as being right
     (`corner_reflector_90` had a null where its optimum is for four sessions).
     The survey ranking archetypes by quantities asserted over quantities
