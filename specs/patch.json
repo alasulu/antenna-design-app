@@ -1574,7 +1574,7 @@
           "notes": "The textbook quarter-wave length - a quarter guide wavelength less one fringing extension. An FDTD of the shorted patch itself (otahub.num.patch_fdtd.shorted_ringdown, a full shorting wall, taken to zero cell size) puts it 8.4% LOW in frequency on a thick eps_r 10.2 board, 5.9% on eps_r 2.2 at h = 0.02 lambda0 and about 4% on FR-4 - more than the full patch's 5.9%, 3.6% and 2.8% on the same boards: the shorting wall's current adds an inductance the transmission-line model has no term for."
         },
         {
-          "output": "L",
+          "output": "L_open_edge_only",
           "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, L_textbook*exp((-0.4410294)*(h*f0*sqrt(eps_r)/c) + (-8.703169)*(h*f0*sqrt(eps_r)/c)**2 + (55.69262)*(h*f0*sqrt(eps_r)/c)**3 + (-4.033235)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (59.9035)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2 + (-454.7268)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**3 + (2.972037)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c) + (-23.89472)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**2 + (1042.165)*(1/eps_r)**2*(h*f0*sqrt(eps_r)/c)**3 + (-2.04079)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c) + (70.20932)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**2 + (-1471.97)*(1/eps_r)**3*(h*f0*sqrt(eps_r)/c)**3), inf - inf)",
           "units_out": "m",
           "depends_on": [
@@ -1583,7 +1583,28 @@
             "h",
             "f0"
           ],
-          "notes": "ESTIMATE: the textbook length scaled by the full rectangular patch's full-wave length ratio (otahub.num.patch_sdm, FDTD-checked), since both carry the same open-edge fringing error. It closes most of the shortfall but not the shorting wall's share: by the FDTD the patch built to it still resonates about 2.7% low on eps_r 10.2, 2.4% on eps_r 2.2 and 1.3% on FR-4, against 4-8% for the textbook length. A survey of the shorted patch itself would fix it; it needs the half-space FDTD run over the domain, hours per board. NaN past h sqrt(eps_r)/lambda0 = 0.1."
+          "notes": "The length this spec used to build: the textbook length scaled by the full rectangular patch's full-wave ratio (otahub.num.patch_sdm), which corrects the open edge's fringing but has nothing for the shorting wall. Kept for comparison."
+        },
+        {
+          "output": "wall_length_factor",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-0.223005223)*(h*f0*sqrt(eps_r)/c) + (-0.7902816)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (0.447654354)*(h*f0*sqrt(eps_r)/c)**2 + (-19.033454)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "f0",
+            "eps_r"
+          ],
+          "notes": "the shorting wall's own correction to the length, from the FDTD survey (see L)"
+        },
+        {
+          "output": "L",
+          "expr": "L_open_edge_only*wall_length_factor",
+          "units_out": "m",
+          "depends_on": [
+            "L_open_edge_only",
+            "wall_length_factor"
+          ],
+          "notes": "SOLVED by the FDTD of the shorted patch itself (otahub.num.patch_fdtd.shorted_ringdown, a full-width shorting wall in a half-space grid), not borrowed: the open-edge length above times the wall's own factor. The survey built this spec's former length on eleven boards - eps_r 2.2 to 10.2, h sqrt(eps_r)/lambda0 0.035 to 0.095 - at 4 to 12 cells across the slab, extrapolated to zero cell size (two estimators agree within 0.55%), and found it resonating 1.2-11% LOW, most on thick low-permittivity board: the wall's inductance grows with its height, and the 1-3% this spec quoted came from three thinner boards. The factor, fitted over nine of those boards and the earlier three (0.24% worst) and made to vanish as the board thins, shortens the patch by up to 12%. Built to it, held-out boards resonate at 0.998 f0 (eps_r 3.0, h sqrt(eps_r)/lambda0 = 0.05; the old length 0.963), 0.997-1.000 (6.15, 0.08; was 0.961) and 0.988-0.990 (2.5, 0.085, the thickest low-permittivity case; the old length about 0.92 by the fit). NaN past h sqrt(eps_r)/lambda0 = 0.1."
         },
         {
           "output": "L_full_patch",
@@ -1766,7 +1787,7 @@
         "the pattern is asymmetric - the single radiating edge tilts the beam off broadside, which the full patch's symmetry avoids",
         "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
         "directivity is the cavity current radiated through the slab (with the wall's current), NaN past h sqrt(eps_r)/lambda0 = 0.1",
-        "L is an ESTIMATE: the full patch's full-wave correction applied to the textbook length; the shorting wall's own inductance, which the FDTD shows lowers the resonance a further 1-3%, is not in it"
+        "L is solved for the shorted patch itself by FDTD, to about 0.5% on thick board (the extrapolation's own spread) and better on thin; an ideal full-width wall on an infinite substrate and ground"
       ],
       "known_cases": [
         {
@@ -1910,10 +1931,10 @@
           },
           "expect": {
             "L_textbook_m": 0.014710797,
-            "L_m": 0.014260563
+            "L_m": 0.01404951
           },
           "tol_pct": 0.5,
-          "source": "The textbook shorted length 14.7108 mm, times the full rectangular patch's full-wave length ratio on this board solved directly by otahub.num.patch_sdm (0.96939, not the fit): 14.2606 mm."
+          "source": "The textbook shorted length 14.7108 mm, times the full rectangular patch's full-wave length ratio on this board solved directly by otahub.num.patch_sdm (0.96939, not the fit), times the shorting wall's factor measured directly on this board by the half-space FDTD (0.9852, extrapolated to zero cell size, not the fit): 14.0495 mm."
         },
         {
           "given": {
@@ -1923,10 +1944,23 @@
           },
           "expect": {
             "L_textbook_m": 0.003887043,
-            "L_m": 0.003619298
+            "L_m": 0.003509689
           },
           "tol_pct": 0.5,
-          "source": "The textbook shorted length 3.8870 mm, times the full rectangular patch's full-wave length ratio on this board solved directly by otahub.num.patch_sdm (0.93112, not the fit): 3.6193 mm."
+          "source": "The textbook shorted length 3.8870 mm, times the full rectangular patch's full-wave length ratio on this board solved directly by otahub.num.patch_sdm (0.93112, not the fit), times the shorting wall's factor measured directly on this board by the half-space FDTD (0.9697, extrapolated to zero cell size, not the fit): 3.5097 mm."
+        },
+        {
+          "given": {
+            "f0": 3000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0064005
+          },
+          "expect": {
+            "L_textbook_m": 0.014654822,
+            "L_m": 0.012172031
+          },
+          "tol_pct": 0.5,
+          "source": "The textbook shorted length 14.6548 mm, times the full rectangular patch's full-wave length ratio on this board solved directly by otahub.num.patch_sdm (0.94692, not the fit), times the shorting wall's factor measured directly on this board by the half-space FDTD (0.8771, extrapolated to zero cell size, not the fit): 12.1720 mm. A thick low-permittivity board, where the wall matters most: the former length resonated about 11% low here."
         }
       ],
       "references": [

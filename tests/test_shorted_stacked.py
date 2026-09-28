@@ -50,7 +50,10 @@ def test_the_spec_corrections_are_the_full_patchs(registry):
         ratio = rect.get("L") / rect.get("L_textbook")
         short = registry["quarter_wave_shorted_patch"].synthesize(f0=f0, eps_r=er, h=h)
         stack = registry["stacked_patch"].synthesize(f0=f0, eps_r=er, h=h)
-        assert short.get("L") / short.get("L_textbook") == pytest.approx(ratio, rel=1e-12)
+        # the open edge's share is still the full patch's; the wall's own factor comes on top of it
+        # (tests/test_shorted_patch_length.py)
+        assert short.get("L_open_edge_only") / short.get("L_textbook") == pytest.approx(ratio, rel=1e-12)
+        assert short.get("L") < short.get("L_open_edge_only")
         assert stack.get("L") == pytest.approx(rect.get("L"), rel=1e-12)
         assert stack.get("L2") == pytest.approx(0.95 * stack.get("L"), rel=1e-12)
 
