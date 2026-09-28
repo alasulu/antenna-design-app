@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3055 tests, 1036/1036 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3078 tests, 1043/1043 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3488,3 +3488,58 @@ the new law instead of the former one and moved the fit; the helper now reads
 
 The Q, bandwidth and directivity fits describe the patch resonant at f0, so they
 stand unchanged - the length now matches them.
+
+## A planar solver, and the last three archetypes examined
+
+Finish line 2, item D.15: the re-audit closed by examining `bowtie`,
+`equiangular_spiral` and `archimedean_spiral`, the only archetypes no independent
+solver had looked at. All 72 have now been.
+
+`otahub/num/rwg.py` is a method of moments for flat metal of any outline in free
+space: triangles, RWG functions on their edges, Galerkin testing of the
+mixed-potential EFIE, the static part of each near interaction integrated in
+closed form in the plane, the matrix streamed from triangle-corner blocks. Checks:
+- the closed-form in-plane potentials against a fine midpoint rule to 3e-3;
+- against `strip.RooftopStrip` - rooftops on rectangles, a different basis and
+  different singular integrals - on the same strip with the same finite gap:
+  0.04% (w = 0.02) and 0.2% (0.06) in resistance in the mesh limit, reactance
+  within 0.6% and 1.3% of |Z|; the triangles converge faster;
+- the wire MoM at w/4 agrees on the narrow strip (1.1%) and reads the wide strip
+  5% high, as `strip.py` had found;
+- power balances the far field to 1e-6 on strips and 7e-4 at worst on the
+  coarsest spiral mesh.
+Two faults found in it on the way: the closed-form integral's R + l cancels to
+zero when a point lies almost on the extension of an edge, which structured
+meshes make common - two sweep points failed with NaN before it was rewritten
+through (R + l)(R - l) = p^2; and the full corner matrix would have needed 8.5 GB
+for the finest spiral, so the fill now streams.
+
+The bowtie (90 degrees, wings lambda_low/4, fed across a 0.01 lambda_low gap):
+- broadside directivity 2.30-2.53 dBi at f_low for flares 30-90 degrees, so the
+  indicative 2.3 dBi was right there - but not "fairly flat with frequency": at
+  90 degrees broadside climbs to 3.5 dBi at 1.75 f_low and then the beam splits,
+  -3.7 dBi at 3 f_low and -19 at 3.5, the peak moving off axis;
+- impedance at f_low 148-208 ohm with +135 to +186 ohm reactance, first resonant
+  near 1.3 f_low at about 305 ohm; Mushiake's 188 is approached only from 2.5
+  f_low (166-216 ohm, reactance under 41) - a physics check the solver passes on
+  its own; VSWR under 2 against eta0/2 from f_low to at least 4 f_low;
+- a 75-degree bowtie solved directly lands on the flare interpolation to 0.02% in
+  directivity, 1.4% in resistance.
+
+The spirals (10:1, the Archimedean with six turns, the equiangular a = 0.221):
+- the specs put f_low where the outer circumference is one wavelength; there the
+  boresight axial ratio is 16 dB (Archimedean) and 21 dB (equiangular). By
+  bisection of direct solves it falls through 3 dB at 1.33 and 2.29 f_low: the
+  circularly polarised band starts a third and 129% higher than the f_low the
+  specs size the outer radius for;
+- broadside directivity 3.5 and 2.7 dBi at f_low, rising to about 6 dBi at 4 f_low
+  (5.5 and 5.2 at the band's geometric middle) - not the 1.8 dBi (1.5) the specs
+  carried;
+- the input impedance depends on the feed region: the equiangular spiral moved
+  from 154 - j67 to 188 - j43 ohm between a 10:1 and a 20:1 design, whose only
+  difference is the inner radius, while its axial ratio moved 0.15 dB and its
+  directivity 0.1%. Mushiake's 188 stays, labelled as the infinite sheet's.
+
+The specs now carry the solved directivity, axial ratio and circular-polarisation
+band edge for the geometries solved (NaN otherwise), the bowtie's f_low impedance
+over flare, and three new known cases (seven expectations) from direct solves.
