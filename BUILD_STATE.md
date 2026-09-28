@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3043 tests, 1034/1034 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3055 tests, 1036/1036 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3441,3 +3441,50 @@ case is now settled by scanning the reactance over the table's range instead.
 `resonant_dipole`'s validity now cites the wire solver beside the tube one. No
 spec value changed: the delta-gap fits stand as the convention they are, and
 the finite gap is there to say what a real gap does.
+
+## The shorted patch surveyed: its wall pulls it 1.2-11% low, not 1-3%
+
+Finish line 2, item D.12.
+
+`quarter_wave_shorted_patch` built the textbook quarter-wave length times the full
+rectangular patch's full-wave ratio - a correction for the open edge's fringing -
+and quoted what the shorting wall adds as "a further 1-3%", from FDTD spot checks
+on three boards no thicker than h sqrt(eps_r)/lambda0 = 0.078.
+
+The survey ran the half-space FDTD (`patch_fdtd.shorted_ringdown`, a full-width
+wall) on the spec's own patch over eleven boards - eps_r 2.2, 4.4 and 10.2 at h
+sqrt(eps_r)/lambda0 = 0.035, 0.065 and 0.095, plus eps_r 3.0 at 0.05 and 6.15 at
+0.08 held out - at 4 to 12 cells across the slab. Whole cells jitter the geometry
+between grids, so each run is compared with what the spec's own law predicts for
+the exact patch simulated, and that ratio extrapolated to zero cell size by least
+squares in 1/nh. Two estimators (all grids; 6 cells and finer) agree within 0.55%
+on every board with three or more grids. The previous round's three boards,
+brought in through the same inverse, come out at their recorded 2.4, 1.4 and 2.7%.
+
+What was found:
+- The spec's patch resonates 1.2-11% LOW: 1.2% on thin eps_r 10.2, 2.9% on thin
+  eps_r 2.2, and at 0.095 3.6% (10.2), 5.8% (4.4) and 10.6% (2.2). The wall's
+  inductance grows with its height, and grows fastest in relative terms where the
+  permittivity is low. "1-3%" held only on the thin boards it came from.
+- The FDTD's convergence is not clean first order on thick board: a two-grid
+  extrapolation from 4 and 6 cells misses the all-grid value by 0.4-1.0% there,
+  either way. The first fit put
+  the eps_r 6.15 held-out board 1.0% off for exactly that reason; two finer grids
+  brought it to 0.11%.
+
+The spec now builds `L = L_open_edge_only * wall_length_factor`: the former length,
+kept under that name, times the wall's own factor, ln g = x (c0 + c1/eps_r + c2 x +
+c3 x/eps_r), which vanishes as the board thins. Fitted over the nine survey boards
+and the earlier three (0.24% worst), it shortens the patch by up to 12%. Built to
+it, the held-out boards resonate at 0.998 f0 (eps_r 3.0 at 0.05, where the former
+length gave 0.963), 0.997-1.000 (6.15 at 0.08, formerly 0.961) and 0.988-0.990 (a
+fresh eps_r 2.5 board at 0.085, the thick soft corner; formerly about 0.92 by the
+fit). The two length known cases now take each board's directly measured wall
+factor, not the fit, and a third was added on the thick eps_r 2.2 board.
+
+A slip along the way: re-running the analysis after the spec was patched inverted
+the new law instead of the former one and moved the fit; the helper now reads
+`L_open_edge_only`, and the coefficients reproduce to the last digit.
+
+The Q, bandwidth and directivity fits describe the patch resonant at f0, so they
+stand unchanged - the length now matches them.
