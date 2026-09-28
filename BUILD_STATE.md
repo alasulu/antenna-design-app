@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3037 tests, 1034/1034 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3043 tests, 1034/1034 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3397,3 +3397,47 @@ open-ended scope development has had since v1.0.
    always; commit and tag that commit v2.0 - local only, no push, v1.0 left where
    it is; and stop the build loop without re-arming it.
 4. No deadline.
+
+## A finite gap for the wire method of moments
+
+Finish line 2, item C.10.
+
+The wire MoM had only the delta gap: 1 V across a single node. Its capacitance
+grows as the mesh refines, so on fat wire the driving point never settles - the
+last three rounds kept running into it. With the exact kernel, a 0.005-wavelength
+dipole's resonant resistance read 73.9, 74.7 and 75.5 ohm on 50, 100 and 200
+segments, about 1% per doubling with no end in sight, and the half-wave dipole's
+own fit turned out to follow a gap about an 80th of the dipole wide.
+
+`mom.solve(model, gap=segments)` now takes `bor`'s feed model: 1 V impressed as a
+uniform field V/g along a run of segments of physical length g, each basis
+function driven by its overlap with that field, and the input current taken as
+the same overlap-weighted - gap-averaged - current, so that V conj(I)/2 is the
+power the source delivers. `mom.gapped_dipole` builds a straight dipole whose gap
+is exactly two segments. Checks:
+- the weights come out 1/4, 1/2, 1/4 across a two-segment gap, summing to 1;
+- on 1e-4-wavelength wire a gap of two segments reads the delta gap's impedance
+  to 0.5%, and the power balances the far field to 1e-7;
+- on 0.003-wavelength wire both feeds miss the far field by the same 7.2e-5 -
+  the thin-wire model's own (ka)^2 inconsistency, which scales as the radius
+  squared (8e-8 at 1e-4) - so the gap adds nothing to it;
+- at a = 0.005 with a gap of 2a, the resonant resistance moves 0.03% per mesh
+  halving, and the length converges at first order.
+
+The independent check is the body-of-revolution tube table
+(`tests/data/fat_dipole_bor.json`): the same dipoles as open tubes, the current
+on the tube's surface, rims resolved, fed across the same gaps. Against all 27 of
+its resonances - radii 0.002 to 0.025 wavelengths, gaps a/2 to 4a - the
+finite-gap wire, extrapolated in the mesh, sits within 0.18% in resonant length
+and 0.67% in resistance - the length worst on the fattest wire, the resistance
+at the narrowest gap.
+Where the tube never resonates (a = 0.025, gap a/2) the wire's reactance stays
+between -47 and -6 ohm across 0.36-0.58 wavelengths: no resonance either.
+
+A first search for that non-resonant case had no bound on its secant, wandered to
+long lengths on fine meshes and ran for three CPU-hours before it was stopped; the
+case is now settled by scanning the reactance over the table's range instead.
+
+`resonant_dipole`'s validity now cites the wire solver beside the tube one. No
+spec value changed: the delta-gap fits stand as the convention they are, and
+the finite gap is there to say what a real gap does.
