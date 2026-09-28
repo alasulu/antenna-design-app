@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-21,759 lines of Python, 24,942 lines of spec data, 3037 tests, 1034/1034 citable
+21,909 lines of Python, 24,942 lines of spec data, 3043 tests, 1034/1034 citable
 known cases passing.**
 
 ---
@@ -89,12 +89,19 @@ It is validated by six independent checks, in `tests/test_mom.py`:
 | Folded dipole vs plain dipole at resonance | 4.014 against the classic 4 |
 
 **Limits that bite:** no ground plane (image theory stands in), no
-dielectric, no loss, junctions only at wire ends, a delta-gap feed only, and
-the exact kernel only on straight runs and only on request (`exact=True`).
-The module docstring records the measured edge of each: the delta gap reads
-short-wire resistance ~10% low; the reduced kernel needs segments of at least
-~3 radii, which the exact kernel lifts; and on a wire fatter than ~0.01 lambda
-the delta gap itself has no converged answer with either kernel.
+dielectric, no loss, junctions only at wire ends, and the exact kernel only on
+straight runs and only on request (`exact=True`). The module docstring records
+the measured edge of each: the delta gap reads short-wire resistance ~10% low;
+the reduced kernel needs segments of at least ~3 radii, which the exact kernel
+lifts; and on a fat wire the delta gap has no converged answer with either
+kernel (the resonant resistance of a 0.005-wavelength dipole climbs about 1%
+per mesh doubling). A finite gap now answers that: `solve(model, gap=...)`
+impresses V/g along a gap of physical length and takes the gap-averaged
+current, `bor`'s model, and `gapped_dipole` builds one. It converges (0.03% in
+R per halving at 0.005 wavelengths) and meets the tube solver's whole table of
+resonances - radii 0.002 to 0.025 wavelengths, gaps a/2 to 4a - to 0.18% in
+length and 0.67% in resistance, including the one case where neither
+resonates.
 
 ### A second one, for dielectric bodies
 
@@ -788,9 +795,10 @@ newly found - and the project is tagged v2.0. Groups A and B are out of scope.
    directivity (on an infinite ground plane; a finite one is item 3), and would
    settle the sectoral horns' gain across their waveguide-sized dimension, where
    the aperture models disagree by about a decibel (§4).
-10. **A finite gap for the wire MoM.** It still has only the delta gap;
-    `otahub/num/bor.py` and `otahub/num/strip.py` carry finite gaps for tubes
-    and strips.
+10. ~~**A finite gap for the wire MoM.**~~ Done after v1.0: `mom.solve(...,
+    gap=segments)` and `mom.gapped_dipole`, `bor`'s feed model on wires. It
+    converges where the delta gap drifts, and meets the tube solver's table of
+    fat-dipole resonances to 0.18% in length and 0.67% in resistance (§3).
 
 ### D. Needs only compute time with the solvers already here
 

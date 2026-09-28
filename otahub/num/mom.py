@@ -64,7 +64,14 @@ as the delta gap sharpens. Bends and junctions keep the reduced kernel. It is
 off by default so every result derived with the reduced kernel reproduces bit
 for bit; on thin wire the two differ by about 0.35%. What it does NOT cure is
 the delta gap itself on a very fat wire: at a = 0.015 lambda neither kernel
-converges, and that needs a finite-gap feed model this module does not have.
+converges, and that needs a finite-gap feed model.
+
+`solve(..., gap=segments)` is that model, the one `bor` uses for tubes: 1 V
+impressed uniformly along a run of segments of physical length g, and the input
+current taken as the gap-averaged current, so that V conj(I)/2 is the power the
+source delivers. `gapped_dipole` builds a straight dipole whose gap is exactly
+two segments. A delta gap is its g -> 0 limit; a gap of fixed width converges as
+the mesh is refined, where the delta gap's own capacitance keeps growing.
 """
 from __future__ import annotations
 
@@ -81,6 +88,7 @@ __all__ = [
     "top_hat_monopole", "bicone_cage",
     "tl_admittance", "NetworkSolution", "solve_network",
     "solve", "input_impedance", "far_field", "directivity", "radiated_power",
+    "gap_vector", "gapped_dipole",
 ]
 
 K = 2.0 * math.pi          # wavenumber, geometry being in wavelengths
@@ -398,11 +406,15 @@ class MoMSolution:
     model: WireModel
     currents: np.ndarray
     feed: int | tuple[int, ...]
+    gap_weights: np.ndarray | None = None
 
     @property
     def feed_current(self) -> complex:
         """Terminal current. A junction feed drives several functions that all
-        share the reference wire, and its terminal current is their sum."""
+        share the reference wire, and its terminal current is their sum. A finite
+        gap's is the current averaged over the gap."""
+        if self.gap_weights is not None:
+            return complex(self.gap_weights @ self.currents)
         if isinstance(self.feed, tuple):
             return complex(sum(self.currents[k] for k in self.feed))
         return complex(self.currents[self.feed])
@@ -413,14 +425,17 @@ class MoMSolution:
 
     @property
     def circuit_power(self) -> float:
-        """P = 0.5 Re(V I*) for a 1 V delta gap [W]."""
+        """P = 0.5 Re(V I*) for a 1 V gap, delta or finite [W]."""
         return 0.5 * float(np.real(np.conj(self.feed_current)))
 
 
 def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
           loads: dict[int, complex] | None = None,
-          exact: bool = False) -> MoMSolution:
+          exact: bool = False, gap=None) -> MoMSolution:
     """Delta-gap excitation of one basis function; 1 V across the gap.
+
+    `gap`, a run of segment indices, replaces the delta gap with a FINITE one:
+    see `gap_vector`. `feed` is then ignored.
 
     `loads` puts a SERIES lumped impedance at a basis function, the way a real
     wire code does it: the load's voltage drop is Z_L * I_m, so Z_L adds
@@ -441,10 +456,33 @@ def solve(model: WireModel, feed: int | tuple[int, ...] | None = None,
         if not 0 <= m < nb:
             raise ValueError(f"load index {m} outside 0..{nb - 1}")
         Z[m, m] += zl
+    if gap is not None:
+        w = gap_vector(model, gap)
+        return MoMSolution(model, np.linalg.solve(Z, w.astype(complex)), int(np.argmax(w)), w)
     V = np.zeros(nb, dtype=complex)
     for f in feeds:
         V[f] = 1.0
     return MoMSolution(model, np.linalg.solve(Z, V), feed)
+
+
+def gap_vector(model: WireModel, segments) -> np.ndarray:
+    """A finite gap: 1 V impressed uniformly, V/g, along the tangents of `segments`
+    (consecutive segments of total length g, running the same way).
+
+    V_m = (1/g) int_gap f_m ds - each basis function's overlap with the impressed
+    field, and also its weight in the gap-averaged input current, so the power
+    V conj(I_in)/2 is what the source delivers. With the gap one segment either
+    side of a node, the node's function gets 1/2 and its neighbours 1/4 each.
+    """
+    segs = {int(p) for p in segments}
+    g = float(sum(model.seg_len[p] for p in segs))
+    w = np.zeros(model.n_basis)
+    for n in range(model.n_basis):
+        for p, (alpha, beta), _ in _half_weights(model, n):
+            if p in segs:
+                L = float(model.seg_len[p])
+                w[n] += alpha * L + beta * L * L / 2.0
+    return w / g
 
 
 def input_impedance(model: WireModel, feed: int | None = None,
@@ -561,6 +599,19 @@ def dipole(length: float, radius: float = 1e-3, segments: int = 40) -> WireModel
     z = np.linspace(-0.5 * length, 0.5 * length, segments + 1)
     nodes = np.stack([np.zeros_like(z), np.zeros_like(z), z], axis=1)
     return WireModel([Wire(nodes, radius)])
+
+
+def gapped_dipole(length: float, radius: float, gap: float, seg: float) -> tuple[WireModel, tuple[int, int]]:
+    """Straight z-directed dipole with a centred feed gap of physical length `gap`,
+    cut into exactly two segments; each arm cut into segments no longer than `seg`.
+    Returns (model, gap segments) for `solve(model, gap=...)`. Segments shorter than
+    the radius need `exact=True`, which straight wires take."""
+    arm = 0.5 * (length - gap)
+    n = max(1, int(math.ceil(arm / seg)))
+    z = np.concatenate([np.linspace(-0.5 * length, -0.5 * gap, n + 1), [0.0],
+                        np.linspace(0.5 * gap, 0.5 * length, n + 1)])
+    nodes = np.stack([np.zeros_like(z), np.zeros_like(z), z], axis=1)
+    return WireModel([Wire(nodes, radius)]), (n, n + 1)
 
 
 def loop(circumference: float, radius: float = 1e-3, segments: int = 48,
