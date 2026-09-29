@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3101 tests, 1047/1047 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3126 tests, 1049/1049 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3585,3 +3585,56 @@ out, patches built to the corrected size resonate at 0.990-0.997 f0 (disc) and
 take a board's own measured factor, not the fit. The disc's forward-check note
 said "must return f0"; it returns f0 to the 0.3% by which Balanis's 14-64 inverts
 his 14-66, and now says so.
+
+## A far field for the FDTD: the E-plane horn read 1.1 dB low, the H-plane horn was right
+
+Finish line 2, item C.9.
+
+The FDTD rang structures down but had no far field, so two questions waited on
+it: the sectoral horns' gain across their waveguide-sized dimension, where the
+aperture-power form, a Huygens aperture and the aperture in a ground plane sat up
+to a decibel apart (handover section 4), and the PIFA's directivity, a 4.0 dBi
+placeholder.
+
+`horn_fdtd.BoxTransform` DFTs the tangential fields on a closed box round the
+radiator and radiates the equivalent currents with their images through the
+grid's symmetry walls. A single plane above the source was tried first and
+dropped: its truncation cost more than the answer's accuracy. Checked against
+exact answers - a short dipole over the ground plane (0.2-0.7% at 40 cells a
+wavelength, second order) and a lone dipole on a new free grid (`_YeeFree`, CPML
+at both ends of z; 1.5 to 0.16%) - and against the spectral MoM on an air patch
+through `patch_fdtd.sheet_directivity` (0.15% and 0.6%).
+
+`horn_fdtd.sectoral_horn` builds the horn as it is made: TE10 from a back short,
+thin staircased walls, the flare, open space all round. The first version sat
+the horn on the grid's z = 0 wall at its throat, and read the default H-plane
+horn 7.2 dBi against 11.4 for the aperture-power form: the plane mirrored the
+walls' edge radiation back into the beam. On the free grid:
+- the E-plane horn (five horns, a_wg 0.65-2 wavelengths, rho 6 and 10) is the
+  aperture in a ground plane, to -0.14 to +0.09 dB. The aperture-power form the
+  spec used is 0.7-1.6 dB low below a wavelength, the Huygens aperture 0.6-1.1:
+  the default horn is 15.6 dBi, not 14.4;
+- the H-plane horn keeps the aperture-power form: at the default it is 0.23-0.30
+  dB below it on three grids, while the ground-plane and Huygens apertures read
+  0.8-1.1 and 1.8-2.2 dB high. The gap closes as b_wg grows;
+- a flanged WR-90 guide at 10 GHz reads 0.48 dB above the pure-TE10 aperture
+  `open_ended_waveguide` carries, on 40-56 cells a wavelength - its edge fields.
+  One guide, so it is a note, and a survey is section 6 future work.
+
+The E-plane spec keeps the old figure as `gain_aperture_power_dbi` and makes
+`gain_dbi` that plus the ground-plane model's difference. The first fit (nine
+smooth terms, 0.04 dB on its grid) missed a held-out horn by 0.11 dB: the
+difference ripples with b1 at one wavelength's period, decaying as 1/b1^2, the
+b1 edges interfering. Refitted on a 400-horn grid with that ripple as sin and
+cos terms: 0.04 dB worst on the grid, 0.03 on 60 random horns held out, NaN
+outside a_wg 0.55-2.2, flare 0.6-1.3 and b1 2.2-9.2 wavelengths (below 2.2 the
+ripple outgrows the fit). The optimum flare stays at 1.0. A new known case takes
+the ground-plane integral at the default directly, not the fit.
+
+The PIFA on an infinite ground plane with a full-width short, nine plates over h
+0.02-0.05 and W 0.06-0.2 wavelengths: peak directivity 3.4-4.6 dBi, at the
+horizon along the plate (the open edge is a horizontal magnetic current doubled
+by the ground), and 1.2-2.8 dBi straight up. Fitted to 0.04 and 0.18 dB; a finer
+grid moved the peak by 0.04 dB at most and raised broadside 0.2-0.25 dB. The
+placeholder fell inside the range; the known case is a direct run at the finer
+grid. It stays low confidence: a handset's ground plane sets its pattern.
