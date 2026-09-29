@@ -969,7 +969,8 @@
           "symbol": "a",
           "name": "physical radius",
           "unit": "m",
-          "role": "geometry"
+          "role": "geometry",
+          "description": "the radius to build, FDTD-corrected (see radius_factor)"
         },
         {
           "symbol": "F",
@@ -996,6 +997,18 @@
           "name": "k0 * a_eff",
           "unit": "-",
           "role": "derived"
+        },
+        {
+          "symbol": "a_cavity",
+          "name": "cavity-model radius",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "radius_factor",
+          "name": "FDTD radius factor",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1010,7 +1023,7 @@
           "notes": "Balanis 14-65, rewritten in SI. The published constant 8.791e9 yields centimetres; 8.791e7 yields metres, which is what the rest of this toolkit speaks. F is the radius before the fringing correction."
         },
         {
-          "output": "a",
+          "output": "a_cavity",
           "expr": "F/np.sqrt(1 + (2*h/(pi*eps_r*F))*(np.log(pi*F/(2*h)) + 1.7726))",
           "units_out": "m",
           "depends_on": [
@@ -1021,11 +1034,32 @@
           "notes": "Balanis 14-64. The bracket depends only on the ratio h/F, so the formula is unit-agnostic and works directly in metres - the previous version carried factors of 100 to work in centimetres instead."
         },
         {
-          "output": "a_eff",
-          "expr": "a*sqrt(1 + (2*h/(pi*a*eps_r))*(log(pi*a/(2*h)) + 1.7726))",
+          "output": "radius_factor",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-0.142245973)*(h*f0*sqrt(eps_r)/c) + (-0.17464708)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (-7.39895641)*(h*f0*sqrt(eps_r)/c)**2 + (10.5082485)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "f0",
+            "eps_r"
+          ],
+          "notes": "SOLVED by FDTD (otahub.num.patch_fdtd.circular_ringdown: the outline staircased onto the grid, the slab infinite): the factor that brings the cavity-model radius to resonance at f0. Fitted over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 0.065-0.095 on boards solved at three to five cell sizes and extrapolated to zero (1.1% worst), made to vanish as the board thins; held out, eps_r 3.0 and 6.15 land within 0.3%. A staircased curve or slant converges unevenly, so read it as about 1% good. NaN past h sqrt(eps_r)/lambda0 = 0.1."
+        },
+        {
+          "output": "a",
+          "expr": "a_cavity*radius_factor",
           "units_out": "m",
           "depends_on": [
-            "a",
+            "a_cavity",
+            "radius_factor"
+          ],
+          "notes": "The radius to build: the cavity model's times the FDTD factor. Built to the cavity radius alone the patch resonates 2-7% LOW on the boards surveyed - the fringing correction (Balanis 14-64) holds within about 1% on thin board and falls short as the board thickens. Built to this radius, the held-out boards resonate at 0.993 f0 (eps_r 3, 0.05), 0.990 f0 (eps_r 6.15, 0.08)."
+        },
+        {
+          "output": "a_eff",
+          "expr": "a_cavity*sqrt(1 + (2*h/(pi*a_cavity*eps_r))*(log(pi*a_cavity/(2*h)) + 1.7726))",
+          "units_out": "m",
+          "depends_on": [
+            "a_cavity",
             "h",
             "eps_r"
           ],
@@ -1059,7 +1093,7 @@
             "a_eff",
             "eps_r"
           ],
-          "notes": "forward check from the effective radius: must return f0"
+          "notes": "forward check from the cavity model's effective radius: returns f0 to within the 0.3% by which Balanis's radius formula (14-64) inverts his resonance (14-66). It checks the cavity model, not the built radius a, which the FDTD factor has moved."
         },
         {
           "metric": "k0_ae",
@@ -1165,7 +1199,7 @@
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound. The FDTD of this shape (patch_fdtd, on the boards that fixed its size) rings down with a TOTAL Q of 0.73-0.90 of this, falling with thickness and permittivity. Part of that gap is surface-wave power, which this radiation Q leaves out; how much is not separated here, so this Q stays the cavity model's."
         },
         {
           "metric": "probe_radius_m",
@@ -1192,7 +1226,8 @@
         "broadside is the pattern peak throughout that range, checked; it would not be for a much larger k0*a_e",
         "radiation_conductance_S and the resistances derived from it are NOT validated against a published worked example - only the derivation is. The directivity and the feed-position ratio are, and those are the numbers to lean on",
         "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
-        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter"
+        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter",
+        "the radius to build is FDTD-corrected over eps_r 2.2-10.2, h sqrt(eps_r)/lambda0 up to 0.095, about 1% good; the cavity-model metrics (directivity, Q, feed) keep the cavity radius"
       ],
       "known_cases": [
         {
@@ -1241,8 +1276,8 @@
             "h": 0.001588
           },
           "expect": {
-            "a_m": 0.00525,
-            "resonant_frequency_check_hz": 10000000000.0
+            "resonant_frequency_check_hz": 10000000000.0,
+            "a_cavity_m": 0.00525
           },
           "tol_pct": 2.0,
           "source": "Balanis Example 14.4: 10 GHz, eps_r = 2.2, h = 0.1588 cm gives a = 0.525 cm"
@@ -1311,6 +1346,30 @@
           },
           "tol_pct": 0.8,
           "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 13.912, so a VSWR-2 bandwidth of 5.083%. The formula this spec used gave 0.000% - zero, for an air patch."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0192014
+          },
+          "expect": {
+            "a_m": 0.049633437
+          },
+          "tol_pct": 1.0,
+          "source": "The cavity-model size times this board's own FDTD factor (0.9600, from runs at 5 cell sizes extrapolated to zero, not the fit): the radius at which the patch resonates at f0 on eps_r 2.2, h sqrt(eps_r)/lambda0 = 0.095."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 10.2,
+            "h": 0.0061014
+          },
+          "expect": {
+            "a_m": 0.025902797
+          },
+          "tol_pct": 1.0,
+          "source": "The cavity-model size times this board's own FDTD factor (0.9650, from runs at 4 cell sizes extrapolated to zero, not the fit): the radius at which the patch resonates at f0 on eps_r 10.2, h sqrt(eps_r)/lambda0 = 0.065."
         }
       ],
       "references": [
@@ -2003,18 +2062,31 @@
           "symbol": "a_side",
           "name": "triangle side",
           "unit": "m",
-          "role": "geometry"
+          "role": "geometry",
+          "description": "the side to build, FDTD-corrected (see side_factor)"
         },
         {
           "symbol": "a_eff",
           "name": "effective side",
           "unit": "m",
           "role": "derived"
+        },
+        {
+          "symbol": "a_side_cavity",
+          "name": "cavity-model side",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "side_factor",
+          "name": "FDTD side factor",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "a_side",
+          "output": "a_side_cavity",
           "expr": "2*c/(3*f0*sqrt(eps_r)) - h/sqrt(eps_r)",
           "units_out": "m",
           "depends_on": [
@@ -2025,11 +2097,32 @@
           "notes": "Inverted from f_mn = (2c/(3*a_eff*sqrt(eps_r)))*sqrt(m^2+mn+n^2) for the dominant TM10, with the usual a_eff = a + h/sqrt(eps_r) fringing correction backed out."
         },
         {
-          "output": "a_eff",
-          "expr": "a_side + h/sqrt(eps_r)",
+          "output": "side_factor",
+          "expr": "np.where((h*f0*sqrt(eps_r)/c) <= 0.1, exp((-0.332836125)*(h*f0*sqrt(eps_r)/c) + (-1.6846223)*(1/eps_r)*(h*f0*sqrt(eps_r)/c) + (1.66529919)*(h*f0*sqrt(eps_r)/c)**2 + (2.81663938)*(1/eps_r)*(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "h",
+            "f0",
+            "eps_r"
+          ],
+          "notes": "SOLVED by FDTD (otahub.num.patch_fdtd.triangular_ringdown: the outline staircased onto the grid, the slab infinite): the factor that brings the cavity-model side to resonance at f0. Fitted over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 0.065-0.095 on boards solved at three to five cell sizes and extrapolated to zero (0.5% worst), made to vanish as the board thins; held out, eps_r 3.0 and 6.15 land within 0.7%. A staircased curve or slant converges unevenly, so read it as about 2% good. NaN past h sqrt(eps_r)/lambda0 = 0.1."
+        },
+        {
+          "output": "a_side",
+          "expr": "a_side_cavity*side_factor",
           "units_out": "m",
           "depends_on": [
-            "a_side",
+            "a_side_cavity",
+            "side_factor"
+          ],
+          "notes": "The side to build: the cavity model's times the FDTD factor. Built to the cavity side alone the patch resonates 2-7% LOW on the boards surveyed - the first-order a + h/sqrt(eps_r) fringing correction is short even on thin board at low permittivity, as this spec's own validity feared. Built to this side, the held-out boards resonate at 1.005 f0 (eps_r 3, 0.05), 1.006 f0 (eps_r 6.15, 0.08)."
+        },
+        {
+          "output": "a_eff",
+          "expr": "a_side_cavity + h/sqrt(eps_r)",
+          "units_out": "m",
+          "depends_on": [
+            "a_side_cavity",
             "eps_r",
             "h"
           ]
@@ -2059,10 +2152,10 @@
         },
         {
           "metric": "area_m2",
-          "expr": "sqrt(3)/4*a_side**2",
+          "expr": "sqrt(3)/4*a_side_cavity**2",
           "units_out": "m^2",
           "depends_on": [
-            "a_side"
+            "a_side_cavity"
           ]
         },
         {
@@ -2164,7 +2257,7 @@
             "h",
             "f0"
           ],
-          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound."
+          "notes": "Q = omega W / P from otahub.num.patch_q: the cavity mode's stored energy against the space wave of the patch's own surface current on its grounded substrate (the transverse-equivalent-network slab factors - no surface waves, no loss). Fitted as ln(Q (h/lambda0) c1/eps_r) in 1/eps_r and h sqrt(eps_r)/lambda0, with Jackson's c1 = 1 - 1/eps_r + 0.4/eps_r^2 carrying the thin-substrate law, over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1: 0.49% worst on 201 solved designs, 0.24% on 10 held out. The arbiter reproduces Jackson's c1 to 0.02% for a vanishing patch on a thin substrate, and on air its broadside directivity matches the cavity model's edge-current integrals to 0.06%. NOT checked full-wave: for the rectangular patch the full-wave radiation Q is 1.6-22% below this same cavity-current model (least on thin board, most on thick), so treat this Q as an upper bound on thicker board and the bandwidth as a lower bound. The FDTD of this shape (patch_fdtd, on the boards that fixed its size) rings down with a TOTAL Q of 0.54-0.85 of this, falling with thickness and permittivity. Part of that gap is surface-wave power, which this radiation Q leaves out; how much is not separated here, so this Q stays the cavity model's."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -2183,7 +2276,8 @@
         "the thin-substrate directivity fit covers k0*a_eff 0.90 to 4.25, i.e. eps_r about 1 to 21; below that range it still tends to the correct limit of 3, above it the polynomial diverges",
         "directivity is the lossless cavity-model value on an infinite ground plane: no conductor or dielectric loss, no surface-wave power, no finite-ground diffraction",
         "radiation Q and bandwidth are solved and fitted over 1 <= eps_r <= 12, 0.003 <= h/lambda0 <= 0.05 and h*sqrt(eps_r)/lambda0 <= 0.1; lossless, and surface waves are not counted",
-        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter"
+        "the substrate directivity factor is fitted over eps_r 1-12, h sqrt(eps_r)/lambda0 <= 0.1; the directivity is NaN past the latter",
+        "the side to build is FDTD-corrected over eps_r 2.2-10.2, h sqrt(eps_r)/lambda0 up to 0.095, about 2% good; the cavity-model metrics (directivity, Q, feed) keep the cavity side"
       ],
       "known_cases": [
         {
@@ -2193,9 +2287,9 @@
             "h": 0.0016
           },
           "expect": {
-            "a_side": 0.133672,
             "side_over_guided_wavelength": 0.66667,
-            "resonant_frequency_check_hz": 1000000000.0
+            "resonant_frequency_check_hz": 1000000000.0,
+            "a_side_cavity": 0.133672
           },
           "tol_pct": 0.5,
           "source": "f = 2c/(3*a*sqrt(eps_r)) gives a_eff = 134.75 mm at 1 GHz on eps_r = 2.2, less the 1.08 mm fringing correction. The side is exactly two thirds of a guided wavelength for the dominant mode, whatever the substrate."
@@ -2319,6 +2413,30 @@
           },
           "tol_pct": 0.8,
           "source": "Radiation Q solved directly by otahub.num.patch_q for this design (not from the fit): 24.906, so a VSWR-2 bandwidth of 2.839%. The formula this spec used gave 0.000% - zero, for an air patch."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 2.2,
+            "h": 0.0192014
+          },
+          "expect": {
+            "a_side": 0.112474416
+          },
+          "tol_pct": 1.0,
+          "source": "The cavity-model size times this board's own FDTD factor (0.9234, from runs at 5 cell sizes extrapolated to zero, not the fit): the side at which the patch resonates at f0 on eps_r 2.2, h sqrt(eps_r)/lambda0 = 0.095."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "eps_r": 4.4,
+            "h": 0.00929
+          },
+          "expect": {
+            "a_side": 0.087526778
+          },
+          "tol_pct": 1.0,
+          "source": "The cavity-model size times this board's own FDTD factor (0.9634, from runs at 4 cell sizes extrapolated to zero, not the fit): the side at which the patch resonates at f0 on eps_r 4.4, h sqrt(eps_r)/lambda0 = 0.065."
         }
       ],
       "references": [

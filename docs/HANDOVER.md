@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-22,530 lines of Python, 25,076 lines of spec data, 3078 tests, 1043/1043 citable
+22,708 lines of Python, 25,194 lines of spec data, 3101 tests, 1047/1047 citable
 known cases passing.**
 
 ---
@@ -741,6 +741,7 @@ known case only checks what it asserts.
 | `quarter_wave_shorted_patch` | Its length corrected the open edge with the full patch's full-wave ratio and quoted the shorting wall's remainder as 1-3% low, from three thin boards. A half-space FDTD survey of its own patch - eleven boards, eps_r 2.2 to 10.2 and h sqrt(eps_r)/lambda0 0.035 to 0.095, 4 to 12 cells across the slab, extrapolated to zero cell size - found it 1.2-11% low, most on thick low-permittivity board (eps_r 2.2 at 0.095: 0.894 f0), because the wall's inductance grows with its height. The wall now has its own length factor, up to 12% shorter; built to it, held-out boards resonate at 0.998 (eps_r 3.0), 0.997-1.000 (6.15) and 0.988-0.990 f0 (2.5 at 0.085) |
 | `bowtie` | Its directivity (2.3 dBi) and bandwidth (4:1) were indicative. Solved with the planar RWG solver: broadside directivity at f_low is 2.30-2.53 dBi for flares 30-90 degrees - right at f_low - but not 'fairly flat with frequency': the 90-degree bowtie's broadside climbs to 3.5 dBi at 1.75 f_low and the beam then splits (-3.7 dBi at 3 f_low, -19 at 3.5). Its f_low impedance is 148-208 ohm with +135 to +186 ohm reactance, not Mushiake's 188, which it approaches (166-216 ohm) only from 2.5 f_low; against eta0/2 it holds VSWR 2 from f_low to at least 4 f_low. Directivity and the f_low impedance are now solved, over flare |
 | `archimedean_spiral`, `equiangular_spiral` | Both put f_low where the outer circumference is one wavelength and quoted about 1.8 dBi (1.5) per side and an axial ratio near 1 dB. Solved: at f_low the axial ratio is 16 and 21 dB - not circular - and falls through 3 dB only at 1.33 f_low (Archimedean, six turns) and 2.29 f_low (equiangular, a = 0.221), by bisection of direct solves; the broadside directivity is 3.5-2.7 dBi at f_low rising to about 6 dBi at 4 f_low, 5.5 and 5.2 dBi at the band's geometric middle. The input impedance depends on the feed region (the equiangular spiral's moved 154 - j67 to 188 - j43 ohm when only its inner radius changed, its axial ratio 0.15 dB), so Mushiake's 188 stays the infinite sheet's. The circular-polarisation band edge, directivity and axial ratio are now solved for the specs' geometries |
+| `circular_patch`, `triangular_patch` | Both sized the patch by the cavity model with a fringing correction and called the resonance an upper bound on thick board, without a solver of their shape to say by how much. The FDTD with the outline staircased onto the grid, over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 up to 0.095, extrapolated from three to five cell sizes: the disc resonates about 1% low on thin board and 2-7% low on thick, the triangle 1-5% low on thin board (its a + h/sqrt(eps_r) is weakest at low permittivity) and 2-7% on thick. The specs build the cavity size times a fitted factor; held-out boards built to it land within 1% of f0. Staircased outlines converge unevenly, so the factor is about 1% good |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -811,9 +812,15 @@ newly found - and the project is tagged v2.0. Groups A and B are out of scope.
 7. **A two-layer spectral MoM with a feed model** for `stacked_patch`: its gap
    and size ratio. The FDTD shows the default stack's two modes 25-38% apart,
    not straddling f0, so the stack needs a real design tool.
-8. **Full-wave solvers of their own shape** for the circular and triangular
-   patches (the spectral MoM is rectangles only); their resonance and Q are the
-   cavity model's through the slab, labelled as upper bounds on thick board.
+8. ~~**Full-wave solvers of their own shape** for the circular and triangular
+   patches.~~ Done under Finish line 2 by FDTD: `patch_fdtd.sheet_ringdown`
+   takes any outline, staircased (`circular_ringdown`, `triangular_ringdown`).
+   Built to the cavity size both resonate 2-7% low on thick board, the triangle
+   5% low even on thin eps_r 2.2 board; the specs now build the cavity size times
+   a fitted FDTD factor, and held-out boards built to it resonate within 1% of
+   f0. Their total Q is 0.54-0.90 of the cavity radiation Q; separating the
+   surface-wave share, to decide whether that Q is right, is new future work
+   (a slab-aware far-field transform, or a MoM of these shapes).
 9. **A far-field transform in the FDTD,** which would give the PIFA a
    directivity (on an infinite ground plane; a finite one is item 3), and would
    settle the sectoral horns' gain across their waveguide-sized dimension, where

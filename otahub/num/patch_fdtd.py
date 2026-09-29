@@ -21,7 +21,7 @@ import numpy as np
 
 from .dra import _Yee, matrix_pencil
 
-__all__ = ["ringdown", "extrapolate", "shorted_ringdown"]
+__all__ = ["ringdown", "extrapolate", "shorted_ringdown", "sheet_ringdown", "circular_ringdown", "triangular_ringdown"]
 
 
 def ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, air: int | None = None,
@@ -123,3 +123,90 @@ def shorted_ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, ai
     ok = (f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
     k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
     return float(f[k]), float(q[k])
+
+
+# ---------------------------------------------------------------- any outline: the circle and the triangle
+#
+# The sheet is a mask over the tangential-E sites of its plane: an Ex edge (x = i + 1/2,
+# y = j) or Ey edge (x = i, y = j + 1/2) is zeroed where it lies inside the outline, so a
+# curved or slanted edge becomes a staircase that converges as the cells shrink. The
+# x = 0 plane is a magnetic wall either way; `half` models y in full (CPML on both
+# ends, like `shorted_ringdown`) for outlines with no mirror plane along y.
+
+def _sheet_run(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max: float, f_guess: float,
+               src: tuple[int, int], half: bool = False, short_y: float | None = None,
+               air: int | None = None, npml: int = 12, periods: float = 30.0, dtype=np.float32):
+    """The engine behind `sheet_ringdown`: returns (f, Q, None)."""
+    lam = 1.0 / f_guess
+    air = air or int(0.15 * lam) + 4
+    j0 = (npml + air - int(math.floor(y_min))) if half else 0          # the outline's y = 0 on the grid
+    nx = int(math.ceil(x_max)) + air + npml
+    ny = j0 + int(math.ceil(y_max)) + air + npml
+    shape = (nx, ny, nh + air + npml)
+    grid = _YeeHalf if half else _Yee
+    g = grid(shape, lambda x, y, z: np.where(z < nh, eps_r, 1.0) + 0 * x + 0 * y, npml, dtype)
+    i = np.arange(nx + 1)
+    j = np.arange(ny + 1)
+    ex = inside((i[:nx] + 0.5)[:, None], (j[:, None] - j0).T)           # (nx, ny + 1)
+    ey = inside(i[:, None] + 0 * j[None, :ny], (j[None, :ny] + 0.5 - j0) + 0 * i[:, None])   # (nx + 1, ny)
+    ex, ey = np.broadcast_to(ex, (nx, ny + 1)), np.broadcast_to(ey, (nx + 1, ny))
+    if short_y is not None:                      # a full-height wall on the grid plane y = short_y, where the sheet meets it
+        js = int(round(short_y)) + j0
+        wx = ex[:, js].copy()                    # Ex edges of the wall, ground to sheet
+        wz = np.zeros(nx + 1, bool)              # Ez sites beside them
+        wz[:nx] |= wx
+        wz[1:] |= wx
+    tau = 0.5 / f_guess
+    t0 = 3.0 * tau
+    steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
+    start = int((t0 + 3.0 * tau) / g.dt)
+    si, sj = src[0], src[1] + j0
+    ks = nh // 2
+    dec = max(1, int(1.0 / (20.0 * f_guess * g.dt)))
+    probe = np.empty(steps)
+    for n in range(steps):
+        g.step()
+        g.Ex[:, :, nh][ex] = 0.0
+        g.Ey[:, :, nh][ey] = 0.0
+        if short_y is not None:
+            g.Ex[:, js, :nh + 1][wx] = 0.0
+            g.Ez[:, js, :nh][wz] = 0.0
+        t = (n + 1) * g.dt
+        g.Ez[si, sj, ks] += math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
+        probe[n] = g.Ez[si + 1, sj - 1, ks]
+    s, a = matrix_pencil(probe[start::dec], dec * g.dt, modes=20)
+    f = s.imag / (2 * math.pi)
+    q = s.imag / (-2.0 * s.real)
+    ok = (f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
+    k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
+    return float(f[k]), float(q[k]), None
+
+
+def sheet_ringdown(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max: float, f_guess: float,
+                   src: tuple[int, int], half: bool = False, air: int | None = None, npml: int = 12,
+                   periods: float = 30.0, dtype=np.float32) -> tuple[float, float]:
+    """(frequency in cycles per cell-time, total Q) of the dominant mode of a sheet on the
+    slab whose outline is inside(x, y) -> bool, in cells, x >= 0 (the x = 0 magnetic wall
+    halves it), y from y_min to y_max. src = (i, j): the source and probe column, in the
+    outline's own coordinates, near an edge where the mode is strong."""
+    f, q, _ = _sheet_run(eps_r, nh, inside, x_max, y_min, y_max, f_guess, src, half=half, air=air, npml=npml,
+                         periods=periods, dtype=dtype)
+    return f, q
+
+
+def circular_ringdown(eps_r: float, nh: int, radius: float, f_guess: float, **kw) -> tuple[float, float]:
+    """The circular patch's TM11 mode: a disc of `radius` cells (not necessarily whole),
+    centred on the origin - odd in y and even in x, so the quarter-space grid holds it."""
+    return sheet_ringdown(eps_r, nh, lambda x, y: x * x + y * y <= radius * radius, radius, 0.0, radius,
+                          f_guess, (0, int(radius) - 2), **kw)
+
+
+def triangular_ringdown(eps_r: float, nh: int, side: float, f_guess: float, **kw) -> tuple[float, float]:
+    """The equilateral triangle's TM10 mode, the member of the degenerate pair even about
+    the median through its apex: apex on +y, centroid at the origin, side `side` cells."""
+    ht = side * math.sqrt(3.0) / 2.0
+    ya, yb = 2.0 * ht / 3.0, -ht / 3.0
+
+    def inside(x, y):
+        return (y >= yb) & (y <= ya) & (np.abs(x) <= 0.5 * side * (ya - y) / ht)
+    return sheet_ringdown(eps_r, nh, inside, 0.5 * side, yb, ya, f_guess, (0, int(ya) - 2), half=True, **kw)
