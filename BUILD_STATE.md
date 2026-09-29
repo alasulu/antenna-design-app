@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3078 tests, 1043/1043 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3101 tests, 1047/1047 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3543,3 +3543,45 @@ The spirals (10:1, the Archimedean with six turns, the equiangular a = 0.221):
 The specs now carry the solved directivity, axial ratio and circular-polarisation
 band edge for the geometries solved (NaN otherwise), the bowtie's f_low impedance
 over flare, and three new known cases (seven expectations) from direct solves.
+
+## The circular and triangular patches in their own shapes
+
+Finish line 2, item C.8.
+
+Both specs sized the patch by the cavity model with a fringing correction -
+Balanis's 14-64 for the disc, the first-order a + h/sqrt(eps_r) for the
+triangle - and labelled the resonance an upper bound on thick board, with no
+solver of their shape to say by how much. The spectral MoM holds rectangles only;
+the FDTD holds any outline. `patch_fdtd.sheet_ringdown` takes the sheet as a mask
+over the grid's tangential-E sites (a rectangle through it reproduces `ringdown`
+bit for bit, and a shorted rectangle `shorted_ringdown`), with
+`circular_ringdown` (TM11, quarter space) and `triangular_ringdown` (TM10, the
+member of the degenerate pair even about the median, half space).
+
+The survey built each spec's own patch on eleven boards - eps_r 2.2, 4.4 and
+10.2 at h sqrt(eps_r)/lambda0 = 0.035, 0.065 and 0.095, plus 3.0 at 0.05 and
+6.15 at 0.08 held out - at 4 to 12 cells across the slab, 82 runs. What it
+found:
+- the disc resonates about 1% low on thin board and 2-7% low on thick;
+- the triangle is 1-5% low even on thin board - 5% at eps_r 2.2, where its own
+  validity note feared the first-order correction was weakest - and 2-7% on
+  thick;
+- a staircased curve or slant converges unevenly: the enclosed area jumps as
+  the cells shrink, so single boards extrapolate with about 1-2% of scatter,
+  and two grids are not enough (one thin eps_r 10.2 triangle extrapolated to
+  1.025 from two). The fit uses boards with three or more grids only;
+- the FDTD's total Q is 0.73-0.90 of the disc's cavity radiation Q and
+  0.54-0.85 of the triangle's, falling with thickness and permittivity. Part is
+  surface-wave power, which the radiation Q leaves out; how much is not separated
+  here, so the Q metrics stay the cavity model's, with the comparison in their
+  notes and the separation in section 6 as future work.
+
+The specs now keep the cavity size as `a_cavity` / `a_side_cavity` - the
+directivity, Q, feed and the forward check still run on it - and build `a` /
+`a_side` = cavity size times `radius_factor` / `side_factor`, ln g = x (c0 +
+c1/eps_r + c2 x + c3 x/eps_r), fitted to 1.1% and vanishing on thin board. Held
+out, patches built to the corrected size resonate at 0.990-0.997 f0 (disc) and
+0.999-1.010 (triangle), depending on the extrapolation. Four new known cases
+take a board's own measured factor, not the fit. The disc's forward-check note
+said "must return f0"; it returns f0 to the 0.3% by which Balanis's 14-64 inverts
+his 14-66, and now says so.
