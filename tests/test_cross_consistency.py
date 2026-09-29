@@ -388,9 +388,11 @@ def test_horn_gain_agrees_with_the_published_directivity_expression(syn):
     for key, guide, flares in (
             ("e_plane_sectoral_horn", {"a_wg": 0.02286}, (0.6, 0.8, 1.0, 1.2, 1.4)),
             ("h_plane_sectoral_horn", {"b_wg": 0.01016}, (0.6, 1.0, 1.4))):
+        # the E-plane horn's gain_dbi adds the FDTD-confirmed correction for its narrow a_wg
+        metric = "gain_aperture_power_dbi" if key.startswith("e_") else "gain_dbi"
         for flare in flares:
             d = syn(key, f0=10e9, rho=0.3, flare=flare, **guide)
-            from_aperture = 10 ** (d.metrics["gain_dbi"] / 10)
+            from_aperture = 10 ** (d.metrics[metric] / 10)
             assert d.metrics["directivity_balanis_form"] == pytest.approx(
                 from_aperture, rel=1e-12), f"{key} at flare {flare}"
 

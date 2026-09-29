@@ -1,13 +1,14 @@
 """Sectoral horns across their unflared, waveguide-sized dimension.
 
-Their gain is the aperture-power form (Balanis): 4 pi |int E|^2 / (lambda^2 int
-|E|^2), exact for large apertures. The open-ended waveguide showed it reads a
-small aperture 2 dB low. A sectoral horn keeps one dimension at waveguide size,
-so its far field is integrated here under two aperture models - a Huygens
-aperture radiating into all space, and the same aperture in a ground plane
-(checked against the open-ended guide's verified value) - to pin how far the
-conventional figure sits below both, and that the two disagree with each other:
-a full-wave solve would have to decide, which is recorded as future work.
+The aperture-power form (Balanis), 4 pi |int E|^2 / (lambda^2 int |E|^2), is
+exact for large apertures; the open-ended waveguide showed it reads a small one
+2 dB low. A sectoral horn keeps one dimension at waveguide size, so its far field
+is integrated here under two aperture models - a Huygens aperture radiating into
+all space, and the same aperture in a ground plane (checked against the open-ended
+guide's verified value). The two disagree by about a decibel; the FDTD of the whole
+horn (tests/test_fdtd_farfield.py) decided between them: the ground plane for the
+E-plane horn, whose gain_dbi now carries its difference from the aperture-power
+form, and the aperture-power form itself for the H-plane horn.
 """
 from __future__ import annotations
 
@@ -52,7 +53,7 @@ def test_the_ground_plane_branch_is_the_open_ended_guides():
     assert ground == pytest.approx(6.309, abs=0.01)
 
 
-def test_the_h_plane_horn_reads_low_and_the_models_disagree(registry):
+def test_the_h_plane_horn_keeps_the_aperture_power_form(registry):
     d = registry["h_plane_sectoral_horn"].synthesize(f0=10e9, b_wg=0.01016, rho=0.3)
     a1, b = d.get("a1") / LAM, 0.01016 / LAM
     ap, huy, gnd = _directivities(a1, b, True, 0.0, (a1 ** 2) / (8 * 0.3 / LAM))
@@ -61,9 +62,25 @@ def test_the_h_plane_horn_reads_low_and_the_models_disagree(registry):
     assert huy - gnd > 0.9                       # the aperture models themselves disagree by a decibel
 
 
-def test_the_e_plane_horn_reads_low_and_the_models_disagree(registry):
+def test_the_e_plane_horn_gain_is_the_ground_plane_aperture(registry):
     d = registry["e_plane_sectoral_horn"].synthesize(f0=10e9, a_wg=0.02286, rho=0.3)
     aw, b1 = 0.02286 / LAM, d.get("b1") / LAM
     ap, huy, gnd = _directivities(aw, b1, True, (b1 ** 2) / (8 * 0.3 / LAM), 0.0)
-    assert d.metrics["gain_dbi"] == pytest.approx(ap, abs=0.01)
+    assert d.metrics["gain_aperture_power_dbi"] == pytest.approx(ap, abs=0.01)
     assert 0.1 < huy - ap < 0.35 and 1.0 < gnd - ap < 1.25
+    assert d.metrics["gain_dbi"] == pytest.approx(gnd, abs=0.05)   # the fitted correction
+
+
+@pytest.mark.parametrize("a, rho, flare", [(0.62, 7.0, 0.8), (0.95, 15.0, 1.15), (1.4, 5.0, 0.7), (1.9, 20.0, 1.25)])
+def test_the_e_plane_correction_holds_between_its_fitting_points(registry, a, rho, flare):
+    d = registry["e_plane_sectoral_horn"].synthesize(f0=10e9, a_wg=a * LAM, rho=rho * LAM, flare=flare)
+    b1 = d.get("b1") / LAM
+    ap, _, gnd = _directivities(a, b1, True, b1 ** 2 / (8 * rho), 0.0)
+    assert d.metrics["gain_aperture_power_dbi"] == pytest.approx(ap, abs=0.01)
+    assert d.metrics["gain_dbi"] == pytest.approx(gnd, abs=0.05)
+
+
+def test_the_e_plane_correction_is_nan_outside_its_range(registry):
+    for a, rho in ((0.5, 10.0), (2.5, 10.0), (0.8, 2.0)):        # the last has b1 = 2 wavelengths
+        d = registry["e_plane_sectoral_horn"].synthesize(f0=10e9, a_wg=a * LAM, rho=rho * LAM)
+        assert math.isnan(d.metrics["gain_dbi"]) and not math.isnan(d.metrics["gain_aperture_power_dbi"])

@@ -21,7 +21,8 @@ import numpy as np
 
 from .dra import _Yee, matrix_pencil
 
-__all__ = ["ringdown", "extrapolate", "shorted_ringdown", "sheet_ringdown", "circular_ringdown", "triangular_ringdown"]
+__all__ = ["ringdown", "extrapolate", "shorted_ringdown", "sheet_ringdown", "circular_ringdown", "triangular_ringdown",
+           "sheet_directivity"]
 
 
 def ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, air: int | None = None,
@@ -134,9 +135,12 @@ def shorted_ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, ai
 # ends, like `shorted_ringdown`) for outlines with no mirror plane along y.
 
 def _sheet_run(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max: float, f_guess: float,
-               src: tuple[int, int], half: bool = False, short_y: float | None = None,
+               src: tuple[int, int], half: bool = False, short_y: float | None = None, box_gap: int | None = None,
                air: int | None = None, npml: int = 12, periods: float = 30.0, dtype=np.float32):
-    """The engine behind `sheet_ringdown`: returns (f, Q, None)."""
+    """The engine behind `sheet_ringdown` and `sheet_directivity`: returns (f, Q, box), box
+    being a `horn_fdtd.BoxTransform` round the sheet (box_gap cells clear of it) whose
+    frequency is set after the run - it records the whole run at a band of trial
+    frequencies and keeps the one nearest the resonance found."""
     lam = 1.0 / f_guess
     air = air or int(0.15 * lam) + 4
     j0 = (npml + air - int(math.floor(y_min))) if half else 0          # the outline's y = 0 on the grid
@@ -164,6 +168,14 @@ def _sheet_run(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max:
     ks = nh // 2
     dec = max(1, int(1.0 / (20.0 * f_guess * g.dt)))
     probe = np.empty(steps)
+    boxes = []
+    if box_gap is not None:
+        from .horn_fdtd import BoxTransform
+        bi0 = int(math.ceil(x_max)) + box_gap
+        bj0 = j0 + int(math.ceil(y_max)) + box_gap
+        bjl = (j0 + int(math.floor(y_min)) - box_gap) if half else None
+        bk0 = nh + box_gap
+        boxes = [BoxTransform(bi0, bj0, bk0, f_guess * r, g.dt, j_lo=bjl) for r in np.linspace(0.8, 1.2, 41)]
     for n in range(steps):
         g.step()
         g.Ex[:, :, nh][ex] = 0.0
@@ -174,12 +186,15 @@ def _sheet_run(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max:
         t = (n + 1) * g.dt
         g.Ez[si, sj, ks] += math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
         probe[n] = g.Ez[si + 1, sj - 1, ks]
+        for b in boxes:
+            b.record(g, n)
     s, a = matrix_pencil(probe[start::dec], dec * g.dt, modes=20)
     f = s.imag / (2 * math.pi)
     q = s.imag / (-2.0 * s.real)
     ok = (f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
     k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
-    return float(f[k]), float(q[k]), None
+    box = min(boxes, key=lambda b: abs(b.f - f[k])) if boxes else None
+    return float(f[k]), float(q[k]), box
 
 
 def sheet_ringdown(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max: float, f_guess: float,
@@ -210,3 +225,17 @@ def triangular_ringdown(eps_r: float, nh: int, side: float, f_guess: float, **kw
     def inside(x, y):
         return (y >= yb) & (y <= ya) & (np.abs(x) <= 0.5 * side * (ya - y) / ht)
     return sheet_ringdown(eps_r, nh, inside, 0.5 * side, yb, ya, f_guess, (0, int(ya) - 2), half=True, **kw)
+
+
+def sheet_directivity(eps_r: float, nh: int, inside, x_max: float, y_min: float, y_max: float, f_guess: float,
+                      src: tuple[int, int], half: bool = False, short_y: float | None = None, box_gap: int = 6,
+                      **kw) -> dict:
+    """Ring-down plus the closed box transform (horn_fdtd.BoxTransform) round the sheet: the
+    resonance, total Q and the directivity at broadside, over the half space above the
+    ground. The box's side faces cross the slab, where free-space equivalent currents are
+    not exact - use it on air plates (a PIFA), where they are. The DFT frequency is the
+    nearest of 41 trial frequencies (0.8-1.2 f_guess) to the resonance, within 0.5% of it."""
+    f, q, box = _sheet_run(eps_r, nh, inside, x_max, y_min, y_max, f_guess, src, half=half, short_y=short_y,
+                           box_gap=box_gap, **kw)
+    d_peak, th, ph = box.peak()
+    return dict(f=f, q=q, directivity=box.directivity(), peak=d_peak, peak_theta=th, peak_phi=ph, f_dft=box.f)

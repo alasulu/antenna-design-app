@@ -628,7 +628,7 @@
           ]
         },
         {
-          "metric": "gain_dbi",
+          "metric": "gain_aperture_power_dbi",
           "expr": "db10(aperture_efficiency*4*pi*b1*a_wg*(f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
@@ -637,7 +637,21 @@
             "a_wg",
             "f0"
           ],
-          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2), which takes the radiated power to be the power crossing the aperture. That is exact for a large aperture; across the unflared dimension, a_wg (0.76 wavelengths for WR-90 at 10 GHz), it is not. Integrating the far field instead puts the default horn (14.44 dBi here) 0.2 to 1.1 dB higher, depending on the aperture model - a Huygens aperture radiating into all space, or the same aperture in a ground plane - and the two models disagree with each other by about 1 dB there. Only a full-wave solve of the horn can say which; until then this figure is the conventional one, and a real horn is likely to read somewhat higher."
+          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2), the radiated power taken as the power crossing the aperture - exact for a large aperture, and LOW across the unflared a_wg: the FDTD of the whole horn (gain_dbi) puts it 0.7 to 1.6 dB low for a_wg 0.9 down to 0.65 wavelengths. Kept for the textbook comparison; directivity_balanis_form must equal it."
+        },
+        {
+          "metric": "gain_dbi",
+          "expr": "np.where((a_wg*f0/c >= 0.55)*(a_wg*f0/c <= 2.2)*(q_e >= 0.6)*(q_e <= 1.3)*(b1*f0/c >= 2.199)*(b1*f0/c <= 9.2), gain_aperture_power_dbi + ((-0.104843146) + (0.583705474)*((lambda0/a_wg)**2) + (0.122777308)*((lambda0/a_wg)**2)**2 + (-0.0307820333)*((lambda0/a_wg)**2)**3 + (0.054259772)*(q_e) + (0.030212353)*(q_e)**2 + (-0.0247234301)*((lambda0/a_wg)**2)*(q_e) + (0.00301058468)*((lambda0/a_wg)**2)**2*(q_e) + (0.00602375326)*((lambda0/a_wg)**2)*(q_e)**2 + (0.432441751)*((lambda0/b1)) + (-2.60000622)*((lambda0/b1))**2 + (2.89460474)*((lambda0/b1))**3 + (0.976169658)*((lambda0/b1))*(q_e) + (0.23217488)*((lambda0/b1))**2*(q_e) + (-1.18633475)*((lambda0/b1))*(q_e)**2 + (0.0598369822)*((sin(2*pi*b1/lambda0)*(lambda0/b1)**2)) + (0.00403249773)*((cos(2*pi*b1/lambda0)*(lambda0/b1)**2)) + (0.192186138)*((sin(2*pi*b1/lambda0)*(lambda0/b1)**2))*(q_e) + (0.0498599834)*((cos(2*pi*b1/lambda0)*(lambda0/b1)**2))*(q_e) + (0.0026534943)*((lambda0/a_wg)**2)*((lambda0/b1))), inf - inf)",
+          "units_out": "dBi",
+          "depends_on": [
+            "gain_aperture_power_dbi",
+            "a_wg",
+            "b1",
+            "q_e",
+            "f0",
+            "lambda0"
+          ],
+          "notes": "SOLVED: the FDTD of the whole free-standing horn (otahub.num.horn_fdtd.sectoral_horn: TE10 from a back short, thin walls, open space all round, a closed near-to-far-field box) settles which aperture model is right across the unflared dimension - the aperture in a ground plane, which the FDTD meets to -0.14 to +0.09 dB over a_wg 0.65-2.0 wavelengths and rho 6-10, while the aperture-power form reads 0.7-1.6 dB low and the Huygens aperture 0.6-1.1 dB low. It is the aperture-power gain plus the ground-plane model's difference: smooth in (lambda/a_wg)^2, the flare and lambda/b1, plus the ripple of the b1 edges (period one wavelength in b1, decaying as 1/b1^2), fitted over a_wg 0.55-2.2 wavelengths, flare 0.6-1.3 and b1 2.2-9.2 wavelengths - 0.04 dB worst on 400 grid points, 0.03 on 60 random ones held out; NaN outside. Below b1 of 2.2 wavelengths the ripple outgrows the fit. At the default, 15.6 dBi, not the 14.4 this spec used to give."
         },
         {
           "metric": "directivity_balanis_form",
@@ -678,8 +692,8 @@
       "validity": [
         "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
         "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
-        "b1 and a_wg must both be at least a wavelength or the aperture model fails",
-        "gain is the aperture-power (Balanis) form; with one aperture dimension at waveguide size, far-field aperture models put it 0.2 to 1.1 dB higher at the default, and only a full-wave solve can settle which"
+        "b1 must be at least a wavelength or the aperture model fails; a_wg may be smaller, down to 0.55 wavelengths, in gain_dbi",
+        "gain_dbi is the aperture-power gain plus a correction fitted to the aperture in a ground plane, which a full-wave FDTD of the free-standing horn meets to 0.15 dB over a_wg 0.65-2.0 wavelengths; NaN outside a_wg 0.55-2.2 wavelengths, flare 0.6-1.3 and b1 2.2-9.2 wavelengths"
       ],
       "known_cases": [
         {
@@ -743,7 +757,7 @@
             "flare": 1.0
           },
           "expect": {
-            "gain_dbi": 14.441763
+            "gain_aperture_power_dbi": 14.441763
           },
           "tol_pct": 0.2,
           "source": "the aperture form and Balanis 13-19 must agree, which is what directivity_balanis_form is there to show"
@@ -773,6 +787,19 @@
           },
           "tol_pct": 1.0,
           "source": "Aperture integration solved directly (otahub.num.horn_pattern) at this design's D = 5.592 wavelengths and edge phase error 0.391: 11.1581 degrees, 62.4 lambda/D. Over-flared by a quarter: the old 54 lambda/b1 was 13% narrow."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "a_wg": 0.02286,
+            "rho": 0.3,
+            "flare": 1.0
+          },
+          "expect": {
+            "gain_dbi": 15.5897
+          },
+          "tol_pct": 0.7,
+          "source": "The aperture in a ground plane integrated directly at this design (a_wg = 0.7625, b1 = 4.4737 wavelengths, not the fit) - the model the FDTD of the free-standing horn meets to 0.1 dB: 15.62 dBi on its own grid."
         }
       ],
       "references": [
@@ -903,7 +930,7 @@
             "b_wg",
             "f0"
           ],
-          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2), which takes the radiated power to be the power crossing the aperture. That is exact for a large aperture; across the unflared dimension, b_wg (0.34 wavelengths for WR-90 at 10 GHz), it is not. Integrating the far field instead puts the default horn (11.76 dBi here) 0.6 to 1.7 dB higher, depending on the aperture model - a Huygens aperture radiating into all space, or the same aperture in a ground plane - and the two models disagree with each other by about 1 dB there. Only a full-wave solve of the horn can say which; until then this figure is the conventional one, and a real horn is likely to read somewhat higher."
+          "notes": "The aperture-power form (Balanis): directivity as 4 pi |int E|^2/(lambda^2 int |E|^2). The FDTD of the whole free-standing horn (otahub.num.horn_fdtd) settles the question of its unflared, waveguide-sized dimension: at the default it sits -0.30 to -0.23 dB from this form on three grids, so this form is the one to use - the Huygens aperture reads about 2 dB high and the aperture in a ground plane about 1 dB high. The gap closes as b_wg grows (-0.25 dB at 0.5 wavelengths, +0.01 at 2). A first FDTD with an infinite plane behind the throat read it 4 dB low: that plane mirrored the thin horn's edge radiation back into the beam."
         },
         {
           "metric": "directivity_balanis_form",
@@ -946,7 +973,7 @@
         "aperture-field model: uniform in the unflared plane, quadratic phase in the flared one. It ignores the flare's own edge diffraction and any reflection at the throat",
         "the efficiency expression is exact for ANY flare, but the beamwidth figure is indicative and only near the optimum",
         "b1 and a_wg must both be at least a wavelength or the aperture model fails",
-        "gain is the aperture-power (Balanis) form; with one aperture dimension at waveguide size, far-field aperture models put it 0.6 to 1.7 dB higher at the default, and only a full-wave solve can settle which"
+        "gain is the aperture-power (Balanis) form, which a full-wave FDTD of the free-standing horn puts 0.2-0.3 dB high at the default (b_wg 0.34 wavelengths) and within 0.05 dB at b_wg of a wavelength; the far-field aperture models read 1-2 dB high there"
       ],
       "known_cases": [
         {
@@ -1520,7 +1547,7 @@
             "b_wg",
             "f0"
           ],
-          "notes": "SOLVED: the TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane, radiating into the half space - the x-directed magnetic current 2E over the plane, its pattern integrated over the hemisphere, and independently the same aperture as a dense grid of magnetic dipoles summed through the exact planar power kernel (otahub.arrays): the two agree to 0.003 dB, and a vanishing aperture returns the magnetic dipole's 4.77 dBi. Fitted over the single-mode range a/lambda 0.5-1 and b/a 0.3-0.6: 0.04% worst on 55 apertures, 0.02% on 10 held out; NaN outside. WR-90 has 5.82 dBi at 8.2 GHz, 6.31 at 10 and 7.08 at 12.4. This spec carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - which is the large-aperture limit and goes to zero for a small one, where the true value is 3; it was 1.0-3.3 dB low, and the 'published ~6 dBi' it set aside as flanged is right for the infinite ground plane this spec assumes."
+          "notes": "SOLVED: the TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane, radiating into the half space - the x-directed magnetic current 2E over the plane, its pattern integrated over the hemisphere, and independently the same aperture as a dense grid of magnetic dipoles summed through the exact planar power kernel (otahub.arrays): the two agree to 0.003 dB, and a vanishing aperture returns the magnetic dipole's 4.77 dBi. Fitted over the single-mode range a/lambda 0.5-1 and b/a 0.3-0.6: 0.04% worst on 55 apertures, 0.02% on 10 held out; NaN outside. WR-90 has 5.82 dBi at 8.2 GHz, 6.31 at 10 and 7.08 at 12.4. This spec carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - which is the large-aperture limit and goes to zero for a small one, where the true value is 3; it was 1.0-3.3 dB low, and the 'published ~6 dBi' it set aside as flanged is right for the infinite ground plane this spec assumes. A full-wave FDTD of a WR-90 guide at 10 GHz in a large flange (otahub.num.horn_fdtd, flange=True) reads +0.48 to +0.48 dB above this pure-TE10 aperture on 40-56 cells a wavelength, compared at the dimensions it simulated: the aperture's edge fields, which a TE10 aperture leaves out. One guide only, so this stays the aperture model's value; a survey over the band is future work."
         },
         {
           "metric": "effective_to_physical_area",

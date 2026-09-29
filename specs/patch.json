@@ -1467,16 +1467,34 @@
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(2.5)",
+          "expr": "np.where((Ws >= 0.999*W)*((h*f0/c) >= 0.0199)*((h*f0/c) <= 0.0501)*((W*f0/c) >= 0.0599)*((W*f0/c) <= 0.2001), (2.8265704) + (19.2479289)*(h*f0/c) + (1.42308197)*(W*f0/c) + (48.6727883)*(h*f0/c)*(W*f0/c), inf - inf)",
           "units_out": "dBi",
-          "notes": "Indicative. A PIFA's pattern is largely set by the ground plane it sits on, not by the plate; treat this as a placeholder until simulated. The FDTD here rings the plate down but has no far-field transform, and the cavity model's radiated power is 25-63% off on these plates, so no directivity is derived; it remains a placeholder."
+          "notes": "SOLVED on an infinite ground plane: the half-space FDTD of the plate with a full-width short (patch_fdtd.sheet_directivity, a closed near-to-far-field box) - peak directivity 3.4-4.6 dBi over h 0.02-0.05 and W 0.06-0.2 wavelengths, rising with both, fitted to 0.04 dB and within 0.04 dB of a finer grid. The peak lies at the horizon along the plate: the open edge radiates like a horizontal magnetic current doubled by the ground. The 2.5 (4.0 dBi) this spec carried as a placeholder falls inside that range. On a handset the ground plane is small and radiates itself, and none of this holds - still INDICATIVE there. NaN for a partial short or outside the range solved.",
+          "depends_on": [
+            "h",
+            "W",
+            "Ws",
+            "f0"
+          ]
+        },
+        {
+          "metric": "directivity_broadside_dbi",
+          "expr": "np.where((Ws >= 0.999*W)*((h*f0/c) >= 0.0199)*((h*f0/c) <= 0.0501)*((W*f0/c) >= 0.0599)*((W*f0/c) <= 0.2001), (3.37212073) + (-46.5661814)*(h*f0/c) + (0.673545993)*(W*f0/c) + (44.0077421)*(h*f0/c)*(W*f0/c), inf - inf)",
+          "units_out": "dBi",
+          "depends_on": [
+            "h",
+            "W",
+            "Ws",
+            "f0"
+          ],
+          "notes": "Straight up, from the same FDTD: 1.2-2.8 dBi, falling as the plate thickens - well below the peak at the horizon. Fitted to 0.18 dB; a finer grid raised it 0.2-0.25 dB, so read it as about 0.3 dB good."
         }
       ],
       "validity": [
         "h << lambda0",
         "assumes a ground plane large compared with the plate; handset ground planes are not, and the ground plane usually radiates more than the PIFA does",
-        "bandwidth and directivity entries are indicative, not derived",
-        "L is FDTD-calibrated on two air plates (h 0.02-0.036 lambda0, W 0.12-0.2 lambda0): 0.2425 wavelengths for L + h"
+        "L is FDTD-calibrated on two air plates (h 0.02-0.036 lambda0, W 0.12-0.2 lambda0): 0.2425 wavelengths for L + h",
+        "directivity is solved on an infinite ground plane for a full-width short, h 0.02-0.05 and W 0.06-0.2 wavelengths; the bandwidth stays indicative, and a handset's ground plane governs both in practice"
       ],
       "known_cases": [
         {
@@ -1503,6 +1521,19 @@
           },
           "tol_pct": 0.3,
           "source": "0.2425 wavelengths at 1.8 GHz is 40.39 mm, less the 6 mm height: 34.39 mm, against the lambda/4 rule's 35.64 mm. The constant is the mean of the two FDTD plates' L + h at resonance (0.2428 and 0.2423)."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "h": 0.0104927,
+            "W": 0.0359751,
+            "Ws": 0.0359751
+          },
+          "expect": {
+            "directivity_dbi": 3.8452
+          },
+          "tol_pct": 1.5,
+          "source": "The half-space FDTD of this plate (h 0.035, W 0.12 wavelengths, full-width short) at 6 cells across the height, solved directly (not the fit, which used 4): peak directivity at the horizon."
         }
       ],
       "references": [

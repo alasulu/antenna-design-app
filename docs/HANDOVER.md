@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-22,708 lines of Python, 25,194 lines of spec data, 3101 tests, 1047/1047 citable
+23,193 lines of Python, 25,252 lines of spec data, 3126 tests, 1049/1049 citable
 known cases passing.**
 
 ---
@@ -291,6 +291,36 @@ two spirals (§5).
 matrices (the largest solved here had 8,400 unknowns); an elongated structured mesh is
 used for the spirals, and their input impedance depends on the feed region.
 
+### The FDTD's far field
+
+`otahub/num/horn_fdtd.BoxTransform` gives the Yee grids a far field: it DFTs the
+tangential fields on a closed box round the radiator and radiates the equivalent
+currents together with their images through the grid's symmetry walls (a
+single plane above the source was tried first and rejected: truncating it costs
+more than the answer's accuracy). Checked against exact answers - a short dipole
+over the ground plane (the array factor; 0.2-0.7% at 40 cells a wavelength,
+converging at second order) and a lone short dipole on the free grid (1.5, to
+0.16%) - and against the spectral MoM on an air patch (0.15% and 0.6% on two
+grids). `patch_fdtd.sheet_directivity` puts it round any sheet; its side faces
+cross a substrate, where free-space currents are not exact, so it is for air
+plates. `horn_fdtd.sectoral_horn` models a horn as built: TE10 from a back
+short, thin staircased walls, and (`free=True`) open space all round - a first
+grid with a plane behind the throat mirrored the walls' edge radiation back into
+the beam and read the H-plane horn 4 dB low.
+
+What it settled: the sectoral horns' narrow dimension (§4), where the E-plane
+horn is the aperture in a ground plane (within 0.15 dB over a_wg 0.65-2
+wavelengths; the aperture-power form 0.7-1.6 dB low) and the H-plane horn keeps
+the aperture-power form (0.2-0.3 dB high at the default, on three grids); the
+PIFA's directivity on an infinite ground plane (3.4-4.6 dBi, at the horizon); and
+a flanged WR-90 guide, 0.48 dB above the pure-TE10 aperture on three grids - its
+edge fields - which the spec notes but, from one guide, does not adopt.
+
+**Limits that bite:** staircased walls, no dielectric under the box's faces,
+half a minute to a quarter of an hour a horn at 24-48 cells a wavelength, so the
+specs carry fits to the aperture model the FDTD confirmed rather than the FDTD
+itself.
+
 ### Independent first-principles checks
 
 `otahub/core/pattern.py` is deliberately spec-independent, so it acts as an
@@ -434,22 +464,26 @@ length of 0.879, and then beats the spec's own first-order bandwidths (3.7% at
 guide in a resonant, non-monotonic way, so it is a per-horn solve, not a table,
 and more than one: `otahub potter` solves the horn in hand and lists them all.
 
-`pifa` stays in the list with its length now FDTD-calibrated (§3): what keeps it
-there is that a real PIFA's bandwidth and pattern belong to its ground plane,
-which neither this toolkit nor the spec models.
+`pifa` stays in the list with its length FDTD-calibrated and its directivity on
+an infinite ground plane solved by the FDTD's far field (§3): what keeps it there
+is that a real PIFA's bandwidth and pattern belong to its ground plane, which
+neither this toolkit nor the spec models.
 
 They announce themselves in `list`, `show`, the GUI, and in every design they
 produce. Treat their numbers as indicative and verify in a full-wave solver.
 
 ### Known open discrepancies
 
-**Sectoral horns across their waveguide-sized dimension.** Their gain is the
-aperture-power (Balanis) form, exact for large apertures. Integrating the far
-field instead puts the default H-plane horn 0.6-1.7 dB higher and the E-plane
-horn 0.2-1.1 dB higher, depending on the aperture model (a Huygens aperture in
-free space, or the aperture in a ground plane), and those two disagree with each
-other by about a decibel there. Only a full-wave solve can settle it (§6, C.9);
-the specs say so and keep the conventional figure.
+- ~~**Sectoral horns across their waveguide-sized dimension.**~~ **Resolved.**
+  Their gain was the aperture-power (Balanis) form, exact for large apertures;
+  integrating the far field put the default horns 0.2-1.7 dB higher depending on
+  the aperture model, and the models disagreed by a decibel. The FDTD of the whole
+  free-standing horn with a far-field box (§3) decided: the E-plane horn is the
+  aperture in a ground plane, to 0.15 dB over a_wg 0.65-2 wavelengths, so its
+  `gain_dbi` is now the aperture-power gain plus that model's difference (15.6
+  dBi at the default, not 14.4), and the H-plane horn keeps the aperture-power
+  form, which the FDTD puts 0.2-0.3 dB high at the default - the other two models
+  read it 1-2 dB high.
 
 - ~~**`half_wave_slot` resonates at a thin dipole's length.**~~ **Resolved.**
   By Babinet a slot resonates where its complementary dipole does, and that
@@ -742,6 +776,8 @@ known case only checks what it asserts.
 | `bowtie` | Its directivity (2.3 dBi) and bandwidth (4:1) were indicative. Solved with the planar RWG solver: broadside directivity at f_low is 2.30-2.53 dBi for flares 30-90 degrees - right at f_low - but not 'fairly flat with frequency': the 90-degree bowtie's broadside climbs to 3.5 dBi at 1.75 f_low and the beam then splits (-3.7 dBi at 3 f_low, -19 at 3.5). Its f_low impedance is 148-208 ohm with +135 to +186 ohm reactance, not Mushiake's 188, which it approaches (166-216 ohm) only from 2.5 f_low; against eta0/2 it holds VSWR 2 from f_low to at least 4 f_low. Directivity and the f_low impedance are now solved, over flare |
 | `archimedean_spiral`, `equiangular_spiral` | Both put f_low where the outer circumference is one wavelength and quoted about 1.8 dBi (1.5) per side and an axial ratio near 1 dB. Solved: at f_low the axial ratio is 16 and 21 dB - not circular - and falls through 3 dB only at 1.33 f_low (Archimedean, six turns) and 2.29 f_low (equiangular, a = 0.221), by bisection of direct solves; the broadside directivity is 3.5-2.7 dBi at f_low rising to about 6 dBi at 4 f_low, 5.5 and 5.2 dBi at the band's geometric middle. The input impedance depends on the feed region (the equiangular spiral's moved 154 - j67 to 188 - j43 ohm when only its inner radius changed, its axial ratio 0.15 dB), so Mushiake's 188 stays the infinite sheet's. The circular-polarisation band edge, directivity and axial ratio are now solved for the specs' geometries |
 | `circular_patch`, `triangular_patch` | Both sized the patch by the cavity model with a fringing correction and called the resonance an upper bound on thick board, without a solver of their shape to say by how much. The FDTD with the outline staircased onto the grid, over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 up to 0.095, extrapolated from three to five cell sizes: the disc resonates about 1% low on thin board and 2-7% low on thick, the triangle 1-5% low on thin board (its a + h/sqrt(eps_r) is weakest at low permittivity) and 2-7% on thick. The specs build the cavity size times a fitted factor; held-out boards built to it land within 1% of f0. Staircased outlines converge unevenly, so the factor is about 1% good |
+| `e_plane_sectoral_horn` | Its gain was the aperture-power form, which takes the radiated power to be the power crossing the aperture - wrong across the unflared a_wg, which is waveguide-sized. The FDTD of the whole free-standing horn with a far-field box (§3), on five horns over a_wg 0.65-2 wavelengths, meets the aperture in a ground plane to -0.14 to +0.09 dB and puts the aperture-power form 0.7-1.6 dB low (the Huygens aperture 0.6-1.1). `gain_dbi` is now the aperture-power gain plus the ground-plane model's difference - smooth in the three shape numbers plus a one-wavelength ripple from the b1 edges, fitted to 0.04 dB - 15.6 dBi at the default where it said 14.4; the old figure is kept as `gain_aperture_power_dbi`. Its H-plane sibling was right: the FDTD puts it 0.2-0.3 dB below the aperture-power form |
+| `pifa` | Its directivity was a 4.0 dBi placeholder, since the FDTD had no far field. With the box transform (§3), on an infinite ground plane with a full-width short: 3.4-4.6 dBi over h 0.02-0.05 and W 0.06-0.2 wavelengths, peaking at the horizon along the plate (the open edge is a horizontal magnetic current doubled by the ground), and 1.2-2.8 dBi straight up. The placeholder fell inside the range by luck; both are now fitted, with a known case from a direct run |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -821,10 +857,16 @@ newly found - and the project is tagged v2.0. Groups A and B are out of scope.
    f0. Their total Q is 0.54-0.90 of the cavity radiation Q; separating the
    surface-wave share, to decide whether that Q is right, is new future work
    (a slab-aware far-field transform, or a MoM of these shapes).
-9. **A far-field transform in the FDTD,** which would give the PIFA a
-   directivity (on an infinite ground plane; a finite one is item 3), and would
-   settle the sectoral horns' gain across their waveguide-sized dimension, where
-   the aperture models disagree by about a decibel (§4).
+9. ~~**A far-field transform in the FDTD.**~~ Done under Finish line 2: a
+   closed box transform with image currents (`horn_fdtd.BoxTransform`, §3),
+   exact on dipoles and within 0.6% of the MoM on an air patch. It settled the
+   sectoral horns (§4): the E-plane horn is the aperture in a ground plane and
+   read 1.1 dB low at the default, now corrected; the H-plane horn's
+   aperture-power form holds to 0.3 dB. The PIFA has a solved directivity on an
+   infinite ground plane (3.4-4.6 dBi at the horizon; a finite plane is item 3).
+   New future work from it: a flanged WR-90 guide reads 0.48 dB above the
+   `open_ended_waveguide` TE10 aperture; surveying that over the band and guide
+   sizes, which needs only compute time, would let the spec adopt it.
 10. ~~**A finite gap for the wire MoM.**~~ Done after v1.0: `mom.solve(...,
     gap=segments)` and `mom.gapped_dipole`, `bor`'s feed model on wires. It
     converges where the delta gap drifts, and meets the tube solver's table of
