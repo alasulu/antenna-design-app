@@ -152,6 +152,16 @@ def test_a_low_resistance_load_can_take_both_topologies():
     shunt_x = sorted(s.series.reactance for s in sections[2:])
     assert shunt_x == pytest.approx(x, rel=1e-9)
     assert shunt_x == pytest.approx([-61.23724357, 61.23724357], rel=1e-8)
+    # the series-first branch, root-found on its own: X with Re(1/(z + jX)) = 1/Z0
+    xs = sorted(brentq(lambda x: (1 / (z + 1j * x)).real - 1 / 50, lo, hi)
+                for lo, hi in ((-100, -50), (-50, 0)))
+    assert sorted(s.series.reactance for s in sections[:2]) == pytest.approx(xs, rel=1e-9)
+    # and every network, evaluated forward from its components, presents 50 ohm
+    for sec in sections:
+        xs_, bs_ = sec.series.reactance, -1 / sec.shunt.reactance
+        zin = (1 / (1 / (z + 1j * xs_) + 1j * bs_) if sec.topology.startswith("series")
+               else 1 / (1 / z + 1j * bs_) + 1j * xs_)
+        assert zin == pytest.approx(50, abs=1e-9), sec.topology
 
 
 def test_a_one_element_match_is_kept():

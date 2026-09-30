@@ -275,3 +275,28 @@ def test_a_downward_reactance_crossing_is_found_not_its_bracket_end():
     z = lambda s: mom.solve(mom.dipole(s, .001, 40)).input_impedance
     root = mom.resonant_scale(z)
     assert root == pytest.approx(brentq(lambda s: z(s).imag, 0.85, 1.15, xtol=1e-10), abs=1e-7)
+
+
+
+def test_collinear_wires_of_different_radii_are_order_independent_with_the_exact_kernel():
+    """The exact kernel's cutoff used the source radius alone; two collinear wires
+    of 0.003 and 0.001 lambda gave 12.028 - j325.589 or 12.023 - j325.608 ohm
+    with the list reversed."""
+    from otahub.num import mom
+
+    def z(order):
+        w1 = mom.Wire(np.linspace((0, 0, -0.235), (0, 0, 0.0), 11), 0.003)
+        w2 = mom.Wire(np.linspace((0, 0, 0.008), (0, 0, 0.243), 11), 0.001)
+        m = mom.WireModel([w1, w2] if order == 0 else [w2, w1])
+        feed = int(np.argmin([np.linalg.norm(m.node_of(n) - np.array([0, 0, -0.1175]))
+                              for n in range(m.n_basis)]))
+        return mom.input_impedance(m, feed, exact=True)
+
+    assert abs(z(0) - z(1)) < 1e-9 * abs(z(0))
+
+
+@pytest.mark.parametrize("zero_at", [0.85, 1.15])
+def test_a_resonance_on_the_bracket_end_is_found(zero_at):
+    from otahub.num import mom
+    for sign in (1, -1):
+        assert mom.resonant_scale(lambda s: 50 + 1j * sign * (s - zero_at)) == zero_at

@@ -164,3 +164,11 @@ def test_the_design_is_circular_at_f0_and_the_old_one_was_not(cp):
     old = _cavity(260, 25)                 # the classic cut, c/L = sqrt(1/(2Q)) = 0.0962
     assert d.get("u_cp") == pytest.approx(25 / 260, rel=1e-3)
     assert old.axial_ratio_db(old.k_square, q, CENTRELINE) > 7.0   # square tuned to f0
+
+
+
+def test_the_uncut_squares_mesh_split_is_as_documented():
+    """The anti-diagonal mesh keeps the reflection, not the rotation: the uncut
+    pair splits by 4.0e-5 at 4 cells, 3.0e-7 at 12 (frequency, as `split`)."""
+    assert pc.truncated_square(4, 0, count=5).split == pytest.approx(4.03e-5, rel=0.01)
+    assert pc.truncated_square(12, 0, count=5).split == pytest.approx(3.04e-7, rel=0.02)

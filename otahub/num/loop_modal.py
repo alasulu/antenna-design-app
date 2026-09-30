@@ -83,8 +83,13 @@ def resonant_circumference(a: float, nmax: int = 60, steps: int = 24,
     opposite of a dipole and the opposite of what `one_wavelength_circular_loop`
     used to claim. A bracket with no crossing in it is an error, not its end.
     """
-    below = input_impedance(lo, a, nmax).imag < 0
-    if (input_impedance(hi, a, nmax).imag < 0) == below:
+    z_lo, z_hi = input_impedance(lo, a, nmax), input_impedance(hi, a, nmax)
+    if z_lo.imag == 0.0:
+        return lo, z_lo.real
+    if z_hi.imag == 0.0:
+        return hi, z_hi.real
+    below = z_lo.imag < 0
+    if (z_hi.imag < 0) == below:
         raise ValueError(f"no resonance between C = {lo} and {hi} wavelengths "
                          f"for a = {a} wavelengths; widen the bracket")
     for _ in range(steps):

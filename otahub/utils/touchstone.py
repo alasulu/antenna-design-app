@@ -53,9 +53,9 @@ class Network:
     """Sampled network parameters, always stored as S with frequency in Hz.
 
     `noise`, for a two-port file that carries it, is a complex (M, 4) array
-    with columns frequency (Hz), NFmin (dB), Gamma_opt (about the option
-    line's R, as the specification defines it) and Rn (ohm, de-normalised);
-    the real columns have zero imaginary part.
+    with columns frequency (Hz), NFmin (dB), Gamma_opt (about this network's
+    z0) and Rn (ohm, de-normalised); the real columns have zero imaginary
+    part. :func:`write_touchstone` writes it back.
     """
 
     frequency_hz: np.ndarray
@@ -160,6 +160,7 @@ def read_touchstone(source, n_ports: int | None = None) -> Network:
     """
     text, name = _load(source)
     label = name or "input"
+    explicit = n_ports is not None
     if n_ports is None:
         n_ports = _ports_from_name(name)
 
@@ -195,9 +196,10 @@ def read_touchstone(source, n_ports: int | None = None) -> Network:
             if key == "version":
                 version = 2 if float(value.split()[0]) >= 2.0 else 1
             elif key == "number of ports":
-                keyword_ports = int(float(value))
-                if n_ports is None:
-                    n_ports = keyword_ports
+                # authoritative in a Version 2 file: over the .sNp suffix, though
+                # not over a caller's explicit n_ports
+                if not explicit:
+                    n_ports = int(float(value))
             elif key == "two-port data order":
                 order = value.lower()
                 if order not in ("12_21", "21_12"):
@@ -297,9 +299,13 @@ def read_touchstone(source, n_ports: int | None = None) -> Network:
             raise ValueError(f"{label}: noise data must be five values a line; "
                              f"got {len(noise_numbers)} values")
         nb = np.asarray(noise_numbers, dtype=float).reshape(-1, 5)
-        rn = nb[:, 4] * (z0 if version == 1 else 1.0)
-        noise = np.column_stack([nb[:, 0] * _FREQ_UNITS[option["freq"]], nb[:, 1],
-                                 nb[:, 2] * np.exp(1j * np.radians(nb[:, 3])), rn])
+        r_option = float(option["z0"][0])            # Rn and Gamma_opt are about the option line's R
+        rn = nb[:, 4] * (r_option if version == 1 else 1.0)
+        gamma = nb[:, 2] * np.exp(1j * np.radians(nb[:, 3]))
+        if r_option != z0:                           # re-referred to the network's z0
+            z_opt = r_option * (1 + gamma) / (1 - gamma)
+            gamma = (z_opt - z0) / (z_opt + z0)
+        noise = np.column_stack([nb[:, 0] * _FREQ_UNITS[option["freq"]], nb[:, 1], gamma, rn])
 
     if not seen_option:
         comments.append(
@@ -335,15 +341,21 @@ def _from_triangle(values: np.ndarray, n: int, matrix: str) -> np.ndarray:
 
 def _renormalise(s: np.ndarray, refs: np.ndarray, z0: float) -> np.ndarray:
     """S with real per-port references `refs` to S with one reference `z0`,
-    through Z = sqrt(R) (I + S)(I - S)^-1 sqrt(R)."""
+    directly in S (power waves, real references):
+
+        S' = A^-1 (S - G)(I - G S)^-1 A,  G = diag((z0 - R)/(z0 + R)),
+        A = diag(sqrt(1 - G^2)).
+
+    Going through Z needs I - S invertible, which an open port or a through
+    line is not; this needs only I - G S, which is invertible for any finite
+    references. It equals the Z route to 1e-16 wherever that one exists."""
     n = refs.size
     eye = np.eye(n)
-    sq = np.diag(np.sqrt(refs))
-    out = []
-    for m in s:
-        z = sq @ (eye + m) @ np.linalg.inv(eye - m) @ sq
-        out.append((z - z0 * eye) @ np.linalg.inv(z + z0 * eye))
-    return np.stack(out)
+    g = (z0 - refs) / (z0 + refs)
+    G = np.diag(g)
+    A = np.diag(np.sqrt(1.0 - g * g))
+    A_inv = np.diag(1.0 / np.sqrt(1.0 - g * g))
+    return np.stack([A_inv @ (m - G) @ np.linalg.inv(eye - G @ m) @ A for m in s])
 
 
 def _load(source) -> tuple[str, str]:
@@ -407,7 +419,17 @@ def _infer_ports(text: str, numbers: list[float], name: str,
         stride = 1 + 2 * n * n
         if n == 2 and noise is None:
             net, extra = _split_noise(numbers, stride)
-            return len(net) % stride == 0 and len(extra) % 5 == 0
+            if len(net) % stride or len(extra) % 5:
+                return False
+            if extra:
+                # a genuine noise block: a two-port's second line is its next
+                # point (9 values) or the first noise line (5), and the noise
+                # frequencies rise; a larger port count's zero-valued matrix
+                # continuation only looked like a frequency restart
+                f = extra[0::5]
+                if second not in (9, 5) or not all(b > a > 0 for a, b in zip(f, f[1:])) or f[0] <= 0:
+                    return False
+            return True
         return total % stride == 0
 
     viable = [n for n in candidates if fits(n)]
@@ -523,6 +545,12 @@ def write_touchstone(network: Network, path=None, fmt: str = "ri",
                     lead = f"{freq} " if first else "  "
                     lines.append(lead + " ".join(cols[k:k + 4]))
                     first = False
+    if network.noise is not None and n == 2:
+        # Version 1 noise block: frequency, NFmin dB, |Gamma_opt|, angle, Rn / R
+        lines.append("! noise parameters")
+        for f, nf, g, rn in network.noise:
+            lines.append(f"{repr(float(f.real / scale))} {nf.real:< .9g} {abs(g):< .9g} "
+                         f"{math.degrees(np.angle(g)):< .9g} {rn.real / network.z0:< .9g}")
     text = "\n".join(lines) + "\n"
     if path is not None:
         Path(path).write_text(text)

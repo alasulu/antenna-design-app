@@ -24,8 +24,9 @@ area in all. The mesh follows the cut exactly and splits every cell along the
 anti-diagonal. That keeps the x <-> y reflection but not the 90-degree
 rotation, and the reflection alone does not hold cos(pi x) +- cos(pi y)
 together (they are even and odd under it), so the uncut square's pair splits
-on the mesh too - by 8e-5 at 4 cells a side, 6e-7 at 12, falling as h^4,
-against the 2.7e-2 of a 1/12 cut. The cut's split is the one measured.
+on the mesh too - in frequency (`TruncatedSquare.split`) by 4.0e-5 at 4 cells
+a side and 3.0e-7 at 12, falling as h^4, against the 1.35e-2 of a 1/12 cut.
+The cut's split is the one measured.
 """
 from __future__ import annotations
 

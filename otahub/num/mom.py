@@ -339,11 +339,11 @@ def _segment_moments(model: WireModel, exact: bool = False):
                 off = mid_p - mid_q
                 if np.linalg.norm(off - (off @ u) * u) > 1e-9 * L:
                     continue                      # parallel but not on the same axis
-                if abs(off @ u) > 0.5 * (L + model.seg_len[p]) + 6.0 * aq:
+                a_pair = math.sqrt(0.5 * (aq ** 2 + model.seg_rad[p] ** 2))
+                if abs(off @ u) > 0.5 * (L + model.seg_len[p]) + 6.0 * a_pair:
                     continue                      # far enough for the reduced kernel
                 rows = slice(p * len(xo), (p + 1) * len(xo))
-                e0, e1 = _inner_exact(u0[rows], L,
-                                      math.sqrt(0.5 * (aq ** 2 + model.seg_rad[p] ** 2)))
+                e0, e1 = _inner_exact(u0[rows], L, a_pair)   # the pair's radius, both ways
                 inner0 = inner0.copy()
                 inner1 = inner1.copy()
                 inner0[rows], inner1[rows] = e0, e1
@@ -714,8 +714,13 @@ def resonant_scale(z_of_scale, lo: float = 0.85, hi: float = 1.15,
     """Frequency scale where the reactance crosses zero, or None if it does not
     inside the bracket. Returning None rather than a bracket end matters: a
     structure with no resonance in range should say so, not report an edge."""
-    below = z_of_scale(lo).imag < 0
-    if (z_of_scale(hi).imag < 0) == below:
+    x_lo, x_hi = z_of_scale(lo).imag, z_of_scale(hi).imag
+    if x_lo == 0.0:
+        return lo
+    if x_hi == 0.0:
+        return hi
+    below = x_lo < 0
+    if (x_hi < 0) == below:
         return None
     # keep the side whose sign `lo` started with: a reactance that crosses
     # DOWNWARD (an antiresonance) used to walk to the bracket's end

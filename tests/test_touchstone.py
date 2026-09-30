@@ -416,3 +416,40 @@ def test_a_genuinely_ambiguous_file_says_so_rather_than_guessing():
         read_touchstone("\n".join(lines))
     # naming it resolves the ambiguity, which is what the suffix is for
     assert read_touchstone("\n".join(lines), n_ports=2).n_ports == 2
+
+
+# ------------------------------------------------------------ a second review, fixed
+
+def test_unequal_references_renormalise_open_ports_and_throughs():
+    """Through Z it needed I - S invertible: open ports and a through line raised
+    LinAlgError. Directly in S they are finite (an open reflects +1 whatever the
+    reference; the through becomes its 50/25 ohm step, S11 = +-1/3)."""
+    def v2(cells):
+        return (f"[Version] 2.0\n# GHz S RI R 50\n[Number of Ports] 2\n"
+                f"[Two-Port Data Order] 21_12\n[Reference] 50 25\n[Network Data]\n1.0 {cells}\n")
+    opens = read_touchstone(v2("1 0 0 0 0 0 1 0"))
+    assert np.allclose(opens.s[0], np.eye(2))
+    thru = read_touchstone(v2("0 0 1 0 1 0 0 0"))
+    assert thru.s[0, 0, 0] == pytest.approx(1 / 3) and thru.s[0, 1, 1] == pytest.approx(-1 / 3)
+    assert abs(thru.s[0, 1, 0]) == pytest.approx(math.sqrt(8) / 3)
+
+
+def test_noise_data_survives_a_round_trip():
+    net = read_touchstone(NOISE_V1, n_ports=2)
+    back = read_touchstone(write_touchstone(net), n_ports=2)
+    assert np.allclose(back.noise, net.noise, rtol=1e-8)
+    assert np.allclose(back.s, net.s, rtol=1e-8)
+
+
+def test_a_zero_valued_four_port_is_not_mistaken_for_a_two_port_with_noise():
+    """A 4-port's zero-valued row continuations looked like a frequency restart."""
+    net = Network(np.arange(1, 9) * 1e9, np.zeros((8, 4, 4), complex))
+    assert read_touchstone(write_touchstone(net)).n_ports == 4
+
+
+def test_the_version_2_port_count_outranks_the_file_suffix(tmp_path):
+    f = tmp_path / "device.s2p"
+    f.write_text("[Version] 2.1\n# GHz S RI R 50\n[Number of Ports] 1\n[Network Data]\n1.0 0.2 0.1\n[End]\n")
+    assert read_touchstone(f).n_ports == 1
+    with pytest.raises(ValueError):                    # an explicit override still wins, and fails
+        read_touchstone(f, n_ports=2)
