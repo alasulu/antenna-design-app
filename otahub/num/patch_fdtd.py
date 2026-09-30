@@ -19,9 +19,10 @@ import math
 
 import numpy as np
 
+from ..core.constants import ETA0
 from .dra import _Yee, matrix_pencil
 
-__all__ = ["ringdown", "extrapolate", "shorted_ringdown", "sheet_ringdown", "circular_ringdown", "triangular_ringdown",
+__all__ = ["ringdown", "stacked_ringdown", "probe_impedance", "extrapolate", "shorted_ringdown", "sheet_ringdown", "circular_ringdown", "triangular_ringdown",
            "sheet_directivity"]
 
 
@@ -55,6 +56,102 @@ def ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, air: int |
     ok = (f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
     k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
     return float(f[k]), float(q[k])
+
+
+def stacked_ringdown(eps_r: float, nh: int, nl: int, nw: int, eps_r2: float, nh2: int, nl2: int, nw2: int,
+                     f_guess: float, air: int | None = None, npml: int = 12, periods: float = 40.0,
+                     n_modes: int = 2, dtype=np.float32) -> list[tuple[float, float]]:
+    """[(frequency, total Q)] of a stacked patch's coupled TM10 modes, lowest first: the
+    driven sheet (half length nl, half width nw) on nh cells of eps_r, the parasitic
+    (nl2, nw2) on nh2 cells of eps_r2 above it, quarter space as `ringdown`. The source and
+    probe sit under the driven sheet's radiating edge; the n_modes strongest are kept."""
+    lam = 1.0 / f_guess
+    air = air or int(0.15 * lam) + 4
+    top = nh + nh2
+    shape = (max(nw, nw2) + air + npml, max(nl, nl2) + air + npml, top + air + npml)
+    g = _Yee(shape, lambda x, y, z: np.where(z < nh, eps_r, np.where(z < top, eps_r2, 1.0)) + 0 * x + 0 * y,
+             npml, dtype)
+    tau = 0.5 / f_guess
+    t0 = 3.0 * tau
+    steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
+    start = int((t0 + 3.0 * tau) / g.dt)
+    js, ks = nl - 2, nh // 2
+    probe = np.empty(steps)
+    for n in range(steps):
+        g.step()
+        g.Ex[:nw, :nl + 1, nh] = 0.0
+        g.Ey[:nw + 1, :nl, nh] = 0.0
+        g.Ex[:nw2, :nl2 + 1, top] = 0.0
+        g.Ey[:nw2 + 1, :nl2, top] = 0.0
+        t = (n + 1) * g.dt
+        g.Ez[0, js, ks] += math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
+        probe[n] = g.Ez[1, js - 1, ks]
+    dec = max(1, int(1.0 / (20.0 * f_guess * g.dt)))
+    s, a = matrix_pencil(probe[start::dec], dec * g.dt, modes=20)
+    f = s.imag / (2 * math.pi)
+    q = s.imag / (-2.0 * s.real)
+    # the window matters: a mode of the parasitic near 1.9-1.95 f0 rings harder at the probe
+    # than the weak upper coupled mode, and within 2 f_guess displaces it
+    ok = np.flatnonzero((f > 0.5 * f_guess) & (f < 1.6 * f_guess) & (q > 2))
+    keep = ok[np.argsort(-np.abs(a)[ok])][:n_modes]
+    return sorted((float(f[k]), float(q[k])) for k in keep)
+
+
+def probe_impedance(eps_r: float, nh: int, nl: int, nw: int, jp: int, freqs, f_guess: float,
+                    upper: tuple | None = None, R: float = 50.0, half: bool = False, air: int | None = None,
+                    npml: int = 12, periods: float = 60.0, dtype=np.float32) -> np.ndarray:
+    """Input impedance (ohm) at `freqs` (cycles per cell-time) of a probe feeding the sheet
+    of `ringdown` (half length nl along y, half width nw, on nh cells of eps_r), jp cells
+    from the centre along the resonant direction, on the centre line x = 0; `upper` =
+    (eps_r2, nh2, nl2, nw2) adds the parasitic sheet of `stacked_ringdown`.
+
+    The probe is a wire of zero thickness (Ez held at zero from z = 1 to the sheet), fed in
+    the bottom cell by a Norton source: a current with R ohm across it, the resistor
+    stepped semi-implicitly so it damps without a stability limit. V is read across that
+    cell and I round the wire one cell up, so the source and the gap's own capacitance
+    stay outside the impedance. A zero-thickness wire has an equivalent radius set by the
+    cell, about a seventh of it.
+
+    The quarter-space grid's electric wall at y = 0 mirrors the probe into a second one,
+    reversed, at -jp: two probes in antiphase, which doubles the TM10 mode's share of the
+    impedance. `half` models y in full (CPML on both ends, as `shorted_ringdown`), the
+    sheets centred on j0: a single probe, as built."""
+    lam = 1.0 / f_guess
+    air = air or int(0.15 * lam) + 4
+    er2, nh2, nl2, nw2 = upper if upper else (1.0, 0, 0, 0)
+    top = nh + nh2
+    j0 = (npml + air + max(nl, nl2)) if half else 0              # the patch centre on the grid
+    ny = (2 * j0) if half else (max(nl, nl2) + air + npml)
+    shape = (max(nw, nw2) + air + npml, ny, top + air + npml)
+    g = (_YeeHalf if half else _Yee)(shape, lambda x, y, z: np.where(z < nh, eps_r, np.where(z < top, er2, 1.0))
+                                     + 0 * x + 0 * y, npml, dtype)
+    lo, lo2 = (j0 - nl, j0 - nl2) if half else (0, 0)
+    jp = j0 + jp
+    c = float(g.cEz[0, jp - 1, 0])
+    beta = c * ETA0 / (2.0 * R)
+    tau = 0.25 / f_guess
+    t0 = 4.0 * tau
+    steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
+    freqs = np.atleast_1d(np.asarray(freqs, float))
+    V = np.zeros(len(freqs), complex)
+    I = np.zeros(len(freqs), complex)
+    w = -2j * math.pi * freqs * g.dt
+    for n in range(steps):
+        e_old = float(g.Ez[0, jp, 0])
+        g.step()
+        curl = (float(g.Ez[0, jp, 0]) - e_old) / c
+        t = (n + 1) * g.dt
+        js = math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
+        g.Ez[0, jp, 0] = (e_old * (1.0 - beta) + c * (curl - js)) / (1.0 + beta)
+        g.Ez[0, jp, 1:nh] = 0.0
+        g.Ex[:nw, lo:j0 + nl + 1, nh] = 0.0
+        g.Ey[:nw + 1, lo:j0 + nl, nh] = 0.0
+        if upper:
+            g.Ex[:nw2, lo2:j0 + nl2 + 1, top] = 0.0
+            g.Ey[:nw2 + 1, lo2:j0 + nl2, top] = 0.0
+        V += -float(g.Ez[0, jp, 0]) * np.exp(w * (n + 1))
+        I += (2.0 * float(g.Hy[0, jp, 1]) - float(g.Hx[0, jp, 1]) + float(g.Hx[0, jp - 1, 1])) * np.exp(w * (n + 0.5))
+    return ETA0 * V / I
 
 
 def extrapolate(cells, values) -> float:

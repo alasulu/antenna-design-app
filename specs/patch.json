@@ -3438,15 +3438,16 @@
           "name": "patch separation",
           "unit": "-",
           "role": "assumption",
-          "typical": "0.03",
-          "description": "gap between patches, in free-space wavelengths"
+          "typical": "0.09",
+          "description": "air gap between the patches, in free-space wavelengths; 0.09 is the solved best on 1.6 mm eps_r 2.2 at 2.4 GHz (0.07-0.09 on the four boards surveyed)"
         },
         {
           "symbol": "size_ratio",
           "name": "upper/lower patch size",
           "unit": "-",
           "role": "assumption",
-          "typical": "0.95"
+          "typical": "1.1",
+          "description": "parasitic length over driven length (widths scale alike); 1.1 is the solved best on the default board. The best parasitic was 0.35-0.37 free-space wavelengths long on every board surveyed, so a denser driven layer, whose patch is shorter, wants a larger ratio"
         },
         {
           "symbol": "W",
@@ -3493,6 +3494,12 @@
         {
           "symbol": "h2",
           "name": "patch separation",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "feed_offset",
+          "name": "probe offset from the centre",
           "unit": "m",
           "role": "geometry"
         }
@@ -3558,7 +3565,7 @@
             "size_ratio",
             "L"
           ],
-          "notes": "The parasitic's length. The note here used to say that, sitting in a lower-permittivity medium, the parasitic is made slightly SMALLER for the same resonance - the wrong way round: a patch in air needs a LONGER length than one on eps_r 2.2, as the free-space wavelength is longer. An FDTD of the stack (two sheets, the driven one on 1.6 mm eps_r 2.2, a 0.032-wavelength air gap) finds its two coupled modes at 0.99 and 1.37 f0 at a size ratio of 0.96: the upper one far out of any band. Growing the parasitic lowers both (0.95 and 1.20 f0 at 1.16, 0.87 and 1.13 at 1.36), but at this gap they stay 25-38% apart for every ratio tried - too strongly coupled to straddle f0. INDICATIVE, coarse-grid (h = 4 cells, about 1% low in frequency on this board)."
+          "notes": "The parasitic's length. Solved by the two-layer spectral MoM (otahub.num.patch_sdm.StackedPatch) and checked by FDTD: the stack this spec used to default to (a 0.03-wavelength air gap, ratio 0.95) has its two coupled modes at 0.993 and 1.378 f0 (FDTD at 2-8 cells across the driven layer, extrapolated; the MoM's poles 0.993 and 1.375) - the upper one far out of any band, and 1.5% of VSWR-2 band about f0. Its characteristic-mode zero sits at 1.393: for a mode of Q 13 that is 1.2% above the natural frequency, which is why a coarse FDTD once seemed to disagree. At a 0.09 gap and a ratio of 1.1 the stack is double-tuned - resistance peaks at 0.99 and 1.06 f0 - and the band is 11.5% about f0, 12.4% at its own centre; the FDTD of that design with a single probe gives 12.5% against the MoM's 12.3%. The note here once said the parasitic, being in a lower permittivity, is made smaller: the wrong way round, as a patch in air needs a longer length."
         },
         {
           "output": "W2",
@@ -3577,6 +3584,15 @@
             "h2_over_lambda",
             "f0"
           ]
+        },
+        {
+          "output": "feed_offset",
+          "expr": "0.45*L",
+          "units_out": "m",
+          "depends_on": [
+            "L"
+          ],
+          "notes": "INDICATIVE. The probe, on the centre line, 0.9 of the driven patch's half length from its centre: the best feed was 0.84-0.95 of it on every board and design surveyed that double-tuned, and the band moves little across that range. The design's own best position comes from `otahub stack`."
         }
       ],
       "analysis": [
@@ -3591,7 +3607,7 @@
             "W",
             "L"
           ],
-          "notes": "the driven patch on its own"
+          "notes": "the driven patch on its own, the textbook formula; the best stack on the board reaches about 8.4 times it (best_stack_bandwidth_vswr2)"
         },
         {
           "metric": "total_height_m",
@@ -3601,7 +3617,7 @@
             "h",
             "h2"
           ],
-          "notes": "The honest cost. Most of the bandwidth comes from the extra height, not from the coupling as such."
+          "notes": "The honest cost: the best stacks surveyed stand 0.08-0.10 wavelengths tall, six to eight times the driven layer. Height alone does not buy the band - the 0.043-wavelength stack this spec used to default to, not double-tuned, has 1.5%; tuning the pair does."
         },
         {
           "metric": "total_height_over_lambda",
@@ -3614,38 +3630,40 @@
           ]
         },
         {
-          "metric": "bandwidth_multiplier_estimate",
-          "expr": "2.4",
-          "units_out": "-",
-          "notes": "INDICATIVE AND NOT DERIVED. Published stacked patches report roughly 2 to 3 times a single patch's bandwidth for a well-chosen gap and size ratio. Treat as a rough expectation, not a design figure; the real answer needs a coupled-resonator solve or a full-wave simulation. The FDTD of the default stack (size ratio 0.95, 0.03-wavelength air gap) does not show two resonances near f0 at all - the second sits 37% above it - so at this gap any bandwidth gain comes from the extra height, not a double tuning."
-        },
-        {
-          "metric": "estimated_bandwidth_vswr2",
-          "expr": "2.4*3.771*(eps_r-1)/(eps_r**2)*((h + h2)*f0/c)*(W/L)",
+          "metric": "best_stack_bandwidth_vswr2",
+          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 4.41)*((h*f0*sqrt(eps_r)/c) >= 0.0185)*((h*f0*sqrt(eps_r)/c) <= 0.0385), 8.4*single_patch_bandwidth_vswr2, inf - inf)",
           "units_out": "-",
           "depends_on": [
+            "single_patch_bandwidth_vswr2",
             "eps_r",
+            "eps_r2",
             "h",
-            "h2",
-            "f0",
-            "W",
-            "L"
+            "f0"
           ],
-          "notes": "the single-patch expression evaluated at the TOTAL height and multiplied by the indicative coupling factor - compounding two approximations, so treat the result as an order of magnitude"
+          "notes": "INDICATIVE, and not this design's own band: the widest VSWR-2 band about f0 that the best air gap and parasitic achieve on this driven board, probe-fed with a series capacitor tuned for the band. Solved by the two-layer spectral MoM with a probe (otahub.num.stacked) over gap and parasitic size on four boards - eps_r 2.2 at h sqrt(eps_r)/lambda 0.019 and 0.038, 4.4 at 0.019, 3.0 at 0.028 - it came to 11.5%, 24.5%, 7.0% and 15.5%: 7.8 to 8.9 times the driven patch's own formula, 8.4 on average. Fitted on the first three (8.2), the ratio predicted the fourth 7% low. The survey steps gap and parasitic by 0.02 wavelengths, so each best is a slight underestimate. The given gap and size ratio can do much worse: on the default board a ratio of 1.2 has no band at f0 at all. This replaces a 'bandwidth multiplier' of 2.4 drawn from published designs and applied at the total height: against the solved band about f0 it read 1.1 to 3 times high at each board's best design, 7.9 times at the stack it defaulted to, and more off the best. `otahub stack` solves a given design. NaN for a dielectric gap or a driven board outside the four's range."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "db10(7.5)",
+          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 4.41)*((h*f0*sqrt(eps_r)/c) >= 0.0185)*((h*f0*sqrt(eps_r)/c) <= 0.0385)*(L2*f0/c >= 0.3)*(L2*f0/c <= 0.42)*(W2*f0/c >= 0.37)*(W2*f0/c <= 0.52)*(h2*f0/c >= 0.029)*(h2*f0/c <= 0.121), (3.70680535) + (12.0049464)*(L2*f0/c) + (0.769237233)*(W2*f0/c) + (16.1746653)*(h2*f0/c) + (-84.3701756)*(h2*f0/c)**2, inf - inf)",
           "units_out": "dBi",
-          "notes": "Indicative: a little above a single patch, since the stack is electrically taller. Placeholder."
+          "depends_on": [
+            "L2",
+            "W2",
+            "h2",
+            "eps_r",
+            "eps_r2",
+            "h",
+            "f0"
+          ],
+          "notes": "SOLVED: broadside directivity at f0 of the currents the probe drives on both patches (the two-layer spectral MoM, its far field balancing its own reaction to 1e-14). It follows the parasitic's size and hardly the board or the feed: 8.0 dBi for the stack this spec used to default to, 9.06 at the new default, 8.7-9.4 over parasitics 0.33-0.37 wavelengths long. Fitted in the parasitic's length and width and the gap over 44 designs on three boards (0.09 dB worst); a fourth board held out, 0.07 dB. NaN for a dielectric gap or outside the designs solved. It replaces a 7.5 (8.75 dBi) placeholder."
         }
       ],
       "validity": [
-        "LOW CONFIDENCE: the bandwidth multiplier is an expectation drawn from published designs, not a computed result",
-        "the optimum gap and size ratio interact strongly; both are inputs here and neither is optimised",
-        "surface waves grow with total height and are not modelled - they eat efficiency exactly where this design gains bandwidth",
-        "a probe feeding through both substrates adds inductance that often dominates the match on thick stacks",
-        "L is the driven patch's full-wave length on its own; the default stack's second mode sits far above f0 (FDTD), so size ratio and gap need a two-layer full-wave design this toolkit does not have"
+        "the design's own band is not in this spec: best_stack_bandwidth_vswr2 is what the best gap and parasitic achieve on the board (indicative, a rule over four solved boards), and `otahub stack` solves the design as given",
+        "gap and size ratio interact strongly: on the default board 0.09 and 1.1 give 11.5% about f0, a ratio of 1.2 gives no band at f0, and the 0.03 and 0.95 this spec used to default to give 1.5%",
+        "solved for an air gap (eps_r2 = 1) over driven layers of eps_r 2.2-4.4 and h sqrt(eps_r)/lambda 0.019-0.038; a dielectric gap is not solved here",
+        "the probe's own reactance is not solved (the FDTD puts it near 13-14 ohm on the default board, the parallel-plate formula at 27); the bands assume a series capacitor tuned for it",
+        "L is the driven patch's full-wave length on its own; the parasitic moves the stack's two modes, which the two-layer spectral MoM solves (checked by FDTD to 0.2% on both)"
       ],
       "known_cases": [
         {
@@ -3689,11 +3707,48 @@
           },
           "tol_pct": 0.5,
           "source": "otahub.num.patch_sdm solved directly for the driven patch alone: 40.1478 mm resonates at f0; the textbook 41.3192 mm does not."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "directivity_dbi": 9.0634
+          },
+          "tol_pct": 1.5,
+          "source": "The two-layer spectral MoM solved directly at the default stack (gap 0.09 wavelengths, ratio 1.1), a probe of 0.65 mm at 0.84 of the half length driving it at f0: broadside directivity of both patches' currents (the fit, not used here, gives it to 0.1 dB)."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 2.2,
+            "h": 0.0016
+          },
+          "expect": {
+            "best_stack_bandwidth_vswr2": 0.115
+          },
+          "tol_pct": 8.0,
+          "source": "The best VSWR-2 band about f0 found on this board by the two-layer spectral MoM with a probe and a tuned series capacitor, over air gaps 0.03-0.12 and ratios 0.95-1.3 (0.09 and 1.1). Indicative metric: the rule it checks spans 7.8-8.9 times the single patch."
+        },
+        {
+          "given": {
+            "f0": 2400000000.0,
+            "eps_r": 3.0,
+            "h": 0.0020199
+          },
+          "expect": {
+            "best_stack_bandwidth_vswr2": 0.155
+          },
+          "tol_pct": 8.0,
+          "source": "The held-out board (eps_r 3.0, h sqrt(eps_r)/lambda 0.028): the best band about f0 solved over gaps 0.07-0.11 and parasitics 0.33-0.37 wavelengths (0.09, 0.35), which the rule, fitted without it, predicted 7% low."
         }
       ],
       "references": [
         "Waterhouse, Stacked patches for broadband microstrip antennas, Electronics Letters 35(2), 1999",
-        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9.3"
+        "Garg, Bhartia, Bahl & Ittipiboon, Microstrip Antenna Design Handbook, Artech 2001, Ch. 9.3",
+        "Two-layer spectral-domain MoM with a probe feed: Pozar, 'Input impedance and mutual coupling of rectangular microstrip antennas', IEEE Trans. AP-30(6), 1982; Croq & Pozar, IEEE Trans. AP-39(12), 1991"
       ]
     }
   ]

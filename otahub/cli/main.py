@@ -741,6 +741,56 @@ def cmd_potter(args: argparse.Namespace, reg: Registry) -> int:
     return 0
 
 
+def cmd_stack(args: argparse.Namespace, reg: Registry) -> int:
+    """A probe-fed stacked patch solved with the two-layer spectral MoM.
+
+    The spec sizes the driven patch on its own and scales the parasitic; this solves
+    the stack it builds - its input impedance over frequency at several probe
+    positions, the widest VSWR-2 band with a series capacitor tuned for it, and the
+    broadside directivity (otahub.num.stacked.design)."""
+    from ..core.constants import C0
+    from ..num import stacked as st
+
+    lam = C0 / args.f0
+    given = dict(f0=args.f0, eps_r=args.eps_r, h=args.h)
+    for key, val in (("eps_r2", args.eps_r2), ("h2_over_lambda", args.gap), ("size_ratio", args.ratio)):
+        if val is not None:
+            given[key] = val
+    d = reg["stacked_patch"].synthesize(**given)
+    L, W, L2, W2, h2 = (d.get(k) for k in ("L", "W", "L2", "W2", "h2"))
+    er2 = d.get("eps_r2")
+    say = (lambda m: print(m, file=sys.stderr, flush=True)) if args.verbose else None
+    res = st.design(args.eps_r, args.h, L, W, er2, h2, L2, W2, args.f0, args.probe_radius,
+                    r_lo=args.lo, r_hi=args.hi, progress=say)
+    out: dict[str, Any] = dict(f0_hz=args.f0, L_m=L, W_m=W, L2_m=L2, W2_m=W2, gap_m=h2, eps_r2=er2,
+                               probe_radius_m=args.probe_radius, **res)
+    if args.json:
+        print(json.dumps(out, indent=2, default=float))
+        return 0
+    mm = lambda x: f"{x * 1e3:.3f} mm"
+    print(f"Stacked patch at {engineering(args.f0, 'Hz')}: driven {mm(L)} x {mm(W)} on {mm(args.h)} of eps_r "
+          f"{args.eps_r:g}; parasitic {mm(L2)} x {mm(W2)}, {mm(h2)} ({h2 / lam:.3f} wavelengths) above on eps_r {er2:g}")
+    print("resistance peaks at " + ", ".join(f"{r:.3f}" for r in res["resistance_peaks"]) + " f0 (best feed)")
+    xs = res["x_nonres"]
+    print(f"\nVSWR-2 bandwidth with a series capacitor tuned for it, for a non-resonant (probe) reactance of "
+          + ", ".join(f"{x:g}" for x in xs) + " ohm:")
+    for row in res["feeds"]:
+        print(f"  probe at {row['xp_fraction']:.2f} of the half length: "
+              + ", ".join(f"{100 * b:.1f}%" for b in row["bandwidth"]))
+    b = res["best"]
+    k = len(xs) // 2
+    if b["bandwidth"][k] > 0:
+        xc = b["series_reactance_ohm"][k]
+        cap = (f"{1e12 / (2 * math.pi * args.f0 * xc):.2f} pF" if xc > 0 else
+               f"{-xc / (2 * math.pi * args.f0) * 1e9:.2f} nH" if xc < 0 else "nothing")
+        print(f"\nbest: probe at {b['xp_fraction']:.2f} of the half length, {100 * b['bandwidth'][k]:.1f}% about "
+              f"{b['centre'][k]:.3f} f0, series {cap} (at {xs[k]:g} ohm of probe reactance); broadside "
+              f"directivity {10 * math.log10(res['directivity']):.2f} dBi")
+    else:
+        print("\nno VSWR-2 band at any probe position tried")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="otahub", description="OTA Hub Antenna Toolkit — synthesise and analyse antennas.")
@@ -886,6 +936,21 @@ def build_parser() -> argparse.ArgumentParser:
     ph.add_argument("--json", action="store_true")
     ph.add_argument("-v", "--verbose", action="store_true", help="report progress on stderr")
     ph.set_defaults(func=cmd_potter)
+
+    sk = sub.add_parser("stack", help="solve a probe-fed stacked patch: its band and best probe position (slow)")
+    sk.add_argument("--f0", type=parse_quantity, required=True, help="design frequency, e.g. 2.4GHz")
+    sk.add_argument("--eps-r", dest="eps_r", type=float, default=2.2, help="driven layer's permittivity (2.2)")
+    sk.add_argument("--h", type=parse_quantity, required=True, help="driven layer's thickness, e.g. 1.6mm")
+    sk.add_argument("--eps-r2", dest="eps_r2", type=float, help="gap's permittivity (the spec's default)")
+    sk.add_argument("--gap", type=float, help="gap in free-space wavelengths (the spec's default)")
+    sk.add_argument("--ratio", type=float, help="parasitic size over driven (the spec's default)")
+    sk.add_argument("--probe-radius", dest="probe_radius", type=parse_quantity, default=0.65e-3,
+                    help="probe radius (0.65 mm, an SMA pin)")
+    sk.add_argument("--lo", type=float, default=0.8, help="sweep from this fraction of f0 (0.8)")
+    sk.add_argument("--hi", type=float, default=1.25, help="sweep to this fraction of f0 (1.25)")
+    sk.add_argument("--json", action="store_true")
+    sk.add_argument("-v", "--verbose", action="store_true", help="report progress on stderr")
+    sk.set_defaults(func=cmd_stack)
     return p
 
 

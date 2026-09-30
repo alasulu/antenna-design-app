@@ -20,6 +20,7 @@ python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
 python OTA_Hub_AntennaToolkit.py potter --f0 10GHz --L 0.3 --band   # a dual-mode horn's step and phasing, solved jointly
+python OTA_Hub_AntennaToolkit.py stack --f0 2.4GHz --h 1.6mm -v     # a stacked patch's band and best probe position (a few minutes)
 
 python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
@@ -180,7 +181,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 3126 tests, ~20 min
+python -m pytest tests/ -q                # 3164 tests, ~25 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs

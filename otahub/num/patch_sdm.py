@@ -40,15 +40,19 @@ import math
 
 import numpy as np
 from scipy.linalg import eigh
-from scipy.special import jv
+from scipy.special import jv, yv
 
 from ..core.constants import C0, EPS0, ETA0, MU0
 
-__all__ = ["RectPatch", "BASIS_SMALL", "BASIS_FULL", "resonance", "resonant_length", "mode_metrics", "slab_gf"]
+__all__ = ["RectPatch", "BASIS_SMALL", "BASIS_FULL", "BASIS_EVEN", "resonance", "resonant_length", "mode_metrics", "slab_gf",
+           "layered_z", "StackedPatch", "tracked_mode", "stacked_resonance", "probe_vector", "probe_reactance",
+           "input_impedance"]
 
 # (n, j) for J_x, (m, j) for J_y; the TM10 class: J_x even-even, J_y odd-odd
 BASIS_SMALL = dict(bx=((0, 0), (0, 2), (0, 4)), by=())
 BASIS_FULL = dict(bx=((0, 0), (0, 2), (0, 4), (2, 0), (2, 2), (4, 0)), by=((1, 1), (1, 3), (3, 1)))
+# the partner class, E_z even in x (J_x odd in x, J_y even in x): no resonance near TM10's
+BASIS_EVEN = dict(bx=((1, 0), (1, 2), (3, 0)), by=((1, 0), (1, 2), (3, 0)))
 
 
 def _usqrt_ft(k, a_len: float, n: int):
@@ -85,9 +89,14 @@ class RectPatch:
     def __init__(self, eps_r: float, h: float, L: float, W: float, bx=((0, 0),), by=()):
         self.er, self.h, self.L, self.W = eps_r, h, L, W
         self.basis = [("x", n, j) for n, j in bx] + [("y", m, j) for m, j in by]
-        # one quadrant suffices when every function is in the TM10 class
-        self.quadrant = all((n % 2 == 0 and j % 2 == 0) if d == "x" else (n % 2 == 1 and j % 2 == 1)
-                            for d, n, j in self.basis)
+        # one quadrant suffices when every function is in the TM10 class, or every one in
+        # its partner with E_z even in x (J_x odd in x) - the class a probe off the centre
+        # line also excites
+        self.quadrant = (all((n % 2 == 0 and j % 2 == 0) if d == "x" else (n % 2 == 1 and j % 2 == 1)
+                             for d, n, j in self.basis)
+                         or all((n % 2 == 1 and j % 2 == 0) if d == "x" else (n % 2 == 1 and j % 2 == 0)
+                                for d, n, j in self.basis))
+        self.x_even_ez = any(d == "x" and n % 2 == 1 for d, n, j in self.basis)
 
     def ft(self, kx, ky):
         """(n_basis, 2, ...) spectra of the basis functions."""
@@ -245,3 +254,242 @@ def mode_metrics(p: RectPatch, f: float) -> dict:
     p_far, u0 = p.far_field(v, f)
     return dict(directivity=4 * math.pi * u0 / p_far, efficiency=p_space / p_total, q_total=q_total,
                 q_radiation=q_total * p_total / p_space, far_over_spectral=p_far / p_space, current=v / v[0])
+
+
+# ------------------------------------------------------------ two layers and a probe
+
+def _cot(x):
+    """cot, stable for any imaginary part (the evanescent spectrum's large |kz h|)."""
+    e = np.exp(np.where(x.imag < 0, -2j * x, 2j * x))
+    return np.where(x.imag < 0, 1j * (1 + e) / (1 - e), -1j * (1 + e) / (1 - e))
+
+
+def _tan(x):
+    e = np.exp(np.where(x.imag < 0, -2j * x, 2j * x))
+    return np.where(x.imag < 0, -1j * (1 - e) / (1 + e), 1j * (1 - e) / (1 + e))
+
+
+def _sec(x):
+    e = np.exp(np.where(x.imag < 0, -1j * x, 1j * x))
+    return 2 * e / (1 + e * e)
+
+
+def layered_z(kr, k0: float, er1: float, h1: float, er2: float, h2: float):
+    """TM and TE transfer impedances [[Z11, Z12], [Z21, Z22]] at the two interfaces of a
+    grounded two-layer slab: short at z = 0, eps_r1 for h1 (node 1), eps_r2 for h2 (node 2),
+    air above. Z_ij is the voltage at node i per unit current injected at node j. Written
+    in tan, cot and sec so it holds however evanescent the spectrum."""
+    w = k0 * C0
+    kr = np.asarray(kr, complex)
+    kz0 = -1j * np.sqrt(kr * kr - k0 * k0 + 0j)
+    kz1 = -1j * np.sqrt(kr * kr - er1 * k0 * k0 + 0j)
+    kz2 = -1j * np.sqrt(kr * kr - er2 * k0 * k0 + 0j)
+    out = []
+    for Y0, Y1, Y2 in ((w * EPS0 / kz0, w * EPS0 * er1 / kz1, w * EPS0 * er2 / kz2),
+                       (kz0 / (w * MU0), kz1 / (w * MU0), kz2 / (w * MU0))):
+        yd1 = -1j * Y1 * _cot(kz1 * h1)                                  # the shorted layer below node 1
+        t2 = _tan(kz2 * h2)
+        yu1 = Y2 * (Y0 + 1j * Y2 * t2) / (Y2 + 1j * Y0 * t2)              # layer 2 loaded by air, from node 1
+        yd2 = Y2 * (yd1 + 1j * Y2 * t2) / (Y2 + 1j * yd1 * t2)            # layer 2 loaded by layer 1, from node 2
+        z11 = 1 / (yd1 + yu1)
+        z21 = z11 * _sec(kz2 * h2) / (1 + 1j * (Y0 / Y2) * t2)
+        out.append(np.array([[z11, z21], [z21, 1 / (yd2 + Y0)]]))
+    return out
+
+
+class StackedPatch(RectPatch):
+    """A driven patch L x W on (eps_r, h) and a parasitic L2 x W2 on a second layer
+    (eps_r2, h2) above it, both centred on the origin and resonant along x. The basis is
+    each patch's own, the lower's first; the Green's function couples them through
+    `layered_z`."""
+
+    def __init__(self, eps_r: float, h: float, L: float, W: float, eps_r2: float, h2: float, L2: float,
+                 W2: float, bx=((0, 0),), by=()):
+        self.lower = RectPatch(eps_r, h, L, W, bx, by)
+        self.upper = RectPatch(eps_r2, h2, L2, W2, bx, by)
+        self.er1, self.h1, self.er2, self.h2 = eps_r, h, eps_r2, h2
+        self.er, self.h = max(eps_r, eps_r2), h           # the contour clears the densest layer's poles
+        self.L, self.W = max(L, L2), max(W, W2)           # the angular sampling follows the larger patch
+        self.n1 = len(self.lower.basis)
+        self.basis = self.lower.basis + self.upper.basis
+        self.quadrant = self.lower.quadrant and self.upper.quadrant
+        self.x_even_ez = self.lower.x_even_ez
+
+    def ft(self, kx, ky):
+        return np.concatenate([self.lower.ft(kx, ky), self.upper.ft(kx, ky)])
+
+    def _accumulate(self, nodes, weights, k0: float):
+        nb, n1 = len(self.basis), self.n1
+        sl = (slice(0, n1), slice(n1, nb))
+        Z = np.zeros((nb, nb), complex)
+        for kr, wk in zip(nodes, weights):
+            al, wa = self._alphas(kr)
+            ca, sa = np.cos(al), np.sin(al)
+            Fp = (self.lower.ft(kr * ca, kr * sa), self.upper.ft(kr * ca, kr * sa))
+            Fm = (self.lower.ft(-kr * ca, -kr * sa), self.upper.ft(-kr * ca, -kr * sa))
+            ztm, zte = layered_z(kr, k0, self.er1, self.h1, self.er2, self.h2)
+            for i in range(2):
+                for j in range(2):
+                    gxx = ztm[i, j] * ca ** 2 + zte[i, j] * sa ** 2
+                    gyy = ztm[i, j] * sa ** 2 + zte[i, j] * ca ** 2
+                    gxy = (ztm[i, j] - zte[i, j]) * ca * sa
+                    Ex = (gxx * Fp[j][:, 0] + gxy * Fp[j][:, 1]) * wa
+                    Ey = (gxy * Fp[j][:, 0] + gyy * Fp[j][:, 1]) * wa
+                    Z[sl[i], sl[j]] += wk * kr * (Fm[i][:, 0] @ Ex.T + Fm[i][:, 1] @ Ey.T)
+        return Z / (4 * math.pi ** 2)
+
+    def _factors(self, theta: float, k0: float):
+        """Far-field factors (TM, TE) of a current on each layer: the top node's voltage
+        radiates, so they are 2 cos(theta) Z_2i Y0 (TM) and 2 Z_2i Y0 (TE)."""
+        kr = k0 * math.sin(theta)
+        ztm, zte = layered_z(kr, k0, self.er1, self.h1, self.er2, self.h2)
+        w = k0 * C0
+        y0tm, y0te = w * EPS0 / (k0 * math.cos(theta)), k0 * math.cos(theta) / (w * MU0)
+        return ([2 * math.cos(theta) * ztm[1, i] * y0tm for i in range(2)], [2 * zte[1, i] * y0te for i in range(2)])
+
+    def far_field(self, v, f: float, nt: int = 96, nph: int = 192):
+        """(space-wave power by far-field integration, broadside intensity)."""
+        k0 = 2 * math.pi * f / C0
+        n1 = self.n1
+        xt, wt = np.polynomial.legendre.leggauss(nt)
+        th = 0.25 * math.pi * (xt + 1)
+        wth = 0.25 * math.pi * wt
+        ph = 2 * math.pi * np.arange(nph) / nph
+        total = 0.0
+        for t_, w_ in zip(th, wth):
+            G, F = self._factors(t_, k0)
+            kx, ky = k0 * math.sin(t_) * np.cos(ph), k0 * math.sin(t_) * np.sin(ph)
+            J = (np.tensordot(v[:n1], self.lower.ft(kx, ky), axes=(0, 0)),
+                 np.tensordot(v[n1:], self.upper.ft(kx, ky), axes=(0, 0)))
+            Er = sum(G[i] * (J[i][0] * np.cos(ph) + J[i][1] * np.sin(ph)) for i in range(2))
+            Ep = sum(F[i] * (-J[i][0] * np.sin(ph) + J[i][1] * np.cos(ph)) for i in range(2))
+            total += w_ * math.sin(t_) * float(np.sum(abs(Er) ** 2 + abs(Ep) ** 2)) * 2 * math.pi / nph
+        c = ETA0 * k0 ** 2 / (32 * math.pi ** 2)
+        G0, _ = self._factors(0.0, k0)
+        z = np.array([0.0])
+        J0 = (np.tensordot(v[:n1], self.lower.ft(z, z), axes=(0, 0))[:, 0],
+              np.tensordot(v[n1:], self.upper.ft(z, z), axes=(0, 0))[:, 0])
+        E0 = G0[0] * J0[0] + G0[1] * J0[1]
+        return c * total, c * (abs(E0[0]) ** 2 + abs(E0[1]) ** 2)
+
+
+def _modes(Z):
+    R = Z.real + 1e-9 * np.max(np.diag(Z.real)) * np.eye(len(Z))
+    lam, V = eigh(Z.imag, R)
+    return lam, V, R
+
+
+def tracked_mode(p: RectPatch, f: float, v_ref):
+    """(eigenvalue, current) at f of the characteristic mode nearest v_ref in the R inner product."""
+    lam, V, R = _modes(p.Z(f))
+    j = int(np.argmax(np.abs(v_ref @ R @ V) / np.linalg.norm(V, axis=0)))
+    return lam[j], V[:, j]
+
+
+def stacked_resonance(p: RectPatch, f_guess: float, tol: float = 2e-6, it: int = 25):
+    """(frequency, current) of the characteristic mode that, of the three strongest
+    radiators at f_guess, has the eigenvalue nearest zero - followed by its current as
+    the frequency moves, so a stack's two coupled modes are found one at a time."""
+    lam, V, _ = _modes(p.Z(f_guess))
+    j = min(np.argsort(np.linalg.norm(V, axis=0))[:3], key=lambda i: abs(lam[i]))
+    f1, (g1, v1) = f_guess, (lam[j], V[:, j])
+    f2 = 1.01 * f_guess
+    g2, v2 = tracked_mode(p, f2, v1)
+    for _ in range(it):
+        f3 = f2 - g2 * (f2 - f1) / (g2 - g1)
+        if abs(f3 / f2 - 1) < tol:
+            return f3, v2
+        f1, g1, v1, f2 = f2, g2, v2, f3
+        g2, v2 = tracked_mode(p, f2, v1)
+    raise ValueError("resonance search did not converge")
+
+
+def _probe_terms(p: RectPatch, kr, k0: float):
+    """[(slice of basis, TM transfer impedance from its layer to the probe's)], eps_r, h of the probe's layer."""
+    if isinstance(p, StackedPatch):
+        ztm, _ = layered_z(kr, k0, p.er1, p.h1, p.er2, p.h2)
+        n1, nb = p.n1, len(p.basis)
+        return [(slice(0, n1), ztm[0, 0]), (slice(n1, nb), ztm[0, 1])], p.er1
+    return [(slice(0, len(p.basis)), p.znode(kr, k0)[0])], p.er
+
+
+def _probe_acc(p: RectPatch, nodes, weights, k0: float, xp, a: float):
+    """Per-node contributions (len(nodes), len(xp), n_basis) to the probe coupling."""
+    out = np.zeros((len(nodes), len(xp), len(p.basis)), complex)
+    for m, (kr, wk) in enumerate(zip(nodes, weights)):
+        al, wa = p._alphas(kr)
+        ca, sa = np.cos(al), np.sin(al)
+        terms, er1 = _probe_terms(p, kr, k0)
+        F = p.ft(kr * ca, kr * sa)
+        ju = (F[:, 0] * ca + F[:, 1] * sa) * wa                          # (n_basis, n_alpha)
+        if p.x_even_ez:                                                   # e^{-j kx xp}: its even part
+            proj = 1j * np.cos(kr * np.multiply.outer(xp, ca)) @ ju.T
+        else:                                                             # its odd part
+            proj = np.sin(kr * np.multiply.outer(xp, ca)) @ ju.T          # (len(xp), n_basis)
+        rad = jv(0, kr * a) if a else 1.0
+        for sl, zt in terms:
+            out[m, :, sl] = wk * kr * proj[:, sl] * (-kr * zt * rad / (er1 * k0 * k0 - kr * kr))
+    return out / (4 * math.pi ** 2)
+
+
+def probe_vector(p: RectPatch, f: float, xp, a: float = 0.0, kmax: float = 200.0, n_ell: int = 400):
+    """Coupling of each basis function to a unit probe current from the ground to the
+    driven patch at (xp, 0), radius a: <J_n, -E_probe>, the Galerkin matrix's own sign;
+    (len(xp), n_basis) for several positions at once. Per spectral component, a patch
+    current's field integrated up the probe is j kr Z_TM / kz^2 times its component along
+    kr (the probe layer's transmission-line current). The tail falls as 1/k^2 but
+    oscillates with k xp: the partial integrals are averaged over the last period of
+    k xp, which cancels the oscillation, at kmax/2 and kmax, and those two extrapolated
+    in 1/k^2."""
+    xs = np.atleast_1d(np.asarray(xp, float))
+    if not xs.any() and not p.x_even_ez:                  # the centre line: odd symmetry, no coupling
+        out = np.zeros((len(xs), len(p.basis)), complex)
+        return out[0] if np.ndim(xp) == 0 else out
+    k0 = 2 * math.pi * f / C0
+    K1 = k0 * (math.sqrt(p.er) + 1.0)
+    t, wt = np.polynomial.legendre.leggauss(n_ell)
+    t = 0.5 * math.pi * (t + 1)
+    wt = 0.5 * math.pi * wt
+    b = 0.2 * k0
+    base = _probe_acc(p, 0.5 * K1 * (1 - np.cos(t)) + 1j * b * np.sin(t),
+                      wt * (0.5 * K1 * np.sin(t) + 1j * b * np.cos(t)), k0, xs, a).sum(axis=0)
+    width = 2 * math.pi / max(xs.max(), 0.05 * C0 / f) / 8   # eight panels to the shortest period of k xp
+    x, w = np.polynomial.legendre.leggauss(16)
+    edges = np.arange(K1, kmax * k0 + 0.5 * width, width)
+    nodes = (0.5 * (edges[1:] - edges[:-1])[:, None] * (x + 1) + edges[:-1, None]).ravel()
+    weights = (0.5 * (edges[1:] - edges[:-1])[:, None] * w).ravel()
+    acc = _probe_acc(p, nodes, weights, k0, xs, a)
+    partial = np.cumsum(acc.reshape(len(edges) - 1, 16, len(xs), -1).sum(axis=1), axis=0)
+    ends = edges[1:]
+    out = np.empty((len(xs), len(p.basis)), complex)
+    for q, x_ in enumerate(xs):
+        if x_ == 0.0 and not p.x_even_ez:                 # the centre line: odd symmetry, no coupling
+            out[q] = 0.0
+            continue
+        n = max(1, int(round(2 * math.pi / x_ / width))) if x_ else 1   # panels in one period of k x_
+
+        def mean_at(K):
+            k = int(np.searchsorted(ends, K - 1e-9 * K))
+            return partial[k - n + 1:k + 1, q].mean(axis=0), ends[k] - 0.5 * n * width
+
+        full, kf = mean_at(ends[-1])
+        half, kh = mean_at(0.5 * ends[-1])
+        out[q] = base[q] + full + (full - half) / ((kf / kh) ** 2 - 1)
+    return out[0] if np.ndim(xp) == 0 else out
+
+
+def probe_reactance(f: float, eps_r: float, h: float, a: float) -> float:
+    """The probe's own reactance, from the parallel plate: -(eta0 k0 h / 4) Y0(k a), k in the
+    dielectric - the probe inductance of the cavity model. The spectral self-term of a
+    probe ending on a patch diverges without an attachment mode; this stands in for it."""
+    k0 = 2 * math.pi * f / C0
+    return -(ETA0 * k0 * h / 4) * float(yv(0, k0 * math.sqrt(eps_r) * a))
+
+
+def input_impedance(p: RectPatch, f: float, xp: float, a: float) -> complex:
+    """Input impedance of a probe of radius a at (xp, 0) under the driven patch: the
+    probe reactance plus the patch currents' reaction, -v^T Z^-1 v."""
+    v = probe_vector(p, f, xp, a)
+    er, h = (p.er1, p.h1) if isinstance(p, StackedPatch) else (p.er, p.h)
+    zm = -np.einsum("...i,...i->...", v, np.linalg.solve(p.Z(f), v.T).T)
+    return 1j * probe_reactance(f, er, h, a) + zm

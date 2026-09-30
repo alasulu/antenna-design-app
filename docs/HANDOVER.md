@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
-23,193 lines of Python, 25,252 lines of spec data, 3126 tests, 1049/1049 citable
+24,130 lines of Python, 25,307 lines of spec data, 3164 tests, 1052/1052 citable
 known cases passing.**
 
 ---
@@ -22,7 +22,7 @@ known cases passing.**
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
 | Export | `otahub/export/` | Neutral geometry IR rendered to CST VBA and HFSS IronPython |
-| Interfaces | `otahub/cli/`, `otahub/gui/` | 12 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
+| Interfaces | `otahub/cli/`, `otahub/gui/` | 15 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
 
 ```bash
 python -m pytest -m "not slow"      # the quick loop, ~30 s
@@ -200,8 +200,8 @@ Kirschning and Jansen (0.1-0.9%); the radiated power from the spectral reaction
 against a far-field integral (1 part in 10^4); and the patch's surface-wave
 efficiency against Jackson's closed form, to 0.0-0.5% on thin board.
 
-**Limits that bite:** rectangles only (the TM10 class), no feed model,
-lossless, infinite substrate and ground; FDTD is affordable only on moderately
+**Limits that bite:** rectangles only (the TM10 class and its x-even partner),
+a probe feed without its own reactance, lossless, infinite substrate and ground; FDTD is affordable only on moderately
 thick boards (the FR-4 check took 80 minutes at its finest grid). What the MoM
 cannot hold, the FDTD can: `patch_fdtd.shorted_ringdown` runs a quarter-wave
 patch with a full shorting wall in a half-space grid (checked against the
@@ -209,6 +209,33 @@ quarter-space grid on a symmetric patch: identical), and two sheets make a
 stacked patch. On air the same grid is a PIFA: two plates put L + h at 0.2428 and
 0.2423 of their resonant wavelength, 3.1-6.7% below the unshorted plate of twice
 the length solved by the MoM.
+
+**A second layer and a probe.** `patch_sdm.StackedPatch` puts a parasitic patch on
+a second layer, coupled to the driven one through the two-layer slab's
+transmission-line network (`layered_z`, written in tan/cot/sec so it holds at any
+decay; it reduces to the single slab exactly and is reciprocal to 1e-16), its far
+field balancing its reaction to 1e-14. `probe_vector` couples the patch currents
+to a probe from the ground to the driven patch - a vertical current's field
+through the same network, the oscillating tail averaged over a period and
+extrapolated - and a single probe excites the x-even class (`BASIS_EVEN`) as well
+as TM10's. What it does not give is the probe's own reactance: the self-term
+diverges without an attachment mode, and a disc attachment leaves the probe's
+charge where the patch's edge-conforming currents cannot carry it (the reactance
+swung from -114 to -1 ohm with the disc's radius, the resistance under 1%). The
+FDTD (`patch_fdtd.stacked_ringdown`, `probe_impedance` - a zero-thickness wire, a
+Norton source, V across the gap and I round the wire above it, checked on a
+monopole against the wire MoM with the same finite gap) meets it:
+the stack's two modes at 0.9931 and 1.3782 f0 extrapolated from 2-8 cells against
+the MoM's poles 0.9931 and 1.375; a single probe's resonant resistance within 4%
+on a lone patch and the stack; and a double-tuned stack's band, 12.5% against
+12.3%. Two things surfaced on the way: the quarter-space grid's electric wall
+mirrors a probe into an antiphase pair, doubling the TM10 share of the impedance;
+and for a mode of Q 13 the characteristic eigenvalue crosses zero 1.2% above the
+natural frequency, which the MoM's own impedance pole agrees is where the ringdown
+puts it. `otahub/num/stacked.py` and `otahub stack` use it to design a stack: the
+input impedance over frequency (matrix and couplings splined from a coarse grid,
+0.05 ohm through resonance), the widest VSWR-2 band about f0 with a series
+capacitor or inductor tuned for it, over probe positions, and the directivity.
 
 ### A fifth, for waveguide steps and flared horns
 
@@ -410,7 +437,7 @@ being written into a spec.
 | Rectangular, inset, CP, circular, triangular and shorted patches (directivity) | Broadside directivity as the thin-substrate value (all walls radiating) times a substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1 | `otahub/num/patch_sdm.py` full-wave: `patch_q`'s directivity within 0.3-0.9% on air, eps_r 2.2, FR-4 and 10.2. The two-slot formula was 7.5-13% low (side walls and substrate); the circular and triangular free-space edge models up to 18% low on thick board; the shorted patch's single slot 5-35% high |
 | `rectangular_patch`, `rectangular_patch_inset` (resonance, Q, surface waves) | L is now the length that resonates at f0 full-wave (the textbook design kept as L_textbook, where it resonates reported); full-wave radiation Q, surface-wave efficiency and a bandwidth counting it; the inset depth is the transmission-line fraction of the full-wave L | `patch_sdm` against `patch_fdtd` (0.013-0.02% in frequency, 0.15-0.2% in Q). The Hammerstad design resonates 0.5-7% LOW (the classic 2.4 GHz FR-4 patch at 2.33 GHz); the cavity-current Q ran 1.6-28% high; efficiency matches Jackson's thin-slab form to 0.5% |
 | `truncated_corner_cp_patch` (square side, Q0) | Q0 = full-wave radiation Q times surface-wave efficiency; the square side resonant at f_sq full-wave (textbook kept as L_textbook); the cut-to-split relation stays the cavity model's | `patch_sdm` on squares, `patch_fdtd` on one (0.007%, 0.17%). The old cavity-current radiation Q0 was 1-99% above the total - the surface wave it left out dominates on thick high-permittivity board - so the cut was too small; the textbook square 0.5-7% too large |
-| `quarter_wave_shorted_patch`, `stacked_patch` (lengths) | Both now build the rectangular patch's full-wave length ratio (textbook kept as L_textbook) | FDTD spot checks: the textbook shorted patch resonates 4-8% low, more than the full patch (the wall's inductance). A half-space FDTD survey of the shorted patch itself (eleven boards, eps_r 2.2-10.2, h sqrt(eps_r)/lambda0 to 0.095, extrapolated to zero cell size) found the full-patch correction alone still 1.2-11% low, not 1-3%, and gave the wall its own length factor: held-out boards now resonate at 0.988-1.000 f0. The default stack's two modes sit at 0.99 and 1.37 f0 and stay 25-38% apart at any size ratio at its 0.03-wavelength gap; the spec's 'make the parasitic smaller' was backwards |
+| `quarter_wave_shorted_patch`, `stacked_patch` (lengths) | Both now build the rectangular patch's full-wave length ratio (textbook kept as L_textbook) | FDTD spot checks: the textbook shorted patch resonates 4-8% low, more than the full patch (the wall's inductance). A half-space FDTD survey of the shorted patch itself (eleven boards, eps_r 2.2-10.2, h sqrt(eps_r)/lambda0 to 0.095, extrapolated to zero cell size) found the full-patch correction alone still 1.2-11% low, not 1-3%, and gave the wall its own length factor: held-out boards now resonate at 0.988-1.000 f0. The then-default stack's two modes sit at 0.993 and 1.378 f0 and stay 25-38% apart at any size ratio at its 0.03-wavelength gap; the spec's 'make the parasitic smaller' was backwards. The two-layer MoM since solves the stack itself (§3, §5) |
 | `quarter_wave_shorted_patch` | Radiation Q and VSWR-2 bandwidth with the shorting wall's vertical current; the bandwidth relative to the full patch on the same board | `otahub/num/patch_q.py`: the wall's slab factor against a plane-wave boundary-value solve (1e-8); on air the shorted patch against the cavity model's magnetic currents on its three open walls, written independently (0.004%). Not half the full patch's bandwidth: 1.84 times it on air, equal near eps_r 2, 0.57 at eps_r 12. The side walls radiate a third of the power the old one-slot picture left out |
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
@@ -449,8 +476,10 @@ thin-wire solver cannot reach them. `ferrite_rod_loop` additionally needs a
 ferrite material model.
 
 Two of those are new in session 5 and both are honest about why:
-`stacked_patch`'s bandwidth multiplier is an expectation drawn from published
-designs rather than a computed result. `conical_horn_dual_mode` is most of the
+`stacked_patch` now has its full-wave solver (§3): its geometry, directivity and
+the best band a stack reaches on its board are solved, but not the given design's
+own band, which `otahub stack` solves per design - a rule over four boards
+(indicative) is what the spec can carry. `conical_horn_dual_mode` is most of the
 way out: its aperture is derived for a given TM11 share (0.62 was 0.506, the gain
 "advantage" a loss), and its step is SOLVED by mode matching and checked by FDTD.
 It was then taken end to end (the last round before v1.0), and that keeps it low: the
@@ -778,6 +807,7 @@ known case only checks what it asserts.
 | `circular_patch`, `triangular_patch` | Both sized the patch by the cavity model with a fringing correction and called the resonance an upper bound on thick board, without a solver of their shape to say by how much. The FDTD with the outline staircased onto the grid, over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 up to 0.095, extrapolated from three to five cell sizes: the disc resonates about 1% low on thin board and 2-7% low on thick, the triangle 1-5% low on thin board (its a + h/sqrt(eps_r) is weakest at low permittivity) and 2-7% on thick. The specs build the cavity size times a fitted factor; held-out boards built to it land within 1% of f0. Staircased outlines converge unevenly, so the factor is about 1% good |
 | `e_plane_sectoral_horn` | Its gain was the aperture-power form, which takes the radiated power to be the power crossing the aperture - wrong across the unflared a_wg, which is waveguide-sized. The FDTD of the whole free-standing horn with a far-field box (§3), on five horns over a_wg 0.65-2 wavelengths, meets the aperture in a ground plane to -0.14 to +0.09 dB and puts the aperture-power form 0.7-1.6 dB low (the Huygens aperture 0.6-1.1). `gain_dbi` is now the aperture-power gain plus the ground-plane model's difference - smooth in the three shape numbers plus a one-wavelength ripple from the b1 edges, fitted to 0.04 dB - 15.6 dBi at the default where it said 14.4; the old figure is kept as `gain_aperture_power_dbi`. Its H-plane sibling was right: the FDTD puts it 0.2-0.3 dB below the aperture-power form |
 | `pifa` | Its directivity was a 4.0 dBi placeholder, since the FDTD had no far field. With the box transform (§3), on an infinite ground plane with a full-width short: 3.4-4.6 dBi over h 0.02-0.05 and W 0.06-0.2 wavelengths, peaking at the horizon along the plate (the open edge is a horizontal magnetic current doubled by the ground), and 1.2-2.8 dBi straight up. The placeholder fell inside the range by luck; both are now fitted, with a known case from a direct run |
+| `stacked_patch` | Its default stack (a 0.03-wavelength air gap, parasitic 0.95 of the driven patch) was not double-tuned: its modes sit at 0.993 and 1.378 f0 (FDTD and the two-layer MoM agree), and its VSWR-2 band about f0 is 1.5%, where the spec said 11.9% - a 'bandwidth multiplier' of 2.4 from published designs applied at the total height, 1.1-3 times high even at each board's best design. Solved over gap and parasitic on four boards, the best band is 7.8-8.9 times the driven patch's own (8.4, the rule now carried; fitted on three, it predicted the fourth 7% low); on the default board it is 11.5% about f0 at a 0.09 gap and ratio 1.1, now the defaults, confirmed by FDTD (12.5% against 12.3% at its own centre). A ratio of 1.2 has no band at f0 at all. The directivity placeholder (8.75 dBi) is solved: 9.06 at the new default, fitted to 0.09 dB (0.07 held out). The probe the exporter guessed at a quarter length sits at 0.9 of the half length |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -845,9 +875,17 @@ newly found - and the project is tagged v2.0. Groups A and B are out of scope.
 
 ### C. Needs a new solver
 
-7. **A two-layer spectral MoM with a feed model** for `stacked_patch`: its gap
-   and size ratio. The FDTD shows the default stack's two modes 25-38% apart,
-   not straddling f0, so the stack needs a real design tool.
+7. ~~**A two-layer spectral MoM with a feed model** for `stacked_patch`.~~ Done
+   under Finish line 2 (§3): `patch_sdm.StackedPatch` with a probe, checked by
+   FDTD to 0.2% on the modes, 4% on the resonant resistance and 0.2 points on a
+   double-tuned band; `otahub stack` designs one. The old default was not
+   double-tuned (1.5%, not 11.9%); the new one is (11.5% about f0), and the spec
+   carries the best band on its board as 8.4 times the single patch's (a rule
+   over four boards). New future work from it: the probe's own reactance (an
+   attachment mode that carries the probe's charge over the whole patch, or a
+   thin-wire FDTD port with a known equivalent radius); a dielectric gap; and a
+   survey wide enough to fit the best gap and parasitic themselves, which moved
+   between boards (0.07-0.09 wavelengths, 0.35-0.37 long).
 8. ~~**Full-wave solvers of their own shape** for the circular and triangular
    patches.~~ Done under Finish line 2 by FDTD: `patch_fdtd.sheet_ringdown`
    takes any outline, staircased (`circular_ringdown`, `triangular_ringdown`).

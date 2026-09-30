@@ -55,7 +55,7 @@ def test_the_spec_corrections_are_the_full_patchs(registry):
         assert short.get("L_open_edge_only") / short.get("L_textbook") == pytest.approx(ratio, rel=1e-12)
         assert short.get("L") < short.get("L_open_edge_only")
         assert stack.get("L") == pytest.approx(rect.get("L"), rel=1e-12)
-        assert stack.get("L2") == pytest.approx(0.95 * stack.get("L"), rel=1e-12)
+        assert stack.get("L2") == pytest.approx(stack.get("size_ratio") * stack.get("L"), rel=1e-12)
 
 
 def test_the_default_stack_is_not_double_tuned():

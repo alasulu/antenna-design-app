@@ -1048,18 +1048,20 @@ def _stacked_patch(design: DesignResult) -> Model:
         Brick("parasitic_patch", "PEC", (-w2 / 2, w2 / 2), (-l2 / 2, l2 / 2),
               (h + h2, h + h2)),
     ]
+    feed = _param(design, "feed_offset", default=length / 4)
     model.ports.append(DiscretePort(
-        "port1", (0.0, -length / 4, 0.0), (0.0, -length / 4, h)))
+        "port1", (0.0, -feed, 0.0), (0.0, -feed, h)))
     model.notes += [
         f"Parasitic patch suspended {h2 * 1e3:.4g} mm above the driven one, in "
         "air. The spacer is not modelled: foam or honeycomb is close to air, a "
         "dielectric one is not.",
-        "Probe at a quarter of the driven patch's length, which is a guess. The "
-        "spec gives no feed position, and on a stack the probe inductance is "
-        "often large enough to need a series capacitor.",
-        "Marked LOW CONFIDENCE: the bandwidth multiplier is an expectation drawn "
-        "from published designs, not a computed result. The geometry here is "
-        "sound; the predicted bandwidth is the part to distrust.",
+        f"Probe {feed * 1e3:.4g} mm from the centre along the driven patch's length, "
+        "0.9 of its half length: where the two-layer MoM put the best feed on every "
+        "board surveyed (indicative; `otahub stack` solves this design's own). The "
+        "band assumes a series capacitor tuned to take out the probe's reactance.",
+        "Marked LOW CONFIDENCE: the spec carries the best band a stack reaches on "
+        "this board, not this design's own; the geometry is sound, and `otahub "
+        "stack` solves its band.",
     ]
     return model
 
