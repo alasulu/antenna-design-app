@@ -3704,3 +3704,38 @@ its 8.75 dBi placeholder, and a probe offset (0.9 of the half length, where the
 best feed was on every board) that the exporter now uses instead of its guess at
 a quarter length. It stays low confidence: the design's own band is not in the
 spec, and `otahub stack` solves it. Three new known cases take direct solves.
+
+## Project complete
+
+Finish line 2 is reached, and the project closes at v2.0 on 2026-09-30.
+
+Every item in its scope was done under the house rules; none proved infeasible.
+- D.11: the Potter horn designed as one chain, as a per-horn tool (`otahub
+  potter`) - "the" joint design is several, with twofold different bandwidths.
+- D.12: the shorted patch surveyed by FDTD - its wall pulled it 1.2-11% low, not
+  1-3%; the spec carries the wall's own length factor.
+- C.10: a finite gap for the wire MoM - it converges where the delta gap drifts,
+  and meets the tube solver's fat dipoles to 0.18% and 0.67%.
+- D.15: the last three archetypes examined with a new planar RWG solver - the
+  spirals are not circularly polarised at their own f_low, and all 72 archetypes
+  have now been checked by an independent solver at least once.
+- C.8: the circular and triangular patches in their own shapes - built to the
+  cavity size they resonate 2-7% low on thick board, the triangle 5% low even on
+  thin.
+- C.9: a far field for the FDTD - the E-plane sectoral horn read 1.1 dB low, the
+  H-plane horn was right, and the PIFA has a solved directivity.
+- C.7: the stacked patch solved - its default was not double-tuned (1.5%, not
+  11.9%); the best stack is about 8.4 times the single patch.
+
+HANDOVER section 6 is rewritten as the final list: what needs a CST Studio or
+HFSS installation (execution-testing the exporters, horn geometry builders,
+full-wave checks of four low-confidence archetypes), what needs measured data
+(the Luneburg lens's efficiency, a ferrite model, handset PIFAs), and six items
+the work after v1.0 newly found (the probe's own reactance, a dielectric stack
+gap, the best stack as a fitted rule, the surface-wave share of the circle's and
+triangle's Q, a flanged-guide survey, the spirals' feed region).
+
+At the close: 72 archetypes in 10 families, 24,130 lines of Python and 25,307 of
+spec data, 3164 tests, 1052/1052 citable known cases passing, the doctor clean.
+Tagged v2.0 on this commit, locally; v1.0 stays at a96a5c2. The build loop is
+stopped and not re-armed.
