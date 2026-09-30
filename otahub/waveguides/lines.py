@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 
-from scipy.special import ellipk
+from scipy.special import ellipkm1
 
 from ..core.constants import C0, ETA0, surface_resistance
 
@@ -47,27 +47,35 @@ def coax_optimum_ratios() -> dict[str, float]:
 
 
 # ---------------------------------------------------------------- microstrip
+#
+# Hammerstad and Jensen, "Accurate models for microstrip computer-aided
+# design", IEEE MTT-S 1980: continuous in w/h (the older two-branch Hammerstad
+# forms jump 0.4% at w/h = 1, which leaves some impedances with no width at
+# all), Z0 to 0.01% of the quasi-static solution for 0.01 < w/h < 100 and
+# eps_eff to 0.2% for eps_r < 128, zero-thickness strip, no dispersion.
+
+def _hj_z01(u: float) -> float:
+    """Air-filled microstrip impedance at w/h = u (Hammerstad-Jensen)."""
+    f = 6.0 + (2.0 * math.pi - 6.0) * math.exp(-(30.666 / u) ** 0.7528)
+    return ETA0 / (2.0 * math.pi) * _LOG(f / u + math.sqrt(1.0 + (2.0 / u) ** 2))
+
 
 def microstrip_eps_eff(w: float, h: float, eps_r: float) -> float:
-    """Effective permittivity (Hammerstad, static form)."""
+    """Effective permittivity (Hammerstad-Jensen, static)."""
     u = w / h
-    if u >= 1.0:
-        return (eps_r + 1) / 2 + (eps_r - 1) / 2 * (1 + 12 / u) ** -0.5
-    return ((eps_r + 1) / 2 + (eps_r - 1) / 2
-            * ((1 + 12 / u) ** -0.5 + 0.04 * (1 - u) ** 2))
+    a = (1.0 + _LOG((u ** 4 + (u / 52.0) ** 2) / (u ** 4 + 0.432)) / 49.0
+         + _LOG(1.0 + (u / 18.1) ** 3) / 18.7)
+    b = 0.564 * ((eps_r - 0.9) / (eps_r + 3.0)) ** 0.053
+    return (eps_r + 1) / 2 + (eps_r - 1) / 2 * (1 + 10 / u) ** (-a * b)
 
 
 def microstrip_impedance(w: float, h: float, eps_r: float) -> float:
-    """Microstrip characteristic impedance [ohm] (Hammerstad).
+    """Microstrip characteristic impedance [ohm] (Hammerstad-Jensen).
 
-    Accuracy is about 1% against full-wave solutions for 0.05 < w/h < 20 and
-    eps_r < 16, ignoring conductor thickness and dispersion.
+    Z0 = Z01(w/h) / sqrt(eps_eff), continuous and monotonic in w/h; see the
+    section note for its accuracy.
     """
-    u = w / h
-    ee = microstrip_eps_eff(w, h, eps_r)
-    if u <= 1.0:
-        return (ETA0 / (2 * math.pi * math.sqrt(ee))) * _LOG(8 / u + u / 4)
-    return (ETA0 / math.sqrt(ee)) / (u + 1.393 + 0.667 * _LOG(u + 1.444))
+    return _hj_z01(w / h) / math.sqrt(microstrip_eps_eff(w, h, eps_r))
 
 
 def microstrip_width_for(z0: float, h: float, eps_r: float,
@@ -101,20 +109,16 @@ def microstrip_guide_wavelength(f_hz: float, w: float, h: float, eps_r: float) -
 
 # ----------------------------------------------------------------- stripline
 
-def _K(k: float) -> float:
-    """Complete elliptic integral of the first kind, by modulus k.
+def _K_ratio(k: float, kp: float) -> float:
+    """K(k) / K(k'), the complete elliptic integrals by modulus, with the
+    complementary modulus k' = sqrt(1 - k^2) passed in rather than formed.
 
-    scipy parameterises by m = k^2, which is a standard source of factor
-    errors in line formulas, so the conversion is made once, here.
+    scipy's ellipkm1(p) is K at parameter m = 1 - p, so K(k) = ellipkm1(k'^2)
+    and K(k') = ellipkm1(k^2): neither side ever computes 1 - k^2, which is
+    where a wide stripline (k' -> 1 to the last bit) or a wide CPW centre
+    conductor (k -> 1) used to lose every digit and return 0 or infinity.
     """
-    k = min(max(abs(k), 0.0), 1.0 - 1e-15)
-    return float(ellipk(k * k))
-
-
-def _K_complement(k: float) -> float:
-    """K(k') where k' = sqrt(1 - k^2)."""
-    k = min(max(abs(k), 1e-15), 1.0)
-    return float(ellipk(1.0 - k * k))
+    return float(ellipkm1(kp * kp)) / float(ellipkm1(k * k))
 
 
 def stripline_impedance(w: float, b: float, eps_r: float) -> float:
@@ -133,8 +137,8 @@ def stripline_impedance(w: float, b: float, eps_r: float) -> float:
     if w <= 0 or b <= 0:
         raise ValueError("w and b must be positive")
     arg = math.pi * w / (2.0 * b)
-    k = 1.0 / math.cosh(arg)
-    return (ETA0 / (4.0 * math.sqrt(eps_r))) * _K(k) / _K_complement(k)
+    k, kp = 1.0 / math.cosh(arg), math.tanh(arg)      # k' = tanh, exactly
+    return (ETA0 / (4.0 * math.sqrt(eps_r))) * _K_ratio(k, kp)
 
 
 # -------------------------------------------------------- coplanar waveguide
@@ -155,8 +159,9 @@ def cpw_impedance(w: float, s: float, eps_r: float) -> float:
     if w <= 0 or s <= 0:
         raise ValueError("w and s must be positive")
     k = w / (w + 2.0 * s)
+    kp = 2.0 * math.sqrt(s * (w + s)) / (w + 2.0 * s)   # the same, cancellation-free
     eps_eff = (eps_r + 1.0) / 2.0
-    return (ETA0 / (4.0 * math.sqrt(eps_eff))) * _K_complement(k) / _K(k)
+    return (ETA0 / (4.0 * math.sqrt(eps_eff))) * _K_ratio(kp, k)
 
 
 def cpw_eps_eff(eps_r: float) -> float:

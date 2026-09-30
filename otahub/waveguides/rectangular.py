@@ -38,7 +38,8 @@ class RectangularWaveguide:
     """
 
     def __init__(self, a: float, b: float, eps_r: float = 1.0, mu_r: float = 1.0,
-                 sigma: float = 5.8e7, tan_delta: float = 0.0) -> None:
+                 sigma: float = 5.8e7, tan_delta: float = 0.0,
+                 wall_mu_r: float = 1.0) -> None:
         if a <= 0 or b <= 0:
             raise ValueError(f"guide dimensions must be positive, got a={a}, b={b}")
         if b > a:
@@ -49,6 +50,7 @@ class RectangularWaveguide:
         self.a, self.b = a, b
         self.eps_r, self.mu_r = eps_r, mu_r
         self.sigma, self.tan_delta = sigma, tan_delta
+        self.wall_mu_r = wall_mu_r      # the metal's, not the filling's (mu_r)
 
     # ------------------------------------------------------------- geometry
 
@@ -154,7 +156,7 @@ class RectangularWaveguide:
             return math.inf
         if self.sigma == math.inf:
             return 0.0
-        rs = surface_resistance(f_hz, self.sigma, self.mu_r)
+        rs = surface_resistance(f_hz, self.sigma, self.wall_mu_r)
         ratio = (fc / f_hz) ** 2
         return (rs / (self.b * self.eta * math.sqrt(1.0 - ratio))) * (
             1.0 + (2.0 * self.b / self.a) * ratio)

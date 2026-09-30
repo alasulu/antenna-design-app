@@ -78,13 +78,27 @@ def _taylor_nulls(sidelobe_db: float, nbar: int):
 
 
 def taylor_circular_pattern(u, sidelobe_db: float = -30.0, nbar: int = 5):
-    """Taylor's circular pattern F(u), F(0) = 1."""
+    """Taylor's circular pattern F(u), F(0) = 1.
+
+    At a displaced null u = mu_m the factor 2 J1(pi u)/(pi u) and 1 - u^2/mu_m^2
+    both vanish; the limit (J2 = -J0 at a zero of J1) is
+    -J0(pi mu_m) prod_n (1 - mu_m^2/u_n^2) / prod_{n != m} (1 - mu_m^2/mu_n^2),
+    taken within a relative 1e-8 of mu_m where the quotient loses its digits.
+    """
     mu, un = _taylor_nulls(sidelobe_db, nbar)
     u = np.asarray(u, dtype=float)
     x = math.pi * u
     base = np.where(np.abs(x) < 1e-12, 1.0, 2 * j1(x) / np.where(np.abs(x) < 1e-12, 1.0, x))
-    for n in range(nbar - 1):
-        base = base * (1 - (u / un[n]) ** 2) / (1 - (u / mu[n]) ** 2)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        for n in range(nbar - 1):
+            base = base * (1 - (u / un[n]) ** 2) / (1 - (u / mu[n]) ** 2)
+    for m in range(nbar - 1):
+        at = np.abs(np.abs(u) - mu[m]) <= 1e-8 * mu[m]
+        if np.any(at):
+            limit = (-j0(math.pi * mu[m]) * np.prod(1 - (mu[m] / un) ** 2)
+                     / np.prod([1 - (mu[m] / mu[n]) ** 2
+                                for n in range(nbar - 1) if n != m]))
+            base = np.where(at, limit, base)
     return base
 
 

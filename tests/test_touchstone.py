@@ -1,8 +1,10 @@
 """Touchstone reading and writing.
 
-The tests that matter here are the format's two traps: two-port files store
-their matrix column-major while every other size is row-major, and a frequency
-point may wrap across any number of lines. Both are silent failures - a
+The tests that matter here are the format's traps: two-port files store
+their matrix column-major while every other size is row-major, a frequency
+point may wrap across any number of lines, Version 1 Z and Y data are
+normalised while Version 2's are not, and noise data may follow a two-port's
+network data. Both are silent failures - a
 transposed two-port and a mis-chunked multi-port both parse without complaint
 and give wrong answers.
 """
@@ -37,11 +39,21 @@ def test_two_port_files_are_column_major():
     assert n.s[0, 1, 1] == pytest.approx(0.40 + 0.41j)   # S22: fourth
 
 
-def test_version_1_1_can_override_the_two_port_order():
-    text = TWO_PORT_RI.replace("# GHz", "[Two-Port Data Order] 21_12\n# GHz")
-    n = read_touchstone(text, n_ports=2)
-    assert n.s[0, 1, 0] == pytest.approx(0.30 + 0.31j), "21_12 means row-major"
-    assert n.s[0, 0, 1] == pytest.approx(0.20 + 0.21j)
+def _v2(order: str) -> str:
+    return ("[Version] 2.0\n# GHz S RI R 50\n[Number of Ports] 2\n"
+            f"[Two-Port Data Order] {order}\n[Number of Frequencies] 2\n"
+            "[Network Data]\n" + TWO_PORT_RI.split("R 50\n", 1)[1] + "[End]\n")
+
+
+def test_version_2_names_the_two_port_order():
+    """Touchstone 2.1: `21_12` is Version 1's own order, N11 N21 N12 N22;
+    `12_21` is the row-major alternative. Reading either backwards swaps S21
+    with S12 without a complaint."""
+    same = read_touchstone(_v2("21_12"))
+    assert np.allclose(same.s, read_touchstone(TWO_PORT_RI, n_ports=2).s)
+    rows = read_touchstone(_v2("12_21"))
+    assert rows.s[0, 0, 1] == pytest.approx(0.20 + 0.21j), "12_21 is row-major"
+    assert rows.s[0, 1, 0] == pytest.approx(0.30 + 0.31j)
 
 
 def test_three_port_is_row_major_not_column_major():
@@ -225,11 +237,148 @@ def test_g_and_h_parameter_files_say_they_are_unsupported():
                         n_ports=2)
 
 
-def test_z_parameter_files_convert():
-    """Z-parameter files are rarer but legal, and the conversion must land
-    back on the same impedance."""
-    n = read_touchstone("# GHz Z RI R 50\n1.0 73.1 42.5\n", n_ports=1)
-    assert n.impedance_at_port(0)[0] == pytest.approx(73.1 + 42.5j, rel=1e-9)
+def test_version_1_z_and_y_data_are_normalised():
+    """In a Version 1 file Z and Y are normalised to the option line's R, so
+    `1 0` is a matched load, not a one-ohm short."""
+    z = read_touchstone("# GHz Z RI R 50\n1.0 1.462 0.85\n", n_ports=1)
+    assert z.impedance_at_port(0)[0] == pytest.approx(73.1 + 42.5j, rel=1e-9)
+    for param in ("Z", "Y"):
+        matched = read_touchstone(f"# GHz {param} RI R 50\n1 1 0\n", n_ports=1)
+        assert abs(matched.s[0, 0, 0]) < 1e-12, param
+
+
+def test_the_specifications_own_z_example_reads_the_same_in_both_versions():
+    """Examples 10 and 11 of Touchstone 2.1 are one network twice: Version 1
+    normalised to R 75, Version 2 in ohms (where [Reference] 20 has no say
+    over Z data)."""
+    v1 = read_touchstone("""! 1-port Z-parameter file, multiple frequency points
+# MHz Z MA R 75
+100    0.99   -4
+200    0.80   -22
+300    0.707  -45
+400    0.40   -62
+500    0.01   -89
+""", n_ports=1)
+    v2 = read_touchstone("""[Version] 2.1
+# MHz Z MA
+[Number of Ports] 1
+[Number of Frequencies] 5
+[Reference] 20.0
+[Network Data]
+100    74.25    -4
+200    60      -22
+300    53.025  -45
+400    30      -62
+500     0.75   -89
+[End]
+""")
+    assert v2.z0 == 20.0
+    assert np.allclose(v1.impedance_at_port(0), v2.impedance_at_port(0), rtol=1e-12)
+    assert v1.impedance_at_port(0)[0] == pytest.approx(
+        74.25 * np.exp(-1j * np.radians(4)), rel=1e-12)
+
+
+def test_version_2_references_span_lines_and_renormalise():
+    """[Reference] may continue on the next line. Unequal per-port references
+    are renormalised to one, and the renormalised S must describe the same
+    network: checked through Z = sqrt(R)(I+S)(I-S)^-1 sqrt(R), written out."""
+    s = np.array([[0.2 + 0.1j, 0.5 - 0.2j], [0.5 - 0.2j, -0.1 + 0.3j]])
+    cells = " ".join(f"{float(v.real)!r} {float(v.imag)!r}"
+                     for v in (s[0, 0], s[1, 0], s[0, 1], s[1, 1]))
+    net = read_touchstone(f"""[Version] 2.0
+# GHz S RI R 50
+[Number of Ports] 2
+[Two-Port Data Order] 21_12
+[Reference]
+50
+25
+[Network Data]
+1.0 {cells}
+""")
+    assert net.z0 == 50.0
+    r = np.diag(np.sqrt([50.0, 25.0]))
+    z = r @ (np.eye(2) + s) @ np.linalg.inv(np.eye(2) - s) @ r
+    assert np.allclose(net.z[0], z, rtol=1e-12)
+    assert any("renormalised" in c for c in net.comments)
+
+
+def test_version_2_lower_matrix_format_expands_symmetrically():
+    rows = ["1.0 0.11 0", "0.21 0 0.22 0", "0.31 0 0.32 0 0.33 0"]
+    net = read_touchstone("[Version] 2.0\n# GHz S RI R 50\n[Number of Ports] 3\n"
+                          "[Matrix Format] Lower\n[Network Data]\n"
+                          + "\n".join(rows) + "\n[End]\n")
+    assert net.s[0, 0, 2] == pytest.approx(0.31) and net.s[0, 2, 0] == pytest.approx(0.31)
+    assert net.s[0, 1, 2] == pytest.approx(0.32) and net.s[0, 2, 2] == pytest.approx(0.33)
+
+
+NOISE_V1 = """! 2-port network, S-parameter and noise data
+! Default MA format, GHz frequencies, 50-ohm reference, S-parameters
+#
+! NETWORK PARAMETERS
+2  0.95  -26  3.57 157 0.04 76 0.66 -14
+22 0.60 -144  1.30  40 0.14 40 0.56 -85
+! NOISE PARAMETERS
+4  0.7 0.64  69 0.38
+18 2.7 0.46 -33 0.40
+"""
+
+
+def test_version_1_noise_data_follows_the_network_data():
+    """Example 19 of Touchstone 2.1: the noise block starts where frequency
+    stops increasing, five values a line, Rn normalised to R."""
+    for net in (read_touchstone(NOISE_V1, n_ports=2), read_touchstone(NOISE_V1)):
+        assert net.n_ports == 2 and len(net.frequency_hz) == 2
+        assert net.s[1, 1, 0] == pytest.approx(1.30 * np.exp(1j * np.radians(40)))
+        assert net.noise.shape == (2, 4)
+        assert net.noise[0, 0].real == pytest.approx(4e9)
+        assert net.noise[1, 1].real == pytest.approx(2.7)
+        assert net.noise[0, 2] == pytest.approx(0.64 * np.exp(1j * np.radians(69)))
+        assert net.noise[0, 3].real == pytest.approx(0.38 * 50)
+
+
+def test_version_2_noise_data_is_marked_and_not_normalised():
+    """Example 18 of Touchstone 2.1, with its [Reference] 50 25.0."""
+    net = read_touchstone("""[Version] 2.1
+#
+[Number of Ports] 2
+[Two-Port Data Order] 21_12
+[Number of Frequencies] 2
+[Number of Noise Frequencies] 2
+[Reference] 50 25.0
+[Network Data]
+2  0.95  -26 3.57 157 0.04 76 0.66 -14
+22 0.60 -144 1.30  40 0.14 40 0.56 -85
+[Noise Data]
+4  0.7 0.64  69 19
+18 2.7 0.46 -33 20
+[End]
+""")
+    assert net.noise[:, 3].real == pytest.approx([19.0, 20.0])
+    assert net.z0 == 50.0
+
+
+def test_close_frequencies_stay_distinct():
+    """1 GHz and 1 GHz + 1 Hz written to nine figures in GHz were the same
+    line twice, and the file then failed to read back."""
+    net = Network([1e9, 1e9 + 1], np.zeros((2, 1, 1), complex))
+    back = read_touchstone(write_touchstone(net), n_ports=1)
+    assert np.allclose(back.frequency_hz, net.frequency_hz, rtol=1e-15, atol=0)
+
+
+def test_five_ports_and_up_write_at_most_four_pairs_a_line():
+    """Version 1 allows four pairs a line; a longer matrix row continues on
+    the next line, and each row starts a new one."""
+    rng = np.random.default_rng(3)
+    s = (rng.normal(size=(2, 6, 6)) + 1j * rng.normal(size=(2, 6, 6))) * 0.1
+    net = Network([1e9, 2e9], s)
+    text = write_touchstone(net)
+    data = [ln for ln in text.splitlines() if ln and ln[0] not in "!#"]
+    widths = [len(ln.split()) for ln in data]
+    assert max(widths) <= 9                           # frequency + four pairs
+    assert widths[:12] == [9, 4] + [8, 4] * 5         # 4 + 2 pairs per row
+    back = read_touchstone(text, n_ports=6)
+    assert np.allclose(back.s, s, rtol=1e-8, atol=1e-12)
+    assert read_touchstone(text).n_ports == 6, "the continuation line's width"
 
 
 # ------------------------------------------------------- against an archetype

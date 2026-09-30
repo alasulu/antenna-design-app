@@ -168,6 +168,21 @@ def test_scanning_steers_the_main_beam_where_asked():
         assert peak == pytest.approx(scan, abs=1.0)
 
 
+@pytest.mark.parametrize("n,d,scan", [(8, 0.75, 60), (8, 0.75, 40), (10, 0.5, 30), (8, 0.75, 0)])
+def test_a_scanned_array_reports_its_scanned_directivity(n, d, scan):
+    """The summary used to report the broadside figure whatever the scan (10.6
+    dBi for 8 elements at 0.75 lambda scanned to 60, against 7.9). Checked
+    against the pattern integrated by quadrature, independently."""
+    from scipy.integrate import quad
+    w = np.ones(n)
+    z = (np.arange(n) - (n - 1) / 2) * d
+    c0 = math.cos(math.radians(scan))
+    af = lambda t: abs(np.sum(w * np.exp(2j * math.pi * z * (math.cos(t) - c0)))) ** 2
+    p = quad(lambda t: af(t) * math.sin(t), 0, math.pi, limit=400, epsabs=0, epsrel=1e-11)[0]
+    expect = 10 * math.log10(2 * af(math.radians(scan)) / p)
+    assert A.summarise(w, d, scan)["directivity_dbi"] == pytest.approx(expect, abs=1e-9)
+
+
 def test_summarise_reports_a_consistent_picture():
     s = A.summarise(A.dolph_chebyshev(16, -25.0), 0.5)
     assert s["elements"] == 16

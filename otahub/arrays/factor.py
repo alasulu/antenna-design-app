@@ -39,22 +39,35 @@ def array_pattern(weights, d_over_lambda: float, scan_deg: float = 90.0,
     return Pattern(theta, phi, np.repeat(u[:, None], phi.size, axis=1))
 
 
+def directivity(weights, d_over_lambda: float, scan_deg: float = 90.0) -> float:
+    """Directivity of a linear array of isotropic elements, steered to
+    `scan_deg` from the axis (90 is broadside).
+
+    D = |sum a_m|^2 / sum_m sum_n a_m a_n cos(k z_mn cos theta0) sinc(2 z_mn),
+    the power double sum carrying the steering phase. Scanning off broadside
+    lowers it (the beam widens, and past the grating-lobe limit a second main
+    beam takes a share of the power).
+    """
+    w = np.asarray(weights, dtype=float)
+    n = len(w)
+    positions = (np.arange(n) - (n - 1) / 2.0) * d_over_lambda
+    num = w.sum() ** 2
+    # numpy's sinc is normalised: sinc(2 z) = sin(k z) / (k z) with z in lambda
+    delta = positions[:, None] - positions[None, :]
+    steer = np.cos(2.0 * math.pi * delta * math.cos(math.radians(scan_deg)))
+    den = float((w[:, None] * w[None, :] * steer * np.sinc(2.0 * delta)).sum())
+    if den <= 0:
+        raise ValueError("degenerate array: no radiated power")
+    return float(num / den)
+
+
 def broadside_directivity(weights, d_over_lambda: float) -> float:
     """Directivity of a broadside linear array of isotropic elements.
 
     For d = lambda/2 and uniform weights this is exactly N. A taper reduces it
     by the taper efficiency, which is the whole cost of low sidelobes.
     """
-    w = np.asarray(weights, dtype=float)
-    n = len(w)
-    positions = (np.arange(n) - (n - 1) / 2.0) * d_over_lambda
-    num = w.sum() ** 2
-    # sum_m sum_n a_m a_n sinc(2*(z_m - z_n)) with numpy's normalised sinc
-    delta = positions[:, None] - positions[None, :]
-    den = float((w[:, None] * w[None, :] * np.sinc(2.0 * delta)).sum())
-    if den <= 0:
-        raise ValueError("degenerate array: no radiated power")
-    return float(num / den)
+    return directivity(weights, d_over_lambda, 90.0)
 
 
 def grating_lobe_free_spacing(scan_deg: float = 90.0) -> float:
@@ -96,7 +109,7 @@ def summarise(weights, d_over_lambda: float, scan_deg: float = 90.0) -> dict:
         out["hpbw_deg"] = float("nan")
     try:
         out["directivity_dbi"] = 10 * math.log10(
-            broadside_directivity(weights, d_over_lambda))
+            directivity(weights, d_over_lambda, scan_deg))
     except ValueError:
         out["directivity_dbi"] = float("nan")
     return out

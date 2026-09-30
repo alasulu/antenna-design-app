@@ -17,8 +17,10 @@ import numpy as np
 # ------------------------------------------------------------ one-port math
 
 def reflection_coefficient(z_load: complex, z0: float = 50.0) -> complex:
-    """Gamma = (ZL - Z0) / (ZL + Z0)."""
+    """Gamma = (ZL - Z0) / (ZL + Z0). An open circuit (infinite ZL) is +1."""
     z_load = complex(z_load)
+    if cmath.isinf(z_load):
+        return 1.0 + 0j
     if z_load == -z0:
         raise ValueError("ZL = -Z0 is a singular load")
     return (z_load - z0) / (z_load + z0)
@@ -186,19 +188,30 @@ def input_impedance(z_load: complex, z0_line: float,
 
     Zin = Z0 * (ZL + j*Z0*tan(bl)) / (Z0 + j*ZL*tan(bl)), with the
     quarter-wave and half-wave special cases handled exactly rather than
-    through a tan() that blows up.
+    through a tan() that blows up. An open-circuit load (infinite ZL) gives
+    -j Z0 cot(bl); a load that puts the input at a pole (ZL = j Z0 / tan(bl))
+    gives an open circuit, returned as infinity.
     """
     bl = float(electrical_length_rad)
     z_load = complex(z_load)
+    inf = complex(float("inf"), 0.0)
+    open_load = cmath.isinf(z_load)
     quarter = abs((bl % math.pi) - math.pi / 2) < 1e-12
     if quarter:
+        if open_load:
+            return 0j
         if z_load == 0:
-            return complex(float("inf"), 0.0)
+            return inf
         return z0_line ** 2 / z_load
     if abs(bl % math.pi) < 1e-12:
         return z_load
     t = math.tan(bl)
-    return z0_line * (z_load + 1j * z0_line * t) / (z0_line + 1j * z_load * t)
+    if open_load:
+        return z0_line / (1j * t)
+    den = z0_line + 1j * z_load * t
+    if abs(den) <= 1e-12 * (z0_line + abs(z_load * t)):
+        return inf
+    return z0_line * (z_load + 1j * z0_line * t) / den
 
 
 def _check_2x2(m: np.ndarray) -> None:

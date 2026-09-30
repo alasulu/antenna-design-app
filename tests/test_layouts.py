@@ -61,6 +61,20 @@ def test_the_taylor_pattern_holds_its_design_level(sll, nbar):
     assert Ly.taylor_circular_distribution(np.array([0.0]), sll, nbar)[0] == pytest.approx(1.0)
 
 
+@pytest.mark.parametrize("sll,nbar", [(-30, 5), (-40, 8)])
+def test_the_taylor_pattern_is_finite_at_the_displaced_nulls(sll, nbar):
+    """At u = mu_n the uniform-disc factor and its divisor both vanish; the
+    pattern used to return -inf or nan there. Against the Hankel transform."""
+    from scipy.special import jn_zeros
+    g = lambda p: float(Ly.taylor_circular_distribution(np.array([p]), sll, nbar)[0])
+    norm = quad(lambda p: g(p) * p, 0, 1, epsabs=0, epsrel=1e-12, limit=200)[0]
+    for mu in jn_zeros(1, nbar - 1) / math.pi:
+        hank = quad(lambda p: g(p) * j0(math.pi * mu * p) * p, 0, 1,
+                    epsabs=0, epsrel=1e-12, limit=200)[0] / norm
+        assert float(Ly.taylor_circular_pattern(np.array([mu]), sll, nbar)[0]) == pytest.approx(
+            hank, rel=1e-9, abs=1e-14)
+
+
 @pytest.mark.parametrize("lattice", ["rect", "tri"])
 def test_a_sampled_circular_taylor_array_holds_the_design_with_the_equal_area_radius(lattice):
     d = 0.5

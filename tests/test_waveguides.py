@@ -53,8 +53,28 @@ def test_te01_sets_the_band_edge_only_for_squat_guides():
 
 
 def test_te20_and_te01_coincide_for_two_to_one_guides():
-    g = standard("WR-90")
-    assert g.cutoff(2, 0) == pytest.approx(2 * g.cutoff(1, 0))
+    g = RectangularWaveguide(0.02, 0.01)
+    assert g.cutoff(2, 0) == pytest.approx(g.cutoff(0, 1), rel=1e-12)
+    assert g.cutoff(2, 0) == pytest.approx(2 * g.cutoff(1, 0), rel=1e-12)
+
+
+def test_the_walls_keep_their_own_permeability_when_the_filling_is_magnetic():
+    """A ferrite filling (mu_r = 4) changes the wave, not the copper: the wall
+    surface resistance stays sqrt(pi f mu0 / sigma). It used to take the
+    filling's mu_r and doubled the loss."""
+    f, sigma = 10e9, 5.8e7
+    g = RectangularWaveguide(0.02286, 0.01016, mu_r=4.0, sigma=sigma)
+    rs = math.sqrt(math.pi * f * 4e-7 * math.pi * 1.00000000055 / sigma)
+    eta = 376.730313668 * 2.0
+    fc = 2.99792458e8 / (2 * 0.02286 * 2.0)
+    r = (fc / f) ** 2
+    alpha = rs / (0.01016 * eta * math.sqrt(1 - r)) * (1 + 2 * 0.01016 / 0.02286 * r)
+    assert g.conductor_attenuation(f) == pytest.approx(alpha, rel=1e-6)
+    ferrite_walls = RectangularWaveguide(0.02286, 0.01016, mu_r=4.0, wall_mu_r=4.0)
+    assert ferrite_walls.conductor_attenuation(f) == pytest.approx(2 * alpha, rel=1e-6)
+    c = CircularWaveguide(0.02, mu_r=4.0)
+    assert c.te01_attenuation(f) * 2 == pytest.approx(
+        CircularWaveguide(0.02, mu_r=4.0, wall_mu_r=4.0).te01_attenuation(f), rel=1e-12)
 
 
 def test_guide_wavelength_exceeds_free_space_and_diverges_at_cutoff():
@@ -178,6 +198,28 @@ def test_microstrip_synthesis_round_trips_exactly():
         assert L.microstrip_impedance(w, 1.6e-3, 4.4) == pytest.approx(z0, rel=1e-8)
 
 
+def test_microstrip_is_continuous_across_w_equals_h():
+    """The two-branch Hammerstad forms jumped 0.4% at w/h = 1, leaving 71 ohm
+    on 1.6 mm FR-4 with no width at all; Hammerstad-Jensen is continuous."""
+    w = L.microstrip_width_for(71.0, 1.6e-3, 4.4)
+    assert L.microstrip_impedance(w, 1.6e-3, 4.4) == pytest.approx(71.0, rel=1e-8)
+    below = L.microstrip_impedance(1.6e-3 * (1 - 1e-9), 1.6e-3, 4.4)
+    above = L.microstrip_impedance(1.6e-3 * (1 + 1e-9), 1.6e-3, 4.4)
+    assert below == pytest.approx(above, rel=1e-8)
+
+
+@pytest.mark.parametrize("er", [1.0, 2.2, 4.4, 10.2])
+def test_microstrip_agrees_with_wheeler_1977(er):
+    """Wheeler's independent zero-thickness formula is good to about 1%."""
+    import numpy as np
+    for u in np.geomspace(0.05, 20, 15):
+        x = 4 / u
+        a = (14 + 8 / er) / 11 * x
+        wheeler = 376.730313668 / (2 * math.pi * math.sqrt(2 * (1 + er))) * math.log(
+            1 + x * (a + math.sqrt(a * a + math.pi ** 2 * (1 + 1 / er) / 2)))
+        assert L.microstrip_impedance(u, 1.0, er) == pytest.approx(wheeler, rel=0.012)
+
+
 def test_microstrip_eps_eff_lies_between_air_and_substrate():
     ee = L.microstrip_eps_eff(3.0e-3, 1.6e-3, 4.4)
     assert 1.0 < ee < 4.4
@@ -193,6 +235,18 @@ def test_stripline_matches_the_familiar_approximation():
     exact = L.stripline_impedance(0.5, 1.0, 2.2)
     approx = (30 * math.pi / math.sqrt(2.2)) / (0.5 + 0.441)
     assert exact == pytest.approx(approx, rel=0.01)
+
+
+def test_very_wide_and_very_narrow_lines_keep_their_digits():
+    """k' = tanh(pi w / 2b) for stripline and 1 - k = 2s/(w + 2s) for CPW are
+    formed directly; 1 - k^2 in floating point rounded to 1 and returned a
+    zero-ohm stripline at w/b = 15."""
+    wide = L.stripline_impedance(15.0, 1.0, 2.2)
+    assert wide == pytest.approx(30 * math.pi / math.sqrt(2.2) / (15 + 0.441), rel=2e-3)
+    assert 0 < L.stripline_impedance(40.0, 1.0, 2.2) < wide
+    assert math.isfinite(L.stripline_impedance(1e-3, 1.0, 2.2))
+    assert 0 < L.cpw_impedance(1e4, 1.0, 12.9) < L.cpw_impedance(1e2, 1.0, 12.9)
+    assert math.isfinite(L.cpw_impedance(1e-6, 1.0, 12.9))
 
 
 def test_stripline_and_cpw_ratios_run_the_right_way():

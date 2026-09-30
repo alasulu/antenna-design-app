@@ -61,13 +61,21 @@ class LSection:
 
 
 def l_section(z_load: complex, z0: float = 50.0, f_hz: float = 1e9) -> list[LSection]:
-    """Match `z_load` to `z0` with a two-element L network.
+    """Match `z_load` to `z0` with a two-element L network: every solution.
 
-    Returns both solutions. Which topology applies depends on whether the load
-    lies inside the 1 + jx circle on the Smith chart:
+    Two topologies, each with up to two solutions:
 
-    - RL > Z0: shunt element across the LOAD, then series to the source.
-    - RL < Z0: series element at the load, then shunt to the source.
+    - shunt across the LOAD, then series toward the source - possible when
+      the load's conductance is at most 1/Z0 (RL^2 + XL^2 >= Z0 RL), which
+      always holds for RL >= Z0;
+    - series at the load, then shunt toward the source - possible when
+      RL <= Z0.
+
+    The textbook rule (Pozar 5.1) picks the first for RL > Z0 and the second
+    for RL < Z0, and those come first here; but a load with RL < Z0 whose
+    conductance is still below 1/Z0 (25 + j50 to 50 ohm) takes both, and a
+    solution that needs only one element (50 + j50: a -j50 series capacitor)
+    is a solution, not a degenerate case to drop.
 
     Verified against Pozar Example 5.1 (200 - j100 to 100 ohm at 500 MHz),
     which yields C = 0.92 pF with L = 38.8 nH, and C = 2.61 pF with L = 46.1 nH.
@@ -76,48 +84,48 @@ def l_section(z_load: complex, z0: float = 50.0, f_hz: float = 1e9) -> list[LSec
     rl, xl = z_load.real, z_load.imag
     if rl <= 0:
         raise ValueError(f"load resistance must be positive, got {rl}")
-    out: list[LSection] = []
+    shunt_first: list[LSection] = []
+    series_first: list[LSection] = []
 
-    if rl >= z0:
-        # Shunt across the load, series toward the source.
-        disc = rl * rl + xl * xl - z0 * rl
-        if disc < 0:
-            return []
+    disc = rl * rl + xl * xl - z0 * rl
+    if disc >= 0:
         # Pozar 5.3a: sqrt(RL/Z0), not its inverse. Getting this upside down
         # still produces plausible component values that do not match.
         root = math.sqrt(rl / z0) * math.sqrt(disc)
-        for sign in (+1.0, -1.0):
+        for sign in ((+1.0, -1.0) if root > 0 else (+1.0,)):
             b = (xl + sign * root) / (rl * rl + xl * xl)
-            if b == 0:
-                continue
-            x = 1.0 / b + xl * z0 / rl - z0 / (b * rl)
+            z_mid = 1.0 / (1.0 / z_load + 1j * b)     # after the shunt: R = Z0
+            x = -z_mid.imag                            # the series part cancels
             section = LSection(
-                "shunt at load, then series (RL > Z0)",
+                "shunt at load, then series",
                 element_from_reactance(x, f_hz),
                 element_from_susceptance(b, f_hz),
                 f_hz, z_load, z0)
             section.achieved = _verify_shunt_first(z_load, b, x)
-            out.append(section)
-    else:
-        # Series at the load, shunt toward the source.
-        disc = rl * (z0 - rl)
-        if disc < 0:
-            return []
-        for sign in (+1.0, -1.0):
+            shunt_first.append(section)
+    if rl <= z0:
+        root = math.sqrt(rl * (z0 - rl))
+        for sign in ((+1.0, -1.0) if root > 0 else (+1.0,)):
             # X and B take the SAME sign here. Derived rather than recalled:
             # with X = +sqrt(RL(Z0-RL)) - XL, the residual susceptance that the
             # shunt must cancel works out to +sqrt((Z0-RL)/RL)/Z0.
-            x = sign * math.sqrt(disc) - xl
+            x = sign * root - xl
             b = sign * math.sqrt((z0 - rl) / rl) / z0
-            if b == 0:
-                continue
             section = LSection(
-                "series at load, then shunt (RL < Z0)",
+                "series at load, then shunt",
                 element_from_reactance(x, f_hz),
                 element_from_susceptance(b, f_hz),
                 f_hz, z_load, z0)
             section.achieved = _verify_series_first(z_load, x, b)
-            out.append(section)
+            series_first.append(section)
+    out: list[LSection] = []
+    for sec in (series_first + shunt_first if rl < z0 else shunt_first + series_first):
+        same = any(math.isclose(sec.series.reactance, o.series.reactance, rel_tol=1e-9, abs_tol=1e-9)
+                   and math.isclose(1 / sec.shunt.reactance, 1 / o.shunt.reactance,
+                                    rel_tol=1e-9, abs_tol=1e-12)
+                   for o in out)
+        if not same:                     # RL = Z0: one solution, both topologies
+            out.append(sec)
     return out
 
 

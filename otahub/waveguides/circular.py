@@ -35,10 +35,11 @@ class CircularWaveguide:
     """
 
     def __init__(self, a: float, eps_r: float = 1.0, mu_r: float = 1.0,
-                 sigma: float = 5.8e7) -> None:
+                 sigma: float = 5.8e7, wall_mu_r: float = 1.0) -> None:
         if a <= 0:
             raise ValueError(f"radius must be positive, got {a}")
         self.a, self.eps_r, self.mu_r, self.sigma = a, eps_r, mu_r, sigma
+        self.wall_mu_r = wall_mu_r      # the metal's, not the filling's (mu_r)
 
     @property
     def _v(self) -> float:
@@ -110,7 +111,7 @@ class CircularWaveguide:
         fc = self.cutoff("TE", 0, 1)
         if f_hz <= fc:
             return math.inf
-        rs = surface_resistance(f_hz, self.sigma, self.mu_r)
+        rs = surface_resistance(f_hz, self.sigma, self.wall_mu_r)
         ratio = (fc / f_hz) ** 2
         return (rs / (self.a * self.eta)) * ratio / math.sqrt(1.0 - ratio)
 

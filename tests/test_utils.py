@@ -83,6 +83,17 @@ def test_half_wave_line_repeats_the_load():
         assert N.input_impedance(z, 50, math.pi) == pytest.approx(z, rel=1e-9)
 
 
+def test_an_open_circuit_load_is_handled_as_a_limit():
+    """An open circuit reflects +1, and a line in front of it is -j Z0 cot(bl);
+    a load at the line's pole gives an open circuit, not a ZeroDivisionError."""
+    open_load = N.impedance_from_gamma(1)
+    assert N.reflection_coefficient(open_load) == 1
+    assert N.input_impedance(open_load, 50, math.pi / 4) == pytest.approx(-50j)
+    assert N.input_impedance(open_load, 50, math.pi / 2) == 0
+    pole = 1j * 50 / math.tan(0.2)
+    assert math.isinf(N.input_impedance(pole, 50, 0.2).real)
+
+
 def test_quarter_wave_of_a_short_is_an_open():
     assert math.isinf(N.input_impedance(0, 50, math.pi / 2).real)
 
@@ -124,6 +135,33 @@ def test_every_l_section_solution_actually_matches(z_load, z0):
 def test_l_section_covers_both_branches():
     assert M.l_section(200 + 0j, 50.0, 1e9)[0].topology.startswith("shunt")
     assert M.l_section(20 + 0j, 50.0, 1e9)[0].topology.startswith("series")
+
+
+def test_a_low_resistance_load_can_take_both_topologies():
+    """25 + j50 to 50 ohm: RL < Z0, so the textbook picks series-first, but
+    its conductance (0.01 S) is below 1/Z0 and shunt-first matches too - four
+    solutions, found here by root-finding on each topology independently."""
+    from scipy.optimize import brentq
+    z = 25 + 50j
+    sections = M.l_section(z, 50.0)
+    assert [s.topology.split(",")[0] for s in sections] == [
+        "series at load", "series at load", "shunt at load", "shunt at load"]
+    b = [brentq(lambda b: (1 / (1 / z + 1j * b)).real - 50, lo, hi)
+         for lo, hi in ((0.001, 0.015), (0.015, 0.05))]
+    x = sorted(-(1 / (1 / z + 1j * bb)).imag for bb in b)
+    shunt_x = sorted(s.series.reactance for s in sections[2:])
+    assert shunt_x == pytest.approx(x, rel=1e-9)
+    assert shunt_x == pytest.approx([-61.23724357, 61.23724357], rel=1e-8)
+
+
+def test_a_one_element_match_is_kept():
+    """50 + j50 to 50 ohm needs only a -j50 series capacitor; the shunt
+    susceptance of that solution is zero and it used to be dropped."""
+    sections = M.l_section(50 + 50j, 50.0)
+    one = [s for s in sections if s.shunt.value == 0.0]
+    assert len(one) == 1 and one[0].series.reactance == pytest.approx(-50.0)
+    assert abs(one[0].achieved - 50) < 1e-9
+    assert len(M.l_section(50 + 0j, 50.0)) == 1          # nothing to do, once
 
 
 def test_negative_load_resistance_is_rejected():

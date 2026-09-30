@@ -6,7 +6,7 @@ from .layouts import (circular_taylor, clip_to_circle, concentric_rings, equal_a
                       thinned_expected_directivity, thinned_expected_power)
 from .subarrays import directivity_toward, rect_subarray_groups, subarray_centres, subarray_steering
 from .factor import (array_factor, array_pattern, beam_broadening_factor,
-                     broadside_directivity, grating_lobe_free_spacing,
+                     broadside_directivity, directivity, grating_lobe_free_spacing,
                      has_grating_lobe, summarise)
 from .planar import (grating_lobe_free_spacing_planar, lattice_element_saving,
                      planar_beam_cut,
@@ -18,7 +18,7 @@ from .tapers import (TAPERS, binomial, dolph_chebyshev, raised_cosine,
 
 __all__ = ["uniform", "binomial", "dolph_chebyshev", "taylor_nbar",
            "raised_cosine", "taper_efficiency", "TAPERS",
-           "array_factor", "array_pattern", "broadside_directivity",
+           "array_factor", "array_pattern", "broadside_directivity", "directivity",
            "grating_lobe_free_spacing", "has_grating_lobe",
            "beam_broadening_factor", "summarise",
            "rectangular_lattice", "triangular_lattice", "separable_weights",
