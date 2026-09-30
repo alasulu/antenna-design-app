@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2. **72 archetypes, 10 families,
-26,439 lines of Python, 25,307 lines of spec data, 3175 tests, 1052/1052 citable
+26,448 lines of Python, 25,307 lines of spec data, 3176 tests, 1052/1052 citable
 known cases passing.**
 
 ---
