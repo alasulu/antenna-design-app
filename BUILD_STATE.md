@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3126 tests, 1049/1049 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3164 tests, 1052/1052 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3638,3 +3638,69 @@ by the ground), and 1.2-2.8 dBi straight up. Fitted to 0.04 and 0.18 dB; a finer
 grid moved the peak by 0.04 dB at most and raised broadside 0.2-0.25 dB. The
 placeholder fell inside the range; the known case is a direct run at the finer
 grid. It stays low confidence: a handset's ground plane sets its pattern.
+
+## The stacked patch, solved: its default was not double-tuned
+
+Finish line 2, item C.7.
+
+The stacked patch's spec sized the driven patch alone, scaled the parasitic by a
+size ratio, and gave its bandwidth as 2.4 times the single-patch formula at the
+total height - a multiplier drawn from published designs. An FDTD had shown its
+default stack's two modes 25-38% apart, but nothing could design one.
+
+`patch_sdm.StackedPatch` adds a second layer to the spectral MoM: the two patches
+coupled through the two-layer slab's transmission-line network (`layered_z`,
+stable at any decay; exact against the single slab in both limits, reciprocal to
+1e-16, its far field balancing its reaction to 1e-14). `probe_vector` couples the
+currents to a probe from the ground to the driven patch, and a single probe
+excites the x-even class too (`BASIS_EVEN`). The FDTD got a stacked ringdown and
+a probe port (`patch_fdtd.stacked_ringdown`, `probe_impedance`; the port checked
+on a monopole against the wire MoM with the same finite gap). They agree:
+- the old default's two modes: 0.9931 and 1.3782 f0 by FDTD at 2-8 cells,
+  extrapolated (first order, as the sheet edge gives), against the MoM's poles at
+  0.9931 and 1.375;
+- a single probe's resonant resistance on the lone patch and on the stack within
+  4%;
+- a double-tuned stack's VSWR-2 band: 12.5% (FDTD, its own probe) against 12.3%.
+
+Found on the way:
+- the MoM's characteristic eigenvalue for the upper mode (Q 13) crosses zero at
+  1.393, 1.2% above its natural frequency, so the two looked 1% apart until
+  compared pole to pole;
+- the quarter-space FDTD grid's electric wall mirrors a probe into an antiphase
+  pair and doubles the TM10 share of the impedance (183 ohm against the MoM's
+  94.5 per probe); the half-space grid models one probe;
+- the stacked ringdown's mode window let a parasitic mode near 1.93 f0 displace
+  the weak upper mode at 2 cells, and had missed it at 4 by 0.0014; narrowed;
+- the probe's own reactance is not solvable this way - the spectral self-term
+  diverges without an attachment mode, and a disc attachment left the probe's
+  charge where the patch's currents cannot carry it (-114 to -1 ohm with its
+  radius). The FDTD puts it near 13-14 ohm, the parallel-plate formula 27, so
+  bands are taken with a series capacitor or inductor tuned for them; they move
+  under a point between 10 and 35 ohm;
+- the first band finder allowed a "negative capacitor" and scored the widest
+  band anywhere; it now takes a real series element and the band about f0.
+
+`otahub/num/stacked.py` and `otahub stack` design a stack. Surveyed over air gap
+and parasitic on four driven boards (53 designs):
+- the old default (gap 0.03, ratio 0.95) has 1.5% about f0 - where the spec said
+  11.9% - barely a single patch's 1.47%;
+- on the default board the best is a 0.09 gap and ratio 1.1: 11.5% about f0,
+  double-tuned (resistance peaks at 0.99 and 1.06 f0); a ratio of 1.2 has no band
+  at f0 at all;
+- the best band is 7.8-8.9 times the driven patch's own formula on all four
+  boards (11.5, 7.0, 24.5, 15.5%); the ratio fitted on three predicted the fourth
+  7% low. The best gap and parasitic moved between boards (0.07-0.09 wavelengths,
+  0.35-0.37 long), so they are not a rule;
+- the old multiplier read 1.1-3 times the solved band at each board's best design
+  and 7.9 times at the stack it defaulted to;
+- directivity follows the parasitic's size: 8.0 dBi for the old default, 9.06 for
+  the new, fitted over 44 designs to 0.09 dB (a held-out board 0.07).
+
+The spec now defaults to the solved best (0.09, 1.1), carries
+`best_stack_bandwidth_vswr2` = 8.4 times the single patch (indicative, NaN for a
+dielectric gap or outside the four boards), the fitted directivity in place of
+its 8.75 dBi placeholder, and a probe offset (0.9 of the half length, where the
+best feed was on every board) that the exporter now uses instead of its guess at
+a quarter length. It stays low confidence: the design's own band is not in the
+spec, and `otahub stack` solves it. Three new known cases take direct solves.
