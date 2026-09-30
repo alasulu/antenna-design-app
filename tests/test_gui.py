@@ -429,3 +429,11 @@ def test_a_bad_entry_is_marked_on_the_page_not_in_a_dialog(window):
     tab._synthesise()
     assert tab._fields["f0"].property("invalid") == "true"
     assert not tab.banner.isHidden() and "f0" in tab.banner_text.text()
+
+
+def test_the_sweep_offers_readable_quantities(window):
+    tab = window.catalogue
+    tab.select_key("half_wave_dipole")
+    assert tab.metric_picker.currentData() == "directivity_dbi"
+    assert tab.metric_picker.currentText() == "Directivity"
+    assert tab.sweep_canvas.axes.lines, "the sweep should have drawn a curve"

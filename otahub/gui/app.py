@@ -582,7 +582,8 @@ class CatalogueTab(QWidget):
         self.notes.setOpenExternalLinks(False)
 
         self.metric_picker = QComboBox()
-        self.metric_picker.currentTextChanged.connect(self._sweep)
+        self.metric_picker.currentIndexChanged.connect(
+            lambda _i: self._sweep(self.metric_picker.currentData() or ""))
         self.sweep_canvas = Canvas()
         sweep = QWidget()
         sl = QVBoxLayout(sweep)
@@ -819,19 +820,19 @@ class CatalogueTab(QWidget):
         numeric = [k for k, v in design.metrics.items()
                    if isinstance(v, (int, float)) and not isinstance(v, bool)
                    and math.isfinite(float(v))]
-        keep = self.metric_picker.currentText()
+        keep = self.metric_picker.currentData()
         self.metric_picker.blockSignals(True)
         self.metric_picker.clear()
-        self.metric_picker.addItems(sorted(numeric))
-        if keep in numeric:
-            self.metric_picker.setCurrentText(keep)
-        else:
-            pick = next((k for k in numeric if re.search(r"(gain|directivity)_dbi$", k)), None)
-            if pick:
-                self.metric_picker.setCurrentText(pick)
+        for key in sorted(numeric, key=humanize):
+            self.metric_picker.addItem(humanize(key), key)
+            self.metric_picker.setItemData(self.metric_picker.count() - 1, key, Qt.ItemDataRole.ToolTipRole)
+        pick = keep if keep in numeric else next(
+            (k for k in numeric if re.search(r"(gain|directivity)_dbi$", k)), None)
+        if pick:
+            self.metric_picker.setCurrentIndex(self.metric_picker.findData(pick))
         self.metric_picker.blockSignals(False)
         if numeric:
-            self._sweep(self.metric_picker.currentText())
+            self._sweep(self.metric_picker.currentData())
         self._update_pattern()
 
     def _show_banner(self, messages: list[str]) -> None:
@@ -888,8 +889,8 @@ class CatalogueTab(QWidget):
         if len(freqs) < 2:
             self.sweep_canvas.message(f"{metric} could not be evaluated across the band")
             return
-        plot_sweep(self.sweep_canvas, freqs, values, metric,
-                   self._design.units.get(metric, ""), self.current.spec.freq_range_hz)
+        plot_sweep(self.sweep_canvas, freqs, values, humanize(metric),
+                   shown_unit(self._design.units.get(metric, "")), self.current.spec.freq_range_hz)
         ax = self.sweep_canvas.axes
         ax.axvline(centre / 1e9, color=INK, lw=0.8, ls=":")
         self.sweep_canvas.draw_idle()
