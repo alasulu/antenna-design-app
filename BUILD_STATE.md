@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3164 tests, 1052/1052 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3176 tests, 1052/1052 known cases.
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3739,3 +3739,45 @@ At the close: 72 archetypes in 10 families, 24,130 lines of Python and 25,307 of
 spec data, 3164 tests, 1052/1052 citable known cases passing, the doctor clean.
 Tagged v2.0 on this commit, locally; v1.0 stays at a96a5c2. The build loop is
 stopped and not re-armed.
+
+## After v2.0: the desktop GUI redesigned, with every antenna drawn
+
+Asked for by the user after the close: a more modern, simpler desktop GUI with
+pictures and colour, not in a generic look. No physics, spec or solver changed;
+v2.0 stays where it is.
+
+- `otahub/gui/drawings.py` draws each of the 72 archetypes as a technical figure
+  from its own synthesised geometry: conductors in copper, substrates, ceramics,
+  metal and ferrite in their own colours, the feed in red, and dimension lines
+  labelled with the computed values. A quantity the design does not produce is
+  drawn at a nominal proportion and left unlabelled. Very slender designs (the
+  Vivaldi at 1:14) are widened on paper, with the labels keeping the true sizes.
+- The catalogue opens on a gallery of cards, each with its antenna's drawing, a
+  family colour and any confidence badge, filtered by family chips and search. A
+  card opens the design page: requirements that take units (2.4 GHz, 1.6 mm) and
+  open on the archetype's first known design, the live drawing, up to four
+  headline tiles (gain or directivity, bandwidth, impedance, beamwidth), and tabs
+  for dimensions, performance, sweep, pattern and validity, recomputed as the
+  requirements change. A bad entry is marked on the page, not in a dialog.
+- A navigation rail replaces the tabs; `otahub/gui/style.py` holds one palette -
+  copper for the antenna and for actions, a colour per family - which the array
+  and waveguide pages and the matplotlib plots share.
+
+Found on the way:
+- the impedance tile's patterns first matched any name ending in resistance_ohm,
+  so an inset patch showed its 317 ohm edge resistance instead of the 50 ohm at
+  its feed; the tiles now try whole names in a fixed order and never take a loss,
+  edge or mutual resistance for the input impedance;
+- the planar-array layout plot added a colour bar on every refresh and never
+  removed the old ones;
+- old form fields stayed painted over the new ones until Qt's deferred deletion;
+- a symbol one spec leaves undeclared showed as a bare letter ("T"); the page now
+  takes its name from another spec that declares it ("thickness parameter").
+
+All 29 GUI tests carried over unchanged; 12 new ones check that every archetype
+has its own drawing and that it paints (with and without a design), the gallery
+filters, units in the form, the headline tiles' choices, the drawing following
+the design, inline errors and the sweep's labels.
+
+After it: 3176 tests (3148 passed, 28 skipped in 24 min), 26,448 lines of Python,
+1052/1052 known cases, the doctor clean.
