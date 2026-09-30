@@ -32,11 +32,14 @@ class DesignResult:
             self.unresolved = {}
 
     def missing_requirements(self) -> list[str]:
-        """Every symbol that, if supplied, would unlock something unresolved."""
+        """Every input that, if supplied, would unlock something unresolved - the
+        leaves only: a quantity that is itself waiting (X_tune waiting for a wire
+        radius) is not something to ask the user for."""
         seen: set[str] = set()
         for needs in (self.unresolved or {}).values():
             seen.update(needs)
-        return sorted(seen - set(self.parameters) - set(self.requirements))
+        pending = set(self.unresolved or {})
+        return sorted(seen - pending - set(self.parameters) - set(self.requirements))
 
     def get(self, name: str, default: Any = None) -> Any:
         """Look up any value this design involved.

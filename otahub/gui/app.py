@@ -28,14 +28,14 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
 from ..arrays import (TAPERS, grating_lobe_free_spacing_planar,
                       lattice_element_saving, planar_beam_cut,
                       planar_summarise, rectangular_lattice,
-                      separable_weights, summarise, triangular_lattice)
+                      separable_weights, summarise, triangular_lattice, visible_grating_lobes)
 from ..core import pattern as pat
 from ..core.registry import Registry, default_registry
 from ..core.units import engineering
 from ..waveguides.rectangular import WR_SERIES, recommended_band, standard
 from . import drawings
-from .models import (default_for, display_value, format_input, humanize, key_figures, matches,
-                     parse_quantity, requirement_fields, shown_unit)
+from .models import (default_for, display_value, format_input, humanize, is_primary, key_figures,
+                     matches, parse_quantity, requirement_fields, shown_unit)
 from .plots import (Canvas, plot_element_layout, plot_hemisphere_cuts,
                     plot_polar, plot_sweep)
 from .style import (ACCENT, FAINT, INK, LINE, MUTED, STYLE, SURFACE, WARN, WARN_SOFT,
@@ -47,11 +47,17 @@ PATTERN_SOURCES = {
     "short_dipole": lambda: (pat.short_dipole(), "short dipole, sin^2"),
     "half_wave_dipole": lambda: (pat.finite_dipole(0.5), "half-wave dipole"),
     "resonant_dipole": lambda: (pat.finite_dipole(0.48), "resonant dipole, 0.48 lambda"),
-    "quarter_wave_monopole": lambda: (pat.finite_dipole(0.5),
-                                      "monopole (equivalent dipole with image)"),
+    "quarter_wave_monopole": lambda: (_upper_half(pat.finite_dipole(0.5)),
+                                      "monopole over ground, the upper half space"),
     "folded_dipole": lambda: (pat.finite_dipole(0.5), "folded dipole"),
     "small_circular_loop": lambda: (pat.short_dipole(), "small loop (dual of short dipole)"),
 }
+
+def _upper_half(p: "pat.Pattern") -> "pat.Pattern":
+    """A pattern over a ground plane: the image makes the field, but nothing radiates
+    below the plane, so the power (and the directivity) is the upper half space's."""
+    return pat.Pattern(p.theta, p.phi, np.where((p.theta <= math.pi / 2)[:, None], p.U, 0.0))
+
 
 FAMILY_NAMES = {"uwb": "UWB", "travelling_wave": "Travelling wave"}
 #: The gallery's order: the everyday families first, the specialised ones after.
@@ -614,6 +620,7 @@ class CatalogueTab(QWidget):
 
     # -------------------------------------------------------------- actions
     def show_gallery(self) -> None:
+        self._timer.stop()                 # a pending recalculation belongs to the page being left
         self.pages.setCurrentIndex(0)
 
     def select_key(self, key: str) -> None:
@@ -652,14 +659,14 @@ class CatalogueTab(QWidget):
             bl.setSpacing(3)
             top = QHBoxLayout()
             name = param.name or param.symbol
-            top.addWidget(_label(name[:1].upper() + name[1:] + (" *" if param.role == "requirement" else ""),
+            top.addWidget(_label(name[:1].upper() + name[1:] + (" *" if is_primary(param) else ""),
                                  "fieldname"))
             top.addStretch(1)
             meta = param.symbol + (f"  ·  {shown_unit(param.unit)}" if param.unit and param.unit != "-" else "")
             top.addWidget(_label(meta, "fieldmeta"))
             bl.addLayout(top)
             text = default_for(param, archetype)
-            if first_case is not None and param.role == "requirement" and param.symbol in first_case.given:
+            if first_case is not None and is_primary(param) and param.symbol in first_case.given:
                 text = str(first_case.given[param.symbol])      # a real design, not a band's midpoint
             try:
                 text = format_input(float(text), param.unit)
@@ -667,7 +674,7 @@ class CatalogueTab(QWidget):
                 pass
             edit = QLineEdit(text)
             hint = param.description or param.name
-            edit.setPlaceholderText("required" if param.role == "requirement" else "default")
+            edit.setPlaceholderText("required" if is_primary(param) else "default")
             edit.setToolTip(f"{param.role}: {hint}")
             edit.textEdited.connect(lambda _=None: self._timer.start())
             edit.returnPressed.connect(self._synthesise)
@@ -677,8 +684,8 @@ class CatalogueTab(QWidget):
             bl.addWidget(err)
             if param.description and param.role != "requirement":
                 bl.addWidget(_label(param.description, "fieldmeta", wrap=True))
-            (self.form if param.role == "requirement" else self.more).addWidget(box)
-            n_more += param.role != "requirement"
+            (self.form if is_primary(param) else self.more).addWidget(box)
+            n_more += not is_primary(param)
             self._fields[param.symbol] = edit
             self._errors[param.symbol] = err
         self.more_button.setVisible(n_more > 0)
@@ -710,10 +717,16 @@ class CatalogueTab(QWidget):
         if case_index is None:
             return
         case = self.current.spec.known_cases[case_index]
-        units = {p.symbol: p.unit for p in self.current.spec.parameters}
+        params = {p.symbol: p for p in self.current.spec.parameters}
         for sym, edit in self._fields.items():
-            if sym in case.given:
-                edit.setText(format_input(float(case.given[sym]), units.get(sym, "")))
+            # every field the case leaves out goes back to its default: a setting
+            # changed by hand is not part of the published design
+            text = str(case.given[sym]) if sym in case.given else default_for(params[sym], self.current)
+            try:
+                text = format_input(float(text), params[sym].unit)
+            except ValueError:
+                pass
+            edit.setText(text)
         self._synthesise()
 
     def _toggle_more(self) -> None:
@@ -1170,11 +1183,15 @@ class PlanarArrayTab(QWidget):
         _fill(self.summary_table, rows)
 
         notes = []
-        if self.spacing.value() >= limit:
+        if visible_grating_lobes(lattice, self.spacing.value(), None, self.scan.value(),
+                                 self.scan_phi.value()):
             notes.append(
-                f"Spacing {self.spacing.value():.3f} λ exceeds the "
-                f"{limit:.4f} λ grating-lobe limit for scanning to "
-                f"{self.scan.value():.0f}°, so a grating lobe is in real space.")
+                f"A grating lobe is in real space: spacing {self.spacing.value():.3f} λ "
+                f"steered to {self.scan.value():.0f}° at φ {self.scan_phi.value():.0f}°.")
+        elif self.spacing.value() >= limit:
+            notes.append(
+                f"No grating lobe at this φ, but spacing {self.spacing.value():.3f} λ exceeds the "
+                f"{limit:.4f} λ limit for scanning to {self.scan.value():.0f}° in every plane.")
         if uniform_forced and self.taper.currentText() != "uniform":
             notes.append(
                 "A triangular lattice is not separable, so the taper does not "
@@ -1374,6 +1391,7 @@ class MainWindow(QMainWindow):
                 f"{len(registry)} archetypes loaded, all structurally sound")
 
     def _go(self, row: int) -> None:
+        self.catalogue._timer.stop()       # nothing recomputes behind another page
         self.tabs.setCurrentIndex(row)
         if row == 0:
             self.catalogue.show_gallery()

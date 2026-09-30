@@ -7,7 +7,9 @@ than pixel appearance.
 """
 from __future__ import annotations
 
+import math
 import os
+import re
 
 import pytest
 
@@ -437,3 +439,111 @@ def test_the_sweep_offers_readable_quantities(window):
     assert tab.metric_picker.currentData() == "directivity_dbi"
     assert tab.metric_picker.currentText() == "Directivity"
     assert tab.sweep_canvas.axes.lines, "the sweep should have drawn a curve"
+
+
+# ------------------------------------------------------------ found by review, fixed
+
+def _labels(key, registry, values=None):
+    from PySide6.QtCore import QRectF
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from otahub.gui import drawings
+    from otahub.gui.app import design_values
+    a = registry[key]
+    if values is None:
+        values = design_values(a.synthesize(**a.spec.known_cases[0].given))
+    img = QImage(520, 400, QImage.Format.Format_ARGB32)
+    img.fill(QColor("#ffffff"))
+    p = QPainter(img)
+    try:
+        return drawings.paint(p, QRectF(0, 0, 520, 400), key, a.family, values)
+    finally:
+        p.end()
+
+
+@pytest.mark.parametrize("key,label", [
+    ("lpda", "26 elements"),                                  # was 16, at a scale factor of its own
+    ("normal_mode_helix", "40 mm, 20 turns"),                 # was four turns
+    ("axial_mode_helix", "708 mm, 10 turns"),
+    ("waveguide_slot_array_resonant", "12 slots"),            # was always six
+    ("waveguide_slot_array_travelling_wave", "20 slots"),
+    ("cylindrical_parabolic", "W = 1 m"),                     # was D = 1 m from a default
+    ("cassegrain", "F = 1.05 m"),                             # f/D times D, not a fixed proportion
+    ("conical_horn", "slant 300 mm"),                         # along the wall from the apex
+    ("truncated_corner_cp_patch", "cut 3.97 mm"),             # a leg, not the diagonal
+    ("vivaldi_tsa", "aperture 150 mm"),
+])
+def test_each_drawing_labels_its_own_designs_numbers(qapp, registry, key, label):
+    """The drawings replaced counts, angles and sizes with fixed ones; the labels
+    they paint must be the design's."""
+    assert label in _labels(key, registry)
+
+
+def test_a_drawing_never_labels_a_number_the_design_did_not_compute(qapp, registry):
+    """A dipole with no length was labelled "L = 1 m". With no design at all the only
+    numbers left are the archetypes' own fixed angles."""
+    fixed = {"90°", "60°", "90° phasing line"}
+    for a in registry:
+        numbers = [s for s in _labels(a.key, registry, {}) if re.search(r"\d", s) and s not in fixed]
+        assert not numbers, (a.key, numbers)
+
+
+def test_every_input_a_design_asks_for_is_on_the_form(window, registry):
+    """A small square loop needs its turn count and wire radius, and the form had no
+    field for either: geometry the synthesis reads but never produces is an input."""
+    tab = window.catalogue
+    for a in registry:
+        tab.select_key(a.key)
+        missing = set(tab._design.missing_requirements()) if tab._design else set()
+        assert missing <= set(tab._fields), (a.key, missing - set(tab._fields))
+    tab.select_key("small_square_loop")
+    assert {"N", "b"} <= set(tab._fields)
+
+
+def test_loading_a_known_design_resets_what_it_leaves_out(window):
+    """A setting changed by hand stayed when a published design was loaded, so the
+    page showed a design that was not the published one."""
+    tab = window.catalogue
+    tab.select_key("cylindrical_parabolic")
+    tab._fields["f_over_W"].setText("0.8")
+    tab._load_example(1)
+    assert tab._design.get("F") == pytest.approx(0.4)
+
+
+def test_leaving_the_design_page_stops_a_pending_recalculation(window):
+    tab = window.catalogue
+    tab.select_key("half_wave_dipole")
+    tab._timer.start()
+    tab.show_gallery()
+    assert not tab._timer.isActive()
+    tab.select_key("half_wave_dipole")
+    tab._timer.start()
+    window._go(2)
+    assert not tab._timer.isActive()
+
+
+def test_the_monopole_pattern_radiates_only_above_its_ground(registry):
+    """Drawn as the whole image dipole it read 2.15 dBi with a lower half; the spec
+    says 5.16 dBi."""
+    from otahub.gui.app import PATTERN_SOURCES
+    pattern, _ = PATTERN_SOURCES["quarter_wave_monopole"]()
+    below = pattern.U[pattern.theta > math.pi / 2]
+    assert not below.any()
+    spec = registry["quarter_wave_monopole"].synthesize(f0=100e6).metrics
+    d = next(v for k, v in spec.items() if k.startswith("directivity") and k.endswith("dbi"))
+    assert pattern.directivity_dbi() == pytest.approx(d, abs=0.02)
+
+
+def test_the_planar_warning_tests_the_steering_direction(window):
+    """0.6 lambda at 45 deg in the phi = 45 plane has no grating lobe, though it is
+    past the all-azimuth limit; the page said a lobe was in real space."""
+    tab = window.planar
+    tab.lattice.setCurrentText("rectangular")
+    tab.spacing.setValue(0.6)
+    tab.scan.setValue(45)
+    tab.scan_phi.setValue(45)
+    tab.refresh()
+    assert "A grating lobe is in real space" not in tab.warning.text()
+    assert "in every plane" in tab.warning.text()
+    tab.scan_phi.setValue(0)
+    tab.refresh()
+    assert "A grating lobe is in real space" in tab.warning.text()

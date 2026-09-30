@@ -81,16 +81,41 @@ def matches(archetype, needle: str) -> bool:
     return needle in haystack
 
 
+def free_geometry(archetype) -> set[str]:
+    """Geometry the synthesis reads but never produces - a loop's turn count and wire
+    radius. The design cannot finish without them, so they are inputs, as the CLI's
+    "to complete this design, supply" already treats them."""
+    from ..core.expr import ExprError, referenced_symbols
+    spec = archetype.spec
+    produced = {r.output for r in spec.synthesis}
+    read: set[str] = set()
+    for expr in [r.expr for r in spec.synthesis] + [r.expr for r in spec.analysis]:
+        try:
+            read |= referenced_symbols(expr, spec.symbols)
+        except ExprError:
+            continue
+    return {p.symbol for p in spec.parameters
+            if p.role == "geometry" and p.symbol not in produced and p.symbol in read}
+
+
 def requirement_fields(archetype) -> list:
     """Parameters the user must or may supply, ordered for a form.
 
     Requirements first because they have no defaults and the design cannot
-    proceed without them; assumptions and materials after, since those carry
-    defensible defaults and most users will leave them alone.
+    proceed without them; then free geometry (see :func:`free_geometry`), which it
+    cannot finish without either; assumptions and materials after, since those
+    carry defensible defaults and most users will leave them alone.
     """
-    order = {"requirement": 0, "assumption": 1, "material": 2}
-    fields = [p for p in archetype.spec.parameters if p.role in order]
+    free = free_geometry(archetype)
+    order = {"requirement": 0, "geometry": 1, "assumption": 2, "material": 3}
+    fields = [p for p in archetype.spec.parameters
+              if p.role in order and (p.role != "geometry" or p.symbol in free)]
     return sorted(fields, key=lambda p: (order[p.role], p.unit != "Hz", p.symbol))
+
+
+def is_primary(param) -> bool:
+    """On the form's first page: the requirements and the free geometry."""
+    return param.role in ("requirement", "geometry")
 
 
 def default_frequency(archetype) -> float:

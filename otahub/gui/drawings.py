@@ -51,22 +51,50 @@ def family_colour(family: str) -> QColor:
     return QColor(FAMILY_COLOURS.get(family, "#5b6a79"))
 
 
+class _Nominal(float):
+    """A proportion the design did not compute. Arithmetic keeps it nominal, and no
+    label prints it (a dipole without a length was labelled "L = 1 m")."""
+
+
+def _nominal_op(name):
+    def op(self, *args):
+        out = getattr(float, name)(self, *args)
+        return _Nominal(out) if isinstance(out, float) else out
+    return op
+
+
+for _name in ("__add__", "__radd__", "__sub__", "__rsub__", "__mul__", "__rmul__", "__truediv__",
+              "__rtruediv__", "__pow__", "__rpow__", "__neg__", "__pos__", "__abs__"):
+    setattr(_Nominal, _name, _nominal_op(_name))
+
+#: in a label, marks a number the design did not compute: Fig drops such labels
+_UNSET = "\x00"
+
+
 def _num(values: Mapping, *names, default=None):
     for n in names:
         v = values.get(n)
         if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v > 0:
             return float(v)
-    return default
+    return _Nominal(default) if isinstance(default, (int, float)) else default
 
 
 def _len(v) -> str:
+    if isinstance(v, _Nominal):
+        return _UNSET
     return engineering(v, "m", 3) if v else ""
+
+
+def _count(v) -> str:
+    """A whole count for a label, or the unset marker."""
+    return _UNSET if isinstance(v, _Nominal) or v is None else f"{int(round(v))}"
 
 
 # ---------------------------------------------------------------- the figure: a world box mapped onto a rect
 class Fig:
     def __init__(self, p: QPainter, rect: QRectF, labels: bool) -> None:
         self.p, self.r, self.labels = p, rect, labels
+        self.drawn: list[str] = []                 # every label painted, for the tests
         self.u = max(0.7, min(2.2, rect.height() / 300.0))
         self.s, self.ox, self.oy = 1.0, 0.0, 0.0
         size = max(8.5, min(13.0, rect.height() / 26.0))
@@ -169,8 +197,9 @@ class Fig:
             x += step
 
     def text(self, x, y, s: str, align: str = "c", colour: QColor = DIM, dx: float = 0, dy: float = 0) -> None:
-        if not self.labels or not s:
+        if not self.labels or not s or _UNSET in s:
             return
+        self.drawn.append(s)
         self.p.setFont(self.font)
         self.p.setPen(QPen(colour))
         c = self.pt(x, y)
@@ -198,8 +227,9 @@ class Fig:
 
     def dim(self, x1, y1, x2, y2, label: str, offset_px: float = 0.0, side: int = 1) -> None:
         """A dimension line from (x1, y1) to (x2, y2), pushed off the object by offset_px."""
-        if not self.labels or not label:
+        if not self.labels or not label or _UNSET in label:
             return
+        self.drawn.append(label)
         a, b = self.pt(x1, y1), self.pt(x2, y2)
         vx, vy = b.x() - a.x(), b.y() - a.y()
         n = math.hypot(vx, vy) or 1.0
@@ -306,9 +336,9 @@ def _monopole(f: Fig, v, kind="plain"):
 
 def _biconical(f: Fig, v):
     Lc = _num(v, "Lc", default=1.0)
-    th = math.radians(30)
+    th = min(_num(v, "theta_h", default=math.radians(30)), math.radians(85))   # radians, from the axis
     rh, hh = Lc * math.sin(th), Lc * math.cos(th)
-    gap = hh * 0.04
+    gap = _num(v, "feed_gap", default=hh * 0.08) / 2
     f.fit(-rh * 1.4, -hh * 1.15, rh * 1.7, hh * 1.15)
     for sgn in (1, -1):
         f.poly([(0, sgn * gap), (-rh, sgn * (gap + hh)), (rh, sgn * (gap + hh))],
@@ -434,8 +464,8 @@ def _rect_patch(f: Fig, v, kind="plain"):
         pts = [(-W / 2 + c, L / 2), (W / 2, L / 2), (W / 2, -L / 2 + c), (W / 2 - c, -L / 2), (-W / 2, -L / 2), (-W / 2, L / 2 - c)]
         f.poly(pts, f.gradient(-W / 2, L / 2, W / 2, -L / 2, COPPER_LIGHT, COPPER), COPPER_EDGE, 1.2)
         f.feed(0, -L * 0.22)
-        if _num(v, "c_trunc"):
-            f.dim(W / 2 - c, -L / 2, W / 2, -L / 2 + c, f"cut {_len(c)}", 12, side=-1)
+        # c_trunc is the cut's LEG along each edge, so dimension a leg, not the diagonal
+        f.dim(W / 2 - c, -L / 2, W / 2, -L / 2, f"cut {_len(c)}", 14, side=-1)
     elif kind == "inset":
         y0 = _num(v, "y0", default=L * 0.3)
         wn = W * 0.08
@@ -581,13 +611,16 @@ def _sectoral(f: Fig, v, plane):
 
 def _conical(f: Fig, v, kind="plain"):
     dm = _num(v, "dm", "D", default=1.0)
-    L = _num(v, "L", default=dm * 1.5)
-    ln = L * 0.95
+    L = _num(v, "L", default=dm * 1.5)            # the SLANT length, apex to rim
+    psi = math.asin(min(0.95, dm / (2 * L)))       # the cone's half angle
+    ax = L * math.cos(psi)                         # apex to aperture along the axis
     din = dm * 0.25
-    steps = None
-    if kind == "corrugated":
-        steps = []
-    _guide_and_flare(f, din, dm, ln, ln * 0.25, f"⌀ {_len(dm)}", f"slant {_len(_num(v, 'L'))}" if _num(v, "L") else "")
+    ln = ax * (1 - din / dm)                       # the flare, throat to aperture
+    _guide_and_flare(f, din, dm, ln, ln * 0.4, f"⌀ {_len(dm)}", "")
+    apex = ln - ax
+    for sgn in (1, -1):
+        f.line(0, sgn * din / 2, apex, 0, DIM, 0.9, Qt.PenStyle.DashLine)
+    f.dim(apex, 0, ln, dm / 2, f"slant {_len(L)}", 14, side=1)
     if kind == "corrugated":
         n = 16
         for i in range(1, n):
@@ -636,9 +669,11 @@ def _open_guide(f: Fig, v):
 def _helix(f: Fig, v, kind="axial"):
     D = _num(v, "D_helix", default=1.0)
     S = _num(v, "S", default=D * 0.7)
-    Lax = _num(v, "axial_length", default=S * 6) if kind == "axial" else S * 4
-    n = max(2, min(int(round(Lax / S)), 14))
-    Lax = n * S
+    N = _num(v, "N", default=6 if kind == "axial" else 4)
+    turns = max(1, int(round(N)))
+    Lax = turns * S                                # the winding, first turn to last
+    n = min(turns, 60)                             # beyond 60 the pitch is drawn wider, the length true
+    S = Lax / n
     Dg = _num(v, "D_gnd", default=D * 2.2) if kind == "axial" else D * 1.6
     f.fit(-Dg * 0.75, -Lax * 0.08, Dg * 0.75 + D * 0.3, Lax * 1.08)
     f.ground(-Dg / 2, Dg / 2, 0)
@@ -667,8 +702,9 @@ def _helix(f: Fig, v, kind="axial"):
         f.curve(run, COPPER, 2.3)
     f.feed(D / 2, S * 0.4)
     f.dim(-D / 2, Lax + S * 0.6, D / 2, Lax + S * 0.6, f"⌀ {_len(D)}", 6, side=1)
-    if kind == "axial":
-        f.dim(Dg / 2, 0, Dg / 2, Lax + S * 0.4, f"{_len(_num(v, 'axial_length'))}", 10, side=-1)
+    # the winding's true length (nominal when the turn count or pitch is)
+    length = _UNSET if isinstance(N, _Nominal) else _len(Lax)
+    f.dim(Dg / 2, S * 0.4, Dg / 2, S * 0.4 + Lax, f"{length}, {_count(N)} turns", 10, side=-1)
 
 
 def _yagi(f: Fig, v):
@@ -696,9 +732,9 @@ def _yagi(f: Fig, v):
 
 def _lpda(f: Fig, v):
     Lmax = _num(v, "L_max", default=1.0)
-    N = int(_num(v, "N_elements", default=8))
-    N = max(3, min(N, 16))
-    tau = 0.88 if N > 3 else 0.8
+    count = _num(v, "N_elements", default=8)
+    N = max(2, min(int(round(count)), 80))
+    tau = min(_num(v, "tau", default=0.88), 0.99)
     lens = [Lmax * tau ** i for i in range(N)]
     xs, x = [], 0.0
     sigma = _num(v, "sigma", default=0.16)
@@ -706,7 +742,7 @@ def _lpda(f: Fig, v):
         xs.append(x)
         x += 2 * sigma * l
     span = xs[-1]
-    f.fit(-span * 0.1 - Lmax * 0.45, -Lmax * 0.62, span * 1.15 + Lmax * 0.1, Lmax * 0.62)
+    f.fit(-span * 0.1 - Lmax * 0.9, -Lmax * 0.62, span * 1.15 + Lmax * 0.1, Lmax * 0.62)
     f.line(xs[0], f.minw(3), xs[-1], f.minw(3), METAL_DARK, 2.2)
     f.line(xs[0], -f.minw(3), xs[-1], -f.minw(3), METAL_DARK, 2.2)
     for i, (x, l) in enumerate(zip(xs, lens)):
@@ -715,7 +751,7 @@ def _lpda(f: Fig, v):
         f.wire(x, -sgn * f.minw(3), x, -sgn * l / 2, 2.2)
     f.feed(xs[-1], 0)
     f.dim(xs[0], -Lmax / 2, xs[0], Lmax / 2, f"longest {_len(Lmax)}", 26, side=1)
-    f.text(span / 2, -Lmax / 2, f"{N} elements", "c", dy=14)
+    f.text(span / 2, -Lmax / 2, f"{_count(count)} elements", "c", dy=14)
 
 
 def _rhombic(f: Fig, v, kind="rhombic"):
@@ -782,14 +818,17 @@ def _bowtie(f: Fig, v):
 
 def _spiral(f: Fig, v, kind="arch"):
     ro = _num(v, "r_out", default=1.0)
-    ri = _num(v, "r_in", "r0", default=ro * 0.08)
-    ri = min(ri, ro * 0.12)
+    ri = min(_num(v, "r_in", "r0", default=ro * 0.08), ro * 0.95)
     f.fit(-ro * 1.2, -ro * 1.2, ro * 1.3, ro * 1.2)
-    turns = 5.0
+    if kind == "arch":
+        turns = _num(v, "n_turns", default=5.0)
+    else:                                          # r = r0 exp(a phi): ln(ro/r0) / (2 pi a) turns
+        turns = _num(v, "turns_required", default=math.log(ro / ri) / (2 * math.pi * _num(v, "a_growth", default=0.22)))
     for arm in (0, math.pi):
         pts = []
-        for i in range(600):
-            t = i / 599
+        steps = max(600, int(160 * turns))
+        for i in range(steps):
+            t = i / (steps - 1)
             if kind == "arch":
                 r = ri + (ro - ri) * t
             else:
@@ -853,23 +892,26 @@ def _planar_monopole(f: Fig, v, kind="disc"):
 def _vivaldi(f: Fig, v):
     Wt = _num(v, "W_ap", default=1.0)
     L = _num(v, "Lax", default=Wt * 1.4)
-    W = max(Wt, L / 4)
+    W = max(Wt, L / 4)                             # the board, widened on paper for a slender design
     f.fit(-L * 0.08, -W * 0.85, L * 1.45, W * 0.75)
     f.box(0, -W * 0.62, L, W * 1.24, SUBSTRATE, SUBSTRATE_EDGE, 1.0)
-    k = math.log((W / 2) / (W * 0.01)) / (L * 0.8)
+    s0 = Wt * 0.01                                 # the slot's half width at the feed
+    k = math.log((Wt / 2) / s0) / (L * 0.8)        # opening to the aperture W_ap, not the board
     for sgn in (1, -1):
-        edge = [(L * 0.2 + x, sgn * W * 0.01 * math.exp(k * x)) for x in [L * 0.8 * i / 60 for i in range(61)]]
-        pts = [(0, sgn * W * 0.01), (L * 0.2, sgn * W * 0.01)] + edge + [(L, sgn * W * 0.6), (0, sgn * W * 0.6)]
+        edge = [(L * 0.2 + x, sgn * s0 * math.exp(k * x)) for x in [L * 0.8 * i / 60 for i in range(61)]]
+        pts = [(0, sgn * s0), (L * 0.2, sgn * s0)] + edge + [(L, sgn * W * 0.6), (0, sgn * W * 0.6)]
         f.poly(pts, f.gradient(0, sgn * W * 0.6, L, 0, COPPER_LIGHT, COPPER), COPPER_EDGE, 1.0)
     f.feed(L * 0.2, 0)
-    f.dim(L, -W / 2, L, W / 2, f"aperture {_len(Wt)}", 12, side=-1)
+    f.dim(L, -Wt / 2, L, Wt / 2, f"aperture {_len(Wt)}", 12, side=-1)
     f.dim(0, -W * 0.62, L, -W * 0.62, f"length {_len(_num(v, 'Lax'))}" if _num(v, "Lax") else "", 12, side=-1)
 
 
 # ---------------------------------------------------------------- reflectors
 def _dish(f: Fig, v, kind="prime"):
-    D = _num(v, "D", default=1.0)
-    F = _num(v, "F", "focal_length_m", default=D * 0.4)
+    D = _num(v, "W", default=1.0) if kind == "cyl" else _num(v, "D", default=1.0)
+    F = _num(v, "F", "focal_length_m")
+    if F is None:                                  # a dual reflector gives f/D, not F: F = (f/D) D
+        F = D * _num(v, "f_over_D", default=0.4)
     depth = D * D / (16 * F)
     if kind == "offset":
         h0 = _num(v, "h0", default=D * 0.6)
@@ -882,7 +924,8 @@ def _dish(f: Fig, v, kind="prime"):
         f.poly([(F, 0), (F + D * 0.12, D * 0.05), (F + D * 0.12, -D * 0.05)], METAL_LIGHT, METAL_DARK, 1.0)
         for y in (ys[0], ys[-1]):
             f.line(F, 0, y * y / (4 * F), y, RAY, 1.0, Qt.PenStyle.DashLine)
-        f.dim(pts[0][0] - D * 0.08, ys[0], pts[-1][0] - D * 0.08, ys[-1], f"D = {_len(D)}", 14, side=1)
+        xl = min(p[0] for p in pts) - D * 0.08      # the projected aperture: vertical, rim to rim
+        f.dim(xl, ys[0], xl, ys[-1], f"D = {_len(D)}", 14, side=1)
         return
     f.fit(-depth - D * 0.35, -D * 0.62, F + D * 0.3, D * 0.62)
     ys = [-D / 2 + D * i / 80 for i in range(81)]
@@ -900,13 +943,14 @@ def _dish(f: Fig, v, kind="prime"):
             f.text(F * 0.4, D / 2, "parabolic cylinder, line feed", "c", dy=-14)
     else:
         fx = F - depth
+        sr = _num(v, "Ds", default=D * 0.2) / 2
         if kind == "cass":
-            sx, sr = fx * 0.78, D * 0.1
+            sx = fx * 0.78
             sub = [(sx + (y / sr) ** 2 * sr * 0.3, y) for y in [-sr + 2 * sr * i / 30 for i in range(31)]]
             f.curve(sub, METAL_DARK, 4.4)
             f.curve(sub, METAL, 3.0)
         else:
-            sx, sr = fx * 1.2, D * 0.12
+            sx = fx * 1.2
             sub = [(sx - (y / sr) ** 2 * sr * 0.35, y) for y in [-sr + 2 * sr * i / 30 for i in range(31)]]
             f.curve(sub, METAL_DARK, 4.4)
             f.curve(sub, METAL, 3.0)
@@ -915,7 +959,9 @@ def _dish(f: Fig, v, kind="prime"):
         f.line(-depth + D * 0.14, D * 0.04, sx, sr * 0.8, RAY, 1.0, Qt.PenStyle.DashLine)
         f.line(-depth + D * 0.14, -D * 0.04, sx, -sr * 0.8, RAY, 1.0, Qt.PenStyle.DashLine)
         f.text(sx, sr, "subreflector", "c", dy=-14)
-    f.dim(-depth - D * 0.04, -D / 2, -depth - D * 0.04, D / 2, f"D = {_len(D)}", 14, side=1)
+        f.dim(sx + D * 0.06, -sr, sx + D * 0.06, sr, f"⌀ {_len(2 * sr)}", 8, side=-1)
+        f.dim(-depth, -D / 2, fx, -D / 2, f"F = {_len(F)}", 16, side=-1)
+    f.dim(-depth - D * 0.04, -D / 2, -depth - D * 0.04, D / 2, f"{'W' if kind == 'cyl' else 'D'} = {_len(D)}", 14, side=1)
 
 
 def _corner(f: Fig, v, angle):
@@ -977,9 +1023,10 @@ def _guide_slots(f: Fig, v, kind):
     sl = _num(v, "slot_length", default=a * 0.6)
     sp = _num(v, "spacing", default=sl * 1.4)
     off = _num(v, "offset", "x1", default=a * 0.12)
-    n = 1 if kind == "single" else 6
+    count = 1 if kind == "single" else _num(v, "N", default=6)
+    n = max(1, min(int(round(count)), 80))
     length = sp * (n + 0.6) if n > 1 else sl * 2.4
-    f.fit(-length * 0.08 - a * 1.1, -a * 1.0, length * 1.08, a * 0.95)
+    f.fit(-length * 0.08 - max(a * 1.1, length * 0.16), -a * 1.0, length * 1.08, a * 0.95)
     _sheet(f, 0, -a / 2, length, a)
     f.line(0, 0, length, 0, QColor(90, 106, 119, 110), 0.8, Qt.PenStyle.DashLine)
     for i in range(n):
@@ -991,6 +1038,7 @@ def _guide_slots(f: Fig, v, kind):
     if n > 1:
         x0 = (length - (n - 1) * sp) / 2
         f.dim(x0, -a / 2, x0 + sp, -a / 2, f"pitch {_len(sp)}", 14, side=-1)
+        f.text(length / 2, -a / 2, f"{_count(count)} slots", "c", dy=34)
     else:
         f.dim(length / 2 - sl / 2, -a / 2, length / 2 + sl / 2, -a / 2, f"slot {_len(sl)}", 14, side=-1)
     f.text(length / 2, a / 2, "broad wall of the guide", "c", dy=-12)
@@ -1042,16 +1090,30 @@ def _dielectric_lens(f: Fig, v, kind="hyper"):
 
 
 def _zone_plate(f: Fig, v):
+    """Zone m ends at r_m = sqrt(m lambda F + (m lambda / 2)^2), m = 1..M; an L-level
+    phase plate steps every 2/L of a zone, an amplitude plate (L = 1) blocks the
+    even zones, the centre open."""
     ro = _num(v, "r_outer", default=1.0)
-    r1 = _num(v, "r_first", default=ro * 0.4)
-    n = max(2, min(12, int((ro / r1) ** 2)))
+    M = max(1, min(int(round(_num(v, "M", default=4))), 40))
+    levels = max(1, int(round(_num(v, "phase_levels", default=1))))
+    lam, F = _num(v, "lambda0"), _num(v, "F")
+    if isinstance(lam, float) and isinstance(F, float) and not isinstance(F, _Nominal):
+        r = lambda m: math.sqrt(m * lam * F + (m * lam / 2) ** 2)
+    else:
+        r = lambda m: ro * math.sqrt(m / M)
     f.fit(-ro * 1.2, -ro * 1.2, ro * 1.25, ro * 1.2)
-    rs = [r1 * math.sqrt(k) for k in range(1, n + 1)] + [ro]
-    for k in range(len(rs) - 1, -1, -1):
-        f.circle(0, 0, rs[k], METAL if k % 2 == 1 else QColor("#f7fafb"), METAL_DARK, 0.6)
+    sub = 1 if levels == 1 else max(1, levels // 2)
+    edges = [r(j / sub) for j in range(1, M * sub + 1)]
+    shades = [QColor("#f7fafb"), QColor("#c9dbe4"), QColor("#a9c4d2"), QColor("#8aaec0")]
+    for k in range(len(edges) - 1, -1, -1):
+        if levels == 1:
+            fill = METAL if k % 2 == 1 else QColor("#f7fafb")
+        else:
+            fill = shades[k % min(levels, 4)]
+        f.circle(0, 0, edges[k], fill, METAL_DARK, 0.6)
     f.feed(0, 0, 3.0)
     f.dim(-ro, -ro, ro, -ro, f"⌀ {_len(2 * ro)}", 12, side=-1)
-    f.text(0, ro, "alternate zones blocked", "c", dy=-14)
+    f.text(0, ro, "alternate zones blocked" if levels == 1 else f"{levels}-level phase steps", "c", dy=-14)
 
 
 def _dra(f: Fig, v, kind="cyl"):
@@ -1149,8 +1211,8 @@ FAMILY_FALLBACK = {
 
 
 def paint(painter: QPainter, rect: QRectF, key: str, family: str, values: Mapping, labels: bool = True,
-          grid: bool = True) -> None:
-    """Draw one archetype's figure into rect."""
+          grid: bool = True) -> list[str]:
+    """Draw one archetype's figure into rect; returns the labels it painted."""
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
@@ -1171,8 +1233,10 @@ def paint(painter: QPainter, rect: QRectF, key: str, family: str, values: Mappin
     try:
         draw(fig, values)
     except Exception:  # noqa: BLE001 - a figure must never take the window down
-        FAMILY_FALLBACK.get(family, _dipole)(Fig(painter, rect, False), {})
+        fig = Fig(painter, rect, False)
+        FAMILY_FALLBACK.get(family, _dipole)(fig, {})
     painter.restore()
+    return fig.drawn
 
 
 def thumbnail(key: str, family: str, values: Mapping, width: int, height: int, dpr: float = 2.0) -> QPixmap:
