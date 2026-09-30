@@ -113,6 +113,31 @@ def requirement_fields(archetype) -> list:
     return sorted(fields, key=lambda p: (order[p.role], p.unit != "Hz", p.symbol))
 
 
+def suggested_value(param, values: dict) -> float | None:
+    """The middle of a parameter's typical range, evaluated on the design's own
+    values - "0.001*s .. 0.05*s" for a square loop's wire radius, the geometric
+    mean of the two ends (the ranges span decades). None when the typical text
+    gives no number here. A form suggestion only: the engine itself never
+    invents an input."""
+    import math
+    import re
+    from ..core.expr import ExprError, evaluate
+    text = (param.typical or "").strip()
+    if not text:
+        return None
+    ends = []
+    for part in text.split(".."):
+        expr = re.sub(r"\blambda\b", "lambda0", part.strip())
+        try:
+            v = float(evaluate(expr, values))
+        except (ExprError, TypeError, ValueError, ZeroDivisionError):
+            return None
+        if not math.isfinite(v) or v <= 0:
+            return None
+        ends.append(v)
+    return math.sqrt(ends[0] * ends[-1])
+
+
 def is_primary(param) -> bool:
     """On the form's first page: the requirements and the free geometry."""
     return param.role in ("requirement", "geometry")

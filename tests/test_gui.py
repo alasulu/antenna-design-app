@@ -478,6 +478,68 @@ def test_each_drawing_labels_its_own_designs_numbers(qapp, registry, key, label)
     assert label in _labels(key, registry)
 
 
+def _dim(record, prefix):
+    x1, y1, x2, y2, _ = next(d for d in record.dims if d[4].startswith(prefix))
+    return x1, y1, x2, y2, math.hypot(x2 - x1, y2 - y1)
+
+
+def test_the_drawings_geometry_is_the_designs_not_just_its_labels(qapp, registry):
+    """The labels were already right where the lines were wrong (a review swapped
+    the old renderers back in and the label tests passed), so check where the
+    lines go: the CP cut spans one leg, the conical slant runs apex to rim at its
+    true length, the Vivaldi's aperture line spans W_ap, the LPDA draws every
+    element."""
+    from otahub.gui.app import design_values
+    cp = registry["truncated_corner_cp_patch"]
+    d = cp.synthesize(**cp.spec.known_cases[0].given)
+    x1, y1, x2, y2, n = _dim(_labels("truncated_corner_cp_patch", registry), "cut ")
+    assert y1 == pytest.approx(y2) and n == pytest.approx(d.get("c_trunc"), rel=1e-9)
+    horn = registry["conical_horn"]
+    d = horn.synthesize(**horn.spec.known_cases[0].given)
+    x1, y1, x2, y2, n = _dim(_labels("conical_horn", registry), "slant ")
+    assert n == pytest.approx(d.get("L"), rel=1e-9) and y1 == pytest.approx(0.0)
+    long = registry["vivaldi_tsa"].synthesize(f_low=1e9, Lax=2.0)     # a board wider than its aperture
+    rec = _labels("vivaldi_tsa", registry, design_values(long))
+    assert _dim(rec, "aperture ")[4] == pytest.approx(long.get("W_ap"), rel=1e-9)
+    big = registry["lpda"].synthesize(f_low=10e6, f_high=10e9, tau=0.92)
+    rec = _labels("lpda", registry, design_values(big))
+    assert len(rec.wires) == 2 * int(big.get("N_elements")) == 174
+
+
+def test_a_three_level_zone_plate_steps_every_two_thirds_of_a_zone(qapp, registry):
+    """levels // 2 lost the fraction: four bands from 39.04 mm where the model has
+    six from 31.79 mm, r_m = sqrt(m lambda F + (m lambda / 2)^2) at m = 2j/3."""
+    from otahub.gui.app import design_values
+    d = registry["fresnel_zone_plate"].synthesize(f0=30e9, F=0.15, M=4, phase_levels=3)
+    rec = _labels("fresnel_zone_plate", registry, design_values(d))
+    lam = 2.99792458e8 / 30e9
+    want = [math.sqrt(m * lam * 0.15 + (m * lam / 2) ** 2) for m in (2 * j / 3 for j in range(1, 7))]
+    assert sorted(rec.circles) == pytest.approx(want, rel=1e-12)
+    assert min(rec.circles) == pytest.approx(0.0317869, rel=1e-5)
+
+
+@pytest.mark.parametrize("key,kind", [("cassegrain", "cass"), ("gregorian_dual_reflector", "greg")])
+def test_the_subreflector_is_the_conic_its_magnification_makes(qapp, registry, key, kind):
+    """It was a fixed parabola at a fixed place whatever the magnification. Now a
+    hyperbola (Cassegrain) or ellipse (Gregorian) on the two foci, whose
+    eccentricity is the magnification's: (M+1)/(M-1), or (M-1)/(M+1)."""
+    from otahub.gui.app import design_values
+    a = registry[key]
+    shapes = []
+    for M in (4.0, 8.0):
+        g = dict(a.spec.known_cases[0].given, magnification=M)
+        dual = _labels(key, registry, design_values(a.synthesize(**g))).meta["dual"]
+        e = (M + 1) / (M - 1) if kind == "cass" else (M - 1) / (M + 1)
+        assert dual["e"] == pytest.approx(e, rel=1e-12)
+        f1, f2 = dual["f1"], dual["f2"]
+        focal = [math.hypot(x - f2, y) + (-1 if kind == "cass" else 1) * math.hypot(x - f1, y)
+                 for x, y in dual["sub"]]
+        assert max(focal) - min(focal) < 1e-12
+        assert max(abs(y) for _, y in dual["sub"]) == pytest.approx(g["Ds"] / 2 if "Ds" in g else dual["rs"])
+        shapes.append(dual["sub"])
+    assert shapes[0] != shapes[1]
+
+
 def test_a_drawing_never_labels_a_number_the_design_did_not_compute(qapp, registry):
     """A dipole with no length was labelled "L = 1 m". With no design at all the only
     numbers left are the archetypes' own fixed angles."""
@@ -497,6 +559,24 @@ def test_every_input_a_design_asks_for_is_on_the_form(window, registry):
         assert missing <= set(tab._fields), (a.key, missing - set(tab._fields))
     tab.select_key("small_square_loop")
     assert {"N", "b"} <= set(tab._fields)
+
+
+def test_every_page_opens_on_a_complete_design(window, registry):
+    """Seven loop pages opened with a blank wire radius (the ferrite with no rod
+    diameter or coil length) and so no impedance at all. They open complete now:
+    from the known design that fills most of the page, and otherwise from the
+    middle of the spec's typical range, worked out on the design."""
+    tab = window.catalogue
+    incomplete = {}
+    for a in registry:
+        tab.select_key(a.key)
+        missing = tab._design.missing_requirements() if tab._design else ["no design"]
+        if missing:
+            incomplete[a.key] = missing
+    assert not incomplete, incomplete
+    tab.select_key("small_square_loop")
+    s = tab._design.get("s")
+    assert 0.001 * s < tab._design.get("b") < 0.05 * s
 
 
 def test_loading_a_known_design_resets_what_it_leaves_out(window):

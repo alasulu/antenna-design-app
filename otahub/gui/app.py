@@ -35,7 +35,7 @@ from ..core.units import engineering
 from ..waveguides.rectangular import WR_SERIES, recommended_band, standard
 from . import drawings
 from .models import (default_for, display_value, format_input, humanize, is_primary, key_figures,
-                     matches, parse_quantity, requirement_fields, shown_unit)
+                     matches, parse_quantity, requirement_fields, shown_unit, suggested_value)
 from .plots import (Canvas, plot_element_layout, plot_hemisphere_cuts,
                     plot_polar, plot_sweep)
 from .style import (ACCENT, FAINT, INK, LINE, MUTED, STYLE, SURFACE, WARN, WARN_SOFT,
@@ -651,7 +651,10 @@ class CatalogueTab(QWidget):
         self._errors.clear()
         n_more = 0
         syms = {p.symbol for p in requirement_fields(archetype)}
-        first_case = next((c for c in spec.known_cases if c.given and set(c.given) <= syms), None)
+        primary = {p.symbol for p in requirement_fields(archetype) if is_primary(p)}
+        # the known design that fills the most of the page, the first among equals
+        fitting = [c for c in spec.known_cases if c.given and set(c.given) <= syms]
+        first_case = max(fitting, key=lambda c: len(set(c.given) & primary), default=None)
         for param in requirement_fields(archetype):
             box = QWidget()
             bl = QVBoxLayout(box)
@@ -701,11 +704,35 @@ class CatalogueTab(QWidget):
         self.examples.setVisible(self.examples.count() > 1)
         self.examples.blockSignals(False)
 
+        self._suggest_blanks()
         self.synth_button.setEnabled(True)
         self.pages.setCurrentIndex(1)
         self._clear_results()
         self._update_pattern()
         self._synthesise()
+
+    def _suggest_blanks(self) -> None:
+        """Fill a field no known design and no plain default reaches from the middle
+        of its spec's typical range, worked out on the design so far - so a loop's
+        page opens complete instead of asking for a wire radius. Twice, since one
+        suggestion can unlock another's range."""
+        params = {p.symbol: p for p in self.current.spec.parameters}
+        for _ in range(2):
+            blanks = [s for s, e in self._fields.items() if not e.text().strip()]
+            if not blanks:
+                return
+            values, _ = self._read_form()
+            try:
+                design = self.current.synthesize(**values)
+            except Exception:  # noqa: BLE001 - suggestions are a courtesy
+                return
+            known = design_values(design)
+            for sym in blanks:
+                v = suggested_value(params[sym], known)
+                if v is not None:
+                    edit = self._fields[sym]
+                    edit.setText(format_input(v, params[sym].unit))
+                    edit.setToolTip(edit.toolTip() + f"\nsuggested: the middle of {params[sym].typical}")
 
     def _case_label(self, case) -> str:
         units = {p.symbol: p.unit for p in self.current.spec.parameters}

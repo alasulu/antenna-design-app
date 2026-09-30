@@ -225,8 +225,9 @@ class Archetype:
         for rule in pending:
             missing = sorted(referenced_symbols(rule.expr, syms) - set(known))
             unresolved[rule.output] = missing
+        for output in unresolved:
             warnings.append(
-                f"{rule.output!r} not computed: needs {missing}. "
+                f"{output!r} not computed: needs {_leaves(output, unresolved)}. "
                 f"Supply them as requirements to complete the design."
             )
         if strict and (unresolved or failed):
@@ -288,11 +289,14 @@ class Archetype:
                     still.append(rule)
             pending = still
 
+        waiting = dict(unresolved or {})
         for rule in pending:
-            missing = sorted(referenced_symbols(rule.expr, syms) - set(scope))
-            warnings.append(f"analysis {rule.metric!r} unavailable, needs {missing}")
+            waiting[rule.metric] = sorted(referenced_symbols(rule.expr, syms) - set(scope))
+        for rule in pending:
+            # the inputs it ultimately waits on, not the quantities in between
+            warnings.append(f"analysis {rule.metric!r} unavailable, needs {_leaves(rule.metric, waiting)}")
             if unresolved is not None:
-                unresolved[rule.metric] = missing
+                unresolved[rule.metric] = waiting[rule.metric]
         return metrics, warnings
 
     def analyze(self, **params: Any) -> dict[str, Any]:
@@ -352,6 +356,24 @@ class Archetype:
 
 
 # ------------------------------------------------------------------ helpers
+
+def _leaves(name: str, waiting: Mapping[str, list[str]]) -> list[str]:
+    """The inputs `name` ultimately waits on: its needs, with every need that is
+    itself waiting replaced by that one's own, recursively."""
+    out: set[str] = set()
+    seen: set[str] = set()
+    stack = list(waiting.get(name, ()))
+    while stack:
+        sym = stack.pop()
+        if sym in seen:
+            continue
+        seen.add(sym)
+        if sym in waiting:
+            stack.extend(waiting[sym])
+        else:
+            out.add(sym)
+    return sorted(out)
+
 
 _UNIT_SUFFIXES = ("_m", "_mm", "_cm", "_hz", "_ghz", "_mhz", "_ohm",
                   "_dbi", "_db", "_deg", "_rad", "_pct", "_percent")

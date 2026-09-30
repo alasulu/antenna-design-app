@@ -91,10 +91,23 @@ def _count(v) -> str:
 
 
 # ---------------------------------------------------------------- the figure: a world box mapped onto a rect
+class _Record(list):
+    """The labels a figure painted, carrying what the tests check beside them:
+    dimension lines with their world endpoints, wires, circle radii, and meta -
+    geometry a drawing computed (a subreflector's foci)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.dims: list[tuple[float, float, float, float, str]] = []
+        self.wires: list[tuple[float, float, float, float]] = []
+        self.circles: list[float] = []
+        self.meta: dict = {}
+
+
 class Fig:
     def __init__(self, p: QPainter, rect: QRectF, labels: bool) -> None:
         self.p, self.r, self.labels = p, rect, labels
-        self.drawn: list[str] = []                 # every label painted, for the tests
+        self.drawn = _Record()                     # every label painted, for the tests
         self.u = max(0.7, min(2.2, rect.height() / 300.0))
         self.s, self.ox, self.oy = 1.0, 0.0, 0.0
         size = max(8.5, min(13.0, rect.height() / 26.0))
@@ -141,6 +154,7 @@ class Fig:
         self.poly([(x, y), (x + w, y), (x + w, y + h), (x, y + h)], fill, edge, width)
 
     def circle(self, cx, cy, r, fill=None, edge: QColor | None = INK, width: float = 1.2) -> None:
+        self.drawn.circles.append(float(r))
         self.p.setBrush(QBrush(fill) if isinstance(fill, QColor) else (fill or Qt.BrushStyle.NoBrush))
         self.p.setPen(self.pen(edge, width) if edge else Qt.PenStyle.NoPen)
         c = self.pt(cx, cy)
@@ -166,6 +180,7 @@ class Fig:
         self.p.drawPath(path)
 
     def wire(self, x1, y1, x2, y2, width: float = 3.0) -> None:
+        self.drawn.wires.append((float(x1), float(y1), float(x2), float(y2)))
         self.line(x1, y1, x2, y2, COPPER_EDGE, width + 1.2)
         self.line(x1, y1, x2, y2, COPPER, width)
 
@@ -230,6 +245,7 @@ class Fig:
         if not self.labels or not label or _UNSET in label:
             return
         self.drawn.append(label)
+        self.drawn.dims.append((float(x1), float(y1), float(x2), float(y2), label))
         a, b = self.pt(x1, y1), self.pt(x2, y2)
         vx, vy = b.x() - a.x(), b.y() - a.y()
         n = math.hypot(vx, vy) or 1.0
@@ -733,7 +749,7 @@ def _yagi(f: Fig, v):
 def _lpda(f: Fig, v):
     Lmax = _num(v, "L_max", default=1.0)
     count = _num(v, "N_elements", default=8)
-    N = max(2, min(int(round(count)), 80))
+    N = max(2, int(round(count)))                  # every element, however many
     tau = min(_num(v, "tau", default=0.88), 0.99)
     lens = [Lmax * tau ** i for i in range(N)]
     xs, x = [], 0.0
@@ -927,7 +943,13 @@ def _dish(f: Fig, v, kind="prime"):
         xl = min(p[0] for p in pts) - D * 0.08      # the projected aperture: vertical, rim to rim
         f.dim(xl, ys[0], xl, ys[-1], f"D = {_len(D)}", 14, side=1)
         return
-    f.fit(-depth - D * 0.35, -D * 0.62, F + D * 0.3, D * 0.62)
+    dual = _dual_geometry({**v, "_kind": kind}, D, F, depth) if kind in ("cass", "greg") else None
+    if dual is None:
+        f.fit(-depth - D * 0.35, -D * 0.62, F + D * 0.3, D * 0.62)
+    else:
+        xs_all = [q[0] for q in dual["sub"]] + [dual["f2"], -depth]
+        f.fit(min(xs_all) - D * 0.35, -D * 0.62, max(xs_all + [F - depth]) + D * 0.3, D * 0.62)
+        f.drawn.meta["dual"] = dual
     ys = [-D / 2 + D * i / 80 for i in range(81)]
     pts = [(y * y / (4 * F) - depth, y) for y in ys]
     f.curve(pts, METAL_DARK, 6.5)
@@ -943,25 +965,53 @@ def _dish(f: Fig, v, kind="prime"):
             f.text(F * 0.4, D / 2, "parabolic cylinder, line feed", "c", dy=-14)
     else:
         fx = F - depth
-        sr = _num(v, "Ds", default=D * 0.2) / 2
-        if kind == "cass":
-            sx = fx * 0.78
-            sub = [(sx + (y / sr) ** 2 * sr * 0.3, y) for y in [-sr + 2 * sr * i / 30 for i in range(31)]]
-            f.curve(sub, METAL_DARK, 4.4)
-            f.curve(sub, METAL, 3.0)
-        else:
-            sx = fx * 1.2
-            sub = [(sx - (y / sr) ** 2 * sr * 0.35, y) for y in [-sr + 2 * sr * i / 30 for i in range(31)]]
-            f.curve(sub, METAL_DARK, 4.4)
-            f.curve(sub, METAL, 3.0)
-        f.poly([(-depth + D * 0.02, 0), (-depth + D * 0.14, D * 0.045), (-depth + D * 0.14, -D * 0.045)], METAL_LIGHT, METAL_DARK, 1.0)
-        f.feed(-depth + D * 0.02, 0)
-        f.line(-depth + D * 0.14, D * 0.04, sx, sr * 0.8, RAY, 1.0, Qt.PenStyle.DashLine)
-        f.line(-depth + D * 0.14, -D * 0.04, sx, -sr * 0.8, RAY, 1.0, Qt.PenStyle.DashLine)
-        f.text(sx, sr, "subreflector", "c", dy=-14)
+        sub, f2, sr = dual["sub"], dual["f2"], dual["rs"]
+        f.curve(sub, METAL_DARK, 4.4)
+        f.curve(sub, METAL, 3.0)
+        horn = D * 0.08
+        f.poly([(f2, 0), (f2 - horn, horn * 0.4), (f2 - horn, -horn * 0.4)], METAL_LIGHT, METAL_DARK, 1.0)
+        f.feed(f2, 0)
+        for px, py in (sub[0], sub[-1]):
+            f.line(f2, 0, px, py, RAY, 1.0, Qt.PenStyle.DashLine)
+        sx = max(q[0] for q in sub)
+        f.text(sub[-1][0], sr, "subreflector", "c", dy=-14)
         f.dim(sx + D * 0.06, -sr, sx + D * 0.06, sr, f"⌀ {_len(2 * sr)}", 8, side=-1)
         f.dim(-depth, -D / 2, fx, -D / 2, f"F = {_len(F)}", 16, side=-1)
     f.dim(-depth - D * 0.04, -D / 2, -depth - D * 0.04, D / 2, f"{'W' if kind == 'cyl' else 'D'} = {_len(D)}", 14, side=1)
+
+
+def _dual_geometry(v, D, F, depth):
+    """A dual reflector's subreflector from its design: the rim on the ray from
+    the prime focus F1 to the dish rim, the feed focus F2 where the feed sees the
+    rim at theta_e, tan(theta_e/2) = D/(4 M F), and between the two foci the
+    conic - a hyperbola short of F1 (Cassegrain, |PF2| - |PF1| = 2a) or an
+    ellipse beyond it (Gregorian, |PF2| + |PF1| = 2a). Its eccentricity is then
+    (M + 1)/(M - 1) or (M - 1)/(M + 1), the magnification's own; the drawing
+    used a fixed parabola wherever M put it."""
+    fx = F - depth                                  # F1, the paraboloid's focus
+    rs = _num(v, "Ds", default=D * 0.2) / 2
+    M = max(_num(v, "magnification", default=4.0), 1.01)
+    x_rim = (D / 2) ** 2 / (4 * F) - depth
+    psi0 = math.atan2(D / 2, fx - x_rim)           # F1 to the dish rim, from the -x axis
+    th_e = 2 * math.atan(D / (4 * M * F))
+    kind = v.get("_kind", "cass")
+    t = rs / math.sin(psi0)
+    if kind == "cass":
+        P = (fx - t * math.cos(psi0), rs)          # between F1 and the dish rim
+    else:
+        P = (fx + t * math.cos(psi0), -rs)         # past F1, on the upper rim's ray through it
+    f2 = P[0] - rs / math.tan(th_e)
+    c = (fx - f2) / 2
+    d1 = math.hypot(P[0] - fx, P[1])
+    d2 = math.hypot(P[0] - f2, P[1])
+    a = (d2 - d1) / 2 if kind == "cass" else (d2 + d1) / 2
+    pts = []
+    for i in range(41):
+        phi = -th_e + 2 * th_e * i / 40
+        r = ((c * c - a * a) / (c * math.cos(phi) - a) if kind == "cass"
+             else (a * a - c * c) / (a - c * math.cos(phi)))
+        pts.append((f2 + r * math.cos(phi), r * math.sin(phi)))
+    return dict(kind=kind, sub=pts, f1=fx, f2=f2, a=a, c=c, rs=rs, M=M, e=c / a)
 
 
 def _corner(f: Fig, v, angle):
@@ -1102,8 +1152,10 @@ def _zone_plate(f: Fig, v):
     else:
         r = lambda m: ro * math.sqrt(m / M)
     f.fit(-ro * 1.2, -ro * 1.2, ro * 1.25, ro * 1.2)
-    sub = 1 if levels == 1 else max(1, levels // 2)
-    edges = [r(j / sub) for j in range(1, M * sub + 1)]
+    if levels == 1:
+        edges = [r(m) for m in range(1, M + 1)]
+    else:                                          # steps at m = 2j/L, ending at M
+        edges = [r(2 * j / levels) for j in range(1, int(math.floor(M * levels / 2 + 1e-9)) + 1)]
     shades = [QColor("#f7fafb"), QColor("#c9dbe4"), QColor("#a9c4d2"), QColor("#8aaec0")]
     for k in range(len(edges) - 1, -1, -1):
         if levels == 1:
