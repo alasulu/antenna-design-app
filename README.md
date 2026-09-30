@@ -26,9 +26,9 @@ python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset \
     --f0 2.4GHz --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas
 ```
 
-**Status: v1.0 tagged 2026-09-27; development continues after it.** What is verified and how, what
+**Status: complete - v2.0 tagged 2026-09-30 (v1.0 on 2026-09-27).** What is verified and how, what
 is not, and the remaining future work (grouped by whether it needs a CST/HFSS
-installation, measured data, or a new solver) are in `docs/HANDOVER.md`.
+installation, measured data, or was newly found) are in `docs/HANDOVER.md`.
 
 ## The catalogue
 

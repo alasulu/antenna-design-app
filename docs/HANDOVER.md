@@ -5,7 +5,7 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
-on 2026-09-27 and development reopened after it. **72 archetypes, 10 families,
+on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2. **72 archetypes, 10 families,
 24,130 lines of Python, 25,307 lines of spec data, 3164 tests, 1052/1052 citable
 known cases passing.**
 
@@ -824,21 +824,20 @@ known case only checks what it asserts.
 
 ## 6. Future work
 
-Development closed on 2026-09-27 at v1.0 (see BUILD_STATE.md, "Development
-closed"). What follows is everything still open, grouped by what it needs. The
-items done in the last sessions - touchstone import, planar arrays and their
-element patterns, the DRA family's fits, the finite-gap and strip solvers, the
-cone bandwidths, the horn beams and the Potter step, patch directivity and
-full-wave resonance, the shorted, stacked, annular and PIFA patches - are
-described in §3 to §5 and in BUILD_STATE.md, and are not repeated here.
+Development closed on 2026-09-30 at v2.0 (see BUILD_STATE.md, "Project
+complete"), at the end of Finish line 2. This is the final list of what is
+open: what needs a CST Studio or HFSS installation (A), what needs measured data
+(B), and what the work after v1.0 newly found (C).
 
-**Finish line 2** (set by the user on 2026-09-27; the full text is in
-BUILD_STATE.md, "Finish line 2"): every item in groups C and D below, and an
-independent-solver examination of the three archetypes never yet examined
-(`bowtie`, `equiangular_spiral`, `archimedean_spiral`), is to be done under the
-house rules or recorded here as infeasible with its reason. Then this section is
-rewritten as the final list - groups A and B, anything infeasible, anything
-newly found - and the project is tagged v2.0. Groups A and B are out of scope.
+Nothing in Finish line 2's scope proved infeasible. Groups C and D as they stood
+at f109245 were all done under the house rules: a two-layer spectral MoM with a
+probe feed for the stacked patch, full-wave solvers of the circular and
+triangular patches' own shapes, a far-field transform in the FDTD (which settled
+the sectoral horns and the PIFA's directivity), a finite gap for the wire MoM,
+the Potter design tool, the shorted-patch survey, the discone and array items,
+and the re-audit, closed by examining the last three archetypes with a planar
+solver so that all 72 have been checked by an independent solver at least once.
+They are described in §3 to §5 and in BUILD_STATE.md.
 
 ### A. Needs a CST Studio or HFSS installation
 
@@ -873,96 +872,42 @@ newly found - and the project is tagged v2.0. Groups A and B are out of scope.
    handset's ground plane, which neither this toolkit nor the spec models;
    measured data, or item 3.
 
-### C. Needs a new solver
+### C. Newly found
 
-7. ~~**A two-layer spectral MoM with a feed model** for `stacked_patch`.~~ Done
-   under Finish line 2 (§3): `patch_sdm.StackedPatch` with a probe, checked by
-   FDTD to 0.2% on the modes, 4% on the resonant resistance and 0.2 points on a
-   double-tuned band; `otahub stack` designs one. The old default was not
-   double-tuned (1.5%, not 11.9%); the new one is (11.5% about f0), and the spec
-   carries the best band on its board as 8.4 times the single patch's (a rule
-   over four boards). New future work from it: the probe's own reactance (an
-   attachment mode that carries the probe's charge over the whole patch, or a
-   thin-wire FDTD port with a known equivalent radius); a dielectric gap; and a
-   survey wide enough to fit the best gap and parasitic themselves, which moved
-   between boards (0.07-0.09 wavelengths, 0.35-0.37 long).
-8. ~~**Full-wave solvers of their own shape** for the circular and triangular
-   patches.~~ Done under Finish line 2 by FDTD: `patch_fdtd.sheet_ringdown`
-   takes any outline, staircased (`circular_ringdown`, `triangular_ringdown`).
-   Built to the cavity size both resonate 2-7% low on thick board, the triangle
-   5% low even on thin eps_r 2.2 board; the specs now build the cavity size times
-   a fitted FDTD factor, and held-out boards built to it resonate within 1% of
-   f0. Their total Q is 0.54-0.90 of the cavity radiation Q; separating the
-   surface-wave share, to decide whether that Q is right, is new future work
-   (a slab-aware far-field transform, or a MoM of these shapes).
-9. ~~**A far-field transform in the FDTD.**~~ Done under Finish line 2: a
-   closed box transform with image currents (`horn_fdtd.BoxTransform`, §3),
-   exact on dipoles and within 0.6% of the MoM on an air patch. It settled the
-   sectoral horns (§4): the E-plane horn is the aperture in a ground plane and
-   read 1.1 dB low at the default, now corrected; the H-plane horn's
-   aperture-power form holds to 0.3 dB. The PIFA has a solved directivity on an
-   infinite ground plane (3.4-4.6 dBi at the horizon; a finite plane is item 3).
-   New future work from it: a flanged WR-90 guide reads 0.48 dB above the
-   `open_ended_waveguide` TE10 aperture; surveying that over the band and guide
-   sizes, which needs only compute time, would let the spec adopt it.
-10. ~~**A finite gap for the wire MoM.**~~ Done after v1.0: `mom.solve(...,
-    gap=segments)` and `mom.gapped_dipole`, `bor`'s feed model on wires. It
-    converges where the delta gap drifts, and meets the tube solver's table of
-    fat-dipole resonances to 0.18% in length and 0.67% in resistance (§3).
+Each of these came out of the work after v1.0 and needs only the solvers here or
+a modest extension of them.
 
-### D. Needs only compute time with the solvers already here
+7. **The probe's own reactance** in the spectral MoM. Its self-term diverges
+   without an attachment mode, and a disc attachment leaves the probe's charge
+   where the patch's edge-conforming currents cannot carry it; an attachment
+   that spreads the charge over the whole patch (the cavity's static TM00
+   field), or a thin-wire FDTD port with a known equivalent radius, would give
+   it. Until then the stacked patch's bands assume a tuned series element (§3).
+8. **A dielectric gap in the stacked patch.** The solver takes any eps_r2; the
+   survey and the spec's solved metrics cover an air gap only.
+9. **The stacked patch's best gap and parasitic as fitted rules.** They moved
+   between the four boards surveyed (0.07-0.09 wavelengths, 0.35-0.37 long), so
+   the spec carries the best band (8.4 times the single patch) but not the
+   design that reaches it; a survey over permittivity and thickness wide enough
+   to fit them would let it synthesise the best stack. Compute only
+   (`otahub.num.stacked`).
+10. **The surface-wave share of the circular and triangular patches' Q.** The
+    FDTD's total Q is 0.54-0.90 of the cavity radiation Q; separating what goes
+    into surface waves needs a far-field transform whose box may cross the
+    substrate, or a MoM of these shapes.
+11. **A flanged open-ended waveguide over the band.** One FDTD guide (WR-90 at
+    10 GHz) reads 0.48 dB above the TE10 aperture the spec carries; a survey over
+    frequency and guide size would let the spec adopt it. Compute only
+    (`horn_fdtd.sectoral_horn(..., flange=True)`).
+12. **The spirals' feed region.** The planar solver shows their input impedance
+    depends on it (154 - j67 to 188 - j43 ohm when only the inner radius
+    changed), so Mushiake's 188 ohm stays labelled as the infinite sheet's; a
+    model of the actual feed - a coaxial line or balun at the centre - would give
+    a solved input impedance.
 
-Deferred by the scope freeze, not blocked:
-
-11. ~~**A table of jointly solved Potter designs.**~~ Done after v1.0 as a
-    per-horn tool instead, since the map is resonant and many-branched:
-    `otahub potter` (`waveguide_step.potter_design`) scans the step, follows
-    every in-phase phasing length, and lists every joint solution flattest
-    first, with the cross-polar band on request. The branches matter: at a
-    share of 0.13 the default horn has three designs whose bandwidths differ
-    twofold (FDTD-confirmed). The spec's own step and phasing stay first-order
-    and point at the command.
-12. ~~**A shorted-patch survey with the half-space FDTD.**~~ Done after v1.0:
-    the spec's patch resonated 1.2-11% low, not 1-3% - the wall's inductance
-    grows with the board's thickness - and it now carries the wall's own length
-    factor, fitted to eleven boards plus the earlier three and checked on three
-    held-out boards (0.988-1.000 f0).
-13. ~~**A graded-edge spot check of the discone table.**~~ Done after v1.0: with
-    both free edges graded its cutoffs hold to 0.05%; the decade is marginal
-    (worst VSWR 2.00) at 30 degrees with a 0.9 disc and 25 with 0.6.
-14. ~~**Planar arrays: circular, thinned, subarrays.**~~ Done after v1.0.
-    Subarray-level steering (`otahub/arrays/subarrays.py`) factorises exactly
-    (1e-15) into the subarray pattern times an array at the subarray period,
-    whose quantisation lobes the subarray pattern weighs. Circular and thinned layouts
-    were done too (`otahub/arrays/layouts.py`, `planar --circle --taper
-    taylor-circular --thin`): Taylor's circular distribution transforms back to
-    its pattern to 1e-10 and, sampled over the equal-area radius, holds a -40 dB
-    design to about a decibel on a clipped lattice (the outer-element radius
-    costs 2-5 dB); a statistically thinned array's mean pattern and directivity
-    are exact expectations, confirmed by Monte Carlo.
-15. **Re-audit the session 1-4 specs, continued.** After v1.0 the survey's
-    lowest-ranked unaudited archetypes were `leaky_wave_line_source` and
-    `waveguide_slot_array_travelling_wave`; both had directivity 3.5-5 dB low
-    (§5, "Found after v1.0"), and so had `yagi_uda` (NBS's dBd read as
-    dBi) and `open_ended_waveguide` (a large-aperture formula on a small
-    aperture). `cavity_backed_slot` was read and holds; `normal_mode_helix`'s
-    axial ratio holds against the MoM even on 2 wavelengths of wire; and
-    `quarter_wave_monopole` now carries the driving point a real wire presents
-    beside the induced-EMF pair, as `half_wave_dipole` does. `dipole_over_ground`
-    had the same induced-EMF limitation, worse: 5-50% low over height, with
-    no reactance (§5); it now carries the dipole-and-image driving point at
-    exactly λ/2, and where a real wire resonates over that ground (the
-    ground moves it -5% to +3% from free space). The last three never
-    examined - `bowtie`, `equiangular_spiral`, `archimedean_spiral` - were
-    examined under Finish line 2 with a new planar solver (`rwg`, §3), so all
-    72 archetypes have now been checked by an independent solver at least
-    once (§5). Every archetype passes the
-    cases it declares, which is not the same as being right
-    (`corner_reflector_90` had a null where its optimum is for four sessions).
-    The survey ranking archetypes by quantities asserted over quantities
-    produced picks what to read next; the dimensional (793 quantities) and
-    cross-consistency (23 relationships) audits are clean, and what neither
-    covers is an archetype with no sibling and no dimensional quirk.
+The re-audit is never finished: every archetype passes the cases it declares,
+which is not the same as being right, and the survey that ranks archetypes by
+quantities asserted over quantities produced still picks what to read next.
 
 ---
 
