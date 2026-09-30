@@ -6,7 +6,7 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2. **72 archetypes, 10 families,
-24,130 lines of Python, 25,307 lines of spec data, 3164 tests, 1052/1052 citable
+26,439 lines of Python, 25,307 lines of spec data, 3175 tests, 1052/1052 citable
 known cases passing.**
 
 ---
@@ -22,7 +22,7 @@ known cases passing.**
 | Waveguides | `otahub/waveguides/` | Rectangular and circular guides, exact WR-series table, coax, microstrip, stripline, CPW |
 | Utilities | `otahub/utils/` | S/Z/Y/ABCD conversion and cascading; L-section, quarter-wave and single-stub matching; Touchstone read/write and comparison against a prediction |
 | Export | `otahub/export/` | Neutral geometry IR rendered to CST VBA and HFSS IronPython |
-| Interfaces | `otahub/cli/`, `otahub/gui/` | 15 CLI subcommands; PySide6 GUI with catalogue, linear-array, planar-array and waveguide tabs |
+| Interfaces | `otahub/cli/`, `otahub/gui/` | 15 CLI subcommands; PySide6 GUI: a navigation rail, a gallery of all 72 antennas drawn from their default designs, and per antenna a design page - requirements with units, a technical drawing of the computed geometry (`gui/drawings.py`, one figure per archetype), headline figures, dimensions, performance, sweep, pattern and validity - recomputed as you type; linear-array, planar-array and waveguide pages |
 
 ```bash
 python -m pytest -m "not slow"      # the quick loop, ~30 s

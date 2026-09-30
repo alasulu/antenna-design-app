@@ -141,7 +141,7 @@ python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 | `otahub/utils/` | Network parameters (S/Z/Y/ABCD), matching networks, Touchstone import/export |
 | `otahub/export/` | CST Studio VBA and Ansys HFSS script generation |
 | `otahub/cli/` | Command line front end |
-| `otahub/gui/` | PySide6 interface: catalogue, linear arrays, planar arrays, waveguides |
+| `otahub/gui/` | PySide6 interface: a picture gallery of all 72 antennas and, for each, a design page with a live technical drawing of its computed geometry, headline figures, sweep and pattern; linear arrays, planar arrays, waveguides. `drawings.py` paints every archetype from its own dimensions |
 | `specs/` | Archetype definitions — see [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
 | `tests/` | Hand-written engine tests plus cases generated from every spec |
 
@@ -181,7 +181,7 @@ header.
 ## Verification
 
 ```bash
-python -m pytest tests/ -q                # 3164 tests, ~25 min
+python -m pytest tests/ -q                # 3175 tests, ~25 min
 python -m pytest -m "not slow"            # the quick loop, ~30 s
 python OTA_Hub_AntennaToolkit.py check    # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs

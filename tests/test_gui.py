@@ -322,3 +322,110 @@ def test_planar_tab_survives_a_one_element_array(window):
     assert rows["elements"] == "1"
     tab.nx.setValue(12)
     tab.ny.setValue(12)
+
+
+# ------------------------------------------------------------ the redesign: pictures and the gallery
+
+def test_every_archetype_has_its_own_drawing(registry):
+    """No archetype falls back to its family's generic picture."""
+    from otahub.gui.drawings import DRAWINGS
+    missing = [a.key for a in registry if a.key not in DRAWINGS]
+    assert not missing, f"no drawing for {missing}"
+
+
+def test_every_drawing_paints_from_its_design(qapp, registry):
+    """Each figure renders from its own default design, puts copper or metal on
+    the canvas, and survives a design that produced nothing."""
+    from PySide6.QtCore import QRectF
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from otahub.gui import drawings
+    from otahub.gui.app import default_values, design_values
+    blank = []
+    for a in registry:
+        values = design_values(a.synthesize(**default_values(a)))
+        for vals in (values, {}):
+            img = QImage(360, 260, QImage.Format.Format_ARGB32)
+            img.fill(QColor("#ffffff"))
+            p = QPainter(img)
+            drawings.paint(p, QRectF(0, 0, 360, 260), a.key, a.family, vals, grid=False)
+            p.end()
+            inked = sum(1 for x in range(0, 360, 4) for y in range(0, 260, 4) if img.pixelColor(x, y) != QColor("#ffffff"))
+            if inked < 20:
+                blank.append((a.key, bool(vals)))
+    assert not blank, f"drawings that painted nothing: {blank}"
+
+
+def test_the_gallery_has_one_card_per_archetype(window, registry):
+    assert set(window.catalogue.cards) == set(registry.keys)
+
+
+def test_the_family_chips_filter_the_gallery(window, registry):
+    tab = window.catalogue
+    tab._on_family("horn")
+    shown = {k for k, c in tab.cards.items() if not c.isHidden()}
+    assert shown == {a.key for a in registry.by_family("horn")}
+    tab._on_family("all")
+    assert all(not c.isHidden() for c in tab.cards.values())
+
+
+def test_search_and_family_combine(window):
+    tab = window.catalogue
+    tab._on_family("patch")
+    tab.search.setText("annular")
+    shown = {k for k, c in tab.cards.items() if not c.isHidden()}
+    assert shown == {"annular_ring_patch"}
+    tab.search.setText("")
+    tab._on_family("all")
+
+
+def test_the_form_understands_units(window):
+    tab = window.catalogue
+    tab.select_key("rectangular_patch")
+    tab._fields["f0"].setText("2.4 GHz")
+    tab._fields["h"].setText("1.6 mm")
+    values = tab.collect()
+    assert values["f0"] == pytest.approx(2.4e9) and values["h"] == pytest.approx(1.6e-3)
+
+
+def test_quantities_round_trip_through_the_form():
+    from otahub.gui.models import format_input, parse_quantity
+    for value, unit in ((2.4e9, "Hz"), (5.47723e9, "Hz"), (0.0016, "m"), (8.1e-7, "m"), (4.4, "-"), (50.0, "ohm")):
+        assert parse_quantity(format_input(value, unit), unit) == pytest.approx(value, rel=1e-6)
+    for bad in ("abc", "2.4 furlong", "1..2"):
+        with pytest.raises(ValueError, match="not a number"):
+            parse_quantity(bad, "Hz")
+
+
+def test_headline_figures_never_show_a_loss_resistance_as_the_impedance():
+    from otahub.gui.models import key_figures
+    figs = dict((label, key) for label, _, key in key_figures(
+        {"loss_resistance_ohm": 0.2, "edge_resistance_ohm": 300.0, "inset_resistance_ohm": 50.0,
+         "directivity_dbi": 7.0}, {"inset_resistance_ohm": "ohm", "directivity_dbi": "dBi"}))
+    assert figs == {"Directivity": "directivity_dbi", "Impedance": "inset_resistance_ohm"}
+
+
+def test_headline_figures_skip_what_is_outside_the_solved_range():
+    from otahub.gui.models import key_figures
+    labels = [label for label, _, _ in key_figures({"gain_dbi": float("nan"), "hpbw_e_deg": 30.0},
+                                                   {"gain_dbi": "dBi", "hpbw_e_deg": "deg"})]
+    assert labels == ["Beamwidth"]
+
+
+def test_the_drawing_follows_the_design(window):
+    tab = window.catalogue
+    tab.select_key("half_wave_dipole")
+    tab._fields["f0"].setText("300 MHz")
+    tab._synthesise()
+    long_arm = tab.drawing.values["L"]
+    tab._fields["f0"].setText("600 MHz")
+    tab._synthesise()
+    assert tab.drawing.values["L"] == pytest.approx(long_arm / 2, rel=1e-6)
+
+
+def test_a_bad_entry_is_marked_on_the_page_not_in_a_dialog(window):
+    tab = window.catalogue
+    tab.select_key("half_wave_dipole")
+    tab._fields["f0"].setText("fast")
+    tab._synthesise()
+    assert tab._fields["f0"].property("invalid") == "true"
+    assert not tab.banner.isHidden() and "f0" in tab.banner_text.text()

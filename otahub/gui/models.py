@@ -68,9 +68,17 @@ class CatalogueFilter(QSortFilterProxyModel):
         archetype = self._registry.get(key)
         if archetype is None:
             return False
-        haystack = (f"{archetype.key} {archetype.name} {archetype.family} "
-                    f"{archetype.spec.summary}").lower()
-        return self._needle in haystack
+        return matches(archetype, self._needle)
+
+
+def matches(archetype, needle: str) -> bool:
+    """Free-text match on an archetype's key, name, family and summary."""
+    needle = needle.strip().lower()
+    if not needle:
+        return True
+    haystack = (f"{archetype.key} {archetype.name} {archetype.family} "
+                f"{archetype.spec.summary}").lower()
+    return needle in haystack
 
 
 def requirement_fields(archetype) -> list:
@@ -126,3 +134,144 @@ def default_for(param, archetype=None) -> str:
     except (TypeError, ValueError):
         return ""
     return str(param.typical)
+
+
+# ---------------------------------------------------------------- values at the edge of the form
+import math as _math
+import re as _re
+
+_UNIT_TABLES = (
+    {"m": 1.0, "cm": 1e-2, "mm": 1e-3, "um": 1e-6, "µm": 1e-6, "in": 0.0254, "inch": 0.0254, "mil": 2.54e-5, "ft": 0.3048},
+    {"Hz": 1.0, "kHz": 1e3, "MHz": 1e6, "GHz": 1e9, "THz": 1e12},
+    {"rad": 1.0, "deg": _math.pi / 180.0, "°": _math.pi / 180.0},
+    {"W": 1.0, "mW": 1e-3, "kW": 1e3},
+    {"ohm": 1.0, "kohm": 1e3, "mohm": 1e-3, "Ω": 1.0, "kΩ": 1e3},
+)
+_PREFIX = {"p": 1e-12, "n": 1e-9, "u": 1e-6, "µ": 1e-6, "m": 1e-3, "k": 1e3, "M": 1e6, "G": 1e9, "T": 1e12}
+_NUMBER = _re.compile(r"^([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*(\S*)$")
+ENGINEERING_UNITS = {"m", "Hz", "H", "F", "S"}
+UNIT_SHOWN = {"ohm": "Ω", "deg": "°", "m^2": "m²", "mm^3": "mm³", "ohm^2": "Ω²", "-": ""}
+
+
+def parse_quantity(text: str, unit: str = "") -> float:
+    """A form entry in SI, or with a unit: '2.4 GHz', '1.6 mm', '50 ohm', '2.4G'.
+
+    Raises ValueError for anything else, rather than guessing."""
+    m = _NUMBER.match(text.strip())
+    if not m:
+        raise ValueError(f"{text!r} is not a number")
+    value, suffix = float(m.group(1)), m.group(2)
+    if not suffix or suffix == unit or (suffix == "°" and unit == "deg"):
+        return value
+    for table in _UNIT_TABLES:
+        if suffix in table and unit in table:
+            return value * table[suffix] / table[unit]
+    if suffix[0] in _PREFIX and suffix[1:] in (unit, ""):
+        return value * _PREFIX[suffix[0]]
+    raise ValueError(f"{text!r} is not a number in {unit or 'these units'}")
+
+
+def _g(value: float, sig: int) -> str:
+    return f"{value:.{sig}g}"
+
+
+def _eng(value: float, unit: str, sig: int) -> str:
+    """engineering() with a proper micro sign."""
+    from ..core.units import engineering
+    text = engineering(value, unit, sig)
+    return _re.sub(r" u(?=\S)", " µ", text)
+
+
+def format_input(value: float, unit: str = "") -> str:
+    """What the form shows for a value: engineering notation for lengths and
+    frequencies, which parse_quantity reads back without loss at 6 figures."""
+    if unit in ENGINEERING_UNITS and value and _math.isfinite(value):
+        return _eng(value, unit, 6)
+    return _g(value, 6)
+
+
+def shown_unit(unit: str) -> str:
+    return UNIT_SHOWN.get(unit, unit or "")
+
+
+def display_value(key: str, value, unit: str = "", sig: int = 5) -> str | None:
+    """A computed value for a table or tile; None when it is NaN (outside the
+    range a fit was solved over), so the caller can say so instead of 'nan'."""
+    if isinstance(value, bool):
+        value = float(value)
+    if isinstance(value, complex):
+        if _math.isnan(value.real) or _math.isnan(value.imag):
+            return None
+        sign = "+" if value.imag >= 0 else "−"
+        u = shown_unit(unit)
+        return f"{value.real:.{min(sig, 4)}g} {sign} j{abs(value.imag):.{min(sig, 4)}g}{(' ' + u) if u else ''}"
+    if not isinstance(value, (int, float)):
+        return str(value)
+    value = float(value)
+    if _math.isnan(value):
+        return None
+    if ("fractional_bandwidth" in key or "bandwidth_vswr2" in key) and unit in ("-", "") and abs(value) < 5:
+        return f"{value * 100:.3g} %"
+    if key.endswith("bandwidth_ratio") and unit in ("-", "") and _math.isfinite(value):
+        return f"{value:.3g} : 1"
+    if unit in ENGINEERING_UNITS and value and _math.isfinite(value):
+        return _eng(value, unit, min(sig, 4))
+    u = shown_unit(unit)
+    text = _g(value, sig)
+    if not u:
+        return text
+    return f"{text}{u}" if u == "°" else f"{text} {u}"
+
+
+_WORDS = {"dbi": "", "db": "", "dbd": "", "hz": "", "ohm": "", "deg": "", "m": "", "m2": "", "pct": "", "s": "",
+          "vswr2": "VSWR 2", "vswr": "VSWR", "hpbw": "HPBW", "fnbw": "FNBW", "q": "Q", "te10": "TE10",
+          "tm11": "TM11", "tm10": "TM10", "te11": "TE11", "sll": "sidelobe", "ar": "axial ratio", "f0": "f0",
+          "fb": "front-to-back", "xpol": "cross-pol"}
+
+
+def humanize(key: str) -> str:
+    """'fractional_bandwidth_vswr2' -> 'Fractional bandwidth VSWR 2'; unit tokens drop off the end."""
+    parts = key.split("_")
+    while len(parts) > 1 and _WORDS.get(parts[-1]) == "":
+        parts.pop()
+    words = [(_WORDS[w] if _WORDS.get(w) else w) for w in parts]
+    text = " ".join(words)
+    return text[:1].upper() + text[1:]
+
+
+#: What the headline tiles show, in order: (label, patterns tried in turn).
+KEY_FIGURES = (
+    ("Gain", (r"^gain_dbi$", r"^realised_gain_dbi$", r"gain_dbi$", r"^directivity_dbi$", r"directivity_dbi$")),
+    ("Bandwidth", (r"^fractional_bandwidth_vswr2$", r"^fractional_bandwidth_vswr2_with_surface_waves$",
+                   r"^fractional_bandwidth_vswr2_one_mode$", r"^best_stack_bandwidth_vswr2$",
+                   r"^fractional_bandwidth_estimate$", r"^bandwidth_ratio$", r"^fractional_bandwidth_3db$",
+                   r"^axial_ratio_bandwidth_3db$", r"^design_bandwidth$")),
+    ("Impedance", (r"^input_impedance_driving_point_ohm$", r"^input_impedance_ohm$",
+                   r"^input_resistance_driving_point_ohm$", r"^input_resistance_ohm$", r"^inset_resistance_ohm$",
+                   r"^feed_resistance_ohm$", r"^input_resistance_f_low_ohm$", r"^resonant_resistance_ohm$",
+                   r"^biconical_impedance_ohm$", r"^cone_impedance_over_ground_ohm$",
+                   r"^self_complementary_impedance_ohm$", r"^feed_impedance_each_element_ohm$",
+                   r"^radiation_resistance_ohm$")),
+    ("Beamwidth", (r"^hpbw_e_deg$", r"^hpbw_deg$", r"hpbw.*deg$", r"beamwidth.*deg$")),
+)
+
+
+def key_figures(metrics: dict, units: dict) -> list[tuple[str, str, str]]:
+    """Up to four headline figures: (label, value text, metric key). A figure the
+    design does not produce, or produces as NaN, is skipped. Patterns are tried in
+    order and match whole names, so a loss or mutual resistance never stands in
+    for the input impedance."""
+    out = []
+    for label, patterns in KEY_FIGURES:
+        for pat in patterns:
+            hit = next((k for k in metrics if _re.search(pat, k)), None)
+            if hit is None:
+                continue
+            text = display_value(hit, metrics[hit], units.get(hit, ""), sig=4)
+            if text is None:
+                continue
+            if label == "Gain" and "directivity" in hit:
+                label = "Directivity"
+            out.append((label, text, hit))
+            break
+    return out
