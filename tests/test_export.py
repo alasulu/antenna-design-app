@@ -254,11 +254,13 @@ def test_boolean_operations_are_emitted_after_every_solid(model):
     subs = [op for op in model.operations if isinstance(op, Subtract)]
     if not subs:
         pytest.skip("no boolean operations in this model")
-    for text, marker in ((cst.render(model), "Solid.Subtract"),
-                         (hfss.render(model), "oEditor.Subtract")):
+    # locate each solid's CREATION, not its name's first mention: the header and the
+    # parameter list mention names too, and let a solid created after its boolean pass
+    for text, marker, created in ((cst.render(model), "Solid.Subtract", '        .Name "{}"'),
+                                  (hfss.render(model), "oEditor.Subtract", '"Name:=", "{}"')):
         first_op = text.index(marker)
         for solid in model.solids:
-            assert text.index(solid.name) < first_op, (
+            assert text.index(created.format(solid.name)) < first_op, (
                 f"{solid.name} is created after the boolean that uses it")
 
 
@@ -381,12 +383,18 @@ def test_square_loop_sides_close_the_perimeter(registry):
 
 
 def test_halo_gap_comes_from_the_spec_not_from_the_builder(registry):
-    """Every other loop's feed gap is invented by the exporter. The halo's is a
-    design parameter, because the tip capacitance sets its resonance."""
+    """Every other loop's feed gap is invented by the exporter. The halo's TIP gap
+    is a design parameter, because its capacitance sets the resonance - and it is
+    left open: the halo is fed at the middle of the conductor, opposite the tips,
+    as the verified MoM model drives it. The port used to sit across the tip gap."""
     design = registry["halo_loop"].synthesize(f0=144e6)
     model = build(design)
+    cut = next(s for s in model.solids if s.name == "tip_gap_cut")
+    assert cut.y[1] - cut.y[0] == pytest.approx(design.get("g"), rel=1e-9)
     port = model.ports[0]
-    assert abs(port.end[1] - port.start[1]) == pytest.approx(design.get("g"), rel=1e-9)
+    radius = design.get("Dm") / 2
+    assert port.start[0] == pytest.approx(-radius) and port.end[0] == pytest.approx(-radius)
+    assert min(s.x[1] for s in model.solids if s.name == "tip_gap_cut") > 0   # the tips at +x
 
 
 def test_loop_builders_say_what_they_had_to_invent(registry):
@@ -555,3 +563,111 @@ def test_low_confidence_archetypes_say_so_in_their_exported_model(registry):
         model = build(registry[key].synthesize(**given))
         joined = " ".join(model.notes).lower()
         assert "confidence" in joined, f"{key} does not carry its low-confidence flag"
+
+
+# ------------------------------------------------------------ found by review, fixed
+
+def test_every_hfss_port_sheet_holds_its_integration_line(registry):
+    """The sheet was normal to Y whatever the feed: an x-directed feed got a sheet
+    of zero height, a y-directed one a sheet its line did not lie in. Now a square
+    as wide as the gap, in a plane containing the line."""
+    from otahub.export.hfss import _port_sheet
+    for key in BUILDERS:
+        a = registry[key]
+        for port in build(a.synthesize(**a.spec.known_cases[0].given)).ports:
+            corner, side, normal = _port_sheet(port)
+            n = "XYZ".index(normal)
+            assert side > 0
+            for end in (port.start, port.end):
+                assert end[n] == pytest.approx(corner[n], abs=1e-12)          # on the sheet's plane
+                for i in {0, 1, 2} - {n}:                                   # and inside it
+                    assert corner[i] - 1e-12 <= end[i] <= corner[i] + side + 1e-12, (key, port.name)
+
+
+def test_hfss_uses_the_documented_sweep_and_port_properties(registry):
+    """AEDT's InsertFrequencySweep takes RangeType/RangeStart/RangeEnd/RangeCount
+    (StartValue/StopValue/Count define nothing), and a lumped port's impedance is
+    the top-level Impedance - RenormImp only renormalises the reported S."""
+    text = hfss.render(build(registry["long_wire_travelling"].synthesize(
+        **registry["long_wire_travelling"].spec.known_cases[0].given)))
+    assert '"RangeType:=", "LinearCount"' in text and '"RangeStart:="' in text and '"RangeCount:="' in text
+    assert "StartValue" not in text and '"Count:="' not in text
+    assert '"Impedance:=", "600ohm"' in text and '"Impedance:=", "50ohm"' in text
+
+
+def test_cst_ports_are_numbered_in_turn(registry):
+    text = cst.render(build(registry["turnstile_dipole"].synthesize(f0=300e6, aw=0.001)))
+    assert re.findall(r'\.PortNumber "(\d+)"', text) == ["1", "2"]
+
+
+def test_the_loss_tangent_is_the_designs(registry):
+    """0.02 was imposed on every dielectric; the specs assume lossless ones, and a
+    patch with tan_d carries its own."""
+    lossless = build(registry["rectangular_dra"].synthesize(
+        **registry["rectangular_dra"].spec.known_cases[0].given))
+    assert '.TanD "0"' in cst.render(lossless) and '"dielectric_loss_tangent:=", "0"' in hfss.render(lossless)
+    lossy = build(registry["rectangular_patch"].synthesize(f0=2.4e9, eps_r=4.4, h=0.0016, tan_d=0.02))
+    assert '.TanD "0.02"' in cst.render(lossy)
+
+
+def test_a_wideband_design_is_simulated_over_its_own_band(registry):
+    """A discone designed from 100 MHz was swept 0.7-1.3 GHz, the 1 GHz default."""
+    model = build(registry["discone"].synthesize(f_low=100e6))
+    assert model.band_hz == pytest.approx((80e6, 400e6))
+    assert 'Solver.FrequencyRange "0.08", "0.4"' in cst.render(model)
+
+
+def test_probes_stand_clear_of_the_ground_with_the_port_in_the_gap(registry):
+    """The DRA probes stood on the unbroken ground (a short) with their ports hanging
+    below it in empty space."""
+    for key in ("rectangular_dra", "cylindrical_dra", "hemispherical_dra"):
+        a = registry[key]
+        model = build(a.synthesize(**a.spec.known_cases[0].given))
+        probe = next(s for s in model.solids if s.name == "probe")
+        port = model.ports[0]
+        assert probe.span[0] > 0, key
+        assert port.start[2] == 0.0 and port.end[2] == pytest.approx(probe.span[0]), key
+
+
+def test_waveguides_have_walls(registry):
+    """The guides were a vacuum brick (and one slotted wall) inside open boundaries:
+    nothing guided anything."""
+    for key in ("open_ended_waveguide", "waveguide_slot_array_resonant", "leaky_wave_line_source"):
+        a = registry[key]
+        names = {s.name for s in build(a.synthesize(**a.spec.known_cases[0].given)).solids}
+        assert {"broad_wall", "broad_wall_lower", "narrow_wall_plus", "narrow_wall_minus"} <= names, key
+    a = registry["waveguide_slot_array_resonant"]
+    assert "end_short" in {s.name for s in build(a.synthesize(**a.spec.known_cases[0].given)).solids}
+
+
+def test_the_leaky_wave_slit_is_off_the_centreline(registry):
+    """TE10's broad-wall current on the centreline is purely longitudinal: a slit
+    there cuts none of it and leaks nothing."""
+    a = registry["leaky_wave_line_source"]
+    cut = next(s for s in build(a.synthesize(**a.spec.known_cases[0].given)).solids if s.name == "slit_cut")
+    assert abs(0.5 * (cut.x[0] + cut.x[1])) > (cut.x[1] - cut.x[0])
+
+
+def test_designed_features_are_built(registry):
+    """The inset notch was drawn but never cut; the circular patch's probe ignored
+    rho_frac; a three-conductor folded dipole had two; a dielectric spacer in a
+    stacked patch was air."""
+    from otahub.export.base import Subtract
+    inset = build(registry["rectangular_patch_inset"].synthesize(f0=2.4e9, eps_r=4.4, h=0.0016, Z_target=50))
+    assert Subtract("patch", ("inset_notch",)) in inset.operations
+    for rho in (0.3, 0.7):
+        d = registry["circular_patch"].synthesize(f0=10e9, eps_r=2.2, h=0.001588, rho_frac=rho)
+        assert build(d).ports[0].start[0] == pytest.approx(d.get("probe_radius_m"))
+    three = build(registry["folded_dipole"].synthesize(f0=300e6, N=3, aw=0.001))
+    assert sum(1 for s in three.solids if s.name.startswith(("fed_upper", "parasitic"))) == 3
+    stack = build(registry["stacked_patch"].synthesize(f0=2.4e9, eps_r=2.2, h=0.0016, eps_r2=2.2))
+    upper = next(s for s in stack.solids if s.name == "upper_substrate")
+    assert upper.material.startswith("eps_r=2.2") and upper.z[1] - upper.z[0] == pytest.approx(stack.parameters["h2"])
+
+
+def test_hfss_draws_a_vertical_sheet_upright(registry):
+    """The shorting walls are normal to Y; drawn as XY rectangles they had no height."""
+    a = registry["quarter_wave_shorted_patch"]
+    text = hfss.render(build(a.synthesize(**a.spec.known_cases[0].given)))
+    block = text[text.index('"Name:=", "shorting_wall"') - 400:text.index('"Name:=", "shorting_wall"')]
+    assert '"WhichAxis:=", "Y"' in block

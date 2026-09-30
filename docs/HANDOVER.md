@@ -602,11 +602,12 @@ predictions.
 
 ### Exporters build geometry for 43 of 72 archetypes
 
-Dipoles (3), monopole, folded dipole, dipole over ground, turnstile, four
-patch variants (seven now), six loops, six slots, three dielectric resonators,
-two planar monopoles, a terminated long wire, a leaky-wave line source,
-biconical, conical monopole, discone, and open-ended waveguide. **The other 35
-export parameters only and say so.** By family: dielectric 3/3, slot 6/6,
+Four dipoles, three monopoles (quarter-wave, top-loaded, inductively
+loaded), folded dipole, dipole over ground, turnstile, biconical; seven
+patches; seven loops; six slots; three dielectric resonators; conical monopole,
+discone and two planar monopoles; a terminated long wire and a leaky-wave line
+source; the Fresnel zone plate and the Luneburg lens; and the open-ended
+waveguide. **The other 29 export parameters only and say so.** By family: dielectric 3/3, slot 6/6,
 patch 7/9, loop 7/8, wire 11/11, uwb 4/8, travelling-wave 2/8, horn 1/8, lens 2/4, and
 nothing yet for reflector.
 Where a builder must choose something the spec cannot supply — feed gap, inset
@@ -908,6 +909,10 @@ a modest extension of them.
     changed), so Mushiake's 188 ohm stays labelled as the infinite sheet's; a
     model of the actual feed - a coaxial line or balun at the centre - would give
     a solved input impedance.
+13. **Parametric export.** The CST and HFSS files declare every design value as
+    a variable but write the solids with the numbers, so editing a variable does
+    not move the geometry. Carrying expressions through the builders would let
+    the simulator's own optimiser drive the design.
 
 The re-audit is never finished: every archetype passes the cases it declares,
 which is not the same as being right, and the survey that ranks archetypes by

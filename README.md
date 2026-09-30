@@ -151,10 +151,14 @@ Python 3.10+, numpy, scipy, matplotlib. `pytest` for the suite; `PySide6` for th
 
 ## Export to simulators
 
-`export` emits a parameterised CST VBA macro or HFSS IronPython script. Lengths
-become named variables in millimetres, frequencies in GHz, and everything else
-keeps its own units — driven by each spec's declared unit rather than guessed
-from magnitude.
+`export` emits a CST VBA macro or an HFSS IronPython script. Every design value
+is declared as a named variable - lengths in millimetres, frequencies in GHz,
+everything else in its own units, driven by each spec's declared unit rather
+than guessed from magnitude - but the solids are written with the values
+themselves, so editing a variable in the simulator does not move the geometry:
+re-export with the new requirement instead. The sweep covers 0.7-1.3 f0, or a
+wideband design's own band; dielectrics carry the design's loss tangent where
+it has one and are lossless otherwise, as the specs assume.
 
 Geometry is built for **43 of the 72 archetypes** — those whose construction is
 unambiguous from their primary dimensions:

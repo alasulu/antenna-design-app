@@ -36,24 +36,28 @@ def test_loaded_monopole_coil_gap_splits_the_rod(registry):
     assert coil_port.end[2] == pytest.approx(upper.span[0], rel=1e-9)
 
 
-def test_top_loaded_monopole_hat_sits_on_top_of_the_rod(registry):
-    design = registry["top_loaded_monopole"].synthesize(
-        f0=10e6, h_over_lambda=0.05, beta_top=0.6)
-    model = build(design)
-    rod = next(s for s in model.solids if s.name == "rod")
-    hat = next(s for s in model.solids if s.name == "top_hat")
-    assert hat.span[0] == pytest.approx(rod.span[1], rel=1e-9)
-    assert hat.radius == pytest.approx(design.get("a_hat"), rel=1e-9)
-    assert hat.radius > rod.radius
+def test_top_loaded_monopole_hat_is_the_radials_the_spec_solves(registry):
+    """The spec derives beta_top by MoM from a hat of hat_radials radial wires; a
+    solid disc is only its many-radial limit. The export builds those radials, on
+    top of the rod, a_hat long, spread evenly round it (it used to build a disc
+    whatever the count, so 4 and 16 radials exported the same antenna)."""
+    for n in (4, 16):
+        design = registry["top_loaded_monopole"].synthesize(
+            f0=10e6, h_over_lambda=0.05, hat_radials=n)
+        model = build(design)
+        rod = next(s for s in model.solids if s.name == "rod")
+        radials = [s for s in model.solids if s.name.startswith("hat_radial_")]
+        assert len(radials) == n
+        assert all(r.centre[1] == pytest.approx(rod.span[1], rel=1e-9) for r in radials)
+        assert all(r.span[1] - r.span[0] == pytest.approx(design.get("a_hat"), rel=1e-9) for r in radials)
+        assert sorted(r.rotate_z for r in radials) == pytest.approx([360.0 * k / n for k in range(n)])
 
 
-def test_top_loaded_monopole_says_the_hat_and_beta_are_not_linked(registry):
-    """beta_top and the hat radius are both INPUTS to the spec, not derived
-    from each other. A model that implied otherwise would mislead."""
+def test_top_loaded_monopole_says_beta_comes_from_the_hat(registry):
     model = build(registry["top_loaded_monopole"].synthesize(
-        f0=10e6, h_over_lambda=0.05, beta_top=0.6))
+        f0=10e6, h_over_lambda=0.05))
     joined = " ".join(model.notes).lower()
-    assert "beta_top" in joined and "input" in joined
+    assert "beta_top" in joined and "derived from this hat" in joined
 
 
 def test_multiturn_loop_builds_every_turn(registry):

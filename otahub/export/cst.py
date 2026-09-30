@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
-                   Subtract, Torus)
+                   Subtract, Torus, dielectric_name, parse_dielectric)
 
 _MM = 1e3          # the macro works in millimetres
 
@@ -65,8 +65,9 @@ def render(model: Model) -> str:
         add(f'    StoreParameter "{label}", {rendered}{suffix}')
     add("")
     freq = model.frequency_hz / 1e9
+    lo, hi = (f / 1e9 for f in model.band_hz)
     add("    ' ---- frequency range ---------------------------------------------")
-    add(f"    Solver.FrequencyRange \"{freq * 0.7:.6g}\", \"{freq * 1.3:.6g}\"")
+    add(f"    Solver.FrequencyRange \"{lo:.6g}\", \"{hi:.6g}\"")
     add("")
 
     if not model.solids:
@@ -78,14 +79,14 @@ def render(model: Model) -> str:
     add("    ' ---- materials ---------------------------------------------------")
     for material in sorted({s.material for s in model.solids}):
         if material.startswith("eps_r="):
-            eps = material.split("=", 1)[1]
+            eps, tand = parse_dielectric(material)      # the design's loss, not an imposed 0.02
             add("    With Material")
             add("        .Reset")
-            add(f'        .Name "substrate_eps{eps.replace(".", "p")}"')
+            add(f'        .Name "{dielectric_name(material)}"')
             add('        .Type "Normal"')
             add(f'        .Epsilon "{eps}"')
             add('        .Mu "1.0"')
-            add('        .TanD "0.02"')
+            add(f'        .TanD "{tand}"')
             add('        .TanDModel "ConstTanD"')
             add('        .Colour "0.8", "0.8", "0.4"')
             add('        .Transparency "50"')
@@ -106,8 +107,8 @@ def render(model: Model) -> str:
 
     if model.ports:
         add("    ' ---- ports -------------------------------------------------------")
-        for port in model.ports:
-            add(_render_port(port))
+        for number, port in enumerate(model.ports, start=1):   # each its own number
+            add(_render_port(port, number))
         add("")
 
     add("    ' ---- boundaries --------------------------------------------------")
@@ -133,6 +134,8 @@ def render(model: Model) -> str:
 
 def _render_solid(solid) -> str:
     material = _material_name(solid.material)
+    if not isinstance(solid, (Brick, Cylinder)):
+        return _render_other(solid, material)
     if isinstance(solid, Brick):
         return "\n".join([
             "    With Brick",
@@ -149,7 +152,32 @@ def _render_solid(solid) -> str:
     if isinstance(solid, Cylinder):
         axis = solid.axis.lower()
         other = {"x": ("y", "z"), "y": ("x", "z"), "z": ("x", "y")}[axis]
-        return "\n".join([
+        return "\n".join(_cylinder_lines(solid, material, axis, other) + _rotation_lines(solid))
+    return f"    ' unsupported solid type {type(solid).__name__}"
+
+
+def _rotation_lines(solid) -> list[str]:
+    """Turn a solid about the global z axis, when it asks for it."""
+    if not getattr(solid, "rotate_z", 0.0):
+        return []
+    return [
+        "    With Transform",
+        "        .Reset",
+        f'        .Name "component1:{solid.name}"',
+        '        .Origin "Free"',
+        '        .Center "0", "0", "0"',
+        f'        .Angle "0", "0", "{solid.rotate_z:.9g}"',
+        '        .MultipleObjects "False"',
+        '        .GroupObjects "False"',
+        '        .Repetitions "1"',
+        '        .MultipleSelection "False"',
+        '        .Transform "Shape", "Rotate"',
+        "    End With",
+    ]
+
+
+def _cylinder_lines(solid, material, axis, other) -> list[str]:
+        return [
             "    With Cylinder",
             "        .Reset",
             f'        .Name "{solid.name}"',
@@ -164,7 +192,10 @@ def _render_solid(solid) -> str:
             "        .Segments \"0\"",
             "        .Create",
             "    End With",
-        ])
+        ]
+
+
+def _render_other(solid, material) -> str:
     if isinstance(solid, Cone):
         axis = solid.axis.lower()
         other = {"x": ("y", "z"), "y": ("x", "z"), "z": ("x", "y")}[axis]
@@ -234,11 +265,11 @@ def _render_operation(op) -> str:
     return f"    ' unsupported operation {type(op).__name__}"
 
 
-def _render_port(port: DiscretePort) -> str:
+def _render_port(port: DiscretePort, number: int = 1) -> str:
     return "\n".join([
         "    With DiscretePort",
         "        .Reset",
-        f'        .PortNumber "1"',
+        f'        .PortNumber "{number}"',
         '        .Type "SParameter"',
         f'        .Impedance "{port.impedance:.6g}"',
         f'        .SetP1 "False", "{_expr(port.start[0])}", "{_expr(port.start[1])}", '
@@ -259,7 +290,7 @@ def _material_name(material: str) -> str:
     if material == "VOID":
         return "Vacuum"
     if material.startswith("eps_r="):
-        return "substrate_eps" + material.split("=", 1)[1].replace(".", "p")
+        return dielectric_name(material)
     return material
 
 

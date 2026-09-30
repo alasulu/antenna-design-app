@@ -7,7 +7,7 @@ Dimensions become design variables so the model stays parametric.
 from __future__ import annotations
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
-                   Subtract, Torus)
+                   Subtract, Torus, dielectric_name, parse_dielectric)
 from .cst import classify
 
 _MM = 1e3
@@ -77,12 +77,11 @@ def render(model: Model) -> str:
     if materials:
         add("oDefinitionManager = oProject.GetDefinitionManager()")
         for material in materials:
-            eps = material.split("=", 1)[1]
-            name = "substrate_eps" + eps.replace(".", "p")
+            eps, tand = parse_dielectric(material)      # the design's loss, not an imposed 0.02
             add("oDefinitionManager.AddMaterial([")
-            add(f'    "NAME:{name}", "CoordinateSystemType:=", "Cartesian",')
+            add(f'    "NAME:{dielectric_name(material)}", "CoordinateSystemType:=", "Cartesian",')
             add(f'    "permittivity:=", "{eps}",')
-            add('    "dielectric_loss_tangent:=", "0.02"])')
+            add(f'    "dielectric_loss_tangent:=", "{tand}"])')
         add("")
 
     add("# ---- geometry ------------------------------------------------------")
@@ -103,6 +102,9 @@ def render(model: Model) -> str:
         add("")
 
     freq = model.frequency_hz / 1e9
+    lo, hi = (f / 1e9 for f in model.band_hz)
+    # a wideband design meshes at the top of its band, the usual HFSS practice
+    mesh = hi if hi > 1.35 * freq else freq
     add("# ---- radiation boundary --------------------------------------------")
     add("# An airbox a quarter wavelength clear of the structure on every side.")
     add('oEditor.CreateRegion([')
@@ -122,12 +124,12 @@ def render(model: Model) -> str:
     add("# ---- solution setup -------------------------------------------------")
     add('oModule = oDesign.GetModule("AnalysisSetup")')
     add('oModule.InsertSetup("HfssDriven", ["NAME:Setup1",')
-    add(f'    "Frequency:=", "{freq:.6g}GHz", "MaxDeltaS:=", 0.02,')
+    add(f'    "Frequency:=", "{mesh:.6g}GHz", "MaxDeltaS:=", 0.02,')
     add('    "MaximumPasses:=", 12, "MinimumPasses:=", 2])')
     add('oModule.InsertFrequencySweep("Setup1", ["NAME:Sweep",')
-    add('    "IsEnabled:=", True, "Type:=", "Interpolating",')
-    add(f'    "StartValue:=", "{freq * 0.7:.6g}GHz", "StopValue:=", "{freq * 1.3:.6g}GHz",')
-    add('    "Count:=", 401, "SaveFields:=", False])')
+    add('    "IsEnabled:=", True, "RangeType:=", "LinearCount",')
+    add(f'    "RangeStart:=", "{lo:.6g}GHz", "RangeEnd:=", "{hi:.6g}GHz",')
+    add('    "RangeCount:=", 401, "Type:=", "Interpolating", "SaveFields:=", False])')
     add("")
     add("# ---- far field infinite sphere --------------------------------------")
     add('oModule = oDesign.GetModule("RadField")')
@@ -147,14 +149,20 @@ def _render_solid(solid) -> str:
         dx = solid.x[1] - solid.x[0]
         dy = solid.y[1] - solid.y[0]
         dz = solid.z[1] - solid.z[0]
-        if abs(dz) < 1e-15:     # a zero-thickness sheet
+        flat = [ax for ax, d in (("X", dx), ("Y", dy), ("Z", dz)) if abs(d) < 1e-15]
+        if flat:                # a zero-thickness sheet, normal to that axis
+            # AEDT's rectangle spans the next two axes cyclically: Z -> (X, Y),
+            # X -> (Y, Z), Y -> (Z, X). Every sheet used to be drawn normal to Z,
+            # which gave a shorting wall (normal to Y) a height of zero.
+            normal = flat[0]
+            width, height = {"Z": (dx, dy), "X": (dy, dz), "Y": (dz, dx)}[normal]
             return "\n".join([
                 "oEditor.CreateRectangle([",
                 '    "NAME:RectangleParameters", "IsCovered:=", True,',
                 f'    "XStart:=", "{_mm(solid.x[0])}", "YStart:=", "{_mm(solid.y[0])}",',
                 f'    "ZStart:=", "{_mm(solid.z[0])}",',
-                f'    "Width:=", "{_mm(dx)}", "Height:=", "{_mm(dy)}",',
-                '    "WhichAxis:=", "Z"],',
+                f'    "Width:=", "{_mm(width)}", "Height:=", "{_mm(height)}",',
+                f'    "WhichAxis:=", "{normal}"],',
                 f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
                 f'     "MaterialValue:=", {material}, "SolveInside:=", False])',
             ])
@@ -173,7 +181,7 @@ def _render_solid(solid) -> str:
                "X": (solid.span[0], solid.centre[0], solid.centre[1]),
                "Y": (solid.centre[0], solid.span[0], solid.centre[1])}[axis]
         height = solid.span[1] - solid.span[0]
-        return "\n".join([
+        lines = [
             "oEditor.CreateCylinder([",
             '    "NAME:CylinderParameters",',
             f'    "XCenter:=", "{_mm(pos[0])}", "YCenter:=", "{_mm(pos[1])}",',
@@ -182,7 +190,14 @@ def _render_solid(solid) -> str:
             f'    "WhichAxis:=", "{axis}", "NumSides:=", "0"],',
             f'    ["NAME:Attributes", "Name:=", "{solid.name}",',
             f'     "MaterialValue:=", {material}, "SolveInside:=", {solve_inside}])',
-        ])
+        ]
+        if solid.rotate_z:
+            lines += [
+                "oEditor.Rotate([",
+                f'    "NAME:Selections", "Selections:=", "{solid.name}", "NewPartsModelFlag:=", "Model"],',
+                f'    ["NAME:RotateParameters", "RotateAxis:=", "Z", "RotateAngle:=", "{solid.rotate_z:.9g}deg"])',
+            ]
+        return "\n".join(lines)
     if isinstance(solid, Cone):
         axis = solid.axis.upper()
         pos = {"Z": (solid.centre[0], solid.centre[1], solid.span[0]),
@@ -240,16 +255,33 @@ def _render_operation(op) -> str:
     return f"# unsupported operation {type(op).__name__}"
 
 
+def _port_sheet(port: DiscretePort) -> tuple[list[float], float, str]:
+    """(minimum corner, side, normal axis) of a square sheet that holds the port's
+    integration line: the line's own axis and one beside it, the side as long as
+    the gap. Square, so it does not matter which in-plane axis AEDT runs Width
+    along. The sheet used to be normal to Y whatever the feed: a horizontal feed
+    got zero height, a y-directed one a sheet the line did not lie in."""
+    d = [e - s for s, e in zip(port.start, port.end)]
+    along = max(range(3), key=lambda i: abs(d[i]))
+    g = abs(d[along])
+    beside = 0 if along != 0 else 1                 # x beside a z or y line, y beside an x line
+    normal = ({0, 1, 2} - {along, beside}).pop()
+    corner = list(port.start)
+    corner[along] = min(port.start[along], port.end[along])
+    corner[beside] = port.start[beside] - g / 2
+    return corner, g, "XYZ"[normal]
+
+
 def _render_port(port: DiscretePort, index: int) -> str:
+    corner, side, normal = _port_sheet(port)
     return "\n".join([
         f'# lumped port {index}: {port.impedance:.6g} ohm',
         "oEditor.CreateRectangle([",
         '    "NAME:RectangleParameters", "IsCovered:=", True,',
-        f'    "XStart:=", "{_mm(port.start[0])}", "YStart:=", "{_mm(port.start[1])}",',
-        f'    "ZStart:=", "{_mm(port.start[2])}",',
-        f'    "Width:=", "{_mm(max(abs(port.end[0] - port.start[0]), 1e-4))}",',
-        f'    "Height:=", "{_mm(port.end[2] - port.start[2] or port.end[1] - port.start[1])}",',
-        '    "WhichAxis:=", "Y"],',
+        f'    "XStart:=", "{_mm(corner[0])}", "YStart:=", "{_mm(corner[1])}",',
+        f'    "ZStart:=", "{_mm(corner[2])}",',
+        f'    "Width:=", "{_mm(side)}", "Height:=", "{_mm(side)}",',
+        f'    "WhichAxis:=", "{normal}"],',
         f'    ["NAME:Attributes", "Name:=", "{port.name}_sheet",',
         '     "MaterialValue:=", "\\"vacuum\\"", "SolveInside:=", True])',
         'oModule = oDesign.GetModule("BoundarySetup")',
@@ -261,7 +293,9 @@ def _render_port(port: DiscretePort, index: int) -> str:
         f'"{_mm(port.start[1])}", "{_mm(port.start[2])}"],',
         f'      "End:=", ["{_mm(port.end[0])}", "{_mm(port.end[1])}", '
         f'"{_mm(port.end[2])}"]],',
-        f'     "CharImp:=", "Zpi", "RenormImp:=", "{port.impedance:.6g}ohm"]]])',
+        f'     "CharImp:=", "Zpi", "RenormImp:=", "{port.impedance:.6g}ohm"]],',
+        # the port's own impedance; RenormImp only renormalises the reported S
+        f'    "Impedance:=", "{port.impedance:.6g}ohm"])',
     ])
 
 
@@ -271,7 +305,7 @@ def _material_name(material: str) -> str:
     if material in ("VACUUM", "VOID"):
         return '"vacuum"'
     if material.startswith("eps_r="):
-        return '"substrate_eps%s"' % material.split("=", 1)[1].replace(".", "p")
+        return '"%s"' % dielectric_name(material)
     return f'"{material}"'
 
 

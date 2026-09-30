@@ -36,6 +36,9 @@ class Cylinder:
     radius: float
     span: tuple[float, float]     # start, end along `axis`
     centre: tuple[float, float] = (0.0, 0.0)   # the other two coordinates
+    #: degrees about the global z axis, applied after creation: a radial wire
+    #: at any azimuth (a top hat's) is an x-axis cylinder turned into place
+    rotate_z: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +111,9 @@ class Model:
     operations: list = field(default_factory=list)
     ports: list = field(default_factory=list)
     frequency_hz: float = 1e9
+    #: the sweep, (low, high) in Hz: 0.7-1.3 f0 for a resonant design, the
+    #: design's own band for a wideband one
+    band_hz: tuple[float, float] = (0.7e9, 1.3e9)
     notes: list[str] = field(default_factory=list)
     built_geometry: bool = True
 
@@ -152,9 +158,58 @@ def _base_model(design: DesignResult, title: str) -> Model:
                and k not in ("k0",)}
     units = dict(design.units)
     units.setdefault("f0", "Hz")
-    return Model(archetype=design.archetype, title=title, parameters=numeric,
-                 units=units,
-                 frequency_hz=float(design.requirements.get("f0", 1e9)))
+    centre, band, note = _frequencies(design)
+    model = Model(archetype=design.archetype, title=title, parameters=numeric,
+                  units=units, frequency_hz=centre, band_hz=band)
+    if note:
+        model.notes.append(note)
+    return model
+
+
+def _frequencies(design: DesignResult) -> tuple[float, tuple[float, float], str]:
+    """(centre, sweep band, a note) from the design's own frequency requirements.
+
+    A wideband design asked for with f_low (and perhaps f_high) has no f0; it
+    used to be simulated at a default 1 GHz whatever its size - a 100 MHz
+    discone swept 0.7-1.3 GHz.
+    """
+    f0 = design.get("f0")
+    f_low, f_high = design.get("f_low"), design.get("f_high")
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
+    if num(f0):
+        return float(f0), (0.7 * f0, 1.3 * f0), ""
+    if num(f_low) and num(f_high):
+        return (math.sqrt(f_low * f_high), (0.8 * f_low, 1.2 * f_high),
+                "Swept over the design's band, 0.8 f_low to 1.2 f_high.")
+    if num(f_low):
+        return (2.0 * f_low, (0.8 * f_low, 4.0 * f_low),
+                "The spec gives only f_low, so the sweep runs from 0.8 f_low to "
+                "4 f_low; widen it to the band this antenna must cover.")
+    return 1e9, (0.7e9, 1.3e9), ("No design frequency found; the sweep defaults to "
+                                 "0.7-1.3 GHz - set it before solving.")
+
+
+def _dielectric(eps_r: float, design: DesignResult | None = None) -> str:
+    """A dielectric's material name, carrying the design's loss tangent where the
+    spec has one (tan_d) and lossless otherwise - as the specs assume. The
+    renderers used to impose tan d = 0.02 on everything."""
+    tan_d = design.get("tan_d") if design is not None else None
+    if isinstance(tan_d, (int, float)) and tan_d > 0:
+        return f"eps_r={eps_r:g};tand={tan_d:g}"
+    return f"eps_r={eps_r:g}"
+
+
+def parse_dielectric(material: str) -> tuple[str, str]:
+    """(eps_r, tan d) text of a dielectric material name made by _dielectric."""
+    parts = dict(item.split("=", 1) for item in material.split(";"))
+    return parts["eps_r"], parts.get("tand", "0")
+
+
+def dielectric_name(material: str) -> str:
+    """The name both backends give such a material: substrate_eps4p4[_tand0p02]."""
+    eps, tand = parse_dielectric(material)
+    name = "substrate_eps" + eps.replace(".", "p")
+    return name + ("_tand" + tand.replace(".", "p").replace("-", "m") if tand != "0" else "")
 
 
 # --------------------------------------------------------------- builders
@@ -198,7 +253,8 @@ def _monopole(design: DesignResult) -> Model:
     model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
     model.notes += [
         f"Ground plane rendered as a finite disc {ground * 1e3:.4g} mm across "
-        "(2 wavelengths). The spec's impedance assumes an INFINITE plane; a "
+        f"({ground * model.frequency_hz / 2.99792458e8:.3g} wavelengths). The spec's "
+        "impedance assumes an INFINITE plane; a "
         "finite one raises the input resistance and tilts the pattern upward.",
         f"Feed gap {gap * 1e3:.4g} mm between the plane and the monopole base.",
     ]
@@ -217,7 +273,7 @@ def _patch(design: DesignResult) -> Model:
     margin = max(w, length) * 0.6
     sub_w, sub_l = w + 2 * margin, length + 2 * margin
     model.solids += [
-        Brick("substrate", f"eps_r={eps_r:g}", (-sub_w / 2, sub_w / 2),
+        Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
               (-sub_l / 2, sub_l / 2), (0.0, h)),
         Brick("ground", "PEC", (-sub_w / 2, sub_w / 2), (-sub_l / 2, sub_l / 2),
               (0.0, 0.0)),
@@ -229,6 +285,7 @@ def _patch(design: DesignResult) -> Model:
         model.solids.append(
             Brick("inset_notch", "VOID", (-feed_w * 1.5, feed_w * 1.5),
                   (-length / 2, -length / 2 + float(y0)), (h, h)))
+        model.operations.append(Subtract("patch", ("inset_notch",)))     # it was never cut
         model.notes.append(
             f"Inset notch cut {float(y0) * 1e3:.4g} mm deep. Notch WIDTH is not "
             "given by the transmission-line model and is set here to twice the "
@@ -255,16 +312,20 @@ def _circular_patch(design: DesignResult) -> Model:
     eps_r = _param(design, "eps_r", default=2.2)
     sub = a * 3.0
     model.solids += [
-        Brick("substrate", f"eps_r={eps_r:g}", (-sub, sub), (-sub, sub), (0.0, h)),
+        Brick("substrate", _dielectric(eps_r, design), (-sub, sub), (-sub, sub), (0.0, h)),
         Brick("ground", "PEC", (-sub, sub), (-sub, sub), (0.0, 0.0)),
         Cylinder("patch", "PEC", "z", a, (h, h)),
     ]
-    feed_r = a * 0.3
+    feed_r = _param(design, "probe_radius_m", default=a * 0.3)
+    if feed_r >= a:
+        raise ValueError(f"the probe at r = {feed_r * 1e3:.4g} mm lies outside the "
+                         f"{a * 1e3:.4g} mm patch; lower rho_frac")
     model.ports.append(DiscretePort("port1", (feed_r, 0.0, 0.0), (feed_r, 0.0, h)))
     model.notes += [
-        f"Probe placed at r = {feed_r * 1e3:.4g} mm (0.3a) as a starting point. "
-        "The spec gives no feed position for the circular patch, so this must "
-        "be tuned for the target input impedance.",
+        f"Probe at r = {feed_r * 1e3:.4g} mm, the spec's probe_radius_m "
+        "(rho_frac times the effective radius), where its cos^2 feed law puts the "
+        "input resistance it reports; the probe's own reactance is not in that "
+        "law, so expect to trim the position in the solver.",
     ]
     return model
 
@@ -275,12 +336,21 @@ def _oewg(design: DesignResult) -> Model:
     a = _param(design, "a_wg")
     b = _param(design, "b_wg")
     length = 2.0 * a
-    model.solids.append(
-        Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2), (0.0, length)))
+    t = min(a, b) / 20.0
+    lam = 2.99792458e8 / model.frequency_hz
+    flange = max(3.0 * lam, 2.0 * a)
+    model.solids += [Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2), (0.0, length))]
+    model.solids += _guide_walls(a, b, t, (0.0, length))
+    model.solids += [
+        Brick("flange", "PEC", (-flange / 2, flange / 2), (-flange / 2, flange / 2), (length, length + t)),
+        Brick("flange_opening", "VOID", (-a / 2, a / 2), (-b / 2, b / 2), (length - t, length + 2 * t)),
+    ]
+    model.operations.append(Subtract("flange", ("flange_opening",)))
     model.notes += [
-        f"Interior volume only, {length * 1e3:.4g} mm long. Assign a waveguide "
-        "port to the z = 0 face and radiation boundaries around the aperture.",
-        "Walls are implied by the surrounding PEC boundary, not modelled as solids.",
+        f"Guide {length * 1e3:.4g} mm long with PEC walls {t * 1e3:.4g} mm thick, in a "
+        f"flange {flange * 1e3:.4g} mm square ({flange / lam:.3g} wavelengths): the spec's "
+        "directivity is the TE10 aperture in an INFINITE flange, so a larger one comes "
+        "closer. Assign a waveguide port to the z = 0 face.",
     ]
     return model
 
@@ -294,13 +364,18 @@ def _folded_dipole(design: DesignResult) -> Model:
     radius = _param(design, "aw", default=total / 2000.0)
     gap = max(total / 200.0, radius * 2.0)
     half = total / 2.0
-    y_fed, y_par = -sep / 2.0, sep / 2.0
+    n = max(2, int(round(_param(design, "N", default=2.0))))
+    ys = [(i - (n - 1) / 2.0) * sep for i in range(n)]      # n conductors, sep apart
+    y_fed = ys[0]
     model.solids += [
         Cylinder("fed_upper", "PEC", "z", radius, (gap / 2.0, half), (0.0, y_fed)),
         Cylinder("fed_lower", "PEC", "z", radius, (-half, -gap / 2.0), (0.0, y_fed)),
-        Cylinder("parasitic", "PEC", "z", radius, (-half, half), (0.0, y_par)),
-        Cylinder("end_top", "PEC", "y", radius, (y_fed, y_par), (0.0, half)),
-        Cylinder("end_bottom", "PEC", "y", radius, (y_fed, y_par), (0.0, -half)),
+    ]
+    model.solids += [Cylinder("parasitic" if n == 2 else f"parasitic_{i}", "PEC", "z", radius,
+                              (-half, half), (0.0, y)) for i, y in enumerate(ys[1:], start=1)]
+    model.solids += [
+        Cylinder("end_top", "PEC", "y", radius, (ys[0], ys[-1]), (0.0, half)),
+        Cylinder("end_bottom", "PEC", "y", radius, (ys[0], ys[-1]), (0.0, -half)),
     ]
     model.ports.append(DiscretePort(
         "port1", (0.0, y_fed, -gap / 2.0), (0.0, y_fed, gap / 2.0)))
@@ -384,7 +459,7 @@ def _shorted_patch(design: DesignResult) -> Model:
     margin = max(w, length) * 0.6
     sub_w, sub_l = w + 2 * margin, length + 2 * margin
     model.solids += [
-        Brick("substrate", f"eps_r={eps_r:g}", (-sub_w / 2, sub_w / 2),
+        Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
               (-sub_l / 2, sub_l / 2), (0.0, h)),
         Brick("ground", "PEC", (-sub_w / 2, sub_w / 2), (-sub_l / 2, sub_l / 2),
               (0.0, 0.0)),
@@ -404,6 +479,13 @@ def _shorted_patch(design: DesignResult) -> Model:
     return model
 
 
+def _probe_gap(probe_r: float, height: float) -> float:
+    """The feed gap between the ground and a probe's foot: the probe used to stand
+    on the unbroken ground (a short) with its port hanging below the plane in
+    empty space. The port now bridges this gap, as a coaxial feed's does."""
+    return max(probe_r, height * 0.03)
+
+
 @builder("rectangular_dra")
 def _rect_dra(design: DesignResult) -> Model:
     model = _base_model(design, "Rectangular dielectric resonator antenna")
@@ -416,14 +498,14 @@ def _rect_dra(design: DesignResult) -> Model:
     model.solids += [
         Brick("ground", "PEC", (-ground / 2, ground / 2), (-ground / 2, ground / 2),
               (0.0, 0.0)),
-        Brick("resonator", f"eps_r={eps_r:g}", (-w / 2, w / 2),
+        Brick("resonator", _dielectric(eps_r, design), (-w / 2, w / 2),
               (-length / 2, length / 2), (0.0, d)),
-        Cylinder("probe", "PEC", "z", probe_r, (0.0, d * 0.6),
+        Cylinder("probe", "PEC", "z", probe_r, (_probe_gap(probe_r, d), d * 0.6),
                  (w / 2 + probe_r * 2, 0.0)),
     ]
     model.ports.append(DiscretePort(
-        "port1", (w / 2 + probe_r * 2, 0.0, -d * 0.05),
-        (w / 2 + probe_r * 2, 0.0, 0.0)))
+        "port1", (w / 2 + probe_r * 2, 0.0, 0.0),
+        (w / 2 + probe_r * 2, 0.0, _probe_gap(probe_r, d))))
     model.notes += [
         "The probe stands at the centre of the face normal to x, where the mode "
         "whose magnetic dipole runs along the length Lr (y) has its vertical E "
@@ -448,13 +530,13 @@ def _cyl_dra(design: DesignResult) -> Model:
     probe_r = a / 20.0
     model.solids += [
         Cylinder("ground", "PEC", "z", ground / 2.0, (0.0, 0.0)),
-        Cylinder("resonator", f"eps_r={eps_r:g}", "z", a, (0.0, height)),
-        Cylinder("probe", "PEC", "z", probe_r, (0.0, height * 0.6),
+        Cylinder("resonator", _dielectric(eps_r, design), "z", a, (0.0, height)),
+        Cylinder("probe", "PEC", "z", probe_r, (_probe_gap(probe_r, height), height * 0.6),
                  (a + probe_r * 2, 0.0)),
     ]
     model.ports.append(DiscretePort(
-        "port1", (a + probe_r * 2, 0.0, -height * 0.05),
-        (a + probe_r * 2, 0.0, 0.0)))
+        "port1", (a + probe_r * 2, 0.0, 0.0),
+        (a + probe_r * 2, 0.0, _probe_gap(probe_r, height))))
     model.notes += [
         "Probe placed just outside the puck to excite HE11. Its height and "
         "radial offset set the coupling and must be tuned; the spec models neither.",
@@ -473,14 +555,14 @@ def _hemi_dra(design: DesignResult) -> Model:
     probe_r = a / 20.0
     model.solids += [
         Cylinder("ground", "PEC", "z", ground / 2.0, (0.0, 0.0)),
-        Sphere("resonator_sphere", f"eps_r={eps_r:g}", a),
+        Sphere("resonator_sphere", _dielectric(eps_r, design), a),
         Brick("lower_half", "VOID", (-a * 1.1, a * 1.1), (-a * 1.1, a * 1.1),
               (-a * 1.1, 0.0)),
-        Cylinder("probe", "PEC", "z", probe_r, (0.0, a * 0.5), (a * 0.65, 0.0)),
+        Cylinder("probe", "PEC", "z", probe_r, (_probe_gap(probe_r, a), a * 0.5), (a * 0.65, 0.0)),
     ]
     model.operations.append(Subtract("resonator_sphere", ("lower_half",)))
     model.ports.append(DiscretePort(
-        "port1", (a * 0.65, 0.0, -a * 0.05), (a * 0.65, 0.0, 0.0)))
+        "port1", (a * 0.65, 0.0, 0.0), (a * 0.65, 0.0, _probe_gap(probe_r, a))))
     model.notes += [
         "Built as a full sphere with the lower half subtracted, because neither "
         "backend has a hemisphere primitive.",
@@ -643,21 +725,29 @@ def _square_loop(design: DesignResult) -> Model:
 
 @builder("halo_loop")
 def _halo_loop(design: DesignResult) -> Model:
-    """A half-wave dipole bent into a ring, fed across the gap between its tips."""
+    """A half-wave dipole bent into a ring: open tips facing across a gap, fed at
+    the middle of the conductor opposite them - the drive the verified MoM model
+    (mom.halo) uses. It used to be fed across the tip gap itself."""
     model = _base_model(design, "Halo loop")
     diameter = _param(design, "Dm")
     gap = _param(design, "g")
     radius = diameter / 2.0
     wire = _param(design, "b", "aw", default=radius / 60.0)
+    feed_gap = max(2.0 * wire, gap / 4.0)
     model.solids += [
         Torus("halo", "PEC", "z", radius, wire),
         Brick("tip_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
               (-gap / 2, gap / 2), (-2 * wire, 2 * wire)),
+        Brick("feed_gap_cut", "VOID", (-radius - 2 * wire, -radius + 2 * wire),
+              (-feed_gap / 2, feed_gap / 2), (-2 * wire, 2 * wire)),
     ]
-    model.operations.append(Subtract("halo", ("tip_gap_cut",)))
+    model.operations.append(Subtract("halo", ("tip_gap_cut", "feed_gap_cut")))
     model.ports.append(DiscretePort(
-        "port1", (radius, -gap / 2, 0.0), (radius, gap / 2, 0.0)))
+        "port1", (-radius, -feed_gap / 2, 0.0), (-radius, feed_gap / 2, 0.0)))
     model.notes += [
+        f"Fed at the middle of the conductor, opposite the tips, across a "
+        f"{feed_gap * 1e3:.4g} mm feed gap; the tip gap is left open. A built halo "
+        "is usually fed there through a gamma or hairpin match.",
         f"Tip gap {gap * 1e3:.4g} mm, from the spec - unlike the other loops "
         "here, the halo's gap IS a design parameter, because the capacitance "
         "across it sets the resonance.",
@@ -783,9 +873,8 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
     model.solids += [
         Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2),
               (0.0, run)),
-        Brick("broad_wall", "PEC", (-a / 2, a / 2), (b / 2, b / 2 + wall),
-              (0.0, run)),
     ]
+    model.solids += _guide_walls(a, b, wall, (0.0, run))
     tools = []
     for i in range(count):
         z = (i - (count - 1) / 2.0) * spacing + run / 2.0
@@ -804,11 +893,22 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
         f"Slot width set to a sixteenth of its length ({slot_w * 1e3:.4g} mm); "
         "the spec gives only the length. Width affects bandwidth more than "
         "resonance, but it is a choice made here and not by the design.",
-        "Assign a waveguide port to the z = 0 face. A resonant array needs a "
-        "short a quarter guide wavelength beyond the last slot; a "
-        "travelling-wave array needs a matched load there instead.",
+        f"All four walls are PEC, {wall * 1e3:.4g} mm thick; the slots are cut through "
+        "the +y broad wall. Assign a waveguide port to the z = 0 face.",
     ]
     return model
+
+
+def _guide_walls(a: float, b: float, t: float, zspan) -> list:
+    """The four PEC walls of a rectangular guide, t thick, round the interior
+    |x| < a/2, |y| < b/2. They used to be "left to the surrounding PEC boundary",
+    which both backends set to open space."""
+    return [
+        Brick("broad_wall", "PEC", (-a / 2 - t, a / 2 + t), (b / 2, b / 2 + t), zspan),
+        Brick("broad_wall_lower", "PEC", (-a / 2 - t, a / 2 + t), (-b / 2 - t, -b / 2), zspan),
+        Brick("narrow_wall_plus", "PEC", (a / 2, a / 2 + t), (-b / 2, b / 2), zspan),
+        Brick("narrow_wall_minus", "PEC", (-a / 2 - t, -a / 2), (-b / 2, b / 2), zspan),
+    ]
 
 
 @builder("waveguide_longitudinal_slot")
@@ -824,9 +924,19 @@ def _single_guide_slot(design: DesignResult) -> Model:
 @builder("waveguide_slot_array_resonant")
 def _resonant_slot_array(design: DesignResult) -> Model:
     n = int(round(_param(design, "N", default=12.0)))
+    spacing = _param(design, "spacing")
     model = _slotted_guide(design, "Resonant longitudinal slot array", n,
-                           _param(design, "spacing"), _param(design, "offset"),
-                           True)
+                           spacing, _param(design, "offset"), True)
+    # the short: a quarter guide wavelength (half a slot pitch) past the last slot
+    a, b = _param(design, "a_wg"), _param(design, "b_wg")
+    run = max((n - 1) * spacing + 4 * _param(design, "slot_length"), 4 * _param(design, "slot_length"))
+    z_short = run / 2.0 + (n - 1) / 2.0 * spacing + spacing / 2.0
+    t = min(a, b) / 20.0
+    model.solids.append(Brick("end_short", "PEC", (-a / 2 - t, a / 2 + t), (-b / 2 - t, b / 2 + t),
+                              (z_short, z_short + t)))
+    model.notes.append(
+        f"Shorted {spacing / 2 * 1e3:.4g} mm (a quarter guide wavelength) beyond the "
+        "last slot's centre, so each slot sits at a standing-wave voltage maximum.")
     model.notes.append(
         f"{n} slots at half a GUIDE wavelength, offsets ALTERNATING about the "
         "centreline. That alternation undoes the 180 degrees of propagation "
@@ -841,6 +951,9 @@ def _travelling_slot_array(design: DesignResult) -> Model:
     a = _param(design, "a_wg")
     model = _slotted_guide(design, "Travelling-wave longitudinal slot array", n,
                            _param(design, "spacing"), a * 0.13, True)
+    model.notes.append(
+        "The far end is open to the box: put a second, matched waveguide port "
+        "there, which is the load a travelling-wave array ends in.")
     model.notes.append(
         "Slot offsets are UNIFORM here at 13% of the broad wall. A real "
         "travelling-wave array tapers them along the guide to hold the aperture "
@@ -885,12 +998,14 @@ def _leaky_wave(design: DesignResult) -> Model:
     b = a * 0.45
     wall = a / 20.0
     slit = a / 12.0
+    x_slit = a / 4.0
     model.solids += [
         Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2),
               (0.0, length)),
-        Brick("broad_wall", "PEC", (-a / 2, a / 2), (b / 2, b / 2 + wall),
-              (0.0, length)),
-        Brick("slit_cut", "VOID", (-slit / 2, slit / 2),
+    ]
+    model.solids += _guide_walls(a, b, wall, (0.0, length))
+    model.solids += [
+        Brick("slit_cut", "VOID", (x_slit - slit / 2, x_slit + slit / 2),
               (b / 2 - wall, b / 2 + 2 * wall), (length * 0.05, length * 0.95)),
     ]
     model.operations.append(Subtract("broad_wall", ("slit_cut",)))
@@ -902,6 +1017,10 @@ def _leaky_wave(design: DesignResult) -> Model:
         "spec parameterises it only as alpha_norm, never as a dimension, so "
         "expect to tune it - the slit sets how much power reaches the load "
         "rather than radiating.",
+        f"Slit centred {x_slit * 1e3:.4g} mm (a/4) off the guide's centreline. On the "
+        "centreline TE10's broad-wall current is purely longitudinal, so a slit "
+        "there cuts none of it and leaks nothing; off-centre it cuts the "
+        "transverse current. Offset and width together set alpha - tune both.",
         "The slit stops short of both ends so the port faces stay solid.",
     ]
     return model
@@ -970,7 +1089,7 @@ def _annular_ring(design: DesignResult) -> Model:
     eps_r = _param(design, "eps_r", default=2.2)
     sub = b_out * 3.0
     model.solids += [
-        Brick("substrate", f"eps_r={eps_r:g}", (-sub, sub), (-sub, sub), (0.0, h)),
+        Brick("substrate", _dielectric(eps_r, design), (-sub, sub), (-sub, sub), (0.0, h)),
         Brick("ground", "PEC", (-sub, sub), (-sub, sub), (0.0, 0.0)),
         Cylinder("ring", "PEC", "z", b_out, (h, h)),
         Cylinder("ring_hole", "VOID", "z", a_in, (h, h)),
@@ -1036,10 +1155,11 @@ def _stacked_patch(design: DesignResult) -> Model:
     h = _param(design, "h")
     h2 = _param(design, "h2")
     eps_r = _param(design, "eps_r", default=2.2)
+    eps_r2 = _param(design, "eps_r2", default=1.0)
     margin = max(w, length) * 0.6
     sub_w, sub_l = max(w, w2) + 2 * margin, max(length, l2) + 2 * margin
     model.solids += [
-        Brick("substrate", f"eps_r={eps_r:g}", (-sub_w / 2, sub_w / 2),
+        Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
               (-sub_l / 2, sub_l / 2), (0.0, h)),
         Brick("ground", "PEC", (-sub_w / 2, sub_w / 2), (-sub_l / 2, sub_l / 2),
               (0.0, 0.0)),
@@ -1048,13 +1168,17 @@ def _stacked_patch(design: DesignResult) -> Model:
         Brick("parasitic_patch", "PEC", (-w2 / 2, w2 / 2), (-l2 / 2, l2 / 2),
               (h + h2, h + h2)),
     ]
+    if eps_r2 != 1.0:                      # a dielectric spacer, h2 thick, over the driven patch
+        model.solids.insert(1, Brick("upper_substrate", _dielectric(eps_r2, None),
+                                     (-sub_w / 2, sub_w / 2), (-sub_l / 2, sub_l / 2), (h, h + h2)))
     feed = _param(design, "feed_offset", default=length / 4)
     model.ports.append(DiscretePort(
         "port1", (0.0, -feed, 0.0), (0.0, -feed, h)))
     model.notes += [
-        f"Parasitic patch suspended {h2 * 1e3:.4g} mm above the driven one, in "
-        "air. The spacer is not modelled: foam or honeycomb is close to air, a "
-        "dielectric one is not.",
+        (f"Parasitic patch suspended {h2 * 1e3:.4g} mm above the driven one, in air "
+         "(foam or honeycomb is close to it)." if eps_r2 == 1.0 else
+         f"Parasitic patch {h2 * 1e3:.4g} mm above the driven one on a second layer of "
+         f"eps_r = {eps_r2:g}, as designed."),
         f"Probe {feed * 1e3:.4g} mm from the centre along the driven patch's length, "
         "0.9 of its half length: where the two-layer MoM put the best feed on every "
         "board surveyed (indicative; `otahub stack` solves this design's own). The "
@@ -1145,34 +1269,37 @@ def _luneburg(design: DesignResult) -> Model:
         "a few tenths of a dB and raising the sidelobes.",
         "No feed is included. A Luneburg lens is fed from a point ON its surface, "
         "and any number of feeds can share it - which is the reason to build one.",
-        "Materials are named by permittivity; define them in the solver before "
-        "running the macro.",
+        "Each shell's material is defined by the macro from its permittivity, "
+        "lossless.",
     ]
     return model
 
 
 @builder("top_loaded_monopole")
 def _top_loaded(design: DesignResult) -> Model:
-    """Short vertical with a disc hat, over a ground plane."""
+    """Short vertical with a hat of radial wires, over a ground plane: the hat
+    the spec's beta_top is solved for (a disc is only its many-radial limit)."""
     model = _base_model(design, "Capacitively top-loaded monopole")
     height = _param(design, "h")
     hat_r = _param(design, "a_hat")
     wire = _param(design, "aw", default=height / 500.0)
+    radials = max(2, int(round(_param(design, "hat_radials", default=8.0))))
     gap = max(height / 200.0, wire * 3.0)
     ground = max(6.0 * hat_r, 3.0 * height)
-    hat_t = max(hat_r / 200.0, wire)
+    top = gap + height
     model.solids += [
         Cylinder("ground_plane", "PEC", "z", ground / 2.0, (-ground / 400.0, 0.0)),
-        Cylinder("rod", "PEC", "z", wire, (gap, gap + height)),
-        Cylinder("top_hat", "PEC", "z", hat_r, (gap + height, gap + height + hat_t)),
+        Cylinder("rod", "PEC", "z", wire, (gap, top)),
     ]
+    model.solids += [Cylinder(f"hat_radial_{k + 1}", "PEC", "x", wire, (0.0, hat_r), (0.0, top),
+                              rotate_z=360.0 * k / radials) for k in range(radials)]
     model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
     model.notes += [
-        f"Hat radius {hat_r * 1e3:.4g} mm comes from the spec's "
-        "hat_radius_over_lambda, which is an INPUT there and not derived from "
-        "the loading it achieves. The spec's beta_top - how nearly uniform the "
-        "hat makes the rod current - is likewise an input, so the two are not "
-        "tied together here. Simulate to find the beta this hat really gives.",
+        f"Hat of {radials} radial wires, {hat_r * 1e3:.4g} mm long, at the top of the rod: "
+        "the hat the spec's beta_top is solved for by MoM (a solid disc is its "
+        "many-radial limit, which 32 radials still fall short of). beta_top is "
+        "derived from this hat unless supplied, in which case the hat radius "
+        "follows from it instead.",
         f"Feed gap {gap * 1e3:.4g} mm between the plane and the rod base.",
         f"Ground plane rendered as a disc {ground * 1e3:.4g} mm across. The "
         "spec's directivity of exactly 3.0 assumes it is infinite; a real "
