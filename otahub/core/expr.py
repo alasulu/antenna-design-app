@@ -155,7 +155,10 @@ def referenced_symbols(expr: str, param_names: frozenset[str] = frozenset()) -> 
     Used to cross-check a spec's declared ``depends_on`` — a wrong dependency
     list would silently break the synthesis topological sort.
     """
-    tree = ast.parse(expr.strip(), mode="eval")
+    try:
+        tree = ast.parse(expr.strip(), mode="eval")
+    except SyntaxError as exc:
+        raise ExprError(f"cannot parse {expr!r}: {exc}") from exc
     validator = _Validator(frozenset(BASE_NAMESPACE) | param_names)
     validator.visit(tree)
     return {n for n in validator.used_names if n not in BASE_NAMESPACE}

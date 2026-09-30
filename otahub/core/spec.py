@@ -181,6 +181,15 @@ class ArchetypeSpec:
 
         if not self.known_cases:
             out.append("no known_cases: nothing about this archetype is verifiable")
+        for i, case in enumerate(self.known_cases):
+            if not case.expect:
+                out.append(f"known case {i} expects nothing: it would pass untested")
+            for name, want in case.expect.items():
+                if isinstance(want, bool) or not isinstance(want, (int, float, complex)):
+                    out.append(f"known case {i}: {name!r} expects {want!r}, not a number")
+                elif want == 0 and case.tol_abs is None:
+                    out.append(f"known case {i}: {name!r} expects zero without tol_abs; "
+                               f"relative error has no meaning there")
         if self.freq_range_hz[0] >= self.freq_range_hz[1]:
             out.append(f"degenerate freq_range_hz {self.freq_range_hz}")
         return out

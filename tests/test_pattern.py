@@ -88,6 +88,26 @@ def test_mismatched_grid_is_rejected():
         p.Pattern(theta, phi, np.ones((5, 5)))
 
 
+def test_cosine_q_zero_is_a_hemisphere():
+    """q = 0 is uniform over the forward hemisphere, D = 2. Masking before the
+    power made the back hemisphere 0**0 = 1 and gave D = 1. The hard edge at
+    90 deg costs the trapezoid half a cell, 2/(1 + h/2): 0.4% on the default
+    half-degree grid, 0.04% on a twentieth of a degree."""
+    assert p.cosine_q(0.0).directivity() == pytest.approx(2.0 / (1 + math.pi / 720), rel=1e-4)
+    assert p.cosine_q(0.0, n_theta=3601).directivity() == pytest.approx(2.0, rel=5e-4)
+
+
+def test_directivity_and_beamwidth_do_not_depend_on_the_intensity_scale():
+    """Absolute thresholds made a pattern scaled by 1e-14 'radiate no power'."""
+    ref = p.short_dipole()
+    small = p.Pattern(ref.theta, ref.phi, ref.U * 1e-14)
+    assert small.directivity() == pytest.approx(ref.directivity(), rel=1e-12)
+    assert p.hpbw_deg(small) == pytest.approx(p.hpbw_deg(ref), rel=1e-12)
+    line = p.uniform_line_source(4.0)
+    tiny = p.Pattern(line.theta, line.phi, line.U * 1e-20)
+    assert p.first_sidelobe_db(tiny) == pytest.approx(p.first_sidelobe_db(line), abs=1e-12)
+
+
 def test_non_radiating_pattern_has_no_directivity():
     theta, phi = p.make_grid(21, 11)
     with pytest.raises(ValueError, match="radiates no power"):

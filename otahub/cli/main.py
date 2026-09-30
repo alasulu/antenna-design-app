@@ -13,39 +13,76 @@ from pathlib import Path
 from ..core.registry import Registry, default_registry
 from ..core.units import engineering, to_si
 
-_QTY = re.compile(r"^\s*([+-]?[0-9.]+(?:[eE][+-]?[0-9]+)?)\s*([A-Za-z]*)\s*$")
+_QTY = re.compile(r"^\s*([+-]?[0-9.]+(?:[eE][+-]?[0-9]+)?)\s*([A-Za-z/]*)\s*$")
 _SUFFIX_SI = {
     "GHz": 1e9, "MHz": 1e6, "kHz": 1e3, "Hz": 1.0,
     "mm": 1e-3, "cm": 1e-2, "m": 1.0, "um": 1e-6, "mil": 2.54e-5, "in": 0.0254,
-    "ohm": 1.0, "deg": math.pi / 180.0, "rad": 1.0,
+    "ohm": 1.0, "deg": math.pi / 180.0, "rad": 1.0, "S/m": 1.0,
 }
+_ANGLES = ("deg", "rad")
 
 
-def parse_quantity(text: str) -> float:
-    """Parse ``2.4GHz`` / ``1.6mm`` / ``3.5`` into an SI float."""
+def _parse(text: str) -> tuple[float, str]:
+    """(SI value, the unit suffix as written or '')."""
     m = _QTY.match(text)
     if not m:
         raise argparse.ArgumentTypeError(f"cannot parse quantity {text!r}")
     value, suffix = float(m.group(1)), m.group(2)
     if not suffix:
-        return value
+        return value, ""
     for unit, factor in _SUFFIX_SI.items():          # exact, case-sensitive first
         if suffix == unit:
-            return value * factor
+            return value * factor, unit
     for unit, factor in _SUFFIX_SI.items():          # then case-insensitive
         if suffix.lower() == unit.lower():
-            return value * factor
+            return value * factor, unit
     raise argparse.ArgumentTypeError(f"unknown unit {suffix!r} in {text!r}")
 
 
-def _kv(pairs: list[str]) -> dict[str, float]:
+def parse_quantity(text: str) -> float:
+    """Parse ``2.4GHz`` / ``1.6mm`` / ``3.5`` into an SI float (angles in rad)."""
+    return _parse(text)[0]
+
+
+def _kv(pairs: list[str], units: dict[str, str] | None = None) -> dict[str, float]:
+    """name=value pairs, each value read in the unit its parameter declares.
+
+    Specs keep angles in degrees (a `flare_deg` of 90), so `flare_deg=90deg`
+    and `flare_deg=1.5708rad` both mean 90 there, where plain SI parsing
+    would hand the spec 1.5708 and a very different antenna.
+    """
+    units = units or {}
     out: dict[str, float] = {}
     for item in pairs or []:
         if "=" not in item:
             raise argparse.ArgumentTypeError(f"expected name=value, got {item!r}")
         name, _, raw = item.partition("=")
-        out[name.strip()] = parse_quantity(raw)
+        name = name.strip()
+        value, suffix = _parse(raw)
+        declared = units.get(name, "")
+        if declared in _ANGLES and suffix:
+            if suffix not in _ANGLES:
+                raise argparse.ArgumentTypeError(
+                    f"{name} is an angle in {declared}; got {raw!r}")
+            value = math.degrees(value) if declared == "deg" else value
+        elif suffix in _ANGLES and declared not in ("", *_ANGLES):
+            raise argparse.ArgumentTypeError(
+                f"{name} is in {declared}, not an angle; got {raw!r}")
+        out[name] = value
     return out
+
+
+def _requirements(args: argparse.Namespace, a) -> dict[str, float] | None:
+    """--set pairs read against the archetype's declared units, plus --f0.
+    None (after saying why) when a value cannot be read."""
+    try:
+        reqs = _kv(args.set, {p.symbol: p.unit for p in a.spec.parameters})
+    except argparse.ArgumentTypeError as exc:
+        print(f"bad --set: {exc}", file=sys.stderr)
+        return None
+    if args.f0 is not None:
+        reqs["f0"] = args.f0
+    return reqs
 
 
 def _looks_numeric(text: str) -> bool:
@@ -90,7 +127,7 @@ def cmd_list(args: argparse.Namespace, reg: Registry) -> int:
             print(f"\n{current.upper()}")
         flag = "  [low confidence]" if a.spec.confidence == "low" else ""
         print(f"  {a.key:<{width}}  {a.name}{flag}")
-    print(f"\n{len(items)} archetype(s), {len(reg.families)} family(ies).")
+    print(f"\n{len(items)} archetype(s), {len({a.family for a in items})} family(ies).")
     return 0
 
 
@@ -138,9 +175,9 @@ def cmd_show(args: argparse.Namespace, reg: Registry) -> int:
 
 def cmd_synth(args: argparse.Namespace, reg: Registry) -> int:
     a = reg[args.key]
-    reqs = _kv(args.set)
-    if args.f0 is not None:
-        reqs["f0"] = args.f0
+    reqs = _requirements(args, a)
+    if reqs is None:
+        return 2
     if not reqs:
         print("give at least --f0 (e.g. --f0 2.4GHz)", file=sys.stderr)
         return 2
@@ -209,11 +246,19 @@ def cmd_check(args: argparse.Namespace, reg: Registry) -> int:
         if r["passed"] and not args.verbose:
             continue
         mark = "PASS" if r["passed"] else "FAIL"
-        err = f"{r['error_pct']:.2f}%" if r["error_pct"] is not None else "n/a"
+        if r["tol_abs"] is not None:
+            # an absolute tolerance decided it (an expected zero, usually):
+            # show the absolute miss, not a meaningless percentage
+            miss = (abs(complex(r["actual"]) - complex(r["expected"]))
+                    if r["actual"] is not None else None)
+            err = f"off by {miss:.4g}" if miss is not None else "n/a"
+            tol = f"tol {r['tol_abs']:g} absolute"
+        else:
+            err = f"err {r['error_pct']:.2f}%" if r["error_pct"] is not None else "n/a"
+            tol = f"tol {r['tol_pct']}%"
         print(f"[{mark}] {r['archetype']}.{r['quantity']}: "
-              f"expected {r['expected']}, got {r['actual']} (err {err}, "
-              f"tol {r['tol_pct']}%) {r['detail']}")
-    print(f"\n{len(rows) - len(failed)}/{len(rows)} known cases pass.")
+              f"expected {r['expected']}, got {r['actual']} ({err}, {tol}) {r['detail']}")
+    print(f"\n{len(rows) - len(failed)}/{len(rows)} known-case expectations pass.")
     return 1 if failed else 0
 
 
@@ -223,9 +268,9 @@ def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
     from ..export import hfss as hfss_backend
 
     a = reg[args.key]
-    reqs = _kv(args.set)
-    if args.f0 is not None:
-        reqs["f0"] = args.f0
+    reqs = _requirements(args, a)
+    if reqs is None:
+        return 2
     if not reqs:
         print("give at least --f0 (e.g. --f0 2.4GHz)", file=sys.stderr)
         return 2
@@ -407,7 +452,7 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
     from ..arrays import (TAPERS, dolph_chebyshev, grating_lobe_free_spacing_planar,
                           lattice_element_saving, planar_summarise,
                           rectangular_lattice, separable_weights, taylor_nbar,
-                          triangular_lattice, uniform)
+                          triangular_lattice, uniform, visible_grating_lobes)
 
     import numpy as np
 
@@ -495,9 +540,12 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
         d_exp = layouts.thinned_expected_directivity(thinned_from, density, args.scan, args.scan_phi, element)
         if element is None and args.ground_plane:
             d_exp *= 2.0
+        floor_txt = (f"mean sidelobe floor {10 * math.log10(floor):.1f} dB (peaks scatter "
+                     f"above it)" if floor > 0 else
+                     "no sidelobe floor: every keep probability is 1, so nothing was thinned")
         print(f"  thinned (seed {args.thin}): {kept} of {total} elements kept, the taper as the "
-              f"keep probability; expected directivity {10 * math.log10(d_exp):.2f} dBi, mean "
-              f"sidelobe floor {10 * math.log10(floor):.1f} dB (peaks scatter above it)")
+              f"keep probability; expected directivity {10 * math.log10(d_exp):.2f} dBi, "
+              + floor_txt)
     print(f"  aperture           {s['aperture_x_lambda']:.3f} x "
           f"{s['aperture_y_lambda']:.3f} lambda")
     print(f"  beam               theta {s['scan_theta_deg']:.1f} deg from the "
@@ -518,10 +566,20 @@ def cmd_planar(args: argparse.Namespace, reg: Registry) -> int:
     print(f"  taper efficiency   {s['taper_efficiency']:.4f}")
 
     limit = grating_lobe_free_spacing_planar(abs(args.scan), label)
+    widest = max(args.d, args.dy or args.d) if label == "rectangular" else args.d
     print(f"\n  grating-lobe limit {limit:.4f} lambda for scanning to "
-          f"{abs(args.scan):.1f} deg")
-    if args.d >= limit:
-        print(f"  ! SPACING {args.d:.4f} EXCEEDS THAT LIMIT - a grating lobe is in real space")
+          f"{abs(args.scan):.1f} deg in any plane")
+    lobes = visible_grating_lobes(label, args.d, args.dy, args.scan, args.scan_phi)
+    if lobes:
+        u, v = lobes[0]
+        th = math.degrees(math.asin(min(1.0, math.hypot(u, v))))
+        ph = math.degrees(math.atan2(v, u)) % 360
+        print(f"  ! A GRATING LOBE IS IN REAL SPACE at theta {th:.1f} deg, phi {ph:.1f} deg"
+              + (f" (and {len(lobes) - 1} more)" if len(lobes) > 1 else ""))
+    elif widest >= limit:
+        print(f"  note: spacing {widest:.4f} exceeds that limit, so scanning to this angle "
+              f"in some plane brings a grating lobe in; at phi {args.scan_phi:.1f} deg "
+              f"there is none")
     other = "triangular" if label == "rectangular" else "rectangular"
     other_limit = grating_lobe_free_spacing_planar(abs(args.scan), other)
     print(f"  a {other} lattice would allow {other_limit:.4f} lambda")
@@ -607,8 +665,11 @@ def cmd_touchstone(args: argparse.Namespace, reg: Registry) -> int:
         if key not in reg:
             print(f"unknown archetype {key!r}", file=sys.stderr)
             return 1
-        overrides = dict(pair.split("=", 1) for pair in (args.set or []))
-        given = {k: parse_quantity(v) for k, v in overrides.items()}
+        try:
+            given = _kv(args.set, {p.symbol: p.unit for p in reg[key].spec.parameters})
+        except argparse.ArgumentTypeError as exc:
+            print(f"bad --set: {exc}", file=sys.stderr)
+            return 2
         f_cmp = args.at if args.at else net.frequency_hz[best]
         given.setdefault("f0", f_cmp)
         try:
@@ -616,14 +677,14 @@ def cmd_touchstone(args: argparse.Namespace, reg: Registry) -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"could not synthesise {key}: {exc}", file=sys.stderr)
             return 1
-        r = design.get("input_resistance_ohm") or design.get("radiation_resistance_ohm")
-        x = design.get("input_reactance_ohm") or 0.0
-        if r is None:
-            print(f"{key} predicts no input resistance to compare against",
+        found = design.terminal_impedance()
+        if found is None:
+            print(f"{key} predicts no input impedance to compare against",
                   file=sys.stderr)
             return 1
-        out = compare_to_prediction(net, complex(float(r), float(x)), f_cmp, port)
-        print(f"\n  against {key} at {f_cmp/1e9:.6g} GHz:")
+        z_pred, basis = found
+        out = compare_to_prediction(net, z_pred, f_cmp, port)
+        print(f"\n  against {key} at {f_cmp/1e9:.6g} GHz (predicted from {basis}):")
         print(f"    predicted  {out['predicted_impedance_ohm']:.4g} ohm, "
               f"S11 {out['predicted_s11_db']:.2f} dB, VSWR {out['predicted_vswr']:.3f}")
         print(f"    measured   {out['measured_impedance_ohm']:.4g} ohm, "

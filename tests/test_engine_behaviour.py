@@ -102,8 +102,9 @@ def test_absolute_tolerance_is_used_for_expectations_of_zero():
     expected 0 is an excellent result, but relative comparison scores it as a
     300% failure.
     """
+    import math
     from otahub.core.archetype import _compare
-    assert _compare(3.0, 0.0, tol_pct=1.0) == (False, 300.0)
+    assert _compare(3.0, 0.0, tol_pct=1.0) == (False, math.inf)
     passed, _ = _compare(3.0, 0.0, tol_pct=1.0, tol_abs=6.0)
     assert passed
     passed, _ = _compare(9.0, 0.0, tol_pct=1.0, tol_abs=6.0)
@@ -152,3 +153,51 @@ def test_overriding_still_leaves_everything_else_derived(registry):
     assert not d.unresolved, d.unresolved
     assert d.get("Lc") + d.get("g") == pytest.approx(
         d.get("resonant_circumference_m"), rel=1e-12)
+
+
+def test_a_tiny_expectation_is_still_compared_relatively():
+    """Below 1e-15 the comparison used to divide by 1, so 1e-12 passed a 10%
+    check against an expected 1e-16 - ten thousand times too large."""
+    from otahub.core.archetype import _compare
+    passed, err = _compare(1e-12, 1e-16, tol_pct=10.0)
+    assert not passed and err == pytest.approx(999900.0)
+    assert _compare(1.05e-16, 1e-16, tol_pct=10.0)[0]
+
+
+def test_strict_synthesis_refuses_a_rule_that_failed():
+    """A rule that raises (1/0 here) used to drop out of the design, so strict
+    mode returned L = None with nothing unresolved."""
+    a = _from_json({**DEMO, "synthesis": [{"output": "L", "expr": "1/0", "units_out": "m"}]})
+    loose = a.synthesize(f0=1e9)
+    assert loose.get("L") is None and any("'L' failed" in w for w in loose.warnings)
+    with pytest.raises(SynthesisError, match="L failed"):
+        a.synthesize(strict=True, f0=1e9)
+
+
+def test_a_band_design_outside_the_stated_band_warns_too():
+    """Only f0 was checked; a design asked for with f_low alone never warned."""
+    a = _from_json({**DEMO, "parameters": DEMO["parameters"] + [
+        {"symbol": "f_low", "role": "requirement", "unit": "Hz"}],
+        "synthesis": [{"output": "L", "expr": "0.5 * c / f_low", "units_out": "m"}],
+        "analysis": []})
+    assert any("f_low=1000 Hz is outside" in w for w in a.synthesize(f_low=1e3).warnings)
+    assert not any("outside" in w for w in a.synthesize(f_low=1e9).warnings)
+
+
+def test_malformed_formula_is_reported_not_raised():
+    """`doctor` crashed on a syntax error: problems() caught ExprError only."""
+    spec = ArchetypeSpec.from_json({**DEMO, "synthesis": [{"output": "L", "expr": "1 +"}],
+                                    "known_cases": [{"given": {"f0": 1e9}, "expect": {"L": 1.0}}]},
+                                   "test")
+    assert any("cannot parse" in p for p in spec.problems())
+
+
+@pytest.mark.parametrize("expect,why", [
+    ({}, "expects nothing"),
+    ({"L": "long"}, "not a number"),
+    ({"L": 0.0}, "without tol_abs"),
+])
+def test_a_known_case_that_cannot_fail_is_a_problem(expect, why):
+    spec = ArchetypeSpec.from_json({**DEMO, "known_cases": [{"given": {"f0": 1e9}, "expect": expect}]},
+                                   "test")
+    assert any(why in p for p in spec.problems())

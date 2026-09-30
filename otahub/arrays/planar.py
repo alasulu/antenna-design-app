@@ -22,7 +22,7 @@ __all__ = [
     "rectangular_lattice", "triangular_lattice", "separable_weights",
     "steering_phase", "planar_array_factor", "planar_directivity",
     "planar_pattern_cut", "planar_beam_cut", "grating_lobe_free_spacing_planar",
-    "lattice_element_saving", "planar_summarise",
+    "lattice_element_saving", "planar_summarise", "visible_grating_lobes",
 ]
 
 
@@ -305,6 +305,44 @@ def grating_lobe_free_spacing_planar(scan_max_deg: float = 0.0,
         return 2.0 / (math.sqrt(3.0) * limit)
     raise ValueError(
         f"unknown lattice {lattice!r}; use 'rectangular' or 'triangular'")
+
+
+def visible_grating_lobes(lattice: str, d: float, dy: float | None = None,
+                          scan_theta_deg: float = 0.0, scan_phi_deg: float = 0.0,
+                          ) -> list[tuple[float, float]]:
+    """Direction cosines (u, v) of the grating lobes that are in real space
+    (u^2 + v^2 < 1) with the beam steered to (scan_theta, scan_phi).
+
+    They sit at the steering direction plus every non-zero reciprocal-lattice
+    vector: (p/dx, q/dy) for a rectangular lattice, p b1 + q b2 with
+    b1 = (1/s, -1/(sqrt(3) s)), b2 = (0, 2/(sqrt(3) s)) for the triangular one
+    of :func:`triangular_lattice`. This is the exact test for one steering
+    direction; :func:`grating_lobe_free_spacing_planar` is the conservative
+    one for every azimuth in a scan cone.
+    """
+    kind = lattice.strip().lower()
+    st = math.sin(math.radians(scan_theta_deg))
+    u0 = st * math.cos(math.radians(scan_phi_deg))
+    v0 = st * math.sin(math.radians(scan_phi_deg))
+    if kind in ("rect", "rectangular", "square"):
+        b1, b2 = (1.0 / d, 0.0), (0.0, 1.0 / (d if dy is None else dy))
+    elif kind in ("tri", "triangular", "hex", "hexagonal"):
+        b1, b2 = (1.0 / d, -1.0 / (math.sqrt(3.0) * d)), (0.0, 2.0 / (math.sqrt(3.0) * d))
+    else:
+        raise ValueError(f"unknown lattice {lattice!r}; use 'rectangular' or 'triangular'")
+    # |p b1 + q b2| <= 2 is all that can land within the unit circle from a
+    # steering point inside it, which bounds the search
+    reach = int(math.ceil(2.0 / min(math.hypot(*b1), math.hypot(*b2)))) + 1
+    out = []
+    for pi_ in range(-reach, reach + 1):
+        for qi in range(-reach, reach + 1):
+            if pi_ == 0 and qi == 0:
+                continue
+            u = u0 + pi_ * b1[0] + qi * b2[0]
+            v = v0 + pi_ * b1[1] + qi * b2[1]
+            if u * u + v * v < 1.0 - 1e-12:
+                out.append((u, v))
+    return out
 
 
 def lattice_element_saving() -> float:

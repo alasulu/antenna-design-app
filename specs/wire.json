@@ -485,11 +485,21 @@
             "aw": 0.0001
           },
           "expect": {
-            "length_over_lambda": 0.48463,
+            "length_over_lambda": 0.48463
+          },
+          "tol_pct": 1.0,
+          "source": "exact zero of Balanis 4-79 at a/lambda = 1e-4 is L = 0.48463 lambda (brentq on the Si/Ci reactance: 0.4846323)"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "aw": 0.0001
+          },
+          "expect": {
             "input_reactance_ohm": 0.0
           },
           "tol_pct": 1.0,
-          "source": "exact zero of Balanis 4-79 at a/lambda = 1e-4 is L = 0.48463 lambda Reactance is checked with an absolute tolerance of 6 ohm: the length fit carries 0.42% error, which maps to a few ohm of residual reactance against a 66 ohm radiation resistance (VSWR < 1.1).",
+          "source": "the same design's reactance, which Balanis 4-79 puts at zero. Checked with an absolute tolerance of 6 ohm in its own case (a tol_abs covers every expectation in its case): the length fit carries 0.42% error, which maps to a few ohm of residual reactance against a 66 ohm radiation resistance (VSWR < 1.1).",
           "tol_abs": 6.0
         },
         {

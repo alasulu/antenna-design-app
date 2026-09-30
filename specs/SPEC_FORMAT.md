@@ -41,8 +41,14 @@ The implementation is generated against it, so unit discipline is not optional.
 ## Hard rules
 - **SI internally.** All `expr` must evaluate in SI (m, Hz, ohm, W). Convert at the UI edge only.
 - `expr` is a Python expression over the parameter symbols plus: `c` (2.99792458e8), `pi`, `eps0`, `mu0`, `eta0` (376.730313412), and numpy as `np`. No statements, no imports.
-- `depends_on` lists the symbols the expression reads. It must be accurate — the engine topologically sorts on it.
+- `depends_on` lists the symbols the expression reads. The engine does not order on it:
+  synthesis and analysis resolve by relaxation over the symbols each expression
+  actually reads, so a stale list cannot break a design. `doctor` checks the list
+  against the expression and reports a symbol read but not declared.
 - Every archetype needs >=1 `known_cases` entry with a real numeric expectation. These become pytest cases. An archetype with no verifiable known case is worthless to us.
+  `doctor` rejects an empty `expect`, a non-numeric expectation, and an expected zero
+  without `tol_abs`. Without `tol_abs` the test is relative to the expectation however
+  small it is.
 - Parameter `role` is one of: `requirement` (no default, ever), `geometry`, `material` or `assumption` (both auto-default from a numeric `typical`), `derived`.
 - `freq_range_hz` is the honest validity band, not the band someone could force it into.
 - Prefer closed-form engineering formulas with stated accuracy over hand-waving. If a quantity genuinely needs a numerical solve, say so in `notes` and give the defining equation.

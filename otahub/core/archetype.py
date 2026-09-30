@@ -52,6 +52,50 @@ class DesignResult:
             return self.metrics[name]
         return self.requirements.get(name, default)
 
+    #: Where the terminal impedance comes from, best first: a complex
+    #: driving-point impedance, then resistance/reactance pairs that describe
+    #: the same port, then resistances that are the input at resonance.
+    #: Loss, mutual, edge and textbook radiation resistances are never taken
+    #: while a driving-point figure exists.
+    _IMPEDANCE_SOURCES = (
+        ("input_impedance_driving_point_ohm", None),
+        ("input_impedance_ohm", None),
+        ("input_resistance_driving_point_ohm", "input_reactance_driving_point_ohm"),
+        ("input_resistance_ohm", "input_reactance_ohm"),
+        ("input_resistance_f_low_ohm", "input_reactance_f_low_ohm"),
+        ("inset_resistance_ohm", None),
+        ("feed_resistance_ohm", None),
+        ("resonant_resistance_ohm", None),
+        ("edge_resistance_ohm", None),          # an edge-fed patch's input; an
+                                                # inset patch stops at inset above
+        ("biconical_impedance_ohm", None),
+        ("cone_impedance_over_ground_ohm", None),
+        ("self_complementary_impedance_ohm", None),
+        ("feed_impedance_each_element_ohm", None),
+        ("radiation_resistance_ohm", "input_reactance_ohm"),
+    )
+
+    def terminal_impedance(self) -> tuple[complex, str] | None:
+        """The predicted impedance at the feed, and a note of what it was
+        built from - or None when the design predicts none."""
+        for r_name, x_name in self._IMPEDANCE_SOURCES:
+            r = self.metrics.get(r_name)
+            if r is None:
+                continue
+            try:
+                z = complex(r)
+            except (TypeError, ValueError):
+                continue
+            if not (math.isfinite(z.real) and math.isfinite(z.imag)):
+                continue
+            if x_name is None:
+                return z, r_name
+            x = self.metrics.get(x_name)
+            if x is None:
+                return z, f"{r_name} (no reactance predicted; taken as 0)"
+            return complex(z.real, float(x)), f"{r_name} + j {x_name}"
+        return None
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "archetype": self.archetype,
@@ -133,6 +177,7 @@ class Archetype:
         units.setdefault("lambda0", "m")
         units.setdefault("k0", "rad/m")
 
+        failed: dict[str, str] = {}
         progressed = True
         while pending and progressed:
             progressed = False
@@ -152,12 +197,14 @@ class Archetype:
                     needed = referenced_symbols(rule.expr, syms)
                 except ExprError as exc:
                     warnings.append(f"skipped {rule.output!r}: {exc}")
+                    failed[rule.output] = str(exc)
                     continue
                 if needed <= set(known):
                     try:
                         known[rule.output] = evaluate(rule.expr, known)
                     except ExprError as exc:
                         warnings.append(f"{rule.output!r} failed: {exc}")
+                        failed[rule.output] = str(exc)
                         continue
                     if rule.units_out:
                         units[rule.output] = rule.units_out
@@ -174,8 +221,9 @@ class Archetype:
                 f"{rule.output!r} not computed: needs {missing}. "
                 f"Supply them as requirements to complete the design."
             )
-        if strict and unresolved:
-            detail = "; ".join(f"{k} needs {v}" for k, v in unresolved.items())
+        if strict and (unresolved or failed):
+            detail = "; ".join([f"{k} needs {v}" for k, v in unresolved.items()]
+                               + [f"{k} failed: {v}" for k, v in failed.items()])
             raise SynthesisError(f"{self.spec.key}: incomplete design — {detail}")
 
         params = {k: v for k, v in known.items() if k not in requirements}
@@ -250,12 +298,14 @@ class Archetype:
 
     def _validity_warnings(self, known: Mapping[str, Any]) -> list[str]:
         out: list[str] = []
-        f0 = known.get("f0")
-        if f0 is not None:
-            lo, hi = self.spec.freq_range_hz
-            if not (lo <= f0 <= hi):
+        lo, hi = self.spec.freq_range_hz
+        # every operating-frequency requirement, not just f0: a band design
+        # asked for with f_low alone must warn as readily as one with f0
+        for name in ("f0", "f_low", "f_high"):
+            f = known.get(name)
+            if isinstance(f, (int, float)) and not (lo <= f <= hi):
                 out.append(
-                    f"f0={f0:.4g} Hz is outside this archetype's stated validity "
+                    f"{name}={f:.4g} Hz is outside this archetype's stated validity "
                     f"band [{lo:.4g}, {hi:.4g}] Hz"
                 )
         if self.spec.confidence == "low":
@@ -345,14 +395,18 @@ def _compare(got: Any, want: Any, tol_pct: float,
         if isinstance(got, complex) or isinstance(want, complex):
             g, w = complex(got), complex(want)
             delta = abs(g - w)
-            denom = abs(w) if abs(w) > 0 else 1.0
         else:
             g, w = float(got), float(want)
             if not (math.isfinite(g) and math.isfinite(w)):
                 return g == w, None
             delta = abs(g - w)
-            denom = abs(w) if abs(w) > 1e-15 else 1.0
-        err = delta / denom * 100.0
+        # relative to the expectation however small it is; against an
+        # expected zero the relative error is infinite unless the value is
+        # exactly zero, which is why a zero needs tol_abs
+        if w != 0:
+            err = delta / abs(w) * 100.0
+        else:
+            err = 0.0 if delta == 0 else math.inf
     except (TypeError, ValueError):
         return got == want, None
     if tol_abs is not None:

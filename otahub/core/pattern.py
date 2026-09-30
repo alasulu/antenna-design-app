@@ -45,7 +45,8 @@ class Pattern:
     def directivity(self) -> float:
         """Peak directivity D = 4*pi*U_max / P_rad."""
         p_rad = self.radiated_power()
-        if p_rad <= _EPS:
+        # scale-free: only a pattern that radiates nothing at all is refused
+        if not (p_rad > 0 and self.U.max() > 0 and math.isfinite(p_rad)):
             raise ValueError("pattern radiates no power; directivity undefined")
         return float(4.0 * math.pi * self.U.max() / p_rad)
 
@@ -57,7 +58,7 @@ class Pattern:
         idx = int(np.argmin(np.abs(self.phi - (phi_rad % (2 * math.pi)))))
         cut = self.U[:, idx]
         peak = cut.max()
-        return cut / peak if peak > _EPS else cut
+        return cut / peak if peak > 0 else cut      # thresholds below are relative
 
 
 def make_grid(n_theta: int = 361, n_phi: int = 181) -> tuple[np.ndarray, np.ndarray]:
@@ -101,8 +102,10 @@ def cosine_q(q: float = 1.0, n_theta: int = 361, n_phi: int = 181) -> Pattern:
     feed-pattern directivity D = 2*(2q + 1).
     """
     theta, phi = make_grid(n_theta, n_phi)
-    f = np.where(theta <= math.pi / 2, np.cos(theta), 0.0)
-    return _broadcast(theta, phi, f ** (2.0 * q))
+    # mask after the power: 0 ** 0 is 1, so masking first lit the back
+    # hemisphere for q = 0 and gave D = 1 instead of 2
+    u = np.where(theta <= math.pi / 2, np.abs(np.cos(theta)) ** (2.0 * q), 0.0)
+    return _broadcast(theta, phi, u)
 
 
 def uniform_line_source(length_over_lambda: float, n_theta: int = 2001,

@@ -12,7 +12,7 @@ from .planar import (grating_lobe_free_spacing_planar, lattice_element_saving,
                      planar_beam_cut,
                      planar_array_factor, planar_directivity, planar_pattern_cut,
                      planar_summarise, rectangular_lattice, separable_weights,
-                     steering_phase, triangular_lattice)
+                     steering_phase, triangular_lattice, visible_grating_lobes)
 from .tapers import (TAPERS, binomial, dolph_chebyshev, raised_cosine,
                      taper_efficiency, taylor_nbar, uniform)
 
@@ -24,7 +24,7 @@ __all__ = ["uniform", "binomial", "dolph_chebyshev", "taylor_nbar",
            "rectangular_lattice", "triangular_lattice", "separable_weights",
            "steering_phase", "planar_array_factor", "planar_directivity",
            "planar_pattern_cut", "planar_beam_cut", "grating_lobe_free_spacing_planar",
-           "lattice_element_saving", "planar_summarise",
+           "lattice_element_saving", "planar_summarise", "visible_grating_lobes",
            "ElementPattern", "isotropic", "cosine", "short_dipole", "custom",
            "power_kernel", "element_directivity",
            "ring", "concentric_rings", "clip_to_circle", "taylor_circular_pattern",
