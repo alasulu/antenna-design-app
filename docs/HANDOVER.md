@@ -340,8 +340,12 @@ horn is the aperture in a ground plane (within 0.15 dB over a_wg 0.65-2
 wavelengths; the aperture-power form 0.7-1.6 dB low) and the H-plane horn keeps
 the aperture-power form (0.2-0.3 dB high at the default, on three grids); the
 PIFA's directivity on an infinite ground plane (3.4-4.6 dBi, at the horizon); and
-a flanged WR-90 guide, 0.48 dB above the pure-TE10 aperture on three grids - its
-edge fields - which the spec notes but, from one guide, does not adopt.
+a flanged WR-90 guide, 0.17 dB above the pure-TE10 aperture on three grids - its
+edge fields - which the spec notes but, from one guide, does not adopt. (First
+recorded as 0.48 dB: that transform's box cut through the flange and took its
+images through the back short, and moved 0.36 dB with the box's size. A flange is
+now its own image plane and the aperture's field the only source, which fed an
+ideal TE10 field reproduces the spec's integral to 0.003 dB.)
 
 **Limits that bite:** staircased walls, no dielectric under the box's faces,
 half a minute to a quarter of an hour a horn at 24-48 cells a wavelength, so the
@@ -896,7 +900,7 @@ a modest extension of them.
     into surface waves needs a far-field transform whose box may cross the
     substrate, or a MoM of these shapes.
 11. **A flanged open-ended waveguide over the band.** One FDTD guide (WR-90 at
-    10 GHz) reads 0.48 dB above the TE10 aperture the spec carries; a survey over
+    10 GHz) reads 0.17 dB above the TE10 aperture the spec carries; a survey over
     frequency and guide size would let the spec adopt it. Compute only
     (`horn_fdtd.sectoral_horn(..., flange=True)`).
 12. **The spirals' feed region.** The planar solver shows their input impedance

@@ -16,6 +16,7 @@ import json
 import math
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from otahub.num import horn_fdtd as hf
@@ -94,15 +95,33 @@ def test_the_h_plane_horn_keeps_the_aperture_power_form():
         assert abs(h["fdtd_dbi"] - ap) < 0.3
 
 
-def test_a_flanged_guide_reads_half_a_decibel_above_the_te10_aperture(registry):
-    """Live at 40 cells a wavelength, and the finer grids from the data."""
+def test_the_flange_transform_reproduces_the_te10_aperture_integral(registry):
+    """Fed an ideal TE10 field, the aperture-plane transform (M = -z x E imaged through
+    the flange) must give what the spec integrates independently, whatever the box."""
+    a, b, N = 0.75, 0.35, 40
+    xa, yb = int(round(a / 2 * N)), int(round(b / 2 * N))
+    spec = registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=a * LAM, b_wg=b * LAM)
+    for m in (4, 10):
+        box = hf.BoxTransform(xa + m, yb + m, 5, 1.0 / N, 0.5, k_plane=0)
+        X, Y = np.meshgrid(np.arange(box.i0) + 0.5, np.arange(box.j0) + 0.5, indexing="ij")
+        ey = np.where((X < xa) & (Y < yb), np.cos(math.pi * X / (2 * xa)), 0.0).astype(complex)
+        zero = np.zeros_like(ey)
+        box.acc = {"zlo_Ex": zero, "zlo_Ey": ey, "zlo_Hx": zero, "zlo_Hy": zero}
+        got = 10 * math.log10(box.directivity(n_theta=80, n_phi=96))
+        assert got == pytest.approx(spec.metrics["directivity_dbi"], abs=0.005), m
+
+
+def test_a_flanged_guide_reads_a_sixth_of_a_decibel_above_the_te10_aperture(registry):
+    """Live at 40 cells a wavelength, and the finer grids from the data: the guide's own
+    aperture field (edge fields, the evanescent modes the flange excites) adds 0.17 dB
+    to the pure-TE10 aperture on three grids."""
     runs = list(DATA["oewg"])
     a, b = 2 * round(0.02286 / LAM / 2 * 40) / 40, 2 * round(0.01016 / LAM / 2 * 40) / 40
     live = hf.sectoral_horn(a, b, a, b, 0.0, cells_per_lambda=40, guide_len=1.5, flange=True, periods=25)
     assert 10 * math.log10(live["directivity"]) == pytest.approx(next(r for r in runs if r["N"] == 40)["fdtd_dbi"], abs=1e-6)
     for r in runs:
         model = registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=r["a"] * LAM, b_wg=r["b"] * LAM)
-        assert 0.45 < r["fdtd_dbi"] - model.metrics["directivity_dbi"] < 0.51, r["N"]
+        assert 0.15 < r["fdtd_dbi"] - model.metrics["directivity_dbi"] < 0.19, r["N"]
 
 
 def test_the_pifa_directivity_is_the_fdtds(registry):
@@ -123,3 +142,13 @@ def test_the_pifa_directivity_is_the_fdtds(registry):
 def test_a_partial_short_has_no_pifa_directivity(registry):
     d = registry["pifa"].synthesize(f0=1e9, h=0.0105, W=0.036, Ws=0.018)
     assert math.isnan(d.metrics["directivity_dbi"]) and math.isnan(d.metrics["directivity_broadside_dbi"])
+
+
+def test_a_far_field_off_the_resonance_is_refused():
+    """The ring-down accepts 0.5-1.6 f_guess but the DFT covers 0.8-1.2: a coarse air
+    patch resonating 42% above its guess got its far field 15.5% below the resonance,
+    under a docstring promising 0.5%."""
+    from otahub.num import patch_fdtd as pf
+    with pytest.raises(ValueError, match="nearest DFT frequency"):
+        pf.sheet_directivity(1.0, 2, lambda x, y: (x <= 12) & (y <= 11) & (x >= 0) & (y >= 0), 12, 0.0, 11,
+                             0.013227272727272726, (0, 9), box_gap=4, air=14, npml=8, periods=15)

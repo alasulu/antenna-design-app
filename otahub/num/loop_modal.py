@@ -81,11 +81,15 @@ def resonant_circumference(a: float, nmax: int = 60, steps: int = 24,
 
     A thicker conductor resonates at a LONGER circumference, which is the
     opposite of a dipole and the opposite of what `one_wavelength_circular_loop`
-    used to claim.
+    used to claim. A bracket with no crossing in it is an error, not its end.
     """
+    below = input_impedance(lo, a, nmax).imag < 0
+    if (input_impedance(hi, a, nmax).imag < 0) == below:
+        raise ValueError(f"no resonance between C = {lo} and {hi} wavelengths "
+                         f"for a = {a} wavelengths; widen the bracket")
     for _ in range(steps):
         mid = 0.5 * (lo + hi)
-        if input_impedance(mid, a, nmax).imag < 0:
+        if (input_impedance(mid, a, nmax).imag < 0) == below:
             lo = mid
         else:
             hi = mid

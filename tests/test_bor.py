@@ -63,3 +63,10 @@ def test_a_long_wide_bicone_presents_its_characteristic_impedance():
 def test_profile_rejects_the_axis():
     with pytest.raises(ValueError):
         bor.profile([(0.0, -0.2), (0.01, 0.0), (0.01, 0.01), (0.2, 0.01)], 0.02, gap=(1, 2))
+
+
+def test_the_far_field_takes_a_single_angle():
+    sol = bor.solve(_tube(0.47, 0.001, 0.02, 0.02))
+    many = bor.far_field(sol, [0.3, math.pi / 2])
+    assert bor.far_field(sol, math.pi / 2) == pytest.approx(many[1], rel=1e-14)
+    assert bor.far_field(sol, math.pi / 2).shape == ()

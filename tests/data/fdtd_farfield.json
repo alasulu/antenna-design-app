@@ -1,5 +1,5 @@
 {
- "notes": "FDTD with the closed near-to-far-field box transform (otahub.num.horn_fdtd.BoxTransform). air_patch: patch_fdtd.sheet_directivity of an air patch L x W, h in wavelengths, nh cells across h; f in cycles per unit length, the MoM compared at f_dft (the box's DFT frequency). pifa: sheet_directivity of the plate with a full-width short, h and W in wavelengths at f, D linear. horns: horn_fdtd.sectoral_horn(free=True) at 30-cell default margins; dims = [a_wg, b_wg, A, B] in wavelengths, rho apex to aperture, flare_len the flare's axial length; kind E flares b, kind H flares a. oewg: sectoral_horn with A = a, B = b, no flare, flange=True, guide_len 1.5, periods 25. A first horn grid with a PEC plane behind the throat (z = 0) read the H-plane horn at the default 7.23 dBi against 11.41 for the aperture-power form - the plane mirrored the edge radiation - and is not used.",
+ "notes": "FDTD with the closed near-to-far-field box transform (otahub.num.horn_fdtd.BoxTransform). air_patch: patch_fdtd.sheet_directivity of an air patch L x W, h in wavelengths, nh cells across h; f in cycles per unit length, the MoM compared at f_dft (the box's DFT frequency). pifa: sheet_directivity of the plate with a full-width short, h and W in wavelengths at f, D linear. horns: horn_fdtd.sectoral_horn(free=True) at 30-cell default margins; dims = [a_wg, b_wg, A, B] in wavelengths, rho apex to aperture, flare_len the flare's axial length; kind E flares b, kind H flares a. oewg: sectoral_horn with A = a, B = b, no flare, flange=True, guide_len 1.5, periods 25; the transform is the aperture plane alone (BoxTransform k_plane, M = -z x E imaged through the flange). The first record used a box cut through the flange with images through z = 0 and read 0.48 dB high, differently for each box size. A first horn grid with a PEC plane behind the throat (z = 0) read the H-plane horn at the default 7.23 dBi against 11.41 for the aperture-power form - the plane mirrored the edge radiation - and is not used.",
  "air_patch": [
   {
    "h": 0.04,
@@ -306,19 +306,19 @@
    "N": 40,
    "a": 0.75,
    "b": 0.35,
-   "fdtd_dbi": 6.803401396845544
+   "fdtd_dbi": 6.499092215909057
   },
   {
    "N": 48,
    "a": 0.75,
    "b": 0.3333333333333333,
-   "fdtd_dbi": 6.743224569619399
+   "fdtd_dbi": 6.430251694104058
   },
   {
    "N": 56,
    "a": 0.75,
    "b": 0.32142857142857145,
-   "fdtd_dbi": 6.700714104117088
+   "fdtd_dbi": 6.382528665852063
   }
  ]
 }

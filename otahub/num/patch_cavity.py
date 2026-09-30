@@ -21,8 +21,11 @@ k = pi, and `TruncatedSquare.k_square` is the mesh's own value of it, which is
 what frequency offsets should be measured against. The corners at (0, 0) and
 (1, 1) are cut by right isosceles triangles of leg c = m/n, removing c^2 of
 area in all. The mesh follows the cut exactly and splits every cell along the
-anti-diagonal, which is symmetric under x <-> y, so the uncut square keeps its
-degeneracy exactly on the mesh and any split is the cut's doing.
+anti-diagonal. That keeps the x <-> y reflection but not the 90-degree
+rotation, and the reflection alone does not hold cos(pi x) +- cos(pi y)
+together (they are even and odd under it), so the uncut square's pair splits
+on the mesh too - by 8e-5 at 4 cells a side, 6e-7 at 12, falling as h^4,
+against the 2.7e-2 of a 1/12 cut. The cut's split is the one measured.
 """
 from __future__ import annotations
 

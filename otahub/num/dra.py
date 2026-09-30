@@ -178,7 +178,10 @@ def matrix_pencil(y, dt: float, modes: int = 16):
     Y = np.array([y[i:i + L + 1] for i in range(n - L)])
     _, S, Vh = np.linalg.svd(Y, full_matrices=False)
     M = min(modes, int(np.sum(S > S[0] * 1e-10)))
-    V = Vh[:M].conj().T
+    # rows of Vh span the row space of the Hankel matrix, (z^j) itself; their
+    # conjugates gave conj(z), invisible on a real ringdown (poles in pairs)
+    # and wrong on a complex one
+    V = Vh[:M].T
     z = np.linalg.eigvals(np.linalg.pinv(V[:-1]) @ V[1:])
     a = np.linalg.lstsq(np.vander(z, n, increasing=True).T, y, rcond=None)[0]
     return np.log(z) / dt, a

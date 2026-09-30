@@ -334,5 +334,10 @@ def sheet_directivity(eps_r: float, nh: int, inside, x_max: float, y_min: float,
     nearest of 41 trial frequencies (0.8-1.2 f_guess) to the resonance, within 0.5% of it."""
     f, q, box = _sheet_run(eps_r, nh, inside, x_max, y_min, y_max, f_guess, src, half=half, short_y=short_y,
                            box_gap=box_gap, **kw)
+    if abs(box.f / f - 1.0) > 0.005:
+        # the ring-down accepts 0.5-1.6 f_guess, the DFT only covers 0.8-1.2: a far field
+        # at the band's edge is not the resonance's
+        raise ValueError(f"the resonance at {f:.6g} is {100 * (box.f / f - 1):+.1f}% from the "
+                         f"nearest DFT frequency; rerun with f_guess nearer it")
     d_peak, th, ph = box.peak()
     return dict(f=f, q=q, directivity=box.directivity(), peak=d_peak, peak_theta=th, peak_phi=ph, f_dft=box.f)

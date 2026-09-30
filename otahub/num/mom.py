@@ -306,9 +306,14 @@ def _segment_moments(model: WireModel, exact: bool = False):
     flat = obs.reshape(-1, 3)
 
     M = np.zeros((2, 2, ns, ns), dtype=complex)
+    # The reduced kernel's radius for a PAIR of segments is the rms of the
+    # two, (a_p^2 + a_q^2)/2: symmetric, so wires of different radii give the
+    # same impedance in either order (only the upper triangle is assembled),
+    # and exactly a^2 - to the bit - when the radii are equal.
+    rad2_obs = np.repeat(model.seg_rad ** 2, len(xo))
     for q in range(ns):
         A, u, L = model.seg_a[q], model.seg_t[q], model.seg_len[q]
-        a2 = model.seg_rad[q] ** 2
+        a2 = 0.5 * (rad2_obs + model.seg_rad[q] ** 2)
         d = flat - A
         u0 = d @ u
         rho2 = np.maximum(np.einsum('ij,ij->i', d, d) - u0 ** 2 + a2, a2)
@@ -337,7 +342,8 @@ def _segment_moments(model: WireModel, exact: bool = False):
                 if abs(off @ u) > 0.5 * (L + model.seg_len[p]) + 6.0 * aq:
                     continue                      # far enough for the reduced kernel
                 rows = slice(p * len(xo), (p + 1) * len(xo))
-                e0, e1 = _inner_exact(u0[rows], L, aq)
+                e0, e1 = _inner_exact(u0[rows], L,
+                                      math.sqrt(0.5 * (aq ** 2 + model.seg_rad[p] ** 2)))
                 inner0 = inner0.copy()
                 inner1 = inner1.copy()
                 inner0[rows], inner1[rows] = e0, e1
@@ -503,12 +509,26 @@ def _segment_phasor(A, u, L, alpha, beta, rhat):
     """
     g = K * (rhat @ u)
     phase = np.exp(1j * K * (rhat @ A))
-    small = np.abs(g) < 1e-9
+    # Near broadside the closed form subtracts two terms of size L/(g L)^2
+    # and loses every digit (60% wrong a 1e-8 rad from broadside); below
+    # |g L| = 0.1 take the series, sum_n (jg)^n L^(n+1+b) / (n! (n+1+b)),
+    # which ten terms carry to 1e-16.
+    small = np.abs(g * L) < 0.1
     gs = np.where(small, 1.0, g)
     e = np.exp(1j * gs * L)
-    i0 = np.where(small, L, (e - 1.0) / (1j * gs))
-    i1 = np.where(small, 0.5 * L * L,
-                  (L * e) / (1j * gs) - (e - 1.0) / (1j * gs) ** 2)
+    i0 = (e - 1.0) / (1j * gs)
+    i1 = (L * e) / (1j * gs) - (e - 1.0) / (1j * gs) ** 2
+    if np.any(small):
+        x = 1j * np.where(small, g, 0.0) * L
+        term = np.ones_like(x)
+        s0 = np.zeros_like(x)
+        s1 = np.zeros_like(x)
+        for n in range(10):
+            s0 = s0 + term / (n + 1)
+            s1 = s1 + term / (n + 2)
+            term = term * x / (n + 1)
+        i0 = np.where(small, L * s0, i0)
+        i1 = np.where(small, L * L * s1, i1)
     return phase * (alpha * i0 + beta * i1)
 
 
@@ -694,11 +714,14 @@ def resonant_scale(z_of_scale, lo: float = 0.85, hi: float = 1.15,
     """Frequency scale where the reactance crosses zero, or None if it does not
     inside the bracket. Returning None rather than a bracket end matters: a
     structure with no resonance in range should say so, not report an edge."""
-    if z_of_scale(lo).imag * z_of_scale(hi).imag > 0:
+    below = z_of_scale(lo).imag < 0
+    if (z_of_scale(hi).imag < 0) == below:
         return None
+    # keep the side whose sign `lo` started with: a reactance that crosses
+    # DOWNWARD (an antiresonance) used to walk to the bracket's end
     for _ in range(steps):
         mid = 0.5 * (lo + hi)
-        if z_of_scale(mid).imag < 0:
+        if (z_of_scale(mid).imag < 0) == below:
             lo = mid
         else:
             hi = mid

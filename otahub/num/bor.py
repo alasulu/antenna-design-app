@@ -220,7 +220,8 @@ def far_field(sol: BorSolution, theta: np.ndarray) -> np.ndarray:
     pr = sol.profile
     x, w = np.polynomial.legendre.leggauss(12)
     I = np.concatenate([[0.0], sol.currents, [0.0]])
-    th = np.asarray(theta, dtype=float)[:, None]
+    shape = np.shape(theta)
+    th = np.asarray(theta, dtype=float).reshape(-1)[:, None]
     out = np.zeros(th.shape[0], dtype=complex)
     for p in range(pr.n_seg):
         s = 0.5 * pr.seg_len[p] * (x + 1.0)
@@ -230,7 +231,7 @@ def far_field(sol: BorSolution, theta: np.ndarray) -> np.ndarray:
         arg = K * rho[None, :] * np.sin(th)
         comp = (pr.seg_t[p, 0] * np.cos(th) * 1j * j1(arg) - pr.seg_t[p, 1] * np.sin(th) * j0(arg))
         out += (cur * comp * np.exp(1j * K * z[None, :] * np.cos(th)) * w).sum(axis=1) * 0.5 * pr.seg_len[p]
-    return -1j * ETA0 * K / (4.0 * math.pi) * out
+    return (-1j * ETA0 * K / (4.0 * math.pi) * out).reshape(shape)
 
 
 def radiated_power(sol: BorSolution, n: int = 721) -> float:

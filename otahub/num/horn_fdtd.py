@@ -59,12 +59,28 @@ class BoxTransform:
     [0, i0] x [0, j0] x [0, k0] - the other faces lie on the walls. With j_lo given the
     grid has no wall at y = 0 (the half-space grid): the box is [0, i0] x [j_lo, j0] x
     [0, k0], with a face at y = j_lo too and no image through y. With k_lo given, likewise
-    in z (the free grid): a face at z = k_lo, no image through z, the whole sphere."""
+    in z (the free grid): a face at z = k_lo, no image through z, the whole sphere.
+
+    With k_plane given, z = k_plane is an infinite PEC plane with an opening - a flange
+    round an aperture, the source behind it. Then the only equivalent source is the
+    plane itself: M = -z x E over [0, i0] x [0, j0] of it, outward normal +z into the
+    half space in front, imaged through the plane (which doubles M and cancels J), and
+    E is zero on the metal, so only the opening counts and the box's size does not. A
+    box round the space in front instead encloses no source, and one cutting through
+    the flange read 0.36 dB differently as its size changed."""
 
     def __init__(self, i0: int, j0: int, k0: int, f: float, dt: float, j_lo: int | None = None,
-                 k_lo: int | None = None):
+                 k_lo: int | None = None, k_plane: int | None = None):
+        if k_lo is not None and k_plane is not None:
+            raise ValueError("k_lo (no plane) and k_plane (a plane) exclude each other")
         self.i0, self.j0, self.k0, self.f, self.dt, self.j_lo, self.k_lo = i0, j0, k0, f, dt, j_lo, k_lo
+        self.k_plane = k_plane
         self.acc: dict[str, np.ndarray] = {}
+
+    @property
+    def _k_first(self) -> int:
+        """The box's first z cell: the free grid's k_lo, a flange plane, or the wall at 0."""
+        return self.k_lo if self.k_lo is not None else (self.k_plane or 0)
 
     def _add(self, key, value, w):
         if key in self.acc:
@@ -76,7 +92,7 @@ class BoxTransform:
         """Call after the n-th g.step(): E is at (n + 1) dt, H at (n + 1/2) dt."""
         i0, j0, k0 = self.i0, self.j0, self.k0
         a = self.j_lo or 0                               # first y cell of the box
-        c = self.k_lo or 0                               # first z cell of the box
+        c = self._k_first                                # first z cell of the box
         we = np.exp(-2j * math.pi * self.f * (n + 1) * self.dt) * self.dt
         wh = np.exp(-2j * math.pi * self.f * (n + 0.5) * self.dt) * self.dt
         Ex, Ey, Ez, Hx, Hy, Hz = g.Ex, g.Ey, g.Ez, g.Hx, g.Hy, g.Hz
@@ -94,7 +110,7 @@ class BoxTransform:
             self._add(key + "_Hx", 0.25 * (Hx[:i0, jy - 1, c:k0] + Hx[:i0, jy, c:k0] + Hx[1:i0 + 1, jy - 1, c:k0] + Hx[1:i0 + 1, jy, c:k0]), wh)
             self._add(key + "_Hz", 0.25 * (Hz[:i0, jy - 1, c:k0] + Hz[:i0, jy, c:k0] + Hz[:i0, jy - 1, c + 1:k0 + 1] + Hz[:i0, jy, c + 1:k0 + 1]), wh)
         # z faces, points (i + 1/2, j + 1/2, z)
-        for key, kz in (("z", k0), ("zlo", self.k_lo)):
+        for key, kz in (("z", k0), ("zlo", self.k_lo if self.k_lo is not None else self.k_plane)):
             if kz is None:
                 continue
             self._add(key + "_Ex", 0.5 * (Ex[:i0, a:j0, kz] + Ex[:i0, a + 1:j0 + 1, kz]), we)
@@ -106,7 +122,13 @@ class BoxTransform:
         """[(points (P, 3), J (P, 3), M (P, 3))] on the three faces, unit cell areas."""
         a, i0, j0, k0 = self.acc, self.i0, self.j0, self.k0
         lo = self.j_lo or 0
-        klo = self.k_lo or 0
+        klo = self._k_first
+        if self.k_plane is not None:                     # the aperture plane alone, normal +z
+            ii, jj = np.meshgrid(np.arange(i0) + 0.5, np.arange(lo, j0) + 0.5, indexing="ij")
+            P = np.stack([ii.ravel(), jj.ravel(), np.full(ii.size, float(klo))], 1)
+            z = np.zeros(ii.size, complex)
+            return [(P, np.stack([-a["zlo_Hy"].ravel(), a["zlo_Hx"].ravel(), z], 1),
+                     np.stack([a["zlo_Ey"].ravel(), -a["zlo_Ex"].ravel(), z], 1))]
         out = []
         jj, kk = np.meshgrid(np.arange(lo, j0) + 0.5, np.arange(klo, k0) + 0.5, indexing="ij")
         P = np.stack([np.full(jj.size, float(i0)), jj.ravel(), kk.ravel()], 1)
@@ -124,8 +146,8 @@ class BoxTransform:
         P = np.stack([ii.ravel(), jj.ravel(), np.full(ii.size, float(k0))], 1)
         z = np.zeros(ii.size, complex)
         out.append((P, np.stack([-a["z_Hy"].ravel(), a["z_Hx"].ravel(), z], 1), np.stack([a["z_Ey"].ravel(), -a["z_Ex"].ravel(), z], 1)))
-        if self.k_lo is not None:                        # the z = k_lo face, outward normal -z
-            P = np.stack([ii.ravel(), jj.ravel(), np.full(ii.size, float(self.k_lo))], 1)
+        if self.k_lo is not None or self.k_plane is not None:   # the z = k_lo face, outward normal -z
+            P = np.stack([ii.ravel(), jj.ravel(), np.full(ii.size, float(klo))], 1)
             out.append((P, np.stack([a["zlo_Hy"].ravel(), -a["zlo_Hx"].ravel(), z], 1),
                         np.stack([-a["zlo_Ey"].ravel(), a["zlo_Ex"].ravel(), z], 1)))
         return out
@@ -139,6 +161,9 @@ class BoxTransform:
         N = np.zeros((len(rhat), 3), complex)
         L = np.zeros((len(rhat), 3), complex)
         faces = self._currents()
+        if self.k_plane is not None:                     # image through the flange's plane, not z = 0
+            shift = np.array([0.0, 0.0, float(self.k_plane)])
+            faces = [(P - shift, J, M) for P, J, M in faces]
         npts = sum(len(P) for P, _, _ in faces)
         step = max(1, int(4e6 / max(npts, 1)))                   # directions per chunk: ~64 MB of phases
         for P, J, M in faces:
@@ -295,7 +320,10 @@ def sectoral_horn(a_wg: float, b_wg: float, A: float, B: float, flare_len: float
         kf_ = kz0 + k_ap
         mx[:, :, kf_] |= (np.arange(shape[0])[:, None] + 0.5 > xa1) | (np.arange(shape[1] + 1)[None, :] >= yb1)
         my[:, :, kf_] |= (np.arange(shape[0] + 1)[:, None] >= xa1) | (np.arange(shape[1])[None, :] + 0.5 > yb1)
-    box = BoxTransform(i0, j0, k0, f, g.dt, k_lo=(kz0 - m) if free else None)
+        # the box closes on the flange and images through it: the plane is infinite
+        box = BoxTransform(i0, j0, k0, f, g.dt, k_plane=kf_)
+    else:
+        box = BoxTransform(i0, j0, k0, f, g.dt, k_lo=(kz0 - m) if free else None)
     lam_g = 1.0 / math.sqrt(1.0 - (1.0 / (2.0 * a_wg)) ** 2)            # guide wavelength, in wavelengths
     ks = max(1, int(round(0.25 * lam_g * N)))
     xs = np.arange(xa0 + 1)

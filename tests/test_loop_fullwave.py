@@ -164,3 +164,12 @@ def test_small_loop_formulas_are_useless_here(registry):
     small_rr = 20.0 * math.pi ** 2 * c_over_lambda ** 4
     assert small_rr / d.metrics["input_resistance_ohm"] > 1.5
     assert d.metrics["directivity_linear"] > 1.4 * 1.5
+
+
+def test_a_bracket_without_a_resonance_is_an_error():
+    """It used to return the bracket's end, 1.05, as the resonance of a loop that
+    resonates at 1.0623 lambda."""
+    with pytest.raises(ValueError, match="no resonance"):
+        loop_modal.resonant_circumference(0.001, lo=0.95, hi=1.05)
+    c, _ = loop_modal.resonant_circumference(0.001)
+    assert abs(loop_modal.input_impedance(c, 0.001).imag) < 1e-3

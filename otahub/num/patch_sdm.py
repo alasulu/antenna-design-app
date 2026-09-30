@@ -116,7 +116,11 @@ class RectPatch:
         kz0 = -1j * np.sqrt(kr * kr - k0 * k0 + 0j)
         kz1 = -1j * np.sqrt(kr * kr - self.er * k0 * k0 + 0j)
         x = kz1 * self.h
-        cot = np.cos(x) / np.sin(x)
+        # cos/sin overflows for |Im x| in the hundreds (a thick slab far out in the
+        # evanescent spectrum); the stable form takes over there, leaving every
+        # ordinary value exactly as it was
+        with np.errstate(over="ignore", invalid="ignore"):
+            cot = np.where(np.abs(np.imag(x)) > 20, _cot(np.asarray(x, dtype=complex)), np.cos(x) / np.sin(x))
         ytm = w * EPS0 / kz0 - 1j * (w * EPS0 * self.er / kz1) * cot
         yte = kz0 / (w * MU0) - 1j * (kz1 / (w * MU0)) * cot
         return 1 / ytm, 1 / yte
@@ -413,19 +417,32 @@ def _probe_terms(p: RectPatch, kr, k0: float):
     return [(slice(0, len(p.basis)), p.znode(kr, k0)[0])], p.er
 
 
+def _odd_in_kx(p: RectPatch) -> np.ndarray:
+    """Per basis function: is its radial spectrum odd in kx? J_x even in x (n even) or
+    J_y odd in x (j odd) makes it so - the TM10 class, coupled through sin(kx xp); the
+    others (E_z even in x) through cos(kx xp)."""
+    return np.array([(n % 2 == 0) if d == "x" else (j % 2 == 1) for d, n, j in p.basis])
+
+
 def _probe_acc(p: RectPatch, nodes, weights, k0: float, xp, a: float):
     """Per-node contributions (len(nodes), len(xp), n_basis) to the probe coupling."""
     out = np.zeros((len(nodes), len(xp), len(p.basis)), complex)
+    odd = _odd_in_kx(p)
     for m, (kr, wk) in enumerate(zip(nodes, weights)):
         al, wa = p._alphas(kr)
         ca, sa = np.cos(al), np.sin(al)
         terms, er1 = _probe_terms(p, kr, k0)
         F = p.ft(kr * ca, kr * sa)
         ju = (F[:, 0] * ca + F[:, 1] * sa) * wa                          # (n_basis, n_alpha)
-        if p.x_even_ez:                                                   # e^{-j kx xp}: its even part
-            proj = 1j * np.cos(kr * np.multiply.outer(xp, ca)) @ ju.T
-        else:                                                             # its odd part
-            proj = np.sin(kr * np.multiply.outer(xp, ca)) @ ju.T          # (len(xp), n_basis)
+        # e^{-j kx xp}: its odd part for the TM10 class, its even part for the other,
+        # chosen per function (one flag for the whole basis zeroed TM10's coupling
+        # as soon as a single even function joined it)
+        arg = kr * np.multiply.outer(xp, ca)
+        proj = np.empty((len(xp), len(p.basis)), complex)
+        if odd.any():
+            proj[:, odd] = np.sin(arg) @ ju[odd].T
+        if (~odd).any():
+            proj[:, ~odd] = 1j * np.cos(arg) @ ju[~odd].T
         rad = jv(0, kr * a) if a else 1.0
         for sl, zt in terms:
             out[m, :, sl] = wk * kr * proj[:, sl] * (-kr * zt * rad / (er1 * k0 * k0 - kr * kr))
@@ -442,7 +459,8 @@ def probe_vector(p: RectPatch, f: float, xp, a: float = 0.0, kmax: float = 200.0
     k xp, which cancels the oscillation, at kmax/2 and kmax, and those two extrapolated
     in 1/k^2."""
     xs = np.atleast_1d(np.asarray(xp, float))
-    if not xs.any() and not p.x_even_ez:                  # the centre line: odd symmetry, no coupling
+    all_odd = bool(_odd_in_kx(p).all())
+    if not xs.any() and all_odd:                          # the centre line: odd symmetry, no coupling
         out = np.zeros((len(xs), len(p.basis)), complex)
         return out[0] if np.ndim(xp) == 0 else out
     k0 = 2 * math.pi * f / C0
@@ -453,24 +471,41 @@ def probe_vector(p: RectPatch, f: float, xp, a: float = 0.0, kmax: float = 200.0
     b = 0.2 * k0
     base = _probe_acc(p, 0.5 * K1 * (1 - np.cos(t)) + 1j * b * np.sin(t),
                       wt * (0.5 * K1 * np.sin(t) + 1j * b * np.cos(t)), k0, xs, a).sum(axis=0)
-    width = 2 * math.pi / max(xs.max(), 0.05 * C0 / f) / 8   # eight panels to the shortest period of k xp
+    width = 2 * math.pi / max(np.abs(xs).max(), 0.05 * C0 / f) / 8   # eight panels to the shortest period of k |xp|
     x, w = np.polynomial.legendre.leggauss(16)
     edges = np.arange(K1, kmax * k0 + 0.5 * width, width)
     nodes = (0.5 * (edges[1:] - edges[:-1])[:, None] * (x + 1) + edges[:-1, None]).ravel()
     weights = (0.5 * (edges[1:] - edges[:-1])[:, None] * w).ravel()
     acc = _probe_acc(p, nodes, weights, k0, xs, a)
     partial = np.cumsum(acc.reshape(len(edges) - 1, 16, len(xs), -1).sum(axis=1), axis=0)
-    ends = edges[1:]
     out = np.empty((len(xs), len(p.basis)), complex)
     for q, x_ in enumerate(xs):
-        if x_ == 0.0 and not p.x_even_ez:                 # the centre line: odd symmetry, no coupling
+        if x_ == 0.0 and all_odd:                         # the centre line: odd symmetry, no coupling
             out[q] = 0.0
             continue
-        n = max(1, int(round(2 * math.pi / x_ / width))) if x_ else 1   # panels in one period of k x_
+        # panels in one period of k |x_| (the sign of x_ does not change the period)
+        n = max(1, int(round(2 * math.pi / abs(x_) / width))) if x_ else 1
+        part, ends = partial[:, q], edges[1:]
+        # the half-way window needs a whole period past K1: near the centre line the
+        # period outgrows half the range (the window then wrapped round, and returned
+        # nan or a wrong mean), so the tail is carried further for that probe alone
+        need = 2.0 * (K1 + (n + 2) * width)
+        if need > ends[-1]:
+            if need > 50.0 * kmax * k0:
+                raise ValueError(f"a probe {abs(x_):.3g} m from the centre line needs the spectral "
+                                 f"tail beyond {need / k0:.0f} k0; move it further out")
+            more = np.arange(edges[-1], need + width, width)
+            if len(more) > 1:
+                mn = (0.5 * (more[1:] - more[:-1])[:, None] * (x + 1) + more[:-1, None]).ravel()
+                mw = (0.5 * (more[1:] - more[:-1])[:, None] * w).ravel()
+                extra = _probe_acc(p, mn, mw, k0, xs[q:q + 1], a)[:, 0]
+                part = np.concatenate([part, part[-1] + np.cumsum(
+                    extra.reshape(len(more) - 1, 16, -1).sum(axis=1), axis=0)])
+                ends = np.concatenate([ends, more[1:]])
 
         def mean_at(K):
             k = int(np.searchsorted(ends, K - 1e-9 * K))
-            return partial[k - n + 1:k + 1, q].mean(axis=0), ends[k] - 0.5 * n * width
+            return part[k - n + 1:k + 1].mean(axis=0), ends[k] - 0.5 * n * width
 
         full, kf = mean_at(ends[-1])
         half, kh = mean_at(0.5 * ends[-1])

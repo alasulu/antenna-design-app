@@ -161,14 +161,20 @@ def dual_mode(p_tm: float, psi_deg: float = 0.0):
     """(fx, fy) of TE11 plus TM11, with a fraction p_tm of the aperture power in
     TM11, in the sense that tapers the E plane (Potter), TM11 leading TE11 by
     psi_deg - zero when the horn is on its design frequency."""
+    if not 0.0 <= p_tm <= 1.0:
+        raise ValueError(f"p_tm is a power fraction in [0, 1], got {p_tm}")
     pte, ptm = _mode_power(_te11_fields), _mode_power(_tm11_fields)
-    b = math.sqrt(p_tm / (1 - p_tm) * pte / ptm) if p_tm < 1 else 0.0
+    # TE11 at unit amplitude and TM11 scaled to carry p_tm of the power; at
+    # p_tm = 1 there is no TE11 left, so it is TM11 alone at TE11's power
+    # (this used to return pure TE11 there)
+    a = 1.0 if p_tm < 1 else 0.0
+    b = math.sqrt(p_tm / (1 - p_tm) * pte / ptm) if p_tm < 1 else math.sqrt(pte / ptm)
     b = b * complex(math.cos(math.radians(psi_deg)), math.sin(math.radians(psi_deg)))
     # At the E-plane rim TE11's x-field is J1(1.841)/1.841 = +0.316 and TM11's is
     # J1'(3.832) = -0.403, so adding TM11 with the SAME sign at the centre is
     # what tapers the E plane towards the H plane's cosine-like edge
-    fx = lambda u, phi: _te11_fields(u, phi)[0] + b * _tm11_fields(u, phi)[0]
-    fy = lambda u, phi: _te11_fields(u, phi)[1] + b * _tm11_fields(u, phi)[1]
+    fx = lambda u, phi: a * _te11_fields(u, phi)[0] + b * _tm11_fields(u, phi)[0]
+    fy = lambda u, phi: a * _te11_fields(u, phi)[1] + b * _tm11_fields(u, phi)[1]
     return fx, fy
 
 
@@ -222,8 +228,12 @@ def diagonal_efficiency(s: float) -> float:
 
 
 def peak_cross(pattern, D: float, phi: float, n: int = 200) -> float:
-    """Highest cross-polar level in the plane phi, dB below the co-polar peak."""
-    co0 = abs(pattern(0.0, phi)[0])
+    """Highest cross-polar level in the plane phi, dB below the co-polar peak
+    in that plane - boresight for a well-behaved horn, but a large phase error
+    moves the co-polar maximum off axis, and normalising to boresight then
+    overstated the cross-polar level (1.7 dB for a diagonal horn at s = 0.8)."""
     th = np.linspace(0.0, math.pi / 2 * 0.999, n)
-    x = max(abs(pattern(t, phi)[1]) for t in th)
-    return 20 * math.log10(x / co0) if x > 0 else float("-inf")
+    vals = [pattern(t, phi) for t in th]
+    co = max(abs(v[0]) for v in vals)
+    x = max(abs(v[1]) for v in vals)
+    return 20 * math.log10(x / co) if x > 0 else float("-inf")

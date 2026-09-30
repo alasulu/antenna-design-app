@@ -227,3 +227,13 @@ def test_puck_fdtd_reproduces_live(registry, eps_r, aspect, height):
     k0a, q = dra.cylinder(eps_r, aspect * height, height, d.get("k0a"))
     assert d.get("k0a") == pytest.approx(k0a, rel=4e-3)
     assert d.metrics["radiation_q"] == pytest.approx(q, rel=0.015)
+
+
+def test_the_matrix_pencil_keeps_a_complex_exponent_s_sign():
+    """The subspace was taken from conjugated singular vectors, returning conj(s):
+    hidden on a real ring-down, whose poles come in pairs, wrong on a complex one."""
+    t = np.arange(90) * 0.1
+    s, a = dra.matrix_pencil(np.exp((-0.2 + 2j) * t), 0.1, modes=1)
+    assert s[0] == pytest.approx(-0.2 + 2j, abs=1e-10)
+    s2, _ = dra.matrix_pencil(np.exp(-0.1 * t) * np.cos(3 * t), 0.1, modes=2)
+    assert sorted(s2, key=lambda v: v.imag) == [pytest.approx(-0.1 - 3j), pytest.approx(-0.1 + 3j)]

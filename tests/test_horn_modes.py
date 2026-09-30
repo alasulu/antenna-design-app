@@ -154,3 +154,24 @@ def test_diagonal_spec_against_a_fresh_integration(registry, Dap, s):
     if Dap <= 12:
         x = hp.peak_cross(lambda t, phi: hp.diagonal(Dap, s, t, phi), Dap, 0.0, n=400)
         assert d.metrics["cross_pol_peak_db"] == pytest.approx(x, abs=0.02)
+
+
+def test_all_the_power_in_tm11_is_tm11():
+    """dual_mode(1) returned pure TE11 (its TM11 coefficient fell to zero). TM11
+    alone has no boresight co-polar field: efficiency zero, as a direct
+    integration of its field gives."""
+    assert hp.disc_efficiency(hp.dual_mode(1.0), 0.0) < 1e-20
+    assert hp.disc_efficiency(hp.dual_mode(0.999999), 0.0) == pytest.approx(8.368e-7, rel=1e-3)
+    with pytest.raises(ValueError):
+        hp.dual_mode(1.2)
+
+
+def test_cross_polar_level_is_against_the_co_polar_peak():
+    """A long diagonal horn's co-polar maximum leaves boresight (8.6 deg at an
+    edge error of 0.8); the level must be taken against that maximum."""
+    th = np.linspace(0.0, math.pi / 2 * 0.999, 200)
+    co = max(abs(hp.diagonal(6.0, 0.8, t, 0.0)[0]) for t in th)
+    x = max(abs(hp.diagonal(6.0, 0.8, t, 0.0)[1]) for t in th)
+    got = hp.peak_cross(lambda t, phi: hp.diagonal(6.0, 0.8, t, phi), 6.0, 0.0)
+    assert got == pytest.approx(20 * math.log10(x / co), abs=1e-12)
+    assert co > 1.2 * abs(hp.diagonal(6.0, 0.8, 0.0, 0.0)[0])

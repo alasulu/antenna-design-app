@@ -95,3 +95,43 @@ def test_the_resonant_resistance_follows_the_cavity_law():
     edge = r / np.sin(math.pi * xs / (0.32 * LAM)) ** 2
     assert np.ptp(edge) < 0.04 * edge.mean()
     assert 190 < edge.mean() < 240
+
+
+def test_mixing_the_two_symmetry_classes_keeps_both_couplings():
+    """One flag chose the probe projection for the whole basis: adding a single
+    E_z-even function zeroed the TM10 function's coupling."""
+    alone = [sdm.probe_vector(sdm.RectPatch(*LOWER, bx=bx), F0, 0.096 * LAM, 0.000432 * LAM)[0]
+             for bx in (((0, 0),), ((1, 0),))]
+    mixed = sdm.probe_vector(sdm.RectPatch(*LOWER, bx=((0, 0), (1, 0))), F0, 0.096 * LAM, 0.000432 * LAM)
+    assert mixed == pytest.approx(alone, rel=1e-6)
+
+
+def test_probes_near_the_centre_line_are_finite_and_odd():
+    """Close to the centre the tail's averaging period outgrew half the range and
+    the window wrapped round (nan at 0.006 lambda, wrong below it); a negative
+    position skipped the averaging. The coupling is odd in xp and, near the
+    centre, proportional to it (to the tail's 0.3% there: the period of k xp is
+    then most of the integration range)."""
+    p = sdm.RectPatch(*LOWER)
+    xs = np.array([0.003, 0.004, 0.005, 0.006, 0.01]) * LAM
+    v = sdm.probe_vector(p, F0, xs, 0.000432 * LAM)[:, 0]
+    assert np.all(np.isfinite(v))
+    slope = v.imag / (xs / LAM)
+    assert np.ptp(slope) < 0.005 * abs(slope.mean())
+    assert sdm.probe_vector(p, F0, -0.096 * LAM, 0.000432 * LAM) == pytest.approx(
+        -sdm.probe_vector(p, F0, 0.096 * LAM, 0.000432 * LAM), rel=1e-13)
+
+
+def test_a_thick_slab_far_out_in_the_spectrum_does_not_overflow():
+    """cos/sin of kz1 h overflowed at |Im| ~ 750 (kr = 1200 k0 on a 0.1 lambda slab)
+    and returned nan; cot is taken in its stable form there."""
+    p = sdm.RectPatch(2.2, 0.1 * LAM, 0.32 * LAM, 0.4 * LAM)
+    k0 = 2 * math.pi / LAM
+    ztm, zte = p.znode(1200 * k0, k0)
+    kz1 = -1j * np.sqrt((1200 * k0) ** 2 - 2.2 * k0 ** 2 + 0j)
+    kz0 = -1j * np.sqrt((1200 * k0) ** 2 - k0 ** 2 + 0j)
+    w = k0 * C
+    eps0 = 8.8541878128e-12
+    # far into the evanescent tail cot(kz1 h) -> j (kz1 = -j|kz1|): closed form
+    assert ztm == pytest.approx(1 / (w * eps0 / kz0 - 1j * (w * eps0 * 2.2 / kz1) * 1j), rel=1e-12)
+    assert np.isfinite(zte)

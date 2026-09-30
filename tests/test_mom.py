@@ -224,3 +224,54 @@ def test_the_exact_kernel_holds_a_fat_wire_the_reduced_kernel_loses():
     rs = [z.real for z in exact]
     assert max(rs) / min(rs) < 1.045, rs
     assert mom.input_impedance(m).imag < -10.0
+
+
+# ------------------------------------------------ found by review, fixed
+
+def test_wires_of_different_radii_give_the_same_answer_in_either_order():
+    """The reduced kernel took the source segment's radius and only the upper
+    triangle was assembled, so two parallel wires of 0.003 and 0.001 lambda
+    changed resistance by 2.4% when listed the other way round. The pair now
+    uses (a_p^2 + a_q^2)/2, and equal radii are untouched to the bit."""
+    from otahub.num import mom
+
+    def model(order, exact):
+        w1 = mom.Wire(np.linspace((0, 0, -0.235), (0, 0, 0.235), 21), 0.003)
+        w2 = mom.Wire(np.linspace((0.01, 0, -0.235), (0.01, 0, 0.235), 21), 0.001)
+        m = mom.WireModel([w1, w2] if order == 0 else [w2, w1])
+        feed = int(np.argmin([np.linalg.norm(m.node_of(n)) for n in range(m.n_basis)]))
+        return mom.input_impedance(m, feed, exact=exact)
+
+    for exact in (False, True):
+        a, b = model(0, exact), model(1, exact)
+        assert abs(a - b) < 1e-12 * abs(a), exact
+
+
+def test_the_far_field_is_exact_beside_broadside():
+    """The closed-form segment integral cancelled catastrophically a hair off
+    broadside (60% wrong at 1e-8 rad). A lone rooftop on nodes -0.1, 0, 0.2
+    against its current integrated by quadrature, at every offset."""
+    from scipy.integrate import quad
+    from otahub.num import mom
+    m = mom.WireModel([mom.Wire(np.array([(0, 0, -0.1), (0, 0, 0), (0, 0, 0.2)]), 1e-4)])
+    cur = np.zeros(m.n_basis, complex)
+    cur[0] = 1.0
+    sol = mom.MoMSolution(m, cur, 0)
+    tri = lambda z: 1 + z / 0.1 if z < 0 else 1 - z / 0.2
+    for d in (0.0, 1e-8, 1e-7, 1e-4, 0.05, 0.3):
+        th = math.pi / 2 - d
+        e_th, _ = mom.far_field(sol, np.array([th]), np.array([0.0]))
+        ct = math.cos(th)
+        re = quad(lambda z: tri(z) * math.cos(2 * math.pi * z * ct), -0.1, 0.2, points=[0], epsabs=0, epsrel=1e-13)[0]
+        im = quad(lambda z: tri(z) * math.sin(2 * math.pi * z * ct), -0.1, 0.2, points=[0], epsabs=0, epsrel=1e-13)[0]
+        assert abs(e_th[0]) == pytest.approx(abs(complex(re, im)) * math.sin(th), rel=1e-12), d
+
+
+def test_a_downward_reactance_crossing_is_found_not_its_bracket_end():
+    """Between 0.85 and 1.15 wavelengths a dipole's reactance falls through zero
+    (the antiresonance); the bisection assumed it rose and returned 1.15."""
+    from scipy.optimize import brentq
+    from otahub.num import mom
+    z = lambda s: mom.solve(mom.dipole(s, .001, 40)).input_impedance
+    root = mom.resonant_scale(z)
+    assert root == pytest.approx(brentq(lambda s: z(s).imag, 0.85, 1.15, xtol=1e-10), abs=1e-7)
