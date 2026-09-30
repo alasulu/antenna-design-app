@@ -178,6 +178,13 @@ class ArchetypeSpec:
             unknown = used - syms
             if unknown:
                 out.append(f"analysis {rule.metric!r} references unknown {sorted(unknown)}")
+            if rule.depends_on:
+                missing = used - set(rule.depends_on)
+                if missing:
+                    out.append(
+                        f"analysis {rule.metric!r} reads {sorted(missing)} "
+                        f"but does not declare them in depends_on"
+                    )
 
         if not self.known_cases:
             out.append("no known_cases: nothing about this archetype is verifiable")

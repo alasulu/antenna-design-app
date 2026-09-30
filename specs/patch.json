@@ -2232,7 +2232,8 @@
           "expr": "k0*a_eff",
           "units_out": "-",
           "depends_on": [
-            "a_eff"
+            "a_eff",
+            "k0"
           ],
           "notes": "Exactly 4*pi/(3*sqrt(eps_r)) by construction - the single variable the far field depends on. A live check on the synthesis: if this drifts from 4.18879/sqrt(eps_r) the geometry no longer resonates where the spec says it does."
         },

@@ -274,9 +274,8 @@ KEY_FIGURES = (
     ("Impedance", (r"^input_impedance_driving_point_ohm$", r"^input_impedance_ohm$",
                    r"^input_resistance_driving_point_ohm$", r"^input_resistance_ohm$", r"^inset_resistance_ohm$",
                    r"^feed_resistance_ohm$", r"^input_resistance_f_low_ohm$", r"^resonant_resistance_ohm$",
-                   r"^biconical_impedance_ohm$", r"^cone_impedance_over_ground_ohm$",
-                   r"^self_complementary_impedance_ohm$", r"^feed_impedance_each_element_ohm$",
-                   r"^radiation_resistance_ohm$")),
+                   r"^edge_resistance_ohm$", r"^feed_impedance_each_element_ohm$",
+                   r"^radiation_resistance_ohm$")),        # never a reference (a bicone's, an infinite sheet's)
     ("Beamwidth", (r"^hpbw_e_deg$", r"^hpbw_deg$", r"hpbw.*deg$", r"beamwidth.*deg$")),
 )
 

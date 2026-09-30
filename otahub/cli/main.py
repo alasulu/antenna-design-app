@@ -27,7 +27,10 @@ def _parse(text: str) -> tuple[float, str]:
     m = _QTY.match(text)
     if not m:
         raise argparse.ArgumentTypeError(f"cannot parse quantity {text!r}")
-    value, suffix = float(m.group(1)), m.group(2)
+    try:
+        value, suffix = float(m.group(1)), m.group(2)
+    except ValueError:                       # "." and "1.2.3" pass the pattern
+        raise argparse.ArgumentTypeError(f"cannot parse quantity {text!r}") from None
     if not suffix:
         return value, ""
     for unit, factor in _SUFFIX_SI.items():          # exact, case-sensitive first
@@ -677,10 +680,12 @@ def cmd_touchstone(args: argparse.Namespace, reg: Registry) -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"could not synthesise {key}: {exc}", file=sys.stderr)
             return 1
-        found = design.terminal_impedance()
+        found = design.terminal_impedance(at_hz=f_cmp)
         if found is None:
-            print(f"{key} predicts no input impedance to compare against",
-                  file=sys.stderr)
+            anywhere = design.terminal_impedance()
+            print(f"{key} predicts no input impedance to compare against"
+                  + (f" at {f_cmp/1e9:.6g} GHz ({anywhere[1]} is for another frequency)"
+                     if anywhere else ""), file=sys.stderr)
             return 1
         z_pred, basis = found
         out = compare_to_prediction(net, z_pred, f_cmp, port)

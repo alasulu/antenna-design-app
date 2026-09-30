@@ -64,6 +64,22 @@ def test_touchstone_comparison_uses_the_complex_driving_point_impedance(tmp_path
     out = capsys.readouterr().out
     assert "input_impedance_ohm" in out
     assert "resistance off by +0.00%" in out
+    assert "reactance by +0 ohm" in out or "reactance by -0 ohm" in out   # the j204 is there
+
+
+def test_a_reference_impedance_is_not_a_terminal_and_f_low_is_not_every_frequency(registry):
+    """A discone's biconical_impedance_ohm is a full bicone's; the bowtie's solved
+    impedance holds at f_low only."""
+    assert registry["discone"].synthesize(f_low=1e9).terminal_impedance() is None
+    bow = registry["bowtie"].synthesize(f_low=1e9)
+    assert bow.terminal_impedance(at_hz=1e9) is not None
+    assert bow.terminal_impedance(at_hz=1.3e9) is None
+
+
+@pytest.mark.parametrize("bad", [".", "1.2.3", "lots"])
+def test_malformed_numbers_are_refused_cleanly(capsys, bad):
+    assert main(["synth", "small_circular_loop", "--f0", "14.2MHz", "--set", f"sigma={bad}"]) == 2
+    assert "bad --set" in capsys.readouterr().err
 
 
 def test_planar_uses_dy_and_the_real_steering_direction(capsys):

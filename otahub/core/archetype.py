@@ -71,17 +71,22 @@ class DesignResult:
         ("resonant_resistance_ohm", None),
         ("edge_resistance_ohm", None),          # an edge-fed patch's input; an
                                                 # inset patch stops at inset above
-        ("biconical_impedance_ohm", None),
-        ("cone_impedance_over_ground_ohm", None),
-        ("self_complementary_impedance_ohm", None),
         ("feed_impedance_each_element_ohm", None),
         ("radiation_resistance_ohm", "input_reactance_ohm"),
     )
+    # Reference impedances are NOT terminals and are never taken: a full bicone's
+    # beside a discone, a cone over infinite ground, Mushiake's infinite sheet.
 
-    def terminal_impedance(self) -> tuple[complex, str] | None:
-        """The predicted impedance at the feed, and a note of what it was
-        built from - or None when the design predicts none."""
+    def terminal_impedance(self, at_hz: float | None = None) -> tuple[complex, str] | None:
+        """The predicted impedance at the feed, and a note of what it was built
+        from - or None when the design predicts none. With `at_hz`, only a
+        prediction for that frequency (within 1%) counts: a figure solved at
+        f_low says nothing about 1.3 f_low."""
         for r_name, x_name in self._IMPEDANCE_SOURCES:
+            if at_hz is not None:
+                valid = self.get("f_low") if r_name.endswith("_f_low_ohm") else self.get("f0")
+                if isinstance(valid, (int, float)) and abs(at_hz / valid - 1.0) > 0.01:
+                    continue
             r = self.metrics.get(r_name)
             if r is None:
                 continue
