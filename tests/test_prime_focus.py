@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 
 import pytest
+from scipy.integrate import quad
 
 from otahub.num import paraboloid as pb
 
@@ -39,14 +40,42 @@ def test_taper_and_spillover_are_the_aperture_integrals(dish, fd, et):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("fd,et", [(0.33, -9.5), (0.42, -12.3), (0.55, -6.2), (0.75, -17.7),
-                                   (0.95, -4.4), (0.38, -19.3)])
-def test_beamwidth_and_first_sidelobe_are_the_hankel_transforms(dish, fd, et):
-    """Off the fit's grid in both edge taper and f/D."""
-    d = _design(dish, fd, et)
-    hp, sll = pb.beam(pb.feed_exponent(et, fd), fd)
-    assert d.metrics["hpbw_deg"] == pytest.approx(hp * LAM, abs=0.03 * LAM)
-    assert d.metrics["first_sidelobe_db"] == pytest.approx(sll, abs=0.1)
+@pytest.mark.parametrize("fd,et,db", [(0.33, -9.5, 0.0), (0.42, -12.3, 0.063), (0.55, -6.2, 0.18),
+                                      (0.75, -17.7, 0.0), (0.95, -4.4, 0.11), (0.38, -16.3, 0.137)])
+def test_beamwidth_and_peak_sidelobe_are_the_blocked_hankel_transforms(dish, fd, et, db):
+    """Off the fit's grid in edge taper, f/D and blockage."""
+    d = dish.synthesize(f0=F0, D=1.0, f_over_D=fd, edge_taper_db=et, eps_rms=0.0, d_blockage=db)
+    hp, peak = pb.blocked_beam(et, fd, db)
+    assert d.metrics["hpbw_deg"] == pytest.approx(hp * LAM, abs=0.012 * LAM)
+    assert d.metrics["peak_sidelobe_db"] == pytest.approx(peak, abs=0.2)
+
+
+def test_with_no_blockage_the_peak_is_the_first_sidelobe_at_the_default_taper(dish):
+    """Two transforms: the unblocked `beam` and the blocked one at zero blockage."""
+    hp, sll = pb.beam(pb.feed_exponent(-11.0, 0.4), 0.4)
+    d = _design(dish, 0.4, -11.0)
+    assert d.metrics["peak_sidelobe_db"] == pytest.approx(sll, abs=0.05)
+    assert d.metrics["hpbw_deg"] == pytest.approx(hp * LAM, abs=0.005 * LAM)
+
+
+def _blockage(et, fd, db):
+    """By quadrature of the aperture field over rho - not the feed-angle integral the spec uses."""
+    n = pb.feed_exponent(et, fd)
+    def a(r):
+        t = 2 * math.atan(r / (2 * fd))
+        return math.cos(t) ** (n / 2) * (1 + math.cos(t)) / 2 * r
+    return (quad(a, db / 2, 0.5, epsrel=1e-12)[0] / quad(a, 0, 0.5, epsrel=1e-12)[0]) ** 2
+
+
+@pytest.mark.parametrize("fd,et,db", [(0.4, -11.0, 0.1), (0.3, -4.0, 0.05), (0.8, -18.0, 0.2), (0.55, -9.0, 0.13)])
+def test_blockage_is_weighted_by_the_aperture_field(dish, fd, et, db):
+    """The central disc shadows the brightest part of a tapered aperture, so it costs
+    more than its area: (1 - (d/D)^2)^2 understated the loss."""
+    d = dish.synthesize(f0=F0, D=1.0, f_over_D=fd, edge_taper_db=et, eps_rms=0.0, d_blockage=db)
+    assert d.metrics["eta_blockage"] == pytest.approx(_blockage(et, fd, db), abs=2e-5)
+    assert d.metrics["eta_blockage"] < (1 - db ** 2) ** 2
+    unblocked = _design(dish, fd, et).metrics["aperture_efficiency"]
+    assert d.metrics["aperture_efficiency"] == pytest.approx(unblocked * d.metrics["eta_blockage"], rel=1e-12)
 
 
 def test_a_cos_squared_feed_reaches_the_classic_optimum(dish):

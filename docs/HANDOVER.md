@@ -430,7 +430,7 @@ being written into a spec.
 | `pyramidal_horn` | Two apex distances solved so both flares meet a real feed guide at one length (a quartic in √(ρ₁/λ)), with the optimum proportions in axial distances and the exact optimum efficiency | Flare geometry rebuilt from the output meets the guide to 1e-9 m; direct 2-D aperture integration puts the gain on target to 1e-3 dB from 12 to 30 dBi on three guides; root matches bisection on the unsquared condition |
 | `waveguide_longitudinal_slot`, `waveguide_slot_array_resonant` | Stevenson's shunt conductance with the wavelength ratio the right way up, and the array offsets it sets | `otahub/num/waveguide_slot.py` derives g by reciprocity, a half-space radiation integral and power balance, all by quadrature: +0.03% (the rounding of 2.09) from 8.2 to 40 GHz on two guides; twelve slots at the new offset sum to unity by that model |
 | Taylor taper (`otahub.arrays`) | Villeneuve's discrete n̄ distribution by zero placement, replacing a sampled line source that overshot its sidelobe level by up to 2.3 dB | Realised sidelobes by dense array-factor evaluation over 357 designs; nulls land where placed to 1e-12; equals the separate Dolph-Chebyshev implementation past the last zero pair to 1e-12; converges to Taylor's textbook line source (5e-6 at N = 400) |
-| `prime_focus_parabolic` | Taper and spillover efficiency, beamwidth and first sidelobe from the edge taper and f/D (Silver's cos^n feed), replacing four separately asserted numbers | `otahub/num/paraboloid.py` integrates the aperture field directly: efficiencies to 1e-5, beamwidth to 0.03 lambda/D and first sidelobe to 0.1 dB off the fit grid; a cos^2 feed reproduces the classic 0.829 optimum at 66 deg |
+| `prime_focus_parabolic` | Taper and spillover efficiency, field-weighted blockage, beamwidth and peak sidelobe of the blocked aperture from the edge taper, f/D and blockage diameter (Silver's cos^n feed), replacing four separately asserted numbers | `otahub/num/paraboloid.py` integrates the aperture field directly: efficiencies to 1e-5, blockage to 2e-5, beamwidth to 0.012 lambda/D and peak sidelobe to 0.2 dB off the fit grid; a cos^2 feed reproduces the classic 0.829 optimum at 66 deg |
 | `offset_parabolic` | Taper and spillover efficiency and beamwidth from the feed taper and offset geometry; the gain comparison with a prime-focus dish, honestly signed | The rim-cone circularity that makes spillover exact checked ray by ray (1e-14 rad); taper and beamwidth by 2-D integration over the projected aperture, held-out errors 0.0013 and 0.03 lambda/D; the offset integrator reproduces the prime-focus one at zero offset to 1e-9 |
 | `cylindrical_parabolic` | Taper and spillover under a line feed (cylindrical spreading), focusing-plane beamwidth and peak sidelobe, from the edge taper and f/W | `otahub/num/paraboloid.py` integrates over the aperture coordinate: efficiencies to 1e-5, beamwidth to 0.05 lambda/W and peak sidelobe to 0.15 dB off the fit grid; the uniform limit reproduces 50.8 lambda/W and -13.3 dB |
 | `cassegrain`, `gregorian_dual_reflector` | Taper and spillover through the equivalent paraboloid, field-weighted subreflector blockage, beamwidth and peak sidelobe of the blocked aperture | The equivalent paraboloid traced ray by ray through the real hyperboloid and ellipsoid (magnification to 1e-9); efficiencies from the traced ray-tube mapping to 1e-5; blocked-aperture transform off the fit grid to 0.02 lambda/D and 0.3 dB |
@@ -684,6 +684,12 @@ twice: 0.74 dB of gain lost at the default design. At f/D = 0.4 and -11 dB edge
 taper Silver's cos^n model gives taper 0.886 and spillover 0.933 (product
 0.827), beamwidth 66.5 lambda/D and first sidelobe -25.2 dB. All four are now
 derived from the edge taper, and a cos^2 feed reproduces the textbook 0.829.
+The blockage stayed the uniform-illumination (1 - (d/D)^2)^2 and the sidelobe
+ignored it until the Codex review: a central disc shadows the brightest part
+of a tapered aperture, 0.965 at the default 0.1 D rather than 0.980, and the
+blocked aperture's peak sidelobe is -22.7 dB, not -25.2. Both now come from
+the blocked aperture field, and the offset dish's comparison uses the same
+blockage.
 
 ### A horn that could not be fitted to its waveguide
 

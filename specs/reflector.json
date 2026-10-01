@@ -105,6 +105,12 @@
           "name": "normalised D/f",
           "unit": "-",
           "role": "derived"
+        },
+        {
+          "symbol": "dish_b",
+          "name": "blockage d/D in tenths",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -170,6 +176,16 @@
           "depends_on": [
             "f_over_D"
           ]
+        },
+        {
+          "output": "dish_b",
+          "expr": "d_blockage/(0.1*D)",
+          "units_out": "-",
+          "depends_on": [
+            "d_blockage",
+            "D"
+          ],
+          "notes": "Blockage diameter over D in tenths - 1 at the default, a fit variable of the blocked beam."
         }
       ],
       "analysis": [
@@ -184,13 +200,16 @@
         },
         {
           "metric": "eta_blockage",
-          "expr": "(1 - (d_blockage/D)**2)**2",
+          "expr": "(1 - np.trapezoid(np.cos(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))**(feed_n/2)*np.tan(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001)/2), np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))/np.trapezoid(np.cos(np.linspace(0, feed_theta0, 4001))**(feed_n/2)*np.tan(np.linspace(0, feed_theta0, 4001)/2), np.linspace(0, feed_theta0, 4001)))**2",
           "units_out": "-",
           "depends_on": [
             "d_blockage",
-            "D"
+            "D",
+            "f_over_D",
+            "feed_n",
+            "feed_theta0"
           ],
-          "notes": "aperture blockage removes area twice over - once from the incident field and once from the scattered field - hence the square"
+          "notes": "The square of the fraction of the aperture FIELD outside a central blocked disc of diameter d_blockage, under the same cos^n feed that sets the taper: the disc shadows rays leaving the feed within 2*atan(d_blockage/(4F)) of the axis. The old (1 - (d/D)^2)^2 assumed uniform illumination, but the disc covers the brightest part of a tapered aperture - 0.965 against 0.980 at d/D = 0.1, f/D = 0.4 and -11 dB, 0.868 against 0.922 at d/D = 0.2. A central disc only: strut shadows are not discs."
         },
         {
           "metric": "eta_ruze",
@@ -204,15 +223,14 @@
         },
         {
           "metric": "aperture_efficiency",
-          "expr": "eta_ill*eta_spill*eta_xpol*eta_match*(1-(d_blockage/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)",
+          "expr": "eta_ill*eta_spill*eta_xpol*eta_match*eta_blockage*np.exp(-(4*pi*eps_rms*f0/c)**2)",
           "units_out": "-",
           "depends_on": [
             "eta_ill",
             "eta_spill",
             "eta_xpol",
             "eta_match",
-            "d_blockage",
-            "D",
+            "eta_blockage",
             "eps_rms",
             "f0"
           ],
@@ -220,17 +238,17 @@
         },
         {
           "metric": "gain_dbi",
-          "expr": "db10(eta_ill*eta_spill*eta_xpol*eta_match*(1-(d_blockage/D)**2)**2*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
+          "expr": "db10(eta_ill*eta_spill*eta_xpol*eta_match*eta_blockage*np.exp(-(4*pi*eps_rms*f0/c)**2)*(pi*D*f0/c)**2)",
           "units_out": "dBi",
           "depends_on": [
             "eta_ill",
             "eta_spill",
             "eta_xpol",
             "eta_match",
-            "d_blockage",
-            "D",
+            "eta_blockage",
             "eps_rms",
-            "f0"
+            "f0",
+            "D"
           ],
           "notes": "G = eta_ap*(pi*D/lambda)^2"
         },
@@ -246,28 +264,33 @@
         },
         {
           "metric": "hpbw_deg",
-          "expr": "np.where((edge_taper_db >= -20.001)*(edge_taper_db <= -2.999)*(f_over_D >= 0.2999)*(f_over_D <= 1.0001), (((66.9776682) + (-0.0795703397)*dish_q**1 + (-0.104839967)*dish_q**2 + (-0.0598922481)*dish_q**3 + (-6.72122939)*dish_e**1 + (0.137403579)*dish_e**1*dish_q**1 + (0.191178474)*dish_e**1*dish_q**2 + (0.113349579)*dish_e**1*dish_q**3 + (0.541975994)*dish_e**2 + (-0.0599664534)*dish_e**2*dish_q**1 + (-0.0670295611)*dish_e**2*dish_q**2 + (-0.032942099)*dish_e**2*dish_q**3 + (0.0444787584)*dish_e**3 + (0.00345918812)*dish_e**3*dish_q**1 + (0.0011790638)*dish_e**3*dish_q**2 + (-0.000779706915)*dish_e**3*dish_q**3 + (-0.00758887466)*dish_e**4 + (0.00140272494)*dish_e**4*dish_q**1 + (0.00162782664)*dish_e**4*dish_q**2 + (0.000823296614)*dish_e**4*dish_q**3 + (-0.000654292791)*dish_e**5 + (-0.000137912755)*dish_e**5*dish_q**1 + (-4.90105578e-05)*dish_e**5*dish_q**2 + (2.92586595e-05)*dish_e**5*dish_q**3)*(c/f0)/D), inf - inf)",
+          "expr": "np.where((edge_taper_db >= -20.001)*(edge_taper_db <= -2.999)*(f_over_D >= 0.2999)*(f_over_D <= 1.0001)*(d_blockage/D >= -1e-9)*(d_blockage/D <= 0.2001), (((66.2997667) + (-1.32505101)*(dish_b - 1)**1 + (-0.614745469)*(dish_b - 1)**2 + (0.0442160543)*(dish_b - 1)**3 + (0.00884541303)*(dish_b - 1)**4 + (-0.0740993829)*dish_q**1 + (0.00746594903)*dish_q**1*(dish_b - 1)**1 + (0.00351510664)*dish_q**1*(dish_b - 1)**2 + (-0.000214428389)*dish_q**1*(dish_b - 1)**3 + (-5.14483633e-05)*dish_q**1*(dish_b - 1)**4 + (-0.0726996755)*dish_q**2 + (0.00741108585)*dish_q**2*(dish_b - 1)**1 + (0.00344861582)*dish_q**2*(dish_b - 1)**2 + (-0.000245864723)*dish_q**2*(dish_b - 1)**3 + (-5.46026657e-05)*dish_q**2*(dish_b - 1)**4 + (-0.0570295978)*dish_q**3 + (0.00589811149)*dish_q**3*(dish_b - 1)**1 + (0.00266077744)*dish_q**3*(dish_b - 1)**2 + (-0.000263759238)*dish_q**3*(dish_b - 1)**3 + (-5.07778898e-05)*dish_q**3*(dish_b - 1)**4 + (-0.027006287)*dish_q**4 + (0.00280089193)*dish_q**4*(dish_b - 1)**1 + (0.001239665)*dish_q**4*(dish_b - 1)**2 + (-0.000144666822)*dish_q**4*(dish_b - 1)**3 + (-2.620735e-05)*dish_q**4*(dish_b - 1)**4 + (-6.38867372)*dish_e**1 + (0.632404482)*dish_e**1*(dish_b - 1)**1 + (0.276103498)*dish_e**1*(dish_b - 1)**2 + (-0.035936787)*dish_e**1*(dish_b - 1)**3 + (-0.0064123952)*dish_e**1*(dish_b - 1)**4 + (0.12162222)*dish_e**1*dish_q**1 + (-0.0240234421)*dish_e**1*dish_q**1*(dish_b - 1)**1 + (-0.0102072341)*dish_e**1*dish_q**1*(dish_b - 1)**2 + (0.00161923333)*dish_e**1*dish_q**1*(dish_b - 1)**3 + (0.000290321279)*dish_e**1*dish_q**1*(dish_b - 1)**4 + (0.123834014)*dish_e**1*dish_q**2 + (-0.0227448572)*dish_e**1*dish_q**2*(dish_b - 1)**1 + (-0.00968131327)*dish_e**1*dish_q**2*(dish_b - 1)**2 + (0.00151467543)*dish_e**1*dish_q**2*(dish_b - 1)**3 + (0.000269654283)*dish_e**1*dish_q**2*(dish_b - 1)**4 + (0.105625378)*dish_e**1*dish_q**3 + (-0.0154855427)*dish_e**1*dish_q**3*(dish_b - 1)**1 + (-0.00663410372)*dish_e**1*dish_q**3*(dish_b - 1)**2 + (0.0009875981)*dish_e**1*dish_q**3*(dish_b - 1)**3 + (0.000172142015)*dish_e**1*dish_q**3*(dish_b - 1)**4 + (0.0522889856)*dish_e**1*dish_q**4 + (-0.00654946309)*dish_e**1*dish_q**4*(dish_b - 1)**1 + (-0.00282111465)*dish_e**1*dish_q**4*(dish_b - 1)**2 + (0.000402318393)*dish_e**1*dish_q**4*(dish_b - 1)**3 + (6.8918036e-05)*dish_e**1*dish_q**4*(dish_b - 1)**4 + (0.483990587)*dish_e**2 + (-0.106424354)*dish_e**2*(dish_b - 1)**1 + (-0.040401708)*dish_e**2*(dish_b - 1)**2 + (0.0108226315)*dish_e**2*(dish_b - 1)**3 + (0.00148293321)*dish_e**2*(dish_b - 1)**4 + (-0.0538997476)*dish_e**2*dish_q**1 + (0.0100239283)*dish_e**2*dish_q**1*(dish_b - 1)**1 + (0.00386075232)*dish_e**2*dish_q**1*(dish_b - 1)**2 + (-0.000972534916)*dish_e**2*dish_q**1*(dish_b - 1)**3 + (-0.000133235955)*dish_e**2*dish_q**1*(dish_b - 1)**4 + (-0.0498573096)*dish_e**2*dish_q**2 + (0.00907482916)*dish_e**2*dish_q**2*(dish_b - 1)**1 + (0.00349800819)*dish_e**2*dish_q**2*(dish_b - 1)**2 + (-0.000877632665)*dish_e**2*dish_q**2*(dish_b - 1)**3 + (-0.000119916014)*dish_e**2*dish_q**2*(dish_b - 1)**4 + (-0.0303052885)*dish_e**2*dish_q**3 + (0.00514337021)*dish_e**2*dish_q**3*(dish_b - 1)**1 + (0.00198569626)*dish_e**2*dish_q**3*(dish_b - 1)**2 + (-0.000494064664)*dish_e**2*dish_q**3*(dish_b - 1)**3 + (-6.69960273e-05)*dish_e**2*dish_q**3*(dish_b - 1)**4 + (-0.011402243)*dish_e**2*dish_q**4 + (0.00180322513)*dish_e**2*dish_q**4*(dish_b - 1)**1 + (0.000696897007)*dish_e**2*dish_q**4*(dish_b - 1)**2 + (-0.000172356609)*dish_e**2*dish_q**4*(dish_b - 1)**3 + (-2.31976576e-05)*dish_e**2*dish_q**4*(dish_b - 1)**4 + (0.0463679804)*dish_e**3 + (0.0029457686)*dish_e**3*(dish_b - 1)**1 + (-0.000376353107)*dish_e**3*(dish_b - 1)**2 + (-0.00136114759)*dish_e**3*(dish_b - 1)**3 + (-4.25332398e-05)*dish_e**3*(dish_b - 1)**4 + (0.00282363585)*dish_e**3*dish_q**1 + (-0.00123402088)*dish_e**3*dish_q**1*(dish_b - 1)**1 + (-0.000317456305)*dish_e**3*dish_q**1*(dish_b - 1)**2 + (0.000227689224)*dish_e**3*dish_q**1*(dish_b - 1)**3 + (1.30490735e-05)*dish_e**3*dish_q**1*(dish_b - 1)**4 + (0.00175885)*dish_e**3*dish_q**2 + (-0.00100471713)*dish_e**3*dish_q**2*(dish_b - 1)**1 + (-0.000244747759)*dish_e**3*dish_q**2*(dish_b - 1)**2 + (0.000195335303)*dish_e**3*dish_q**2*(dish_b - 1)**3 + (1.08180887e-05)*dish_e**3*dish_q**2*(dish_b - 1)**4 + (-0.000969959044)*dish_e**3*dish_q**3 + (-0.000310111816)*dish_e**3*dish_q**3*(dish_b - 1)**1 + (-3.99537444e-05)*dish_e**3*dish_q**3*(dish_b - 1)**2 + (8.61345497e-05)*dish_e**3*dish_q**3*(dish_b - 1)**3 + (3.85742623e-06)*dish_e**3*dish_q**3*(dish_b - 1)**4 + (-0.00117268038)*dish_e**3*dish_q**4 + (-1.7502386e-06)*dish_e**3*dish_q**4*(dish_b - 1)**1 + (2.67980313e-05)*dish_e**3*dish_q**4*(dish_b - 1)**2 + (2.01123813e-05)*dish_e**3*dish_q**4*(dish_b - 1)**3 + (4.17803468e-07)*dish_e**3*dish_q**4*(dish_b - 1)**4 + (-0.00700773308)*dish_e**4 + (0.00113518762)*dish_e**4*(dish_b - 1)**1 + (0.000608603425)*dish_e**4*(dish_b - 1)**2 + (-1.29136202e-05)*dish_e**4*(dish_b - 1)**3 + (-3.53781575e-05)*dish_e**4*(dish_b - 1)**4 + (0.00133680011)*dish_e**4*dish_q**1 + (-0.000112408688)*dish_e**4*dish_q**1*(dish_b - 1)**1 + (-8.36043268e-05)*dish_e**4*dish_q**1*(dish_b - 1)**2 + (-1.36457214e-05)*dish_e**4*dish_q**1*(dish_b - 1)**3 + (4.85014872e-06)*dish_e**4*dish_q**1*(dish_b - 1)**4 + (0.00126607521)*dish_e**4*dish_q**2 + (-0.000115361389)*dish_e**4*dish_q**2*(dish_b - 1)**1 + (-7.82417045e-05)*dish_e**4*dish_q**2*(dish_b - 1)**2 + (-9.4557155e-06)*dish_e**4*dish_q**2*(dish_b - 1)**3 + (4.30164894e-06)*dish_e**4*dish_q**2*(dish_b - 1)**4 + (0.000782687671)*dish_e**4*dish_q**3 + (-8.88302968e-05)*dish_e**4*dish_q**3*(dish_b - 1)**1 + (-4.72049233e-05)*dish_e**4*dish_q**3*(dish_b - 1)**2 + (6.53601582e-07)*dish_e**4*dish_q**3*(dish_b - 1)**3 + (2.21862203e-06)*dish_e**4*dish_q**3*(dish_b - 1)**4 + (0.000290559361)*dish_e**4*dish_q**4 + (-3.94930313e-05)*dish_e**4*dish_q**4*(dish_b - 1)**1 + (-1.72226722e-05)*dish_e**4*dish_q**4*(dish_b - 1)**2 + (2.59753916e-06)*dish_e**4*dish_q**4*(dish_b - 1)**3 + (6.84984429e-07)*dish_e**4*dish_q**4*(dish_b - 1)**4 + (-0.000685250411)*dish_e**5 + (-5.95169169e-05)*dish_e**5*(dish_b - 1)**1 + (-6.85055891e-06)*dish_e**5*(dish_b - 1)**2 + (2.1328572e-05)*dish_e**5*(dish_b - 1)**3 + (4.19648086e-06)*dish_e**5*(dish_b - 1)**4 + (-0.000122251636)*dish_e**5*dish_q**1 + (3.51622927e-05)*dish_e**5*dish_q**1*(dish_b - 1)**1 + (1.43135525e-05)*dish_e**5*dish_q**1*(dish_b - 1)**2 + (-3.86108354e-06)*dish_e**5*dish_q**1*(dish_b - 1)**3 + (-1.2828561e-06)*dish_e**5*dish_q**1*(dish_b - 1)**4 + (-7.92337157e-05)*dish_e**5*dish_q**2 + (2.8294295e-05)*dish_e**5*dish_q**2*(dish_b - 1)**1 + (1.09241713e-05)*dish_e**5*dish_q**2*(dish_b - 1)**2 + (-3.52849653e-06)*dish_e**5*dish_q**2*(dish_b - 1)**3 + (-1.03283377e-06)*dish_e**5*dish_q**2*(dish_b - 1)**4 + (3.33530016e-05)*dish_e**5*dish_q**3 + (6.93230902e-06)*dish_e**5*dish_q**3*(dish_b - 1)**1 + (1.36618516e-06)*dish_e**5*dish_q**3*(dish_b - 1)**2 + (-1.85714656e-06)*dish_e**5*dish_q**3*(dish_b - 1)**3 + (-3.05472102e-07)*dish_e**5*dish_q**3*(dish_b - 1)**4 + (4.49131735e-05)*dish_e**5*dish_q**4 + (-1.47976213e-06)*dish_e**5*dish_q**4*(dish_b - 1)**1 + (-1.53276742e-06)*dish_e**5*dish_q**4*(dish_b - 1)**2 + (-5.55879159e-07)*dish_e**5*dish_q**4*(dish_b - 1)**3 + (5.60248969e-09)*dish_e**5*dish_q**4*(dish_b - 1)**4)*(c/f0)/D), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "dish_e",
             "dish_q",
+            "dish_b",
             "f0",
             "D",
             "edge_taper_db",
-            "f_over_D"
+            "f_over_D",
+            "d_blockage"
           ],
-          "notes": "From the Hankel transform of the aperture field of the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory, fitted over edge taper -20..-3 dB and f/D 0.3..1.0: within 0.02 lambda/D on the grid and on held-out points. 66.5 lambda/D at -11 dB, where the old spec asserted 70; 61 for a -3 dB taper, 74 for -20. NaN outside edge tapers -20..-3 dB and f/D 0.3..1.0, the fitted domain."
+          "notes": "From the Hankel transform of the aperture field of the classic Silver model - a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper - with the central disc of diameter d_blockage removed, fitted over edge tapers -20..-3 dB, f/D 0.3..1.0 and d_blockage/D 0..0.2: within 0.004 lambda/D on the grid and 0.011 on held-out points. 66.55 lambda/D at -11 dB and f/D = 0.4 unblocked, 65.90 with the default 0.1 D blockage: blockage narrows the main beam slightly as it raises the sidelobes. NaN outside edge tapers -20..-3 dB, f/D 0.3..1.0 and d_blockage/D 0..0.2, the fitted domain."
         },
         {
-          "metric": "first_sidelobe_db",
-          "expr": "np.where((edge_taper_db >= -20.001)*(edge_taper_db <= -2.999)*(f_over_D >= 0.2999)*(f_over_D <= 1.0001), ((-25.7758047) + (0.169584259)*dish_q**1 + (0.195045118)*dish_q**2 + (0.0997646698)*dish_q**3 + (8.61611686)*dish_e**1 + (-0.576379708)*dish_e**1*dish_q**1 + (-0.608198051)*dish_e**1*dish_q**2 + (-0.284310758)*dish_e**1*dish_q**3 + (-2.60904429)*dish_e**2 + (0.309163658)*dish_e**2*dish_q**1 + (0.404672133)*dish_e**2*dish_q**2 + (0.215205272)*dish_e**2*dish_q**3 + (0.913433246)*dish_e**3 + (-0.118466692)*dish_e**3*dish_q**1 + (-0.213099059)*dish_e**3*dish_q**2 + (-0.125325474)*dish_e**3*dish_q**3 + (-1.12236502)*dish_e**4 + (0.66789993)*dish_e**4*dish_q**1 + (0.280903043)*dish_e**4*dish_q**2 + (-0.0651913196)*dish_e**4*dish_q**3 + (0.74769216)*dish_e**5 + (-0.55715996)*dish_e**5*dish_q**1 + (-0.181566253)*dish_e**5*dish_q**2 + (0.0966661017)*dish_e**5*dish_q**3), inf - inf)",
+          "metric": "peak_sidelobe_db",
+          "expr": "np.where((edge_taper_db >= -20.001)*(edge_taper_db <= -2.999)*(f_over_D >= 0.2999)*(f_over_D <= 1.0001)*(d_blockage/D >= -1e-9)*(d_blockage/D <= 0.2001), ((-23.1082711) + (4.4307392)*(dish_b - 1)**1 + (0.840824682)*(dish_b - 1)**2 + (-0.838435667)*(dish_b - 1)**3 + (0.186962384)*(dish_b - 1)**4 + (0.114186099)*dish_q**1 + (-0.0517835215)*dish_q**1*(dish_b - 1)**1 + (-0.0816523746)*dish_q**1*(dish_b - 1)**2 + (0.0250098074)*dish_q**1*(dish_b - 1)**3 + (0.048906104)*dish_q**1*(dish_b - 1)**4 + (0.100696477)*dish_q**2 + (-0.0797677448)*dish_q**2*(dish_b - 1)**1 + (0.0296303164)*dish_q**2*(dish_b - 1)**2 + (0.0517711682)*dish_q**2*(dish_b - 1)**3 + (-0.0547072404)*dish_q**2*(dish_b - 1)**4 + (0.0654779197)*dish_q**3 + (-0.0634096912)*dish_q**3*(dish_b - 1)**1 + (0.0673883791)*dish_q**3*(dish_b - 1)**2 + (0.0296105135)*dish_q**3*(dish_b - 1)**3 + (-0.0684514646)*dish_q**3*(dish_b - 1)**4 + (0.0299053992)*dish_q**4 + (-0.0214009658)*dish_q**4*(dish_b - 1)**1 + (0.00863264886)*dish_q**4*(dish_b - 1)**2 + (0.000586776047)*dish_q**4*(dish_b - 1)**3 + (-0.00380897183)*dish_q**4*(dish_b - 1)**4 + (5.59432524)*dish_e**1 + (-4.25571117)*dish_e**1*(dish_b - 1)**1 + (0.250701978)*dish_e**1*(dish_b - 1)**2 + (1.25534367)*dish_e**1*(dish_b - 1)**3 + (-0.587038541)*dish_e**1*(dish_b - 1)**4 + (-0.367449259)*dish_e**1*dish_q**1 + (0.121750756)*dish_e**1*dish_q**1*(dish_b - 1)**1 + (0.534712094)*dish_e**1*dish_q**1*(dish_b - 1)**2 + (0.0545704847)*dish_e**1*dish_q**1*(dish_b - 1)**3 + (-0.489481008)*dish_e**1*dish_q**1*(dish_b - 1)**4 + (-0.295529918)*dish_e**1*dish_q**2 + (0.289178788)*dish_e**1*dish_q**2*(dish_b - 1)**1 + (-0.0957855247)*dish_e**1*dish_q**2*(dish_b - 1)**2 + (-0.159397885)*dish_e**1*dish_q**2*(dish_b - 1)**3 + (0.149897761)*dish_e**1*dish_q**2*(dish_b - 1)**4 + (-0.150274476)*dish_e**1*dish_q**3 + (0.272003304)*dish_e**1*dish_q**3*(dish_b - 1)**1 + (-0.41952489)*dish_e**1*dish_q**3*(dish_b - 1)**2 + (-0.212360148)*dish_e**1*dish_q**3*(dish_b - 1)**3 + (0.456412948)*dish_e**1*dish_q**3*(dish_b - 1)**4 + (-0.0624121533)*dish_e**1*dish_q**4 + (0.0942738912)*dish_e**1*dish_q**4*(dish_b - 1)**1 + (-0.110547043)*dish_e**1*dish_q**4*(dish_b - 1)**2 + (-0.067715397)*dish_e**1*dish_q**4*(dish_b - 1)**3 + (0.123269112)*dish_e**1*dish_q**4*(dish_b - 1)**4 + (-0.737552845)*dish_e**2 + (2.02631102)*dish_e**2*(dish_b - 1)**1 + (-0.837562749)*dish_e**2*(dish_b - 1)**2 + (0.234821947)*dish_e**2*(dish_b - 1)**3 + (-0.350436932)*dish_e**2*(dish_b - 1)**4 + (0.0929032865)*dish_e**2*dish_q**1 + (-0.503366173)*dish_e**2*dish_q**1*(dish_b - 1)**1 + (1.21535299)*dish_e**2*dish_q**1*(dish_b - 1)**2 + (-0.234790553)*dish_e**2*dish_q**1*(dish_b - 1)**3 + (-0.594246267)*dish_e**2*dish_q**1*(dish_b - 1)**4 + (0.178123099)*dish_e**2*dish_q**2 + (-0.0473644697)*dish_e**2*dish_q**2*(dish_b - 1)**1 + (-0.333358715)*dish_e**2*dish_q**2*(dish_b - 1)**2 + (-0.541714754)*dish_e**2*dish_q**2*(dish_b - 1)**3 + (0.773146721)*dish_e**2*dish_q**2*(dish_b - 1)**4 + (0.12802923)*dish_e**2*dish_q**3 + (0.0827379266)*dish_e**2*dish_q**3*(dish_b - 1)**1 + (-0.801326798)*dish_e**2*dish_q**3*(dish_b - 1)**2 + (-0.122009743)*dish_e**2*dish_q**3*(dish_b - 1)**3 + (0.741503834)*dish_e**2*dish_q**3*(dish_b - 1)**4 + (0.00941103784)*dish_e**2*dish_q**4 + (-0.0443856372)*dish_e**2*dish_q**4*(dish_b - 1)**1 + (-0.0227657008)*dish_e**2*dish_q**4*(dish_b - 1)**2 + (0.168351623)*dish_e**2*dish_q**4*(dish_b - 1)**3 + (-0.117774879)*dish_e**2*dish_q**4*(dish_b - 1)**4 + (-0.11619197)*dish_e**3 + (-0.615501998)*dish_e**3*(dish_b - 1)**1 + (1.14606151)*dish_e**3*(dish_b - 1)**2 + (-1.25037095)*dish_e**3*(dish_b - 1)**3 + (0.642954439)*dish_e**3*(dish_b - 1)**4 + (0.21140127)*dish_e**3*dish_q**1 + (1.0503465)*dish_e**3*dish_q**1*(dish_b - 1)**1 + (-3.50988162)*dish_e**3*dish_q**1*(dish_b - 1)**2 + (-0.336295172)*dish_e**3*dish_q**1*(dish_b - 1)**3 + (2.73213518)*dish_e**3*dish_q**1*(dish_b - 1)**4 + (-0.0522353411)*dish_e**3*dish_q**2 + (-0.108366719)*dish_e**3*dish_q**2*(dish_b - 1)**1 + (0.335121886)*dish_e**3*dish_q**2*(dish_b - 1)**2 + (0.805782357)*dish_e**3*dish_q**2*(dish_b - 1)**3 + (-0.982134302)*dish_e**3*dish_q**2*(dish_b - 1)**4 + (-0.171488366)*dish_e**3*dish_q**3 + (-0.605958514)*dish_e**3*dish_q**3*(dish_b - 1)**1 + (2.22851431)*dish_e**3*dish_q**3*(dish_b - 1)**2 + (0.81933802)*dish_e**3*dish_q**3*(dish_b - 1)**3 + (-2.35082512)*dish_e**3*dish_q**3*(dish_b - 1)**4 + (-0.0148937397)*dish_e**3*dish_q**4 + (-0.156854358)*dish_e**3*dish_q**4*(dish_b - 1)**1 + (0.461147628)*dish_e**3*dish_q**4*(dish_b - 1)**2 + (0.0993250146)*dish_e**3*dish_q**4*(dish_b - 1)**3 + (-0.39887971)*dish_e**3*dish_q**4*(dish_b - 1)**4 + (0.154003094)*dish_e**4 + (0.843523015)*dish_e**4*(dish_b - 1)**1 + (-1.712276)*dish_e**4*(dish_b - 1)**2 + (-1.65252845)*dish_e**4*(dish_b - 1)**3 + (2.43105241)*dish_e**4*(dish_b - 1)**4 + (0.0945321548)*dish_e**4*dish_q**1 + (-0.0865402297)*dish_e**4*dish_q**1*(dish_b - 1)**1 + (-0.879448169)*dish_e**4*dish_q**1*(dish_b - 1)**2 + (0.946413047)*dish_e**4*dish_q**1*(dish_b - 1)**3 + (-0.0480102678)*dish_e**4*dish_q**1*(dish_b - 1)**4 + (-0.072729387)*dish_e**4*dish_q**2 + (-0.581103114)*dish_e**4*dish_q**2*(dish_b - 1)**1 + (1.19971601)*dish_e**4*dish_q**2*(dish_b - 1)**2 + (1.19144247)*dish_e**4*dish_q**2*(dish_b - 1)**3 + (-1.7897145)*dish_e**4*dish_q**2*(dish_b - 1)**4 + (-0.112464812)*dish_e**4*dish_q**3 + (-0.247501597)*dish_e**4*dish_q**3*(dish_b - 1)**1 + (1.2035622)*dish_e**4*dish_q**3*(dish_b - 1)**2 + (0.0361019829)*dish_e**4*dish_q**3*(dish_b - 1)**3 + (-0.928017343)*dish_e**4*dish_q**3*(dish_b - 1)**4 + (0.00308135338)*dish_e**4*dish_q**4 + (0.119290347)*dish_e**4*dish_q**4*(dish_b - 1)**1 + (-0.131212391)*dish_e**4*dish_q**4*(dish_b - 1)**2 + (-0.442112919)*dish_e**4*dish_q**4*(dish_b - 1)**3 + (0.460369673)*dish_e**4*dish_q**4*(dish_b - 1)**4 + (-0.0591488142)*dish_e**5 + (-0.647148957)*dish_e**5*(dish_b - 1)**1 + (0.9525905)*dish_e**5*(dish_b - 1)**2 + (2.09537906)*dish_e**5*(dish_b - 1)**3 + (-2.37466774)*dish_e**5*(dish_b - 1)**4 + (-0.229066795)*dish_e**5*dish_q**1 + (-0.521964313)*dish_e**5*dish_q**1*(dish_b - 1)**1 + (2.8214525)*dish_e**5*dish_q**1*(dish_b - 1)**2 + (-0.452350185)*dish_e**5*dish_q**1*(dish_b - 1)**3 + (-1.7241498)*dish_e**5*dish_q**1*(dish_b - 1)**4 + (0.0688484701)*dish_e**5*dish_q**2 + (0.566735843)*dish_e**5*dish_q**2*(dish_b - 1)**1 + (-1.14630386)*dish_e**5*dish_q**2*(dish_b - 1)**2 + (-1.37841767)*dish_e**5*dish_q**2*(dish_b - 1)**3 + (1.93700311)*dish_e**5*dish_q**2*(dish_b - 1)**4 + (0.192774486)*dish_e**5*dish_q**3 + (0.602155397)*dish_e**5*dish_q**3*(dish_b - 1)**1 + (-2.34157125)*dish_e**5*dish_q**3*(dish_b - 1)**2 + (-0.578863888)*dish_e**5*dish_q**3*(dish_b - 1)**3 + (2.21974323)*dish_e**5*dish_q**3*(dish_b - 1)**4 + (0.0121750711)*dish_e**5*dish_q**4 + (0.0222880244)*dish_e**5*dish_q**4*(dish_b - 1)**1 + (-0.216534627)*dish_e**5*dish_q**4*(dish_b - 1)**2 + (0.237149526)*dish_e**5*dish_q**4*(dish_b - 1)**3 + (-0.0516766424)*dish_e**5*dish_q**4*(dish_b - 1)**4), inf - inf)",
           "units_out": "dB",
-          "notes": "The FIRST sidelobe, between the first and second nulls of the same Hankel transform, fitted to 0.06 dB (0.02 on held-out points). -25.2 dB at -11 dB and f/D = 0.4. Past about -17 dB of edge taper the SECOND sidelobe becomes the higher one at larger f/D, so this stops being the peak sidelobe there. NaN outside edge tapers -20..-3 dB and f/D 0.3..1.0: at -30 dB the polynomial read -112.5 dB where the Hankel transform gives -48.8.",
+          "notes": "The PEAK sidelobe of the same blocked Hankel transform. It replaces first_sidelobe_db, which ignored the blockage: at the default 0.1 D it read -25.2 dB where the blocked aperture gives -22.7, and at 0.2 D it still read -25.2 against -18.3. Blockage raises the sidelobes and can move the peak off the first lobe, as can a deep taper at large f/D - so the peak, not the first. Fitted to 0.2 dB for edge tapers -17..-3 dB; within 0.5 dB below that, where the sidelobes are under -35 dB and the peak changes lobe. NaN outside edge tapers -20..-3 dB, f/D 0.3..1.0 and d_blockage/D 0..0.2: at -30 dB the old unblocked polynomial read -112.5 dB where the Hankel transform gives -48.8.",
           "depends_on": [
             "dish_e",
             "dish_q",
+            "dish_b",
             "edge_taper_db",
-            "f_over_D"
+            "f_over_D",
+            "d_blockage",
+            "D"
           ]
         },
         {
@@ -293,7 +316,7 @@
         "D > 10*lambda for physical-optics aperture theory to hold",
         "the -11 dB edge taper optimum assumes the feed pattern actually achieves it; illumination and spillover efficiency trade directly against each other and only their product is meaningful",
         "efficiency terms are defaults for a competent design, not measurements",
-        "eta_ill, eta_spill, hpbw_deg and first_sidelobe_db follow the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory; they hold for edge tapers -20..-3 dB and f/D 0.3..1.0. A real feed with unequal E- and H-plane patterns, a wandering phase centre or high cross-polarisation does worse than this ideal - supply measured efficiencies to override",
+        "eta_ill, eta_spill, eta_blockage, hpbw_deg and peak_sidelobe_db follow the classic Silver model: a rotationally symmetric feed with power pattern 2(n+1)cos^n(theta), n set by the edge taper, and physical-optics aperture theory; they hold for edge tapers -20..-3 dB, f/D 0.3..1.0 and d_blockage/D 0..0.2, the blockage a central disc. A real feed with unequal E- and H-plane patterns, a wandering phase centre or high cross-polarisation does worse than this ideal - supply measured efficiencies to override",
         "at f/D = 0.25 and below the feed looks at or behind the aperture plane and no cos^n pattern reaches a finite edge taper; the derived terms are meaningless there"
       ],
       "known_cases": [
@@ -374,13 +397,51 @@
             "D": 1.0,
             "f_over_D": 0.4,
             "eps_rms": 0.0,
-            "d_blockage": 0.1
+            "d_blockage": 0.1,
+            "edge_taper_db": -11.0
           },
           "expect": {
-            "eta_blockage": 0.9801
+            "eta_blockage": 0.965366,
+            "aperture_efficiency": 0.766364,
+            "hpbw_deg": 1.97556,
+            "peak_sidelobe_db": -22.7446
+          },
+          "tol_pct": 0.3,
+          "source": "A 0.1 D central blockage at f/D = 0.4 and -11 dB edge taper. Blockage by quadrature (scipy quad) of the aperture field A(rho) = cos^(n/2)(theta)(1 + cos theta)/2 over the unblocked annulus against the whole disc, squared: 0.965366, where the uniform-illumination (1 - 0.01)^2 = 0.9801 of Milligan, Modern Antenna Design 2nd ed., Ch. 8 understates the loss. Taper and spillover from otahub.num.paraboloid.efficiencies, 0.98 x 0.98 for cross-polarisation and match. Beamwidth 65.898 lambda/D and peak sidelobe from the Hankel transform of the blocked aperture (otahub.num.paraboloid.blocked_beam, 3000 Gauss points)."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.4,
+            "edge_taper_db": -11.0,
+            "eps_rms": 0.0,
+            "d_blockage": 0.2
+          },
+          "expect": {
+            "eta_blockage": 0.867576,
+            "hpbw_deg": 1.92062,
+            "peak_sidelobe_db": -18.3353
           },
           "tol_pct": 0.5,
-          "source": "A 10% blockage diameter costs (1-0.01)^2 = 0.9801, i.e. 0.087 dB. Milligan, Modern Antenna Design 2nd ed., Ch. 8"
+          "source": "Twice the blockage: (1 - 0.04)^2 = 0.9216 under uniform illumination, 0.867576 by quadrature of the tapered aperture field; the blocked Hankel transform puts the peak sidelobe at -18.34 dB, 6.9 dB above the unblocked dish's -25.21. Same routes as the 0.1 D case."
+        },
+        {
+          "given": {
+            "f0": 10000000000.0,
+            "D": 1.0,
+            "f_over_D": 0.37,
+            "edge_taper_db": -9.6,
+            "eps_rms": 0.0,
+            "d_blockage": 0.137
+          },
+          "expect": {
+            "eta_blockage": 0.939658,
+            "hpbw_deg": 1.92902,
+            "peak_sidelobe_db": -20.4512
+          },
+          "tol_pct": 0.5,
+          "source": "Off the fit grid in all three variables: f/D 0.37, -9.6 dB, 0.137 D blockage. Blockage by quadrature of the aperture field, beam by the blocked Hankel transform, as above."
         },
         {
           "given": {
@@ -395,11 +456,11 @@
             "eta_ill": 0.886246,
             "eta_spill": 0.932688,
             "hpbw_deg": 1.99518,
-            "first_sidelobe_db": -25.2121,
-            "gain_dbi": 39.404
+            "gain_dbi": 39.404,
+            "peak_sidelobe_db": -25.2121
           },
           "tol_pct": 0.3,
-          "source": "f/D = 0.4, -11 dB edge taper: a cos^2.271 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
+          "source": "f/D = 0.4, -11 dB edge taper: a cos^2.271 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and peak sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
         },
         {
           "given": {
@@ -414,11 +475,11 @@
             "eta_ill": 0.828543,
             "eta_spill": 0.961389,
             "hpbw_deg": 2.06951,
-            "first_sidelobe_db": -28.6674,
-            "gain_dbi": 39.2432
+            "gain_dbi": 39.2432,
+            "peak_sidelobe_db": -28.6674
           },
           "tol_pct": 0.3,
-          "source": "f/D = 0.6, -14 dB edge taper: a cos^8.277 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
+          "source": "f/D = 0.6, -14 dB edge taper: a cos^8.277 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and peak sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
         },
         {
           "given": {
@@ -433,11 +494,11 @@
             "eta_ill": 0.936846,
             "eta_spill": 0.917943,
             "hpbw_deg": 1.92511,
-            "first_sidelobe_db": -22.6277,
-            "gain_dbi": 39.5759
+            "gain_dbi": 39.5759,
+            "peak_sidelobe_db": -22.6277
           },
           "tol_pct": 0.3,
-          "source": "f/D = 0.3, -8 dB edge taper: a cos^0.460 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and first sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
+          "source": "f/D = 0.3, -8 dB edge taper: a cos^0.460 feed. Taper and spillover by quadrature of the feed-angle integrals (scipy quad), beamwidth and peak sidelobe by a numerical Hankel transform of the aperture field - not the spec's trapezoid or its fits. Gain with the default 0.98 x 0.98 cross-pol and match terms."
         }
       ],
       "references": [
@@ -1781,11 +1842,13 @@
         },
         {
           "metric": "gain_advantage_over_prime_focus_db",
-          "expr": "taper_penalty_vs_symmetric_db + db10(1/(1 - (0.1)**2)**2)",
+          "expr": "taper_penalty_vs_symmetric_db - db10((1 - np.trapezoid(np.cos(np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001))**(feed_n/2)*np.tan(np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001)/2), np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001))/np.trapezoid(np.cos(np.linspace(0, theta_star, 4001))**(feed_n/2)*np.tan(np.linspace(0, theta_star, 4001)/2), np.linspace(0, theta_star, 4001)))**2)",
           "units_out": "dB",
-          "notes": "Against a prime-focus dish with the same feed and rim angle and a 0.1 D blockage: the 0.09 dB of blockage recovered, less the taper penalty. Negative at short and moderate focal lengths - -0.11 dB at the default design, down to -0.75 dB at parent f/D = 0.3 - about even at 0.7-0.8, and at most +0.07 dB for long, gently offset dishes. The offset buys sidelobes and noise temperature, not gain.",
+          "notes": "Against a prime-focus dish with the same feed and rim angle and a 0.1 D central blockage: the blockage recovered - weighted by the tapered aperture field, as prime_focus_parabolic now weights it, 0.10 dB under a -3 dB feed taper to 0.24 dB under -20 dB, where the uniform-illumination rule said 0.09 throughout - less the taper penalty. Behind at short focal lengths - 0.40-0.61 dB at parent f/D = 0.3, 0.14-0.30 dB at 0.4, 0.05 dB at the default design - about even at 0.5-0.7, and ahead by up to 0.21 dB for long, gently offset dishes. The offset buys sidelobes and noise temperature more than gain.",
           "depends_on": [
-            "taper_penalty_vs_symmetric_db"
+            "taper_penalty_vs_symmetric_db",
+            "theta_star",
+            "feed_n"
           ]
         }
       ],
@@ -1857,11 +1920,11 @@
           },
           "expect": {
             "taper_penalty_vs_symmetric_db": -0.200464,
-            "gain_advantage_over_prime_focus_db": -0.113168
+            "gain_advantage_over_prime_focus_db": -0.045613
           },
           "tol_pct": 1.0,
           "tol_abs": 0.01,
-          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.964972) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         },
         {
           "given": {
@@ -1892,11 +1955,11 @@
           },
           "expect": {
             "taper_penalty_vs_symmetric_db": -0.44964,
-            "gain_advantage_over_prime_focus_db": -0.362344
+            "gain_advantage_over_prime_focus_db": -0.282115
           },
           "tol_pct": 1.0,
           "tol_abs": 0.01,
-          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.962160) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         },
         {
           "given": {
@@ -1927,11 +1990,11 @@
           },
           "expect": {
             "taper_penalty_vs_symmetric_db": -0.130516,
-            "gain_advantage_over_prime_focus_db": -0.0432203
+            "gain_advantage_over_prime_focus_db": 0.006062
           },
           "tol_pct": 1.0,
           "tol_abs": 0.01,
-          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the feed-angle quadrature - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+          "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.969041) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         }
       ],
       "references": [
@@ -1939,7 +2002,7 @@
         "Rusch & Potter, Analysis of Reflector Antennas, Academic Press 1970",
         "Chu & Turrin, Depolarization properties of offset reflector antennas, IEEE T-AP 21(3), 1973"
       ],
-      "notes": "FROM THE FEED, AS FOR THE PRIME-FOCUS DISH. Seen from the focus, the rim of an offset paraboloid is a circular cone about the bisector of the upper and lower rim angles - checked numerically, not assumed: every rim ray sits at theta* from that axis to 1e-14 rad. So a feed aimed along it, with power pattern 2(n+1)cos^n and n set by the feed taper at the rim, has spillover exactly 1 - cos^(n+1)(theta*). The taper efficiency does NOT carry over from the symmetric dish: the lower rim is much closer to the feed than the upper, so the spherical spreading tilts the aperture illumination. The symmetric formula with theta* overstates it by 1% at long focal lengths and up to 20% at f/D = 0.3. It is fitted instead to a 2-D integration over the projected aperture (otahub.num.paraboloid), as is the beamwidth, whose two principal planes differ by under 2%. WHAT CHANGED. The old defaults were the prime-focus ones, 0.82 x 0.85 = 0.697, with spillover counted twice. At the default geometry the best feed taper is -9.6 dB for a product of 0.780; the new default, -10 dB, gives 0.779, and 0.48 dB more gain than the old budget. And the offset's 'gain advantage over prime focus' - the 0.09 dB of a 10% blockage recovered - was never the whole story. Against a symmetric dish with the same feed and rim angle, the tilted illumination costs taper efficiency, and over the fitted range the offset comes out up to 0.75 dB BEHIND at parent f/D = 0.3, 0.09-0.22 dB behind at the default 0.5, about even at 0.7-0.8, and ahead by at most 0.07 dB at f/D = 1. Its prize is the sidelobes and noise temperature, as the old note said; now the numbers say it too."
+      "notes": "FROM THE FEED, AS FOR THE PRIME-FOCUS DISH. Seen from the focus, the rim of an offset paraboloid is a circular cone about the bisector of the upper and lower rim angles - checked numerically, not assumed: every rim ray sits at theta* from that axis to 1e-14 rad. So a feed aimed along it, with power pattern 2(n+1)cos^n and n set by the feed taper at the rim, has spillover exactly 1 - cos^(n+1)(theta*). The taper efficiency does NOT carry over from the symmetric dish: the lower rim is much closer to the feed than the upper, so the spherical spreading tilts the aperture illumination. The symmetric formula with theta* overstates it by 1% at long focal lengths and up to 20% at f/D = 0.3. It is fitted instead to a 2-D integration over the projected aperture (otahub.num.paraboloid), as is the beamwidth, whose two principal planes differ by under 2%. WHAT CHANGED. The old defaults were the prime-focus ones, 0.82 x 0.85 = 0.697, with spillover counted twice. At the default geometry the best feed taper is -9.6 dB for a product of 0.780; the new default, -10 dB, gives 0.779, and 0.48 dB more gain than the old budget. And the offset's 'gain advantage over prime focus' - a 10% blockage recovered - was never the whole story. Against a symmetric dish with the same feed and rim angle, the tilted illumination costs taper efficiency; and the blockage recovered is 0.10-0.24 dB once weighted by the tapered aperture field - more the deeper the feed taper - not the 0.09 dB of uniform illumination. Over the fitted range the offset comes out 0.40-0.61 dB BEHIND at parent f/D = 0.3, up to 0.16 dB behind or 0.03 dB ahead at the default 0.5 (0.05 dB behind at the default design), about even at 0.6-0.7, and ahead by 0.05-0.21 dB at f/D = 1. Its prize is the sidelobes and noise temperature, as the old note said; now the numbers say it too."
     },
     {
       "key": "gregorian_dual_reflector",

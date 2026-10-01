@@ -74,13 +74,14 @@ def test_the_symmetric_formula_would_have_overstated_the_taper(dish):
 
 
 def test_the_offset_wins_on_gain_only_at_long_focal_lengths(dish):
-    """The blockage it removes is worth 0.09 dB. At short and moderate focal
-    lengths the tilted illumination costs more; only long, gently offset dishes
-    come out ahead, and then by hundredths of a dB."""
-    for fd, h, ft in ((0.5, 0.6, -10.0), (0.4, 0.8, -12.0), (0.7, 1.0, -8.0), (0.3, 0.55, -10.0)):
+    """The 0.1 D blockage it removes is worth 0.10-0.24 dB, weighted by the tapered
+    aperture field. At short focal lengths the tilted illumination costs more; only
+    long, gently offset dishes come out ahead, and then by tenths of a dB at most."""
+    for fd, h, ft in ((0.5, 0.6, -10.0), (0.4, 0.8, -12.0), (0.3, 0.55, -10.0), (0.3, 1.2, -3.0)):
         assert _design(dish, fd, h, ft).metrics["gain_advantage_over_prime_focus_db"] < 0.0
+    assert abs(_design(dish, 0.7, 1.0, -8.0).metrics["gain_advantage_over_prime_focus_db"]) < 0.02
     ahead = _design(dish, 1.0, 0.6, -10.0).metrics["gain_advantage_over_prime_focus_db"]
-    assert 0.0 < ahead < 0.08
+    assert 0.1 < ahead < 0.15
 
 
 def test_the_old_default_budget_counted_spillover_twice(dish):

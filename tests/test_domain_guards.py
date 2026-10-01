@@ -24,8 +24,10 @@ def _nan(x) -> bool:
 @pytest.mark.parametrize("key,metric,outside,inside", [
     ("conical_horn", "aperture_efficiency", dict(f0=1e10, L=3, flare=2), dict(f0=1e10, L=0.3, flare=1)),
     ("corrugated_conical_horn", "aperture_efficiency", dict(f0=1e10, L=3, flare=2), dict(f0=1e10, L=0.3, flare=1)),
-    ("prime_focus_parabolic", "first_sidelobe_db", dict(f0=1e10, D=1, f_over_D=0.4, edge_taper_db=-30),
+    ("prime_focus_parabolic", "peak_sidelobe_db", dict(f0=1e10, D=1, f_over_D=0.4, edge_taper_db=-30),
      dict(f0=1e10, D=1, f_over_D=0.4, edge_taper_db=-11)),
+    ("prime_focus_parabolic", "hpbw_deg", dict(f0=1e10, D=1, f_over_D=0.4, d_blockage=0.3),
+     dict(f0=1e10, D=1, f_over_D=0.4, d_blockage=0.2)),
     ("corner_reflector_90", "input_resistance_ohm", dict(f0=3e8, S_over_lambda=0.05), dict(f0=3e8, S_over_lambda=0.5)),
     ("axial_mode_helix", "gain_dbi", dict(f0=1e9, C_over_lambda=1.2, N=20, pitch_deg=12),
      dict(f0=1e9, C_over_lambda=1.0, N=10, pitch_deg=13)),
