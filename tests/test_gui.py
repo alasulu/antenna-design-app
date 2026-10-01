@@ -506,6 +506,16 @@ def test_the_drawings_geometry_is_the_designs_not_just_its_labels(qapp, registry
     assert len(rec.wires) == 2 * int(big.get("N_elements")) == 178
 
 
+@pytest.mark.parametrize("boom", [0.4, 0.8, 1.2, 2.2, 3.2, 4.2])
+def test_the_yagi_drawing_has_the_nbs_designs_directors(qapp, registry, boom):
+    """It estimated its own count, round((boom - 0.2) / 0.3): three directors on the
+    1.2-wavelength NBS design, which has four, and a cap of twelve where 3.2 has 15."""
+    from otahub.gui.app import design_values
+    d = registry["yagi_uda"].synthesize(f0=3e8, boom_over_lambda=boom)
+    rec = _labels("yagi_uda", registry, design_values(d))
+    assert len(rec.wires) == 3 + int(d.metrics["director_count_nbs"])     # the driven element is two wires
+
+
 def test_a_three_level_zone_plate_steps_every_two_thirds_of_a_zone(qapp, registry):
     """levels // 2 lost the fraction: four bands from 39.04 mm where the model has
     six from 31.79 mm, r_m = sqrt(m lambda F + (m lambda / 2)^2) at m = 2j/3."""
@@ -627,3 +637,18 @@ def test_the_planar_warning_tests_the_steering_direction(window):
     tab.scan_phi.setValue(0)
     tab.refresh()
     assert "A grating lobe is in real space" in tab.warning.text()
+
+
+def test_redrawing_a_weighted_layout_keeps_one_colour_bar_and_draws(qapp):
+    """Removing the colour bar's axes alone left it registered with its parent, and
+    constrained layout raised on the next draw ('NoneType' has no transSubfigure)."""
+    from otahub.gui.plots import Canvas, plot_element_layout
+    c = Canvas()
+    pos = [(x, y) for x in range(4) for y in range(4)]
+    for _ in range(3):
+        plot_element_layout(c, pos, weights=[1.0 + 0.1 * i for i in range(16)])
+        c.draw()
+    assert len(c.figure.axes) == 2 and len(c.colorbars) == 1
+    plot_element_layout(c, pos)                    # unweighted: no bar at all
+    c.draw()
+    assert len(c.figure.axes) == 1 and not c.colorbars

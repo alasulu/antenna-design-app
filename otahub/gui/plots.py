@@ -25,11 +25,17 @@ class Canvas(FigureCanvasQTAgg):
         self.figure = Figure(figsize=(width, height), layout="constrained")
         self.polar = polar
         self.axes = self.figure.add_subplot(111, projection="polar" if polar else None)
+        self.colorbars: list = []
         super().__init__(self.figure)
         mpl_style(self.figure, self.axes, polar)
 
     def clear(self) -> None:
-        for extra in self.figure.axes[1:]:   # a colour bar from the last draw would otherwise pile up
+        # A colour bar from the last draw would otherwise pile up. Colorbar.remove() also
+        # unregisters it from its parent axes; removing its axes alone left constrained
+        # layout holding an axes with no figure, which raised on the next draw.
+        while self.colorbars:
+            self.colorbars.pop().remove()
+        for extra in self.figure.axes[1:]:
             extra.remove()
         self.axes.clear()
         mpl_style(self.figure, self.axes, self.polar)
@@ -146,7 +152,7 @@ def plot_element_layout(canvas: Canvas, positions, weights=None,
     sc = ax.scatter(pos[:, 0], pos[:, 1], s=sizes, c=colours if colours is not None else ACCENT,
                     cmap=AMPLITUDE if colours is not None else None, edgecolors="none")
     if colours is not None:
-        canvas.figure.colorbar(sc, ax=ax, label="normalised amplitude")
+        canvas.colorbars.append(canvas.figure.colorbar(sc, ax=ax, label="normalised amplitude"))
     ax.set_xlabel("x (wavelengths)")
     ax.set_ylabel("y (wavelengths)")
     ax.set_aspect("equal", adjustable="datalim")

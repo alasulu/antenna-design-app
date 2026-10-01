@@ -728,7 +728,10 @@ def _yagi(f: Fig, v):
     lr = _num(v, "reflector_length", default=boom * 0.4)
     ld = _num(v, "driven_length", default=lr * 0.95)
     lam = lr / 0.5
-    n_dir = max(1, min(12, int(round((boom - 0.2 * lam) / (0.3 * lam)))))
+    # the NBS design's own count when the spec gives it: its directors then fill the boom at
+    # the NBS spacings (0.2 lambda, 0.25 at a 1.2-wavelength boom, 0.308 at 4.2)
+    n_dir = int(round(_num(v, "director_count_nbs", default=(boom - 0.2 * lam) / (0.3 * lam))))
+    n_dir = max(1, min(20, n_dir))
     f.fit(-boom * 0.12, -lr * 0.7, boom * 1.12, lr * 0.75)
     f.box(0, -f.minw(2.5), boom, f.minw(5), METAL, METAL_DARK, 0.8)
     xs = [0, 0.2 * lam] + [0.2 * lam + (boom - 0.2 * lam) * (i + 1) / n_dir for i in range(n_dir)]
