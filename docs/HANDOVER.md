@@ -939,6 +939,15 @@ a modest extension of them.
     a variable but write the solids with the numbers, so editing a variable does
     not move the geometry. Carrying expressions through the builders would let
     the simulator's own optimiser drive the design.
+14. **The PIFA with a narrow shorting strip.** Its length is calibrated, and
+    now given, for a full-width short only; a narrower strip lowers the
+    resonance and the spec returns NaN there rather than reuse the full-width
+    value. `patch_fdtd.pifa_ringdown` models the whole plate with the strip at
+    one corner (it reproduces the mirrored solver to 1e-6 for a full-width
+    strip); a survey over strip width, plate width and height, run with each
+    case's own frequency guess and its results saved as they come, would give
+    the narrow-strip length. A first attempt lost its runs to one case whose
+    resonance fell outside its guess window.
 
 The re-audit is never finished: every archetype passes the cases it declares,
 which is not the same as being right, and the survey that ranks archetypes by

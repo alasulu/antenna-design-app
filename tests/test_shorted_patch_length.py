@@ -106,3 +106,25 @@ def test_one_survey_run_live(registry):
     f_spec = brentq(lambda fr: former_L(fr * C) - nl * cell, 0.8, 0.0999 / (rec["h_lam"] * math.sqrt(2.2)), xtol=1e-10)
     f, _ = patch_fdtd.shorted_ringdown(2.2, 4, nl, nw, 0.9 * cell)
     assert (f / cell) / f_spec == pytest.approx(rec["ratio"], abs=1e-5)
+
+
+def test_the_pifa_length_is_given_for_a_full_width_short_only(registry):
+    """Codex: a 1 mm strip got the full-width length (24.29 mm at 2.4 GHz), which by
+    the textbook narrow-short rule resonates near 1.5 GHz. No narrow-strip relation is
+    verified here, so the length is withheld rather than reused."""
+    pifa = registry["pifa"]
+    full = pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.02).get("L")
+    assert full == pytest.approx(0.2425 * C / 2.4e9 - 0.006, rel=1e-12)
+    assert math.isnan(pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.001).get("L"))
+
+
+@pytest.mark.slow
+def test_the_whole_plate_fdtd_is_the_mirrored_one_for_a_full_width_short():
+    """pifa_ringdown models the whole plate with no magnetic wall, so it can take a
+    strip at one corner; with the strip as wide as the plate it must reproduce the
+    half model behind the 0.2425 calibration."""
+    nh, nl, half = 3, 18, 5
+    guess = 0.97 / (4 * (nl + nh))
+    f_half, q_half = patch_fdtd.shorted_ringdown(1.0, nh, nl, half, guess)
+    f_whole, q_whole = patch_fdtd.pifa_ringdown(nh, nl, 2 * half, 2 * half, guess)
+    assert f_whole == pytest.approx(f_half, rel=1e-6) and q_whole == pytest.approx(q_half, rel=1e-4)

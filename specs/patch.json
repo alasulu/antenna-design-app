@@ -1429,13 +1429,15 @@
       "synthesis": [
         {
           "output": "L",
-          "expr": "0.2425*c/f0 - h",
+          "expr": "np.where(Ws >= 0.999*W, 0.2425*c/f0 - h, inf - inf)",
           "units_out": "m",
           "depends_on": [
             "f0",
-            "h"
+            "h",
+            "W",
+            "Ws"
           ],
-          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law; the narrow-short case below is still the textbook limit."
+          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law. It holds for a FULL-WIDTH short only: a narrower strip lengthens the current path and lowers the resonance, so the same plate would resonate low - with a pin at one corner, toward the textbook L + W + h = lambda/4 (at 2.4 GHz, h 6 mm and W 20 mm, the full-width L of 24.3 mm on a 1 mm strip resonates near 1.5 GHz by that rule). No relation between the two has been verified here, so L is NaN unless Ws >= 0.999 W rather than the full-width value silently reused; resonant_length_narrow_short_m keeps the textbook pin limit as an indication. A whole-plate FDTD for corner strips (otahub.num.patch_fdtd.pifa_ringdown) exists for that calibration."
         }
       ],
       "analysis": [
@@ -1499,7 +1501,8 @@
         "h << lambda0",
         "assumes a ground plane large compared with the plate; handset ground planes are not, and the ground plane usually radiates more than the PIFA does",
         "L is FDTD-calibrated on two air plates (h 0.02-0.036 lambda0, W 0.12-0.2 lambda0): 0.2425 wavelengths for L + h",
-        "directivity is solved on an infinite ground plane for a full-width short, h 0.02-0.05 and W 0.06-0.2 wavelengths; the bandwidth stays indicative, and a handset's ground plane governs both in practice"
+        "directivity is solved on an infinite ground plane for a full-width short, h 0.02-0.05 and W 0.06-0.2 wavelengths; the bandwidth stays indicative, and a handset's ground plane governs both in practice",
+        "L is synthesised for a full-width short (Ws = W) only, the case its FDTD calibration covers; for a narrower strip it is NaN - the textbook narrow-short limit stays available as resonant_length_narrow_short_m, indicative"
       ],
       "known_cases": [
         {

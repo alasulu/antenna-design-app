@@ -738,3 +738,16 @@ def test_united_and_kept_tools_reach_both_backends(registry):
     hemi = build(registry["hemispherical_dra"].synthesize(**registry["hemispherical_dra"].spec.known_cases[0].given))
     assert 'Solid.Insert "component1:resonator_sphere", "component1:probe"' in cst.render(hemi)
     assert '"KeepOriginals:=", True' in hfss.render(hemi)
+
+
+def test_a_design_with_an_unavailable_dimension_exports_parameters_only(registry):
+    """A PIFA with a 1 mm strip has no verified length (L is NaN). The exporter wrote
+    'L = nan mm' and NaN coordinates into the script; it now builds no solids, says
+    which dimension is missing, and leaves NaN out of the variables."""
+    d = registry["pifa"].synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.001)
+    m = build(d)
+    assert not m.built_geometry and not m.solids and not m.ports
+    assert any("leaves L unavailable" in n for n in m.notes)
+    assert all(math.isfinite(v) for v in m.parameters.values())
+    for mod in (cst, hfss):
+        assert "nan" not in mod.render(m).lower().replace("unavailable (nan)", "")

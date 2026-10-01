@@ -167,7 +167,7 @@ def _base_model(design: DesignResult, title: str) -> Model:
     merged = {**design.requirements, **design.parameters}
     numeric = {k: float(v) for k, v in merged.items()
                if isinstance(v, (int, float)) and not isinstance(v, bool)
-               and k not in ("k0",)}
+               and k not in ("k0",) and math.isfinite(v)}      # NaN is no simulator variable
     units = dict(design.units)
     units.setdefault("f0", "Hz")
     centre, band, note = _frequencies(design)
@@ -1410,7 +1410,7 @@ def build(design: DesignResult) -> Model:
             model.notes.append(NOT_BUILT[design.archetype])
         return model
     try:
-        return fn(design)
+        model = fn(design)
     except KeyError as exc:
         model = _base_model(design, design.archetype)
         model.built_geometry = False
@@ -1418,3 +1418,33 @@ def build(design: DesignResult) -> Model:
             f"Geometry could not be built: {exc}. Supply the missing requirement "
             "and re-synthesise. Parameters exported below.")
         return model
+    if not _all_finite(model.solids) or not _all_finite(model.ports):
+        # a dimension the design declined to give (NaN outside a fit's domain, or a case
+        # the spec does not cover) must not reach the simulator as a coordinate
+        missing = sorted(k for k, v in {**design.requirements, **design.parameters}.items()
+                         if isinstance(v, float) and not math.isfinite(v))
+        flat = _base_model(design, model.title)
+        flat.built_geometry = False
+        flat.notes.append(
+            "NO SOLID GEOMETRY GENERATED: this design leaves "
+            + (", ".join(missing) if missing else "a dimension")
+            + " unavailable (NaN), so its geometry is not defined. See the spec's validity "
+            "notes; the parameters it does give are exported below.")
+        return flat
+    return model
+
+
+def _all_finite(items) -> bool:
+    """True when every number inside the solids or ports (their fields, tuples
+    of coordinates, nested lists) is finite."""
+    def ok(v) -> bool:
+        if isinstance(v, bool):
+            return True
+        if isinstance(v, (int, float)):
+            return math.isfinite(v)
+        if isinstance(v, (list, tuple)):
+            return all(ok(x) for x in v)
+        if hasattr(v, "__dataclass_fields__"):
+            return all(ok(getattr(v, f)) for f in v.__dataclass_fields__)
+        return True
+    return ok(list(items))

@@ -223,6 +223,56 @@ def shorted_ringdown(eps_r: float, nh: int, nl: int, nw: int, f_guess: float, ai
     return float(f[k]), float(q[k])
 
 
+class _YeeOpen(_YeeHalf):
+    """Open on both sides in x as well: ground at z = 0, CPML on every other face, so a
+    plate with no mirror plane - a PIFA shorted at one corner - fits whole."""
+
+    def __init__(self, shape, eps_cell, npml: int, dtype=np.float32):
+        super().__init__(shape, eps_cell, npml, dtype)
+        nx = shape[0]
+        self.p_int[0] = _cpml_both(nx + 1, npml, False, self.dt)
+        self.p_half[0] = _cpml_both(nx, npml, True, self.dt)
+
+
+def pifa_ringdown(nh: int, nl: int, nw: int, ns: int, f_guess: float, eps_r: float = 1.0,
+                  air: int | None = None, npml: int = 12, periods: float = 30.0,
+                  dtype=np.float32) -> tuple[float, float]:
+    """(frequency in cycles per cell-time, total Q) of a planar inverted-F plate: nh above
+    the ground, nl from the shorted end to the open one, nw wide, shorted by a strip ns
+    wide at one CORNER of the shorted end (ns = nw is the full-width short), all in cells.
+    The whole plate is modelled - no magnetic wall - and the source and probe sit under
+    the corner diagonally opposite the strip, where a narrow-short PIFA's field peaks."""
+    lam = 1.0 / f_guess
+    air = air or int(0.15 * lam) + 4
+    i0, j0 = npml + air, npml + air              # the plate's shorted corner
+    shape = (i0 + nw + air + npml, j0 + nl + air + npml, nh + air + npml)
+    g = _YeeOpen(shape, lambda x, y, z: np.where(z < nh, eps_r, 1.0) + 0 * x + 0 * y, npml, dtype)
+    tau = 0.5 / f_guess
+    t0 = 3.0 * tau
+    steps = int((t0 + 3.0 * tau + periods / f_guess) / g.dt)
+    start = int((t0 + 3.0 * tau) / g.dt)
+    i_s, j_s, k_s = i0 + nw - 1, j0 + nl - 2, nh // 2
+    probe = np.empty(steps)
+    for n in range(steps):
+        g.step()
+        g.Ex[i0:i0 + nw, j0:j0 + nl + 1, nh] = 0.0           # the plate
+        g.Ey[i0:i0 + nw + 1, j0:j0 + nl, nh] = 0.0
+        g.Ex[i0:i0 + ns, j0, :nh + 1] = 0.0                    # the strip, on the plane y = j0
+        g.Ez[i0:i0 + ns + 1, j0, :nh] = 0.0
+        t = (n + 1) * g.dt
+        g.Ez[i_s, j_s, k_s] += math.exp(-((t - t0) / tau) ** 2) * math.sin(2 * math.pi * f_guess * (t - t0))
+        probe[n] = g.Ez[i_s - 1, j_s - 1, k_s]
+    dec = max(1, int(1.0 / (20.0 * f_guess * g.dt)))
+    s_, a = matrix_pencil(probe[start::dec], dec * g.dt, modes=20)
+    f = s_.imag / (2 * math.pi)
+    q = s_.imag / (-2.0 * s_.real)
+    ok = (f > 0.4 * f_guess) & (f < 1.6 * f_guess) & (q > 2)
+    if not ok.any():
+        raise ValueError(f"no resonance within 0.4-1.6 times f_guess = {f_guess:g}: guess again")
+    k = int(np.flatnonzero(ok)[np.argmax(np.abs(a)[ok])])
+    return float(f[k]), float(q[k])
+
+
 # ---------------------------------------------------------------- any outline: the circle and the triangle
 #
 # The sheet is a mask over the tangential-E sites of its plane: an Ex edge (x = i + 1/2,
