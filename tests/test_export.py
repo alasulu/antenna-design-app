@@ -48,7 +48,6 @@ CASES = {
                                       "b_wg": 0.01016, "N": 12},
     "waveguide_slot_array_travelling_wave": {"f0": 10e9, "a_wg": 0.02286,
                                              "b_wg": 0.01016},
-    "long_wire_travelling": {"f0": 300e6, "L_over_lambda": 4.0},
     "leaky_wave_line_source": {"f0": 10e9},
     "planar_monopole_rectangular": {"f_low": 1.5e9},
     "planar_monopole_circular": {"f_low": 1.5e9},
@@ -484,16 +483,14 @@ def test_cavity_sits_behind_the_slot_not_in_front(registry):
 
 # ------------------------------------------------ terminated and planar shapes
 
-def test_long_wire_exports_a_termination_port_not_just_a_feed(registry):
-    """A travelling-wave wire with nothing at the far end is a standing-wave
-    wire, and its pattern splits. The termination has to be modelled."""
-    model = build(registry["long_wire_travelling"].synthesize(
-        f0=300e6, L_over_lambda=4.0))
-    assert len(model.ports) == 2, "feed and termination"
-    feed, term = model.ports
-    assert term.impedance != feed.impedance, (
-        "the termination is not a 50 ohm measurement port")
-    assert any("termination" in n.lower() for n in model.notes)
+def test_long_wire_exports_parameters_and_says_why(registry):
+    """It was a lone wire with a port at each end and nothing for either port to
+    return to - no ground, no counterpoise - so neither the feed nor the
+    termination was a port. Fed and terminated against ground at a height the spec
+    does not model, it cannot be built honestly, so it exports parameters only."""
+    model = build(registry["long_wire_travelling"].synthesize(f0=300e6, L_over_lambda=4.0))
+    assert not model.built_geometry and not model.ports
+    assert any("ground" in n.lower() for n in model.notes)
 
 
 def test_leaky_wave_slit_stops_short_of_both_ends(registry):
@@ -588,11 +585,11 @@ def test_hfss_uses_the_documented_sweep_and_port_properties(registry):
     """AEDT's InsertFrequencySweep takes RangeType/RangeStart/RangeEnd/RangeCount
     (StartValue/StopValue/Count define nothing), and a lumped port's impedance is
     the top-level Impedance - RenormImp only renormalises the reported S."""
-    text = hfss.render(build(registry["long_wire_travelling"].synthesize(
-        **registry["long_wire_travelling"].spec.known_cases[0].given)))
-    assert '"RangeType:=", "LinearCount"' in text and '"RangeStart:="' in text and '"RangeCount:="' in text
+    text = hfss.render(build(registry["turnstile_dipole"].synthesize(f0=300e6, aw=0.001)))
+    assert '"RangeType:=", "LinearCount"' in text and '"RangeStart:="' in text
+    assert '"RangeEnd:=", "0.39GHz"' in text and '"RangeCount:="' in text
     assert "StartValue" not in text and '"Count:="' not in text
-    assert '"Impedance:=", "600ohm"' in text and '"Impedance:=", "50ohm"' in text
+    assert text.count('"Impedance:=", "50ohm"') == 2
 
 
 def test_cst_ports_are_numbered_in_turn(registry):
@@ -671,3 +668,73 @@ def test_hfss_draws_a_vertical_sheet_upright(registry):
     text = hfss.render(build(a.synthesize(**a.spec.known_cases[0].given)))
     block = text[text.index('"Name:=", "shorting_wall"') - 400:text.index('"Name:=", "shorting_wall"')]
     assert '"WhichAxis:=", "Y"' in block
+
+
+
+# ------------------------------------------------------------ a second review, fixed
+
+def _models(registry):
+    for key in sorted(BUILDERS):
+        a = registry[key]
+        yield key, build(a.synthesize(**a.spec.known_cases[0].given))
+
+
+def test_every_port_bridges_conductors(registry):
+    """Each end of every port lies on a conductor (the long wire's lay in empty
+    space). Checked against the solids, not just the port's own numbers."""
+    from tests._geometry import port_problems
+    bad = {key: port_problems(m) for key, m in _models(registry)}
+    assert not {k: v for k, v in bad.items() if v}
+
+
+def test_no_solids_intersect_unresolved(registry):
+    """Both simulators refuse intersecting solids: wire corners, a hat's radials in
+    its rod and a resonant guide's short through its walls are united or ended
+    now. (Hollow shells and nested rings only look intersecting to a box test.)"""
+    from tests._geometry import overlaps
+    hollow = {"luneburg_lens", "fresnel_zone_plate"}
+    bad = {key: overlaps(m) for key, m in _models(registry) if key not in hollow}
+    assert not {k: v for k, v in bad.items() if v}
+
+
+def test_hfss_gives_every_pec_sheet_a_perfect_e_boundary(registry):
+    """A sheet has no volume, so 'pec' on it means nothing to HFSS: patches,
+    grounds and shorting walls need AssignPerfectE."""
+    from otahub.export.hfss import _pec_sheets
+    for key in ("quarter_wave_shorted_patch", "pifa", "rectangular_patch_inset", "rectangular_dra"):
+        a = registry[key]
+        model = build(a.synthesize(**a.spec.known_cases[0].given))
+        text = hfss.render(model)
+        sheets = _pec_sheets(model)
+        assert sheets and "AssignPerfectE" in text, key
+        assert all(f"'{name}'" in text[text.index("AssignPerfectE"):] for name in sheets), key
+    walls = _pec_sheets(build(registry["pifa"].synthesize(**registry["pifa"].spec.known_cases[0].given)))
+    assert "shorting_wall" in walls
+
+
+def test_cst_switches_the_loss_tangent_on(registry):
+    lossy = build(registry["rectangular_patch"].synthesize(f0=2.4e9, eps_r=4.4, h=0.0016, tan_d=0.02))
+    assert '.TanDGiven "True"' in cst.render(lossy)
+    lossless = build(registry["rectangular_dra"].synthesize(**registry["rectangular_dra"].spec.known_cases[0].given))
+    assert '.TanDGiven "False"' in cst.render(lossless)
+
+
+def test_the_resonant_guide_ends_at_its_short(registry):
+    """Its short sat inside walls and interior that ran on past it."""
+    a = registry["waveguide_slot_array_resonant"]
+    d = a.synthesize(**a.spec.known_cases[0].given)
+    model = build(d)
+    short = next(s for s in model.solids if s.name == "end_short")
+    for s in model.solids:
+        if s.name in ("guide_interior", "broad_wall", "broad_wall_lower", "narrow_wall_plus", "narrow_wall_minus"):
+            assert s.z[1] == pytest.approx(short.z[0]), s.name
+    last = max(0.5 * (s.z[0] + s.z[1]) for s in model.solids if s.name.startswith("slot_cut"))
+    assert short.z[0] - last == pytest.approx(d.get("spacing") / 2)
+
+
+def test_united_and_kept_tools_reach_both_backends(registry):
+    top = build(registry["top_loaded_monopole"].synthesize(f0=10e6, h_over_lambda=0.05))
+    assert "Solid.Add" in cst.render(top) and "oEditor.Unite" in hfss.render(top)
+    hemi = build(registry["hemispherical_dra"].synthesize(**registry["hemispherical_dra"].spec.known_cases[0].given))
+    assert 'Solid.Insert "component1:resonator_sphere", "component1:probe"' in cst.render(hemi)
+    assert '"KeepOriginals:=", True' in hfss.render(hemi)

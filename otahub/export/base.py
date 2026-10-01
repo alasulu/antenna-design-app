@@ -81,8 +81,20 @@ class Subtract:
     """Boolean difference, applied after every solid exists.
 
     Kept out of the solid list deliberately: it is an operation on named
-    solids, not a shape, and both backends want it emitted last.
+    solids, not a shape, and both backends want it emitted last. With
+    `keep_tools` the tools survive - a probe cutting its own hole in the
+    dielectric it stands in (CST's Solid.Insert, HFSS's KeepOriginals).
     """
+    target: str
+    tools: tuple[str, ...]
+    keep_tools: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Unite:
+    """Boolean union of touching conductors into `target`: both simulators refuse
+    solids that intersect, which wires meeting at a corner or a hat meeting its
+    rod always do. A feed gap between two of them stays a gap."""
     target: str
     tools: tuple[str, ...]
 
@@ -377,6 +389,8 @@ def _folded_dipole(design: DesignResult) -> Model:
         Cylinder("end_top", "PEC", "y", radius, (ys[0], ys[-1]), (0.0, half)),
         Cylinder("end_bottom", "PEC", "y", radius, (ys[0], ys[-1]), (0.0, -half)),
     ]
+    model.operations.append(Unite("end_top", tuple(s.name for s in model.solids
+                                                   if s.material == "PEC" and s.name != "end_top")))
     model.ports.append(DiscretePort(
         "port1", (0.0, y_fed, -gap / 2.0), (0.0, y_fed, gap / 2.0)))
     model.notes += [
@@ -561,6 +575,8 @@ def _hemi_dra(design: DesignResult) -> Model:
         Cylinder("probe", "PEC", "z", probe_r, (_probe_gap(probe_r, a), a * 0.5), (a * 0.65, 0.0)),
     ]
     model.operations.append(Subtract("resonator_sphere", ("lower_half",)))
+    # the probe stands inside the dielectric: it cuts its own hole and stays
+    model.operations.append(Subtract("resonator_sphere", ("probe",), keep_tools=True))
     model.ports.append(DiscretePort(
         "port1", (a * 0.65, 0.0, 0.0), (a * 0.65, 0.0, _probe_gap(probe_r, a))))
     model.notes += [
@@ -709,6 +725,8 @@ def _square_loop(design: DesignResult) -> Model:
         Cylinder("side_bottom_a", "PEC", "x", wire, (-h, -gap / 2), (-h, 0.0)),
         Cylinder("side_bottom_b", "PEC", "x", wire, (gap / 2, h), (-h, 0.0)),
     ]
+    # the corners intersect: one conductor, the feed gap left open
+    model.operations.append(Unite("side_top", ("side_left", "side_right", "side_bottom_a", "side_bottom_b")))
     model.ports.append(DiscretePort(
         "port1", (-gap / 2, -h, 0.0), (gap / 2, -h, 0.0)))
     model.notes += [
@@ -861,8 +879,11 @@ def _cavity_backed_slot(design: DesignResult) -> Model:
 
 
 def _slotted_guide(design: DesignResult, title: str, count: int,
-                   spacing: float, offset: float, alternate: bool) -> Model:
-    """Shared body for the three waveguide slot archetypes."""
+                   spacing: float, offset: float, alternate: bool, shorted: bool = False) -> Model:
+    """Shared body for the three waveguide slot archetypes. `shorted` ends the
+    guide a quarter guide wavelength (half a pitch) past the last slot's centre,
+    with a plate there - the walls and interior stop at it rather than running
+    through it."""
     model = _base_model(design, title)
     a = _param(design, "a_wg")
     b = _param(design, "b_wg")
@@ -870,6 +891,11 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
     slot_w = slot_l / 16.0
     wall = min(a, b) / 20.0
     run = max((count - 1) * spacing + 4 * slot_l, 4 * slot_l)
+    centre = run / 2.0
+    if shorted:
+        run = centre + (count - 1) / 2.0 * spacing + spacing / 2.0
+        model.solids.append(Brick("end_short", "PEC", (-a / 2 - wall, a / 2 + wall),
+                                  (-b / 2 - wall, b / 2 + wall), (run, run + wall)))
     model.solids += [
         Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2),
               (0.0, run)),
@@ -877,7 +903,7 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
     model.solids += _guide_walls(a, b, wall, (0.0, run))
     tools = []
     for i in range(count):
-        z = (i - (count - 1) / 2.0) * spacing + run / 2.0
+        z = (i - (count - 1) / 2.0) * spacing + centre
         x = offset * (-1 if (alternate and i % 2) else 1)
         name = f"slot_cut_{i + 1}"
         tools.append(name)
@@ -926,14 +952,7 @@ def _resonant_slot_array(design: DesignResult) -> Model:
     n = int(round(_param(design, "N", default=12.0)))
     spacing = _param(design, "spacing")
     model = _slotted_guide(design, "Resonant longitudinal slot array", n,
-                           spacing, _param(design, "offset"), True)
-    # the short: a quarter guide wavelength (half a slot pitch) past the last slot
-    a, b = _param(design, "a_wg"), _param(design, "b_wg")
-    run = max((n - 1) * spacing + 4 * _param(design, "slot_length"), 4 * _param(design, "slot_length"))
-    z_short = run / 2.0 + (n - 1) / 2.0 * spacing + spacing / 2.0
-    t = min(a, b) / 20.0
-    model.solids.append(Brick("end_short", "PEC", (-a / 2 - t, a / 2 + t), (-b / 2 - t, b / 2 + t),
-                              (z_short, z_short + t)))
+                           spacing, _param(design, "offset"), True, shorted=True)
     model.notes.append(
         f"Shorted {spacing / 2 * 1e3:.4g} mm (a quarter guide wavelength) beyond the "
         "last slot's centre, so each slot sits at a standing-wave voltage maximum.")
@@ -959,33 +978,6 @@ def _travelling_slot_array(design: DesignResult) -> Model:
         "travelling-wave array tapers them along the guide to hold the aperture "
         "distribution as power drains away; the spec gives no taper, so none is "
         "applied.")
-    return model
-
-
-@builder("long_wire_travelling")
-def _long_wire(design: DesignResult) -> Model:
-    """One straight wire, fed at one end and terminated at the other."""
-    model = _base_model(design, "Terminated travelling-wave long wire")
-    length = _param(design, "L")
-    wire = _param(design, "aw", default=length / 4000.0)
-    gap = max(length / 2000.0, wire * 3.0)
-    model.solids.append(Cylinder("wire", "PEC", "x", wire, (gap, length + gap)))
-    model.ports += [
-        DiscretePort("port1", (0.0, 0.0, 0.0), (gap, 0.0, 0.0)),
-        DiscretePort("port2", (length + gap, 0.0, 0.0),
-                     (length + 2 * gap, 0.0, 0.0), impedance=600.0),
-    ]
-    model.notes += [
-        "TWO ports. Port 1 is the feed; port 2 stands in for the TERMINATION and "
-        "must be a real absorbing load - the travelling wave is the whole "
-        "premise. Leave it open and the reflected wave restores a standing-wave "
-        "pattern and the beam splits.",
-        "600 ohm is a placeholder. The right value is the wire's characteristic "
-        "impedance against ground, which depends on a height this spec does not "
-        "model.",
-        "Free space, no ground plane. A real long wire runs above earth, which "
-        "adds an image and tilts the beam upward.",
-    ]
     return model
 
 
@@ -1293,13 +1285,14 @@ def _top_loaded(design: DesignResult) -> Model:
     ]
     model.solids += [Cylinder(f"hat_radial_{k + 1}", "PEC", "x", wire, (0.0, hat_r), (0.0, top),
                               rotate_z=360.0 * k / radials) for k in range(radials)]
+    model.operations.append(Unite("rod", tuple(f"hat_radial_{k + 1}" for k in range(radials))))
     model.ports.append(DiscretePort("port1", (0.0, 0.0, 0.0), (0.0, 0.0, gap)))
     model.notes += [
         f"Hat of {radials} radial wires, {hat_r * 1e3:.4g} mm long, at the top of the rod: "
         "the hat the spec's beta_top is solved for by MoM (a solid disc is its "
         "many-radial limit, which 32 radials still fall short of). beta_top is "
-        "derived from this hat unless supplied, in which case the hat radius "
-        "follows from it instead.",
+        "derived from this hat unless supplied; a supplied beta_top changes the "
+        "current taper the spec assumes, not the hat exported here.",
         f"Feed gap {gap * 1e3:.4g} mm between the plane and the rod base.",
         f"Ground plane rendered as a disc {ground * 1e3:.4g} mm across. The "
         "spec's directivity of exactly 3.0 assumes it is infinite; a real "
@@ -1382,6 +1375,18 @@ def _multiturn_loop(design: DesignResult) -> Model:
     return model
 
 
+#: archetypes left parameters-only on purpose, and why
+NOT_BUILT = {
+    "long_wire_travelling": (
+        "A terminated long wire is fed and terminated against GROUND, at a height "
+        "this spec does not model (it treats the wire in free space). A lone wire "
+        "with a port at each end gives neither port a conductor to return to, so "
+        "it is not built: put the wire at your height over your ground, feed "
+        "between ground and one end, and terminate the other end to ground in the "
+        "wire's characteristic impedance."),
+}
+
+
 def build(design: DesignResult) -> Model:
     """Build a model for a design, or a parameters-only model if we cannot.
 
@@ -1397,6 +1402,8 @@ def build(design: DesignResult) -> Model:
             "from their primary dimensions. The synthesised parameters are "
             "exported below as named variables so you can drive your own "
             "geometry from them.")
+        if design.archetype in NOT_BUILT:
+            model.notes.append(NOT_BUILT[design.archetype])
         return model
     try:
         return fn(design)

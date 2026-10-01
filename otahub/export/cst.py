@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
-                   Subtract, Torus, dielectric_name, parse_dielectric)
+                   Subtract, Torus, Unite, dielectric_name, parse_dielectric)
 
 _MM = 1e3          # the macro works in millimetres
 
@@ -87,6 +87,8 @@ def render(model: Model) -> str:
             add(f'        .Epsilon "{eps}"')
             add('        .Mu "1.0"')
             add(f'        .TanD "{tand}"')
+            # without TanDGiven the value is ignored and the material stays lossless
+            add(f'        .TanDGiven "{"True" if float(tand) > 0 else "False"}"')
             add('        .TanDModel "ConstTanD"')
             add('        .Colour "0.8", "0.8", "0.4"')
             add('        .Transparency "50"')
@@ -257,10 +259,18 @@ def _render_other(solid, material) -> str:
 
 def _render_operation(op) -> str:
     if isinstance(op, Subtract):
+        if op.keep_tools:          # the tool cuts its own hole and stays (a probe in a dielectric)
+            lines = ["    ' boolean: the tool solids cut their place in the target and stay"]
+            lines += [f'    Solid.Insert "component1:{op.target}", "component1:{tool}"' for tool in op.tools]
+            return "\n".join(lines)
         lines = ["    ' boolean: remove the tool solids from the target"]
         for tool in op.tools:
             lines.append(
                 f'    Solid.Subtract "component1:{op.target}", "component1:{tool}"')
+        return "\n".join(lines)
+    if isinstance(op, Unite):
+        lines = ["    ' boolean: join the touching conductors into one"]
+        lines += [f'    Solid.Add "component1:{op.target}", "component1:{tool}"' for tool in op.tools]
         return "\n".join(lines)
     return f"    ' unsupported operation {type(op).__name__}"
 

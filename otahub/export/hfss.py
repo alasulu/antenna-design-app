@@ -7,7 +7,7 @@ Dimensions become design variables so the model stays parametric.
 from __future__ import annotations
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
-                   Subtract, Torus, dielectric_name, parse_dielectric)
+                   Subtract, Torus, Unite, dielectric_name, parse_dielectric)
 from .cst import classify
 
 _MM = 1e3
@@ -93,6 +93,16 @@ def render(model: Model) -> str:
         add("# ---- boolean operations ---------------------------------------------")
         for op in model.operations:
             add(_render_operation(op))
+        add("")
+
+    sheets = _pec_sheets(model)
+    if sheets:
+        add("# ---- PEC sheets ----------------------------------------------------")
+        add("# A sheet has no volume, so a material on it means nothing: a zero-thickness")
+        add("# conductor (patch, ground, shorting wall) needs a Perfect E boundary.")
+        add('oModule = oDesign.GetModule("BoundarySetup")')
+        add(f'oModule.AssignPerfectE(["NAME:PerfE_sheets", "Objects:=", {sheets!r},')
+        add('    "InfGroundPlane:=", False])')
         add("")
 
     if model.ports:
@@ -242,15 +252,40 @@ def _render_solid(solid) -> str:
     return f"# unsupported solid type {type(solid).__name__}"
 
 
+def _pec_sheets(model: Model) -> list[str]:
+    """The PEC solids of zero thickness that survive the booleans."""
+    gone = set()
+    for op in model.operations:
+        if isinstance(op, Unite) or (isinstance(op, Subtract) and not op.keep_tools):
+            gone.update(op.tools)
+    out = []
+    for s in model.solids:
+        if s.material != "PEC" or s.name in gone:
+            continue
+        if isinstance(s, Brick) and min(abs(s.x[1] - s.x[0]), abs(s.y[1] - s.y[0]), abs(s.z[1] - s.z[0])) < 1e-15:
+            out.append(s.name)
+        elif isinstance(s, Cylinder) and abs(s.span[1] - s.span[0]) < 1e-15:
+            out.append(s.name)
+    return out
+
+
 def _render_operation(op) -> str:
     if isinstance(op, Subtract):
         tools = ",".join(op.tools)
         return "\n".join([
-            "# boolean: remove the tool solids from the target",
+            "# boolean: remove the tool solids from the target"
+            + (" (the tools stay)" if op.keep_tools else ""),
             "oEditor.Subtract([",
             '    "NAME:Selections",',
             f'    "Blank Parts:=", "{op.target}", "Tool Parts:=", "{tools}"],',
-            '    ["NAME:SubtractParameters", "KeepOriginals:=", False])',
+            f'    ["NAME:SubtractParameters", "KeepOriginals:=", {op.keep_tools}])',
+        ])
+    if isinstance(op, Unite):
+        return "\n".join([
+            "# boolean: join the touching conductors into one",
+            "oEditor.Unite([",
+            f'    "NAME:Selections", "Selections:=", "{",".join((op.target,) + op.tools)}"],',
+            '    ["NAME:UniteParameters", "KeepOriginals:=", False])',
         ])
     return f"# unsupported operation {type(op).__name__}"
 

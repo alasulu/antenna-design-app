@@ -160,7 +160,7 @@ re-export with the new requirement instead. The sweep covers 0.7-1.3 f0, or a
 wideband design's own band; dielectrics carry the design's loss tangent where
 it has one and are lossless otherwise, as the specs assume.
 
-Geometry is built for **43 of the 72 archetypes** — those whose construction is
+Geometry is built for **42 of the 72 archetypes** — those whose construction is
 unambiguous from their primary dimensions:
 
 | Group | Archetypes |
@@ -171,7 +171,7 @@ unambiguous from their primary dimensions:
 | Wideband | biconical, conical monopole, discone, planar monopoles (disc and rectangular) |
 | Loop | small circular and square, one-wavelength circular, multi-turn, quad, Alford, halo |
 | Slot | half-wave, folded, cavity-backed, waveguide longitudinal, resonant and travelling-wave arrays |
-| Travelling wave | terminated long wire, leaky-wave line source |
+| Travelling wave | leaky-wave line source (the terminated long wire needs a ground and height its spec does not model, and says so) |
 | Lens | Fresnel zone plate, Luneburg |
 | Aperture | open-ended waveguide |
 
