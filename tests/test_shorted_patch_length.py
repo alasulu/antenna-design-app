@@ -108,14 +108,68 @@ def test_one_survey_run_live(registry):
     assert (f / cell) / f_spec == pytest.approx(rec["ratio"], abs=1e-5)
 
 
-def test_the_pifa_length_is_given_for_a_full_width_short_only(registry):
-    """Codex: a 1 mm strip got the full-width length (24.29 mm at 2.4 GHz), which by
-    the textbook narrow-short rule resonates near 1.5 GHz. No narrow-strip relation is
-    verified here, so the length is withheld rather than reused."""
+def test_a_narrower_pifa_strip_makes_a_shorter_plate_and_none_outside_the_survey(registry):
+    """Codex: a 1 mm strip got the full-width length (24.29 mm at 2.4 GHz). A narrow
+    corner strip lengthens the current path, so the plate must shrink; where the
+    shrunken plate would be wider than 1.6 times its length, or the strip narrower
+    than W/30, the survey says nothing and neither does the spec."""
     pifa = registry["pifa"]
     full = pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.02).get("L")
     assert full == pytest.approx(0.2425 * C / 2.4e9 - 0.006, rel=1e-12)
-    assert math.isnan(pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.001).get("L"))
+    lengths = [pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=ws).get("L") for ws in (0.02, 0.012, 0.008, 0.005)]
+    assert all(a > b for a, b in zip(lengths, lengths[1:]))
+    assert math.isnan(pifa.synthesize(f0=2.4e9, h=0.006, W=0.02, Ws=0.001).get("L"))      # W/L would be 2.7
+    assert math.isnan(pifa.synthesize(f0=1e9, h=0.01, W=0.04, Ws=0.001).get("L"))        # strip W/40
+
+
+PIFA = json.loads((Path(__file__).parent / "data" / "pifa_strip_fdtd.json").read_text())
+
+
+def _pifa_points():
+    """Each strip run as a design in wavelengths, corrected by its plate's full-width run."""
+    by = {}
+    for r in PIFA["runs"]:
+        by.setdefault(r["tag"], []).append(r)
+    for tag, rs in by.items():
+        full = next(r for r in rs if r["ns"] == r["nw"])
+        eps = full["f"] * (full["nl"] + full["nh"]) / 0.2425 - 1
+        if abs(eps) > 0.1:                      # W/L above 1.6: another mode, not used
+            continue
+        for r in rs:
+            if r["ns"] < r["nw"]:
+                lam = (1 + eps) / r["f"]
+                yield r["nh"] / lam, r["nw"] / lam, r["nl"] / lam, r["ns"] / r["nw"]
+
+
+def test_the_pifa_strip_law_is_the_whole_plate_survey(registry):
+    """70 designs on 21 plates. The law's length, put back into L + h + strip_phi W,
+    resonates within 2.6% of where the FDTD put each plate (the survey's own grid
+    error, up to about 4% at a W/6 strip on the coarsest plate, is stated beside it)."""
+    pifa = registry["pifa"]
+    pts = list(_pifa_points())
+    assert len(pts) == 70
+    worst = 0.0
+    for h, W, L, r in pts:
+        d = pifa.synthesize(f0=C, h=h, W=W, Ws=r * W)            # f0 = c: lengths in wavelengths
+        phi = d.get("strip_phi")
+        worst = max(worst, abs((L + h + phi * W) / 0.2425 - 1))
+    assert worst < 0.027
+
+
+@pytest.mark.slow
+def test_a_held_out_narrow_strip_pifa_resonates_where_it_was_designed(registry):
+    """Not one of the survey's plates: h 0.04, W 0.12 and a W/6 strip, synthesised at
+    f0, built in the whole-plate FDTD at four cells across h and corrected by its own
+    full-width run. It lands within 0.1% (2% on a second design, half of that the
+    plate length rounded to whole cells)."""
+    lam = C / 1e9
+    L = registry["pifa"].synthesize(f0=1e9, h=0.04 * lam, W=0.12 * lam, Ws=0.02 * lam).get("L") / lam
+    nh, cell = 4, 0.01
+    nl, nw, ns = round(L / cell), 12, 2
+    f_full, _ = patch_fdtd.pifa_ringdown(nh, nl, nw, nw, 0.2425 / (nl + nh))
+    f_strip, _ = patch_fdtd.pifa_ringdown(nh, nl, nw, ns, cell)
+    eps = f_full * (nl + nh) / 0.2425 - 1
+    assert cell * (1 + eps) / f_strip == pytest.approx(1.0, abs=0.02)
 
 
 @pytest.mark.slow

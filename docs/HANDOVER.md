@@ -941,15 +941,14 @@ a modest extension of them.
     a variable but write the solids with the numbers, so editing a variable does
     not move the geometry. Carrying expressions through the builders would let
     the simulator's own optimiser drive the design.
-14. **The PIFA with a narrow shorting strip.** Its length is calibrated, and
-    now given, for a full-width short only; a narrower strip lowers the
-    resonance and the spec returns NaN there rather than reuse the full-width
-    value. `patch_fdtd.pifa_ringdown` models the whole plate with the strip at
-    one corner (it reproduces the mirrored solver to 1e-6 for a full-width
-    strip); a survey over strip width, plate width and height, run with each
-    case's own frequency guess and its results saved as they come, would give
-    the narrow-strip length. A first attempt lost its runs to one case whose
-    resonance fell outside its guess window.
+14. **The PIFA's narrow-strip law, refined.** A corner strip narrower than the
+    plate now has a length - L + h + strip_phi W = 0.2425 lambda, strip_phi
+    growing as ln(W/Ws) - fitted to a whole-plate FDTD survey (70 designs on 21
+    plates, `tests/data/pifa_strip_fdtd.json`) and labelled indicative, good to
+    about 5%: the survey ran at 3-4 cells across h, and on its coarsest plate a
+    finer grid moves a W/6 strip's resonance by about 4% once extrapolated. The
+    same survey at two resolutions, extrapolated per plate, would tighten it;
+    so would strips away from the corner, which it does not cover.
 
 The re-audit is never finished: every archetype passes the cases it declares,
 which is not the same as being right, and the survey that ranks archetypes by

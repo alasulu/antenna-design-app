@@ -1420,6 +1420,12 @@
           "typical": "0.02"
         },
         {
+          "symbol": "strip_phi",
+          "name": "extra length of a narrow shorting strip, over W",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
           "symbol": "L",
           "name": "plate length",
           "unit": "m",
@@ -1428,16 +1434,29 @@
       ],
       "synthesis": [
         {
+          "output": "strip_phi",
+          "expr": "log(W/Ws)*((0.379799) + (-0.0262178)*log(W/Ws) + (1.24506)*(h*f0/c) + (-0.220355)*(W*f0/c) + (-0.303619)*log(W/Ws)*(h*f0/c) + (-0.00368644)*log(W/Ws)*(W*f0/c))",
+          "units_out": "-",
+          "depends_on": [
+            "W",
+            "Ws",
+            "h",
+            "f0"
+          ],
+          "notes": "How much longer a narrow corner strip makes the plate electrically, as a fraction of W: L + h + strip_phi W = 0.2425 lambda. Zero for a full-width short; it grows as ln(W/Ws), the narrow strip's inductance, with coefficients in h and W fitted to the whole-plate FDTD survey (see L)."
+        },
+        {
           "output": "L",
-          "expr": "np.where(Ws >= 0.999*W, 0.2425*c/f0 - h, inf - inf)",
+          "expr": "np.where(Ws >= 0.999*W, 0.2425*c/f0 - h, np.where((Ws/W >= 0.033)*((h*f0/c) >= 0.0135)*((h*f0/c) <= 0.065)*((W*f0/c) >= 0.054)*((W*f0/c) <= 0.2175)*((0.2425*c/f0 - h - W*strip_phi) > 0)*(W <= 1.6*(0.2425*c/f0 - h - W*strip_phi)), (0.2425*c/f0 - h - W*strip_phi), inf - inf))",
           "units_out": "m",
           "depends_on": [
             "f0",
             "h",
             "W",
-            "Ws"
+            "Ws",
+            "strip_phi"
           ],
-          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law. It holds for a FULL-WIDTH short only: a narrower strip lengthens the current path and lowers the resonance, so the same plate would resonate low - with a pin at one corner, toward the textbook L + W + h = lambda/4 (at 2.4 GHz, h 6 mm and W 20 mm, the full-width L of 24.3 mm on a 1 mm strip resonates near 1.5 GHz by that rule). No relation between the two has been verified here, so L is NaN unless Ws >= 0.999 W rather than the full-width value silently reused; resonant_length_narrow_short_m keeps the textbook pin limit as an indication. A whole-plate FDTD for corner strips (otahub.num.patch_fdtd.pifa_ringdown) exists for that calibration."
+          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law. A NARROWER strip at one corner lengthens the current path: L + h + strip_phi W = 0.2425 lambda, strip_phi growing as ln(W/Ws). From a survey with the whole-plate FDTD (otahub.num.patch_fdtd.pifa_ringdown): 21 plates (h 0.014-0.065, W 0.054-0.22 wavelengths, W/L up to 1.5), each with a full-width short and corner strips of 1/2 to 1/30 of its width, 70 designs; every strip run's frequency is corrected by its own plate's full-width run against the 0.2425 calibration. Against those 70 designs the law resonates within 2.6% (rms 1.1%), 3.2% with each plate left out of the fit in turn. The survey's own grid limits it more: on its coarsest plate (h 0.05 wavelengths, 4 cells high) a 1.5-times finer grid raises strip_phi by 0.006 for a W/2 strip and 0.022 for W/6, which extrapolated to zero cell size is about 1% and 4% of the resonant frequency, the law reading long. So the narrow-strip length is INDICATIVE, good to about 5% in frequency; the full-width length keeps its own calibration. For comparison, reusing the full-width length - what this spec did - put those plates 5-98% high in frequency; the textbook pin rule L + W + h = lambda/4 3-39% low; Taga and Tsunekawa's interpolation between the two within 5% (rms 2.6%). NaN outside the survey: strips under 0.033 W, h outside 0.0135-0.065 and W outside 0.054-0.2175 wavelengths, or a plate wider than 1.6 times its length, where the full-width plate's mode is no longer the PIFA's."
         }
       ],
       "analysis": [
@@ -1502,7 +1521,7 @@
         "assumes a ground plane large compared with the plate; handset ground planes are not, and the ground plane usually radiates more than the PIFA does",
         "L is FDTD-calibrated on two air plates (h 0.02-0.036 lambda0, W 0.12-0.2 lambda0): 0.2425 wavelengths for L + h",
         "directivity is solved on an infinite ground plane for a full-width short, h 0.02-0.05 and W 0.06-0.2 wavelengths; the bandwidth stays indicative, and a handset's ground plane governs both in practice",
-        "L is synthesised for a full-width short (Ws = W) only, the case its FDTD calibration covers; for a narrower strip it is NaN - the textbook narrow-short limit stays available as resonant_length_narrow_short_m, indicative"
+        "L is FDTD-calibrated for a full-width short and, through strip_phi, for a corner strip down to 0.033 W over h 0.0135-0.065 and W 0.054-0.2175 wavelengths with W <= 1.6 L; NaN outside. The strip sits at one corner of the shorted edge; a strip elsewhere along it is not covered"
       ],
       "known_cases": [
         {
@@ -1542,6 +1561,45 @@
           },
           "tol_pct": 1.5,
           "source": "The half-space FDTD of this plate (h 0.035, W 0.12 wavelengths, full-width short) at 6 cells across the height, solved directly (not the fit, which used 4): peak directivity at the horizon."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "h": 0.0100105,
+            "W": 0.027528876,
+            "Ws": 0.007507875
+          },
+          "expect": {
+            "L": 0.050052502
+          },
+          "tol_pct": 3.0,
+          "source": "Whole-plate FDTD (patch_fdtd.pifa_ringdown), plate h0.035_W0.1_s0.3, a corner strip 0.273 of the width: the plate resonates at the frequency whose wavelength makes h 0.0334, W 0.0918 and L 0.1670 of it, corrected by the same plate's full-width run (tests/data/pifa_strip_fdtd.json). Within the law's stated accuracy, not a check of it alone: these designs were among the 70 it was fitted to."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "h": 0.004712283,
+            "W": 0.034556744,
+            "Ws": 0.003141522
+          },
+          "expect": {
+            "L": 0.04241055
+          },
+          "tol_pct": 3.0,
+          "source": "Whole-plate FDTD (patch_fdtd.pifa_ringdown), plate h0.02_W0.15_s0.3, a corner strip 0.091 of the width: the plate resonates at the frequency whose wavelength makes h 0.0157, W 0.1153 and L 0.1415 of it, corrected by the same plate's full-width run (tests/data/pifa_strip_fdtd.json). Within the law's stated accuracy, not a check of it alone: these designs were among the 70 it was fitted to."
+        },
+        {
+          "given": {
+            "f0": 1000000000.0,
+            "h": 0.015268907,
+            "W": 0.030537814,
+            "Ws": 0.007634454
+          },
+          "expect": {
+            "L": 0.041989495
+          },
+          "tol_pct": 3.0,
+          "source": "Whole-plate FDTD (patch_fdtd.pifa_ringdown), plate h0.05_W0.1_s0.6, a corner strip 0.250 of the width: the plate resonates at the frequency whose wavelength makes h 0.0509, W 0.1019 and L 0.1401 of it, corrected by the same plate's full-width run (tests/data/pifa_strip_fdtd.json). Within the law's stated accuracy, not a check of it alone: these designs were among the 70 it was fitted to."
         }
       ],
       "references": [
