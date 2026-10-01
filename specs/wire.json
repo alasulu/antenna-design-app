@@ -380,13 +380,13 @@
         },
         {
           "output": "L",
-          "expr": "(-0.0040566*t**2 + 0.0378414*t + 0.3994411) * c / f0",
+          "expr": "np.where((t >= 1.6)*(t <= 10.0001), np.where(t <= 4.7716, -0.0040566*t**2 + 0.0378414*t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/t)/(t - 0.966943327)) * c / f0, inf - inf)",
           "units_out": "m",
           "depends_on": [
             "t",
             "f0"
           ],
-          "notes": "Quadratic fit to the exact zero of Balanis 4-79, computed over a/lambda = 1e-5..1e-2 (L/d = 50 to 50000). Max error 0.42% of a wavelength across that range. Outside it, solve X(L) = 0 directly. Checked against an open tube with a finite gap (otahub.num.bor, its rims resolved) out to 0.025 wavelengths: inside the spread the feed itself causes, +-0.3% at 0.005 to +-3% at 0.025, from 0.0075 on; at 0.005 and below it sits 0.2-0.35% above the tube's longest resonance. Thin-wire theory has no rim: at a = 0.002 the converged exact-kernel thin-wire MoM resonates at 0.4712, the rim-resolved tube at 0.4706 and the law at 0.4720 - all inside the fit's own 0.42%."
+          "notes": "Two pieces, t = log10(lambda/aw), both fitted to the exact zero of the induced-EMF reactance (Balanis 4-79). Down to aw/lambda = 1.7e-5 (t = 4.7716): the quadratic -0.0040566 t^2 + 0.0378414 t + 0.3994411, fitted over 1e-5 to 1e-2, 0.42% of a wavelength at worst; it is the piece the full-wave checks below were made against. Thinner: L/lambda = 0.5 - (A + C/t)/(t - B), fitted over 1e-10 to 1e-2 to 0.007% and keeping the thin-wire limit, 0.5 lambda as the wire vanishes. The two meet on the exact zero at t = 4.7716. The quadratic alone used to run on past its range and turn down: at 0.1 mm and 100 kHz (aw/lambda = 3.3e-8) it built 0.456 lambda where the wire resonates at 0.493 - 7.5% short. The thin piece against the method of moments with the exact kernel at aw/lambda = 1e-6 and 1e-8: 0.07% and 0.03% above its delta-gap resonance, closing as the wire thins, where thin-wire theory is exact. The quadratic against an open tube with a finite gap (otahub.num.bor, its rims resolved) out to 0.025 wavelengths: inside the spread the feed itself causes, +-0.3% at 0.005 to +-3% at 0.025, from 0.0075 on; at 0.005 and below it sits 0.2-0.35% above the tube's longest resonance. NaN past aw/lambda = 0.025 or below 1e-10."
         }
       ],
       "analysis": [
@@ -483,7 +483,7 @@
         }
       ],
       "validity": [
-        "1e-5 < aw/lambda < 1e-2; outside this the length fit is untested",
+        "the length law holds for 1e-10 < aw/lambda < 0.025 (NaN outside): checked full-wave against the exact-kernel MoM on thin wire and a rim-resolved tube on fat; the resistance, bandwidth and Q fits cover less, below",
         "thin-wire theory: no insulation, no end capacitance from hardware",
         "free space; height above ground shifts resonance by more than this correction",
         "input_resistance_ohm, bandwidth, Q and directivity are full-wave values for a delta-gap-fed wire in free space; radiation_resistance_ohm and input_reactance_ohm are the induced-EMF closed forms and describe an assumed sinusoidal current, not the wire",
@@ -575,6 +575,17 @@
           },
           "tol_pct": 2.0,
           "source": "Method of moments at aw = 0.003 lambda on the spec's own length: the nearest solved point, aw = 0.00269, gives R = 73.56 ohm against the induced-EMF closed form's lower figure, a 14.11% VSWR = 2 window and Q = 5.08. The closed form reproduces itself exactly when the MoM is handed the sinusoidal current, which is how the gap was traced to the current shape rather than to the mesh."
+        },
+        {
+          "given": {
+            "f0": 100000.0,
+            "aw": 0.0001
+          },
+          "expect": {
+            "L": 1476.959
+          },
+          "tol_pct": 0.05,
+          "source": "A 0.1 mm wire at 100 kHz, aw/lambda = 3.34e-8: the zero of the induced-EMF reactance (Balanis 4-79), root-found (scipy brentq), is 0.492660 lambda = 1476.96 m. The old quadratic, run past its fitted range, built 0.4556 lambda - 7.5% short."
         }
       ],
       "references": [

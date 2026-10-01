@@ -49,10 +49,12 @@ def test_the_spread_grows_with_the_radius():
 
 
 def test_the_resistance_law_sits_at_the_small_gap_end(registry):
-    for a in (0.005, 0.0075, 0.01):
-        Rs = [r["R"] for r in _rows(a)]
-        law = _law(registry, a).metrics["input_resistance_ohm"]
-        assert law >= max(Rs) - 0.5
+    """Inside its fit (to 5e-3 wavelengths); past it the law declines to answer
+    rather than extrapolate, though the tube rows there are kept."""
+    Rs = [r["R"] for r in _rows(0.005)]
+    assert _law(registry, 0.005).metrics["input_resistance_ohm"] >= max(Rs) - 0.5
+    for a in (0.0075, 0.01):
+        assert math.isnan(_law(registry, a).metrics["input_resistance_ohm"])
 
 
 @pytest.mark.parametrize("a", [0.002, 0.005])

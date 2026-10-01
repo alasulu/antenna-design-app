@@ -96,7 +96,7 @@
         },
         {
           "output": "L",
-          "expr": "(-0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411) * c / f0",
+          "expr": "np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0",
           "units_out": "m",
           "notes": "Resonant slot length. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Wider slots resonate shorter, exactly as fatter dipoles do. Against the complementary STRIP itself (otahub.num.strip), fed across gaps of a/2 to 4a: 0.4630-0.4655 lambda0 at w/L = 0.043, where the law gives 0.4650 - inside the strip's own feed spread, as at every width solved up to w/L = 0.22.",
           "depends_on": [
@@ -1455,7 +1455,7 @@
         },
         {
           "output": "L",
-          "expr": "(-0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411) * c / f0",
+          "expr": "np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0",
           "units_out": "m",
           "depends_on": [
             "slot_t",

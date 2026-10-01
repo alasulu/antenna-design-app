@@ -144,3 +144,15 @@ def test_the_driving_point_approaches_73_only_as_the_wire_vanishes(registry):
            for a in (2.7e-3, 1e-3, 1e-4, 1e-5)]
     assert got[0] > got[1] > got[2] > got[3] > EMF_R, got
     assert got[-1] / EMF_R - 1 > 0.05
+
+
+@pytest.mark.parametrize("aw_lam,tol", [(1e-6, 1.2e-3), (1e-8, 6e-4)])
+def test_the_thin_wire_length_is_the_wires_resonance(registry, aw_lam, tol):
+    """The length law once ran a quadratic past its fitted range and built a thin
+    wire 7.5% short; its thin piece keeps the 0.5-wavelength limit. Against the
+    exact-kernel MoM's own resonance, which it sits just above."""
+    from scipy.optimize import brentq
+    from otahub.num import mom
+    L = registry["resonant_dipole"].synthesize(f0=3e8, aw=aw_lam * 0.99930819).get("L") / 0.99930819
+    res = brentq(lambda x: mom.solve(mom.dipole(x, aw_lam, 120), exact=True).input_impedance.imag, 0.46, 0.499, xtol=1e-7)
+    assert 0.0 < L / res - 1 < tol

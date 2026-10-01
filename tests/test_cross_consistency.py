@@ -245,10 +245,12 @@ def test_horns_of_equal_length_share_an_aperture(syn):
 def test_slot_array_factor_matches_the_arrays_module(syn):
     array = syn("waveguide_slot_array_resonant", f0=10e9, N=12,
                 a_wg=0.02286, b_wg=0.01016)
+    from otahub.arrays.factor import directivity
     d_over_lambda = array.parameters["spacing"] * 10e9 / 2.99792458e8
-    expected = 2 * 12 * d_over_lambda
+    expected = directivity([1.0] * 12, d_over_lambda)       # the exact power sum, not 2 N d/lambda
     assert 10 ** (array.metrics["array_factor_directivity_dbi"] / 10) == \
         pytest.approx(expected, rel=1e-9)
+    assert expected < 2 * 12 * d_over_lambda                 # the long-array limit reads high here
 
 
 # ------------------------------------------------------------ corner reflectors
