@@ -86,3 +86,20 @@ def test_a_cavity_backed_spiral_gains_directivity_not_gain(registry):
     free = d.metrics["directivity_dbi"]
     assert d.metrics["cavity_backed_directivity_dbi"] == pytest.approx(free + 10 * math.log10(2))
     assert d.metrics["cavity_backed_gain_dbi"] == pytest.approx(free)
+
+
+def test_a_slot_array_near_cutoff_counts_its_grating_lobes(registry):
+    """At 7 GHz in WR-90 the half-guide-wavelength spacing is 1.43 lambda0; 2Nd/lambda
+    read 15.35 dBi where the twelve elements' array factor gives 10.59."""
+    d = registry["waveguide_slot_array_resonant"].synthesize(f0=7e9, a_wg=0.02286, b_wg=0.01016, N=12)
+    assert d.metrics["spacing_over_lambda0"] == pytest.approx(1.428404, rel=1e-5)
+    assert d.metrics["array_factor_directivity_dbi"] == pytest.approx(10.5895, abs=1e-3)
+
+
+def test_the_diagonal_horn_claims_no_gain_over_a_square_pyramidal_one(registry):
+    """Their aperture efficiencies are equal at every phase error."""
+    from otahub.num import horn_pattern as hp
+    d = registry["diagonal_horn"].synthesize(f0=1e10, a_ap=0.06, R_axial=0.2)
+    assert "gain_advantage_over_pyramidal_db" not in d.metrics
+    assert d.metrics["aperture_efficiency_with_phase_error"] == pytest.approx(
+        hp.diagonal_efficiency(d.metrics["max_phase_error_wavelengths"]), rel=1e-5)

@@ -959,18 +959,18 @@
             "spacing",
             "f0"
           ],
-          "notes": "Always above 0.5 and below 1 for a propagating TE10 guide, so the array is safe from grating lobes but its sidelobes sit higher than a half-wave-spaced array's"
+          "notes": "Half a guide wavelength over a free-space one: above 0.5 always, but under 1 - free of grating lobes at broadside - only above 1.155 times the TE10 cutoff (2/sqrt(3)). Nearer cutoff the guide wavelength grows without bound and a second main beam appears (1.43 at 7 GHz in WR-90). This note used to say 'always below 1'."
         },
         {
           "metric": "array_factor_directivity_dbi",
-          "expr": "db10(2*N*spacing*f0/c)",
+          "expr": "db10(N**2/(N + 2*np.sum((N - np.arange(1, N))*np.sin(2*pi*np.arange(1, N)*(spacing*f0/c))/(2*pi*np.arange(1, N)*(spacing*f0/c)))))",
           "units_out": "dBi",
           "depends_on": [
             "N",
             "spacing",
             "f0"
           ],
-          "notes": "Uniform broadside array factor, D = 2*N*d/lambda0. The element pattern and the guide's own width add roughly 2-3 dB on top; this figure is the array factor alone."
+          "notes": "Broadside directivity of N isotropic elements at this spacing, exactly: N^2/(N + 2 sum (N-k) sinc(2kd/lambda0)), equal to integrating the array factor to 1e-14. It replaces 2 N d/lambda0, the long-array limit, which held only well below one wavelength of spacing (0.07 dB high here) and fell apart above it: at 7 GHz in WR-90 the spacing is 1.43 lambda0, grating lobes take power, and it read 15.35 dBi where the array has 10.59. The element pattern and the guide's width add roughly 2-3 dB on top."
         },
         {
           "metric": "first_sidelobe_db",
@@ -989,7 +989,8 @@
         "N*g1 must exceed 1, or the required offset has no solution - a long array needs slots too weakly coupled to reach unity total",
         "resonant (standing-wave) operation: the guide is short-circuited a quarter guide wavelength beyond the last slot, and the whole array is narrowband",
         "mutual coupling between slots is neglected, and it is not negligible in practice - real designs iterate offsets full-wave",
-        "uniform excitation assumed; the offsets here are all equal"
+        "uniform excitation assumed; the offsets here are all equal",
+        "grating lobes appear at broadside when the half-guide-wavelength spacing passes one free-space wavelength, below 1.155 times the TE10 cutoff; array_factor_directivity_dbi counts them, the sidelobe figure does not"
       ],
       "known_cases": [
         {
@@ -1031,10 +1032,10 @@
           },
           "expect": {
             "array_length_m": 0.2183885,
-            "array_factor_directivity_dbi": 12.0166
+            "array_factor_directivity_dbi": 11.946618
           },
           "tol_pct": 0.5,
-          "source": "Eleven gaps of 19.85 mm span 218.4 mm; the uniform array factor gives 2*12*0.6622 = 15.89 = 12.02 dBi"
+          "source": "Eleven gaps of 19.85 mm span 218.4 mm; the uniform array factor gives 2*12*0.6622 = 15.89 = 12.02 dBi Directivity recomputed exactly for 12 isotropic elements at d = 0.66224 lambda0: 11.9466 dBi by integrating the array factor (script); 2Nd/lambda0 gave 12.01."
         }
       ],
       "references": [

@@ -1720,7 +1720,7 @@
           "metric": "aperture_efficiency",
           "expr": "8/pi**2",
           "units_out": "-",
-          "notes": "DERIVED, not tabulated: for E = y*cos(pi*x/a) + x*cos(pi*y/a), the co-polar aperture efficiency along the diagonal works out to exactly 8/pi^2 = 0.8106. A separable cos*cos aperture would give only 64/pi^4 = 0.657, so the diagonal horn is genuinely more efficient than a pyramidal one."
+          "notes": "DERIVED, not tabulated: for E = y*cos(pi*x/a) + x*cos(pi*y/a), the co-polar aperture efficiency along the diagonal works out to exactly 8/pi^2 = 0.8106. A separable cos*cos aperture would give only 64/pi^4 = 0.657, so the diagonal horn is genuinely more efficient than a pyramidal one. Exactly a square pyramidal horn's at any phase error: by symmetry the two co-polar integrals of the diagonal field are equal, each the pyramidal TE10 aperture's (direct 2-D integration agrees to six figures at edge errors 0-0.5). The diagonal horn buys equal E- and H-plane beams, not gain. This spec claimed 0.91 dB over the pyramidal horn by comparing with a cos x cos aperture (64/pi^4), which no pyramidal horn has."
         },
         {
           "metric": "gain_ideal_dbi",
@@ -1800,12 +1800,6 @@
             "f0"
           ],
           "notes": "SOLVED: the four cross-polar lobes, which lie in the planes 45 degrees from the polarisation - the aperture's own principal planes (checked: nowhere else in azimuth is higher). Relative to the co-polar peak, Ludwig-3, fitted in the edge phase error and 1/D^2 over D = 2-12 and the error up to 1/2: 0.003 dB worst on 88 solutions, 0.002 dB on 6 held out. -15.5 dB for a large horn with no phase error, -14.7 at 1/4, -12.4 at 1/2; a small horn is a little cleaner (-16.1 dB at 2 wavelengths). The 'typically around -19 dB' this spec's notes gave was 3.5 dB optimistic."
-        },
-        {
-          "metric": "gain_advantage_over_pyramidal_db",
-          "expr": "db10((8/pi**2)/(64/pi**4))",
-          "units_out": "dB",
-          "notes": "0.91 dB, from 8/pi^2 against the separable aperture's 64/pi^4"
         }
       ],
       "validity": [
@@ -1840,18 +1834,6 @@
           },
           "tol_pct": 0.5,
           "source": "(a/2)^2/(2R) = 0.9 mm = 0.075 wavelengths at 10 GHz, comfortably inside the eighth-wave rule, which would allow a horn as short as 120 mm"
-        },
-        {
-          "given": {
-            "f0": 10000000000.0,
-            "a_ap": 0.06,
-            "R_axial": 0.2
-          },
-          "expect": {
-            "gain_advantage_over_pyramidal_db": 0.9136
-          },
-          "tol_pct": 1.0,
-          "source": "10*log10((8/pi^2)/(64/pi^4)) = 10*log10(pi^2/8) = 0.914 dB over a separable cosine aperture"
         },
         {
           "given": {
