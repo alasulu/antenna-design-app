@@ -2157,7 +2157,7 @@
             "quality_factor": 5.920807
           },
           "tol_pct": 1.5,
-          "source": "Method of moments at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.488% wide and the antenna Q from |dZ/dw| is 6.182, the two agreeing to 0.43%. This spec used to produce its bandwidth from an assumed Q instead."
+          "source": "The Fourier-series (modal) loop solver at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.978% wide and the antenna Q from |dZ/dw| is 5.9310; 1/(Q*sqrt(2)) = 0.11922 agrees with the window to 0.47%. This spec used to produce its bandwidth from an assumed Q instead."
         },
         {
           "given": {
@@ -2169,7 +2169,7 @@
             "quality_factor": 6.001757
           },
           "tol_pct": 1.5,
-          "source": "Method of moments at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 11.488% wide and the antenna Q from |dZ/dw| is 6.182, the two agreeing to 0.43%. This spec used to produce its bandwidth from an assumed Q instead."
+          "source": "The Fourier-series (modal) loop solver at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 11.816% wide and the antenna Q from |dZ/dw| is 6.0116; 1/(Q*sqrt(2)) = 0.11762 agrees with the window to 0.46%. This spec used to produce its bandwidth from an assumed Q instead."
         }
       ],
       "references": [
@@ -2563,7 +2563,7 @@
             "quality_factor": 6.409669
           },
           "tol_pct": 1.5,
-          "source": "Method of moments at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.449% wide and the antenna Q from |dZ/dw| is 6.201, the two agreeing to 0.40%. This spec used to produce its bandwidth from an assumed Q instead."
+          "source": "Method of moments on the square loop at b/lambda = 0.0010007: the VSWR = 2 window about resonance is 11.070% wide and the antenna Q from |dZ/dw| is 6.4117; 1/(Q*sqrt(2)) = 0.11028 agrees with the window to 0.38%. This spec used to produce its bandwidth from an assumed Q instead."
         },
         {
           "given": {
@@ -2575,7 +2575,7 @@
             "quality_factor": 6.500166
           },
           "tol_pct": 1.5,
-          "source": "Method of moments at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 11.449% wide and the antenna Q from |dZ/dw| is 6.201, the two agreeing to 0.40%. This spec used to produce its bandwidth from an assumed Q instead."
+          "source": "Method of moments on the square loop at b/lambda = 0.00094732: the VSWR = 2 window about resonance is 10.915% wide and the antenna Q from |dZ/dw| is 6.5018; 1/(Q*sqrt(2)) = 0.10876 agrees with the window to 0.36%. This spec used to produce its bandwidth from an assumed Q instead."
         }
       ],
       "references": [
