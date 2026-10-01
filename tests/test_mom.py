@@ -195,10 +195,11 @@ def test_segments_shorter_than_a_few_radii_leave_the_approximation():
 # ------------------------------------------------------------ exact kernel
 
 def test_the_exact_kernel_is_off_by_default():
-    """Every result derived with the reduced kernel must reproduce bit for bit."""
+    """Every result derived with the reduced kernel must reproduce bit for bit on
+    one machine; across platforms (another BLAS) to 1e-12."""
     m = mom.dipole(0.47, 1e-3, 40)
     assert mom.input_impedance(m) == mom.input_impedance(m, exact=False)
-    assert mom.input_impedance(m) == complex(69.06656211407594, -10.49855834396867)
+    assert mom.input_impedance(m) == pytest.approx(complex(69.06656211407594, -10.49855834396867), rel=1e-12)
 
 
 def test_the_exact_kernel_changes_little_on_thin_wire():

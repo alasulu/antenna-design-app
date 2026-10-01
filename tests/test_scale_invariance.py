@@ -112,6 +112,13 @@ def test_archetype_is_dimensionally_consistent(key):
     base, scaled = _pairs(archetype)
 
     problems = []
+    # a value at round-off level against the design's own scale for its unit (a
+    # residual of 1e-16 m beside metre-sized dimensions) is zero, not a quantity
+    scale: dict[str, float] = {}
+    for name, v in list(base.parameters.items()) + list(base.metrics.items()):
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            u = base.units.get(name, "")
+            scale[u] = max(scale.get(u, 0.0), abs(v))
     for name, v1 in list(base.parameters.items()) + list(base.metrics.items()):
         v2 = scaled.parameters.get(name, scaled.metrics.get(name))
         if v2 is None:
@@ -124,7 +131,7 @@ def test_archetype_is_dimensionally_consistent(key):
             continue
         if not (math.isfinite(v1) and math.isfinite(v2)):
             continue
-        if abs(v1) < 1e-30:
+        if abs(v1) < 1e-30 or abs(v1) < 1e-9 * scale.get(base.units.get(name, ""), 0.0):
             continue
         k = power_of(base.units.get(name, ""))
         if k is None:
