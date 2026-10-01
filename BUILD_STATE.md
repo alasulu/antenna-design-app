@@ -2894,7 +2894,7 @@ future work.
 
 ## BUILD STATE
 
-S1-S5 done. 72 archetypes, 10 families, 3176 tests, 1052/1052 known cases.
+S1-S5 done. 72 archetypes, 10 families, 3356 tests, 1078/1078 known-case expectations (after the Codex review).
 Numerical arbiters now cover wires (MoM), dielectric resonators (FDTD), lenses and
 zone plates (ray tracing, Kirchhoff), solid bodies of revolution (`bor`) and
 printed patches on a grounded slab (`patch_sdm`, full-wave, checked by `patch_fdtd`) and
@@ -3781,3 +3781,67 @@ the design, inline errors and the sweep's labels.
 
 After it: 3176 tests (3148 passed, 28 skipped in 24 min), 26,448 lines of Python,
 1052/1052 known cases, the doctor clean.
+
+## After v2.0: a whole-project review with Codex
+
+Asked for by the user after the GUI round: check the whole project with an
+independent reviewer - OpenAI's Codex, run read-only over ten areas (core and
+CLI, solvers, patch solvers, utilities, export, GUI, three spec groups, the
+docs) - and develop what needed it. House rule for the round: no finding was
+fixed on Codex's word. Each was reproduced or refuted with an independent
+computation first (scipy, brute force, the Touchstone 2.1 text, mode matching,
+the modal loop solver, the MoM, RWG, FDTD), and every fix commit was then put
+back to Codex for a re-review, whose follow-ups were fixed the same way. v2.0
+stays where it is.
+
+What it found, by area (the commit messages carry the evidence):
+- Utilities: Touchstone v1 Z/Y normalisation, the 2-port keyword order, noise
+  data, per-port references (now renormalised as power waves), writer line
+  limits and frequency precision; scanned-array directivity; Hammerstad-Jensen
+  microstrip; L-sections returning every solution.
+- Core and CLI: failed rules hidden in strict mode, a known case that could not
+  fail, expressions whose syntax errors escaped as the wrong type, unit-aware
+  arguments (deg, S/m) and malformed numbers.
+- Solvers: the MoM's mixed-radius pair kernel and endpoint resonances; the
+  flanged open guide reads 0.17 dB above TE10, not 0.48 (the box transform
+  replaced by the aperture plane imaged through the flange); a per-basis probe
+  parity in the spectral MoM; a DFT guard in the patch FDTD.
+- Export, against the Ansys scripting reference: PEC sheets assigned Perfect E,
+  united conductors, a closed resonant guide, square port sheets with impedance
+  on the port, no floating ports, the CST loss tangent selected.
+- GUI: forms reach every input, drawings follow each design's own geometry,
+  dual-reflector conics drawn true.
+- Specs: fits guarded to their domains (NaN outside, not extrapolated),
+  planar monopoles resized by an equal-area rule an RWG solve confirms, the
+  Potter step table rebuilt by mode matching, slots reporting their own
+  impedance, the cavity-backed slot's depth a guided quarter wave, Carrel's LPDA
+  sizing, the slot array's grating lobes, no diagonal-horn gain advantage,
+  resonant loops synthesised as the loop whose impedance is reported.
+- Then, in this last stretch: the loop bandwidth cases' sources (one solve
+  quoted for two radii); the prime-focus dish's blockage weighted by the aperture
+  field (0.965, not 0.980) and its beam refitted to the blocked aperture (peak
+  sidelobe -22.7 dB, not -25.2), with the offset dish's comparison following; the
+  small loops' tuned Q as the slope of the tuned impedance (X/R was up to 56%
+  low) and the circular loop's wire sized against the driving-point resistance;
+  the zone plate's phase steps as fixed thicknesses (its bandwidth was 9-11%
+  narrow at four zones); the resonant dipole's length law kept on thin wire (it
+  built a 0.1 mm wire at 100 kHz 7.5% short); the PIFA's calibrated length given
+  only for the full-width short it was calibrated on (a 1 mm strip had been
+  handed the same 24.3 mm), with a whole-plate FDTD for corner strips added and
+  the exporter refusing NaN geometry; and the docs held to what
+  the code and tests show (NBS gains are dBd; patch directivity is full-wave on
+  rectangles only; two precision figures overstated; a recorded tube scan whose
+  "maximum" was its first point).
+- Found while taking the README's screenshots: the Yagi drawing invented its
+  director count, and a stale colour bar made the planar layout raise on every
+  redraw.
+
+Two tests the round itself had broken were caught by the closing full suite and
+fixed (the slot array's cross-check still expected the long-array formula; the
+fat dipole's resistance test asked a guarded fit for values past its range).
+
+After it: 3356 tests (the full suite 3328 passed and 25 skipped in 30 min; the three
+added after it started pass on their own), 29,243 lines of Python, 25,799 of spec
+data, 1078/1078 known-case expectations in 450 cases, the doctor clean. Then the
+repository went public on GitHub as alasulu/antenna-design-app under the MIT
+licence, with a README written for people meeting the toolkit for the first time.
