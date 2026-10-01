@@ -5,9 +5,10 @@ requirements, get a parameterised geometry, its predicted performance, and an
 export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
-on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2. **72 archetypes, 10 families,
-26,448 lines of Python, 25,307 lines of spec data, 3176 tests, 1052/1052 citable
-known cases passing.**
+on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2; a whole-project
+review with OpenAI's Codex followed (2026-10-01). **72 archetypes, 10 families,
+29,243 lines of Python, 25,799 lines of spec data, 3356 tests, 450 citable known
+cases holding 1078 expectations, all passing.**
 
 ---
 
@@ -382,7 +383,8 @@ conductivity by S, and the antenna is electrically identical: directivity,
 beamwidths, impedances and efficiency unchanged, lengths down by S, areas by S².
 Every quantity must follow the power of S its declared unit implies.
 
-**793 quantities across all 72 archetypes**, checked without a single reference
+**1043 quantities across all 72 archetypes** (of 1066 with a declared unit; the
+rest are NaN or zero at the audit's designs), checked without a single reference
 number. This is the counterweight to the `known_cases` harness, which can only
 check what a human chose to assert — and which the same human wrote the formulas
 for. A companion test asserts that every declared unit has a known scaling rule,

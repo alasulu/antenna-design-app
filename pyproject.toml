@@ -6,12 +6,18 @@ build-backend = "setuptools.build_meta"
 name = "otahub-antenna-toolkit"
 version = "0.1.0"
 description = "Antenna, array and waveguide synthesis with simulator export (CST / HFSS)"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Oğuzhan Alasulu"}]
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10", "matplotlib>=3.7"]
 
 [project.optional-dependencies]
 gui = ["PySide6>=6.6"]
 dev = ["pytest>=7"]
+
+[project.urls]
+Repository = "https://github.com/alasulu/antenna-design-app"
 
 [project.scripts]
 otahub = "otahub.cli.main:main"
