@@ -1307,10 +1307,11 @@
         },
         {
           "symbol": "L",
-          "name": "axial flare length",
+          "name": "slant length",
           "unit": "m",
           "role": "requirement",
-          "typical": "0.3"
+          "typical": "0.3",
+          "description": "From the cone's apex to the aperture rim, along the wall: the length the phase error s = dm^2/(8 lambda L) and the apex geometry use."
         },
         {
           "symbol": "dm",
@@ -1920,10 +1921,11 @@
         },
         {
           "symbol": "L",
-          "name": "axial length",
+          "name": "slant length",
           "unit": "m",
           "role": "requirement",
-          "typical": "0.3"
+          "typical": "0.3",
+          "description": "From the cone's apex to the aperture rim, along the wall: the length the phase error s = dm^2/(8 lambda L) and the apex geometry use."
         },
         {
           "symbol": "tm11_fraction",

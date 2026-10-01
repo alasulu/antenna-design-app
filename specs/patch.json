@@ -1183,12 +1183,15 @@
         },
         {
           "metric": "feed_resistance_ohm",
-          "expr": "edge_resistance_ohm*(j1(1.8412*rho_frac)/j1(1.8412))**2",
+          "expr": "np.where(rho_frac*a_eff <= a, edge_resistance_ohm*(j1(1.8412*rho_frac)/j1(1.8412))**2, inf - inf)",
           "units_out": "ohm",
           "depends_on": [
+            "a",
+            "a_eff",
             "edge_resistance_ohm",
             "rho_frac"
-          ]
+          ],
+          "notes": "NaN when rho_frac a_eff lies past the built radius a: rho_frac is measured on the fringing-corrected radius, so near 1 the probe would stand off the copper (0.31 mm off at rho_frac 0.9 on the Balanis board). feed_resistance_ratio stays defined there, as the cos-law normalisation it is."
         },
         {
           "metric": "radiation_q",
@@ -1203,12 +1206,14 @@
         },
         {
           "metric": "probe_radius_m",
-          "expr": "rho_frac*a_eff",
+          "expr": "np.where(rho_frac*a_eff <= a, rho_frac*a_eff, inf - inf)",
           "units_out": "m",
           "depends_on": [
-            "rho_frac",
-            "a_eff"
-          ]
+            "a",
+            "a_eff",
+            "rho_frac"
+          ],
+          "notes": "NaN when rho_frac a_eff lies past the built radius a: rho_frac is measured on the fringing-corrected radius, so near 1 the probe would stand off the copper (0.31 mm off at rho_frac 0.9 on the Balanis board). feed_resistance_ratio stays defined there, as the cos-law normalisation it is."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
@@ -1737,7 +1742,7 @@
             "L_textbook",
             "L_full_patch"
           ],
-          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
+          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out SHORTER than half the open patch: the shorting wall's inductance grows with its height, and the FDTD survey's wall factor shortens the built patch by up to 12% (14.08 mm against a half of 14.28 at 2.4 GHz on 1.6 mm FR-4). This note used to say longer."
         },
         {
           "metric": "area_reduction_ratio",
@@ -1747,7 +1752,7 @@
             "L_textbook",
             "L_full_patch"
           ],
-          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out a little longer than half, because a finite shorting wall is not a perfect electric wall."
+          "notes": "Exactly 0.5 in this model: the fringing extension scales with the number of open edges, so it halves along with the length rather than leaving a residue. Real shorted patches come out SHORTER than half the open patch: the shorting wall's inductance grows with its height, and the FDTD survey's wall factor shortens the built patch by up to 12% (14.08 mm against a half of 14.28 at 2.4 GHz on 1.6 mm FR-4). This note used to say longer."
         },
         {
           "metric": "directivity_thin_substrate_linear",
@@ -2183,11 +2188,12 @@
         },
         {
           "metric": "area_m2",
-          "expr": "sqrt(3)/4*a_side_cavity**2",
+          "expr": "sqrt(3)/4*a_side**2",
           "units_out": "m^2",
           "depends_on": [
-            "a_side_cavity"
-          ]
+            "a_side"
+          ],
+          "notes": "The built patch's area, from a_side; it used the cavity model's side, 1.7% longer (3.5% more area)."
         },
         {
           "metric": "rectangular_patch_area_m2",
@@ -2333,10 +2339,10 @@
             "h": 0.0016
           },
           "expect": {
-            "area_ratio_vs_rectangular": 0.6421
+            "area_ratio_vs_rectangular": 0.635114
           },
           "tol_pct": 2.0,
-          "source": "77.4 cm^2 against the rectangular patch's 119.8 cm^2 at the same frequency - the triangle needs about 36% less board area"
+          "source": "77.4 cm^2 against the rectangular patch's 119.8 cm^2 at the same frequency - the triangle needs about 36% less board area Recomputed for the built side a_side (it used a_side_cavity): 0.63511 (script)."
         },
         {
           "given": {

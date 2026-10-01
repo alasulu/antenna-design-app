@@ -886,14 +886,15 @@
         },
         {
           "metric": "outer_zone_width_m",
-          "expr": "sqrt(M*(c/f0)*F + (M*(c/f0)/2)**2) - sqrt((M-1)*(c/f0)*F + ((M-1)*(c/f0)/2)**2)",
+          "expr": "sqrt(M*(c/f0)*F + (M*(c/f0)/2)**2) - sqrt((M - np.where(phase_levels >= 2, 2.0/phase_levels, 1.0))*(c/f0)*F + ((M - np.where(phase_levels >= 2, 2.0/phase_levels, 1.0))*(c/f0)/2)**2)",
           "units_out": "m",
           "depends_on": [
+            "F",
             "M",
             "f0",
-            "F"
+            "phase_levels"
           ],
-          "notes": "The narrowest feature, and what sets the manufacturing tolerance. Zones get tighter outward, so a large plate is limited by the finest ring, not the biggest."
+          "notes": "The narrowest feature, which sets the manufacturing tolerance: the outermost zone for an opaque plate, the outermost STEP for an L-level phase plate, r(M) - r(M - 2/L) (a four-level plate steps every quarter wave of path: 5.46 mm at 30 GHz, F 0.15 m, M 4, where the whole zone is 11.26). Zones get tighter outward."
         }
       ],
       "validity": [

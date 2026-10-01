@@ -461,7 +461,7 @@ def _labels(key, registry, values=None):
 
 
 @pytest.mark.parametrize("key,label", [
-    ("lpda", "26 elements"),                                  # was 16, at a scale factor of its own
+    ("lpda", "28 elements"),                                  # was 16, at a scale factor of its own
     ("normal_mode_helix", "40 mm, 20 turns"),                 # was four turns
     ("axial_mode_helix", "708 mm, 10 turns"),
     ("waveguide_slot_array_resonant", "12 slots"),            # was always six
@@ -503,7 +503,7 @@ def test_the_drawings_geometry_is_the_designs_not_just_its_labels(qapp, registry
     assert _dim(rec, "aperture ")[4] == pytest.approx(long.get("W_ap"), rel=1e-9)
     big = registry["lpda"].synthesize(f_low=10e6, f_high=10e9, tau=0.92)
     rec = _labels("lpda", registry, design_values(big))
-    assert len(rec.wires) == 2 * int(big.get("N_elements")) == 174
+    assert len(rec.wires) == 2 * int(big.get("N_elements")) == 178
 
 
 def test_a_three_level_zone_plate_steps_every_two_thirds_of_a_zone(qapp, registry):

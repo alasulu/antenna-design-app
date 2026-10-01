@@ -143,40 +143,40 @@
           "depends_on": []
         },
         {
-          "metric": "input_resistance_ohm",
+          "metric": "complement_resistance_ohm",
           "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2))",
           "units_out": "ohm",
-          "notes": "Re{eta0^2/(4*Zd)}. With the default 73.1 + j42.5 dipole this is 362.8 ohm.",
+          "notes": "Re{eta0^2/(4 Zd)} for a complementary dipole Zd = Rd + jXd you supply - by default the textbook exactly-half-wave 73.1 + j42.5 ohm, giving 362.8 ohm. That is NOT this slot: the slot synthesised here is cut to resonance (input_impedance_ohm). This used to be reported as the slot's input impedance.",
           "depends_on": [
             "Rd",
             "Xd"
           ]
         },
         {
-          "metric": "input_reactance_ohm",
+          "metric": "complement_reactance_ohm",
           "expr": "-eta0**2*Xd/(4.0*(Rd**2 + Xd**2))",
           "units_out": "ohm",
-          "notes": "Im{eta0^2/(4*Zd)} = -eta0^2*Xd/(4*|Zd|^2). NEGATIVE for the default inductive dipole: -210.9 ohm. See the sign discussion in notes.",
+          "notes": "Im{eta0^2/(4 Zd)} = -eta0^2 Xd/(4|Zd|^2): -210.9 ohm for the half-wave default. NEGATIVE for an inductive dipole.",
           "depends_on": [
             "Rd",
             "Xd"
           ]
         },
         {
-          "metric": "input_impedance_ohm",
+          "metric": "complement_impedance_ohm",
           "expr": "eta0**2*Rd/(4.0*(Rd**2 + Xd**2)) + 1j*(-eta0**2*Xd/(4.0*(Rd**2 + Xd**2)))",
           "units_out": "ohm",
-          "notes": "Complex form, 362.8 - j210.9 ohm by default. Two-sided infinite zero-thickness screen only.",
+          "notes": "eta0^2/(4 Zd) for the Zd supplied: 362.8 - j210.9 ohm for the exactly-half-wave default. Two-sided infinite zero-thickness screen only.",
           "depends_on": [
             "Rd",
             "Xd"
           ]
         },
         {
-          "metric": "input_impedance_magnitude_ohm",
+          "metric": "complement_impedance_magnitude_ohm",
           "expr": "eta0**2/(4.0*np.sqrt(Rd**2 + Xd**2))",
           "units_out": "ohm",
-          "notes": "|Zs| = (eta0^2/4)/|Zd| = 419.6 ohm for the default dipole.",
+          "notes": "|eta0^2/(4 Zd)| = 419.6 ohm for the half-wave default.",
           "depends_on": [
             "Rd",
             "Xd"
@@ -201,12 +201,39 @@
           ]
         },
         {
-          "metric": "radiation_conductance_S",
-          "expr": "4.0*Rd/eta0**2",
-          "units_out": "S",
-          "notes": "G = Re{Y_slot} = 4*Rd/eta0^2 = 2.060e-3 S for Rd = 73.1 ohm. The slot is naturally described by an admittance because it is a shunt element across whatever feeds it.",
+          "metric": "input_impedance_ohm",
+          "expr": "eta0**2/(4.0*Rd_res) + 0j",
+          "units_out": "ohm",
           "depends_on": [
-            "Rd"
+            "Rd_res"
+          ],
+          "notes": "The synthesised slot at its centre, two-sided. The 362.8 - j210.9 ohm this spec reported before belonged to an exactly-half-wave slot (complement_impedance_ohm)."
+        },
+        {
+          "metric": "input_reactance_ohm",
+          "expr": "0.0*Rd_res",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rd_res"
+          ],
+          "notes": "Zero by construction: the length is the resonant one."
+        },
+        {
+          "metric": "input_resistance_ohm",
+          "expr": "eta0**2/(4.0*Rd_res)",
+          "units_out": "ohm",
+          "depends_on": [
+            "Rd_res"
+          ],
+          "notes": "This slot's input resistance: it is cut to resonance, so Babinet with the complementary dipole AT resonance, eta0^2/(4 Rd_res) - the resonant_resistance_ohm figure, 468 ohm at the default width."
+        },
+        {
+          "metric": "radiation_conductance_S",
+          "expr": "4.0*Rd_res/eta0**2",
+          "units_out": "S",
+          "notes": "G = 1/R of the resonant slot, 4 Rd_res/eta0^2: 2.14e-3 S at the default width. It used the half-wave dipole's Rd, the conductance of a slot that is not resonant.",
+          "depends_on": [
+            "Rd_res"
           ]
         },
         {
@@ -286,7 +313,8 @@
             "w_m": 0.02317335,
             "Rd_res": 75.7966,
             "resonant_resistance_ohm": 468.1138,
-            "resonant_resistance_one_sided_ohm": 936.2276
+            "resonant_resistance_one_sided_ohm": 936.2276,
+            "input_resistance_ohm": 468.1138
           },
           "tol_pct": 0.5,
           "source": "Complementary dipole of radius a = w/4 = 0.00580 lambda0 at the default w/L = 0.05, with the slot length solved self-consistently: resonant_dipole's length law gives 0.46379 lambda0 and its solved resistance 75.80 ohm, so the resonant slot is 468.1 ohm. Exact-kernel MoM and Hallen's equation independently give 0.4645-0.4654 lambda0 and 74.0-75.4 ohm, a 471-479 ohm slot. lambda0 = 0.99930819 m at 300 MHz."
@@ -318,9 +346,9 @@
             "Xd": 42.5
           },
           "expect": {
-            "input_resistance_ohm": 362.8,
-            "input_reactance_ohm": -210.9,
-            "input_impedance_magnitude_ohm": 419.6
+            "complement_resistance_ohm": 362.8,
+            "complement_reactance_ohm": -210.9,
+            "complement_impedance_magnitude_ohm": 419.6
           },
           "tol_pct": 0.5,
           "source": "Babinet/Booker applied to the classic lambda/2 dipole 73.1 + j42.5 ohm. Magnitudes 363 and 211 are the textbook values; the reactance sign is negative -- see notes"
@@ -402,6 +430,35 @@
           "name": "cavity depth",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "cavity_width_over_lambda",
+          "name": "cavity width over lambda",
+          "unit": "-",
+          "role": "assumption",
+          "typical": "0.6",
+          "description": "The cavity's width along the slot, in free-space wavelengths: more than 0.5 for its TE10 mode to propagate, under 1 to keep TE20 out."
+        },
+        {
+          "symbol": "cavity_width",
+          "name": "cavity width",
+          "unit": "m",
+          "role": "geometry"
+        },
+        {
+          "symbol": "cavity_depth_free_space_m",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "slot_t",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
+          "symbol": "Rd_res",
+          "unit": "ohm",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -424,21 +481,62 @@
           "notes": "width sets the bandwidth; 5% of the length is a typical starting point"
         },
         {
+          "output": "cavity_width",
+          "expr": "cavity_width_over_lambda*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "cavity_width_over_lambda",
+            "f0"
+          ]
+        },
+        {
           "output": "cavity_depth",
+          "expr": "np.where((cavity_width_over_lambda > 0.5)*(cavity_width_over_lambda < 1.0), 0.25*(c/f0)/np.sqrt(np.maximum(1 - (1/(2*cavity_width_over_lambda))**2, 1e-30)), inf - inf)",
+          "units_out": "m",
+          "depends_on": [
+            "cavity_width_over_lambda",
+            "f0"
+          ],
+          "notes": "A quarter GUIDE wavelength of the cavity's TE10 mode, lambda_g/4 with lambda_g = lambda0/sqrt(1 - (lambda0/2A)^2): that is what turns the back short into an open circuit at the slot, so the cavity does not load it. 0.452 lambda0 for a cavity 0.6 lambda0 wide. This spec used lambda0/4 (cavity_depth_free_space_m), right only for a cavity many wavelengths wide; at the 0.5 lambda0 its validity allowed, the mode is at cutoff. NaN outside 0.5-1 lambda0 of width. Inherently narrowband."
+        },
+        {
+          "output": "cavity_depth_free_space_m",
           "expr": "0.25*c/f0",
           "units_out": "m",
           "depends_on": [
             "f0"
           ],
-          "notes": "A quarter-wave deep cavity transforms the short at the back wall into an open circuit at the slot, so it does not load the slot. This depth is the whole reason the cavity works, and it is inherently narrowband."
+          "notes": "The textbook lambda0/4, kept for comparison: a quarter wave in free space, not in the cavity."
+        },
+        {
+          "output": "slot_t",
+          "expr": "log10(4*c/(f0*slot_width))",
+          "units_out": "-",
+          "depends_on": [
+            "slot_width",
+            "f0"
+          ],
+          "notes": "log10(lambda0/a) of the complementary dipole, a = w/4, as half_wave_slot."
+        },
+        {
+          "output": "Rd_res",
+          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "units_out": "ohm",
+          "depends_on": [
+            "slot_t"
+          ],
+          "notes": "The complementary dipole's resistance at its own resonance, the same solved law half_wave_slot uses."
         }
       ],
       "analysis": [
         {
           "metric": "input_resistance_ohm",
-          "expr": "2*363.0",
+          "expr": "eta0**2/(2.0*Rd_res)",
           "units_out": "ohm",
-          "notes": "Radiating into a half space instead of a full one doubles the impedance of the equivalent open slot, so roughly 726 ohm at resonance."
+          "notes": "The slot radiating into one half space, at resonance, with the cavity an open circuit behind it: eta0^2/(2 Rd_res), 935 ohm at w/L = 0.05 - half_wave_slot's one-sided figure. It was 2 x 363 = 726 ohm, which doubled the resistance of an exactly-half-wave slot that is NOT resonant (363 - j211 ohm). The cavity's own susceptance, nonzero away from the design frequency or for any other depth, is not in this figure.",
+          "depends_on": [
+            "Rd_res"
+          ]
         },
         {
           "metric": "directivity_dbi",
@@ -464,7 +562,7 @@
       ],
       "validity": [
         "cavity depth is correct at one frequency only; the structure is narrowband by construction",
-        "assumes a cavity at least a half wave across laterally, or the cavity modes shift the resonance",
+        "assumes the cavity is wider than half a wavelength along the slot (its TE10 mode then propagates) and under one wavelength (TE20 stays cut off): cavity_width_over_lambda 0.5-1, default 0.6",
         "bandwidth entry is indicative, not derived"
       ],
       "known_cases": [
@@ -474,12 +572,14 @@
           },
           "expect": {
             "slot_length_m": 0.1439,
-            "cavity_depth_m": 0.0749481,
-            "cavity_depth_over_lambda": 0.25,
-            "directivity_dbi": 5.15143
+            "cavity_depth_m": 0.135586,
+            "cavity_depth_over_lambda": 0.452267,
+            "cavity_depth_free_space_m": 0.0749481,
+            "directivity_dbi": 5.15143,
+            "input_resistance_ohm": 934.861
           },
           "tol_pct": 1.0,
-          "source": "1 GHz: 0.48 lambda slot = 143.9 mm over a lambda/4 = 74.95 mm cavity; unidirectional directivity is 2x the open slot. Balanis, Antenna Theory 4th ed., Ch. 12"
+          "source": "1 GHz: 0.48 lambda slot = 143.9 mm; a 0.6 lambda wide cavity's TE10 guide wavelength is lambda0/sqrt(1 - (1/1.2)^2) = 1.809 lambda0, so a quarter of it is 0.4523 lambda0 = 135.59 mm (the free-space lambda0/4 is 74.95 mm); one-sided resonant resistance eta0^2/(2 Rd_res) = 934.86 ohm with Rd_res = 75.907 ohm at a = w/4 (script). Directivity twice the open slot's. Balanis, Antenna Theory 4th ed., Ch. 12, for the configuration."
         }
       ],
       "references": [

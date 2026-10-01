@@ -2228,13 +2228,14 @@
         },
         {
           "metric": "chu_limit_q",
-          "expr": "1/(k0*h)**3 + 1/(k0*h)",
+          "expr": "1/(k0*sqrt(h**2 + a_hat**2))**3 + 1/(k0*sqrt(h**2 + a_hat**2))",
           "units_out": "-",
           "depends_on": [
             "k0",
-            "h"
+            "h",
+            "a_hat"
           ],
-          "notes": "Chu/McLean lower bound for a linearly polarised antenna inside a sphere of radius h. No amount of top loading beats this."
+          "notes": "Chu/McLean lower bound for a linearly polarised antenna in the smallest sphere that encloses it with its image: radius sqrt(h^2 + a_hat^2), since the hat spreads a_hat out at height h. This spec used radius h, which leaves the hat outside the sphere and overstates the bound (35.4 where 17.8 is right at h 0.05, a_hat 0.04 lambda)."
         }
       ],
       "validity": [

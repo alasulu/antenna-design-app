@@ -318,7 +318,7 @@
           "depends_on": [
             "eps_r"
           ],
-          "notes": "Fitted to the EXACT complex natural frequency of the equivalent dielectric sphere's TE1 (magnetic dipole) mode: the root of m*psi1'(m*x)*xi1(x) = xi1'(x)*psi1(m*x) in the complex x = k0*a plane, whose real part is the resonance. Maximum error 0.23% over 6 <= eps_r <= 100. The form carries the right limit: as eps_r grows, sqrt(eps_r)*k0*a -> pi exactly, one internal half wavelength across the diameter, and the correction term is how far short of it a finite permittivity falls. An earlier version took the peak of the Mie scattering coefficient |b1| on the real frequency axis instead, which sits 1.2% high at eps_r = 10: a resonance with Q near 9 is broad enough that the scattering background drags its peak off the pole."
+          "notes": "Fitted to the EXACT complex natural frequency of the equivalent dielectric sphere's TE1 (magnetic dipole) mode: the root of m*psi1'(m*x)*xi1(x) = xi1'(x)*psi1(m*x) in the complex x = k0*a plane, whose real part is the resonance. Maximum error 0.23% over 6 <= eps_r <= 100. The form carries the right limit: as eps_r grows, sqrt(eps_r)*k0*a -> pi exactly, one internal half wavelength across the RADIUS (a whole internal wavelength across the diameter), and the correction term is how far short of it a finite permittivity falls. An earlier version took the peak of the Mie scattering coefficient |b1| on the real frequency axis instead, which sits 1.2% high at eps_r = 10: a resonance with Q near 9 is broad enough that the scattering background drags its peak off the pole."
         },
         {
           "output": "a",
@@ -349,7 +349,7 @@
             "k0a",
             "eps_r"
           ],
-          "notes": "sqrt(eps_r)*k0*a / pi, which the exact pole puts between 0.929 and 0.983 over 6 <= eps_r <= 50 and which tends to 1 as eps_r grows - the resonance really is 'one internal half wavelength across the diameter', approached from below"
+          "notes": "sqrt(eps_r)*k0*a / pi, which the exact pole puts between 0.929 and 0.983 over 6 <= eps_r <= 50 and which tends to 1 as eps_r grows - the resonance really is 'one internal half wavelength across the RADIUS (a whole internal wavelength across the diameter)', approached from below"
         },
         {
           "metric": "radiation_q",
@@ -468,7 +468,7 @@
             "internal_half_wavelengths": 0.94597
           },
           "tol_pct": 0.5,
-          "source": "sqrt(10)*0.939784/pi = 0.94597: the diameter holds a little under one internal half wavelength, and the shortfall shrinks as eps_r grows"
+          "source": "sqrt(10)*0.939784/pi = 0.94597: the RADIUS holds a little under one internal half wavelength (the diameter a little under a whole one), and the shortfall shrinks as eps_r grows"
         }
       ],
       "references": [

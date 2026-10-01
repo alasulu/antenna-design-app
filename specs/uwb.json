@@ -409,12 +409,21 @@
         },
         {
           "metric": "cavity_backed_directivity_dbi",
-          "expr": "directivity_dbi + db10(2*0.5)",
+          "expr": "directivity_dbi + db10(2.0)",
           "units_out": "dBi",
-          "notes": "Backing the spiral with an absorber-loaded cavity makes it unidirectional but absorbs half the power, so the net gain is roughly unchanged from bidirectional. A resonant cavity does better but only over a narrow band. Do NOT assume 3 dB free. Now built on the solved free-space directivity; the absorber cavity itself stays INDICATIVE.",
+          "notes": "An absorber-backed cavity removes the back lobe: the power goes into one half space, so the DIRECTIVITY rises 3 dB. The absorber takes half the power, which is why the GAIN does not (cavity_backed_gain_dbi). This metric used to carry the gain under the directivity's name. The absorber cavity stays INDICATIVE.",
           "depends_on": [
             "directivity_dbi"
           ]
+        },
+        {
+          "metric": "cavity_backed_gain_dbi",
+          "expr": "directivity_dbi + db10(2.0*0.5)",
+          "units_out": "dBi",
+          "depends_on": [
+            "directivity_dbi"
+          ],
+          "notes": "Directivity +3 dB, efficiency 0.5 from the absorber: the gain stays at the free spiral's directivity. Indicative."
         },
         {
           "metric": "axial_ratio_db",

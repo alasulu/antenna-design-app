@@ -1479,6 +1479,11 @@
           "role": "assumption",
           "typical": "125",
           "description": "held constant along the array so the structure is truly log-periodic"
+        },
+        {
+          "symbol": "B_ar",
+          "unit": "-",
+          "role": "derived"
         }
       ],
       "synthesis": [
@@ -1493,12 +1498,13 @@
         },
         {
           "output": "alpha_deg",
-          "expr": "deg(np.arctan((1-tau)/(4*(0.243*tau - 0.051))))",
+          "expr": "deg(np.arctan((1-tau)/(4*sigma)))",
           "units_out": "deg",
           "depends_on": [
-            "tau"
+            "tau",
+            "sigma"
           ],
-          "notes": "Inverts sigma = (1-tau)/(4*tan(alpha)), which is the defining LPDA geometry relation"
+          "notes": "From sigma = (1-tau)/(4 tan(alpha)), with the sigma used - the optimum unless one is supplied (it used the optimum whatever was supplied: 8.48 deg for sigma = 0.1, where the relation gives 14.04)."
         },
         {
           "output": "L_max",
@@ -1510,15 +1516,26 @@
           "notes": "longest element is a half wave at the lowest frequency"
         },
         {
-          "output": "N_elements",
-          "expr": "1 + np.ceil(np.log(1.3*f_high/f_low)/np.log(1/tau))",
+          "output": "B_ar",
+          "expr": "1.1 + 7.7*(1-tau)**2/np.tan(rad(alpha_deg))",
           "units_out": "-",
           "depends_on": [
+            "tau",
+            "alpha_deg"
+          ],
+          "notes": "Carrel's active-region bandwidth, Bar = 1.1 + 7.7 (1 - tau)^2 cot(alpha) (Balanis 11-29): 1.62 at tau 0.9 and the optimum sigma. This spec used a constant 1.3, which undercounted elements (26 where Carrel's sizing gives 28 for 100 MHz-1 GHz)."
+        },
+        {
+          "output": "N_elements",
+          "expr": "1 + np.ceil(np.log(B_ar*f_high/f_low)/np.log(1/tau))",
+          "units_out": "-",
+          "depends_on": [
+            "B_ar",
             "f_high",
             "f_low",
             "tau"
           ],
-          "notes": "The 1.3 factor extends the structure past the top of the band so the active region is fully formed there (the bandwidth of the active region, Bar). Without it the gain droops badly at the high end."
+          "notes": "N = 1 + ln(Bs)/ln(1/tau), Bs = B Bar the structure bandwidth (Balanis 11-30), rounded up."
         }
       ],
       "analysis": [
@@ -1533,9 +1550,10 @@
         },
         {
           "metric": "design_bandwidth",
-          "expr": "1.3*f_high/f_low",
+          "expr": "B_ar*f_high/f_low",
           "units_out": "-",
           "depends_on": [
+            "B_ar",
             "f_high",
             "f_low"
           ],
@@ -1543,31 +1561,35 @@
         },
         {
           "metric": "directivity_dbi",
-          "expr": "7.5 + 20*(tau - 0.8)",
+          "expr": "np.where(abs(sigma/(0.243*tau - 0.051) - 1) < 0.05, 7.5 + 20*(tau - 0.8), inf - inf)",
           "units_out": "dBi",
           "depends_on": [
+            "sigma",
             "tau"
           ],
-          "notes": "Linear reading of the Carrel directivity chart along the optimum-sigma line, 0.8 < tau < 0.95. It HOLDS: against the full-wave log-period mean it is within 0.6 dB at every tau, -0.55 to +0.57 dB. What a single number hides is the periodic ripple - the directivity repeats with period tau in frequency and swings 2.0 dB peak-to-peak at tau = 0.8, 0.7 at 0.9 and 0.2 at 0.95; the tables field carries the solved mean, minimum and maximum. Checked against a full-wave solve: method of moments on every element with the feeder as a transmission-line network (otahub.num.mom.lpda_model, solve_network), averaged over one full log-period in frequency with the active region held seven elements from the back and twelve from the front. The feeder coupling is itself checked three ways, including power conservation through the lossless feeder to 1e-4."
+          "notes": "Linear reading of the Carrel directivity chart along the optimum-sigma line, 0.8 < tau < 0.95. It HOLDS: against the full-wave log-period mean it is within 0.6 dB at every tau, -0.55 to +0.57 dB. What a single number hides is the periodic ripple - the directivity repeats with period tau in frequency and swings 2.0 dB peak-to-peak at tau = 0.8, 0.7 at 0.9 and 0.2 at 0.95; the tables field carries the solved mean, minimum and maximum. Checked against a full-wave solve: method of moments on every element with the feeder as a transmission-line network (otahub.num.mom.lpda_model, solve_network), averaged over one full log-period in frequency with the active region held seven elements from the back and twelve from the front. The feeder coupling is itself checked three ways, including power conservation through the lossless feeder to 1e-4. Carrel's figures are for the optimum spacing: NaN when the sigma used is more than 5% off it."
         },
         {
           "metric": "shortest_element_m",
-          "expr": "0.5*c/(1.3*f_high)",
-          "units_out": "m",
-          "depends_on": [
-            "f_high"
-          ]
-        },
-        {
-          "metric": "boom_length_m",
-          "expr": "(0.5*c/f_low - 0.5*c/(1.3*f_high))/(2*np.tan(np.arctan((1-tau)/(4*(0.243*tau - 0.051)))))",
+          "expr": "0.5*c/f_low*tau**(N_elements - 1)",
           "units_out": "m",
           "depends_on": [
             "f_low",
-            "f_high",
-            "tau"
+            "tau",
+            "N_elements"
           ],
-          "notes": "from the apex geometry: the boom spans the two extreme element half-lengths"
+          "notes": "L_max tau^(N-1): the shortest element of the structure built, from the rounded element count."
+        },
+        {
+          "metric": "boom_length_m",
+          "expr": "(0.5*c/f_low - shortest_element_m)/(2*np.tan(rad(alpha_deg)))",
+          "units_out": "m",
+          "depends_on": [
+            "f_low",
+            "shortest_element_m",
+            "alpha_deg"
+          ],
+          "notes": "From the apex geometry, longest to shortest element: (L_max - L_min) cot(alpha)/2, with the alpha of the sigma used."
         },
         {
           "metric": "element_impedance_za_ohm",
@@ -1641,11 +1663,12 @@
             "tau": 0.9
           },
           "expect": {
-            "N_elements": 26.0,
-            "design_bandwidth": 13.0
+            "N_elements": 28.0,
+            "design_bandwidth": 16.16516,
+            "B_ar": 1.616516
           },
           "tol_pct": 2.0,
-          "source": "A decade of bandwidth with the 1.3 active-region allowance needs 1 + ceil(ln(13)/ln(1/0.9)) = 26 elements."
+          "source": "Carrel's sizing (Balanis 11-29, 11-30): Bar = 1.1 + 7.7 (0.1)^2 cot(8.479 deg) = 1.6165, Bs = 16.165, N = 1 + ceil(ln 16.165 / ln(1/0.9)) = 28 (script)."
         },
         {
           "given": {
@@ -1676,6 +1699,19 @@
           },
           "tol_pct": 0.5,
           "source": "R = Z0/sqrt(1 + Z0/(4 sigma' Za)) with sigma' = 0.1677/sqrt(0.9) and Za = 120(ln 125 - 2.25) = 309.4 ohm gives 45.1 ohm on a 50 ohm feeder. The full-wave solve, averaged over a log-period, gives 40.6 ohm. Inverting the same relation, a 50 ohm input needs a 56.0 ohm feeder."
+        },
+        {
+          "given": {
+            "f_low": 100000000.0,
+            "f_high": 1000000000.0,
+            "tau": 0.9,
+            "sigma": 0.1
+          },
+          "expect": {
+            "alpha_deg": 14.036243
+          },
+          "tol_pct": 0.5,
+          "source": "alpha = atan((1 - tau)/(4 sigma)) with the supplied sigma = 0.1: 14.0362 deg (script)."
         }
       ],
       "references": [
@@ -2111,6 +2147,21 @@
           "name": "wire length",
           "unit": "m",
           "role": "geometry"
+        },
+        {
+          "symbol": "height",
+          "name": "height above ground",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.25*lambda .. 2*lambda",
+          "description": "The wire's height above the ground it is fed and terminated against."
+        },
+        {
+          "symbol": "aw",
+          "name": "wire radius",
+          "unit": "m",
+          "role": "assumption",
+          "typical": "0.001"
         }
       ],
       "synthesis": [
@@ -2185,12 +2236,13 @@
         },
         {
           "metric": "termination_resistance_ohm",
-          "expr": "radiation_resistance_ohm",
+          "expr": "60*log(2*height/aw)",
           "units_out": "ohm",
           "depends_on": [
-            "radiation_resistance_ohm"
+            "height",
+            "aw"
           ],
-          "notes": "Indicative only. The termination must match the wire's characteristic impedance against ground (typically 400-600 ohm for a wire well above earth), not the radiation resistance. Half the input power is dissipated there in the ideal travelling-wave case."
+          "notes": "The wire's characteristic impedance against ground, Z0 = 60 ln(2h/a) for a wire of radius a at height h - what the termination must match for the wave to travel. 400-600 ohm for practical wires. This spec put the RADIATION resistance here (210 ohm for the default wire, VSWR 2.4 on a 500 ohm line), which its own note said was wrong. Needs the height, which the free-space pattern model does not."
         }
       ],
       "validity": [

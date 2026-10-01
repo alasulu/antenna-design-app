@@ -1367,7 +1367,7 @@
     {
       "key": "ferrite_rod_loop",
       "name": "Ferrite-rod loaded receiving loop",
-      "summary": "Multi-turn coil on a ferrite rod, used as an electrically tiny receiving antenna at LF/MF/HF where its dreadful efficiency is irrelevant because external noise dominates.",
+      "summary": "Multi-turn coil on a ferrite rod, an electrically tiny receiving antenna at LF/MF/HF: its efficiency is dreadful, which costs nothing only where external noise is strong enough to swamp the rod's own loss.",
       "freq_range_hz": [
         10000.0,
         30000000.0
@@ -1655,7 +1655,7 @@
           "metric": "radiation_efficiency",
           "expr": "31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2/(31171.0*N**2*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))**2*((pi*d_rod**2/4.0)*f0**2/c**2)**2 + 2*pi*f0*(mu0*(k_coil*(mu_i/(1.0 + ((1.0/((l_rod/d_rod)**2-1.0))*(((l_rod/d_rod)/np.sqrt((l_rod/d_rod)**2-1.0))*np.log((l_rod/d_rod)+np.sqrt((l_rod/d_rod)**2-1.0)) - 1.0))*(mu_i-1.0))))*N**2*(pi*d_rod**2/4.0)/l_coil)/Q_coil)",
           "units_out": "-",
-          "notes": "e_cd = Rr/(Rr + R_loss). Expect 1e-7 to 1e-9 (-70 to -90 dB) at MF. This is NOT a defect: at LF/MF the external atmospheric and man-made noise floor is 40-80 dB above kTB, so the receiver stays externally-noise-limited even with this efficiency.",
+          "notes": "e_cd = Rr/(Rr + R_loss). Expect 1e-7 to 1e-9 (-70 to -90 dB) at MF. Whether that matters is a question of noise: a lossy antenna's noise temperature is e*T_ext + (1 - e)*T_phys, so the receiver is externally-noise-limited only while e*T_ext >> T_phys + T_rx - the external noise figure Fa (dB above kT0) must exceed -10 log10(e) plus a margin. At -82 dB (the 1 MHz example) that is Fa > ~85 dB: met by night-time atmospheric noise below a few hundred kHz, NOT by typical MF man-made noise (Fa 50-70 dB), where the rod's own loss sets the floor and its efficiency counts. This note used to say the receiver stays externally-noise-limited at 40-80 dB whatever the efficiency, which these numbers contradict.",
           "depends_on": [
             "N",
             "d_rod",

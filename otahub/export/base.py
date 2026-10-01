@@ -853,25 +853,29 @@ def _cavity_backed_slot(design: DesignResult) -> Model:
     depth = _param(design, "cavity_depth")
     plate = 3.0 * length
     thick = plate / 2000.0
-    cav_l, cav_w = length * 1.2, max(width * 6.0, length * 0.3)
+    cav_l = _param(design, "cavity_width", default=length * 1.25)
+    cav_w = max(width * 6.0, length * 0.3)
+    wall = thick
+    zspan = (-depth - thick, -thick)
     model.solids += [
         Brick("ground_plane", "PEC", (-plate / 2, plate / 2),
               (-plate / 2, plate / 2), (-thick, 0.0)),
         Brick("slot_cut", "VOID", (-length / 2, length / 2),
               (-width / 2, width / 2), (-thick * 1.5, thick * 0.5)),
         Brick("cavity", "VACUUM", (-cav_l / 2, cav_l / 2),
-              (-cav_w / 2, cav_w / 2), (-depth - thick, -thick)),
+              (-cav_w / 2, cav_w / 2), zspan),
     ]
+    # the cavity's PEC walls and back short, built - not left to the solver
+    model.solids += _guide_walls(cav_l, cav_w, wall, zspan)
+    model.solids.append(Brick("cavity_back", "PEC", (-cav_l / 2 - wall, cav_l / 2 + wall),
+                              (-cav_w / 2 - wall, cav_w / 2 + wall), (zspan[0] - wall, zspan[0])))
     model.operations.append(Subtract("ground_plane", ("slot_cut",)))
     model.ports.append(DiscretePort(
         "port1", (0.0, -width / 2, -thick / 2), (0.0, width / 2, -thick / 2)))
     model.notes += [
-        f"Cavity {cav_l * 1e3:.4g} x {cav_w * 1e3:.4g} x {depth * 1e3:.4g} mm. "
-        "Only the DEPTH comes from the spec - the lateral size is chosen here, "
-        "and it matters: a cavity close to the slot in width loads it and "
-        "shifts the resonance.",
-        "The cavity is drawn as a vacuum volume; enclose it in PEC walls in the "
-        "solver, or the slot radiates backwards and the point is lost.",
+        f"Cavity {cav_l * 1e3:.4g} x {cav_w * 1e3:.4g} x {depth * 1e3:.4g} mm with PEC walls and "
+        "back. Its length along the slot and its depth (a quarter of its TE10 guide "
+        "wavelength) come from the spec; its width across the slot is chosen here.",
         "Backing the slot halves the radiated power and doubles the input "
         "resistance against the two-sided case.",
     ]
