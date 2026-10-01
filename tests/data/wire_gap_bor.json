@@ -297,8 +297,10 @@
    "gap_over_a": 0.5,
    "bor_L": null,
    "bor_R": null,
-   "X_max_ohm": -46.71,
-   "note": "no resonance between 0.36 and 0.58 wavelengths, as the tube"
+   "X_max_ohm": -6.24,
+   "note": "no resonance between 0.36 and 0.58 wavelengths, as the tube: the reactance peaks at -6.24 ohm near 0.4975 wavelengths on 0.0025-wavelength segments (-6.42 near 0.4971 on 0.00125). An earlier record gave -46.71, the reactance at 0.36 - the first point of the scan, not its maximum.",
+   "X_max_ohm_fine": -6.42,
+   "L_at_X_max": 0.4975
   },
   {
    "a": 0.025,

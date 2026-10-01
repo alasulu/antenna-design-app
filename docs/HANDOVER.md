@@ -54,17 +54,26 @@ Three consequences, in order of importance:
 
 ## 3. What is verified, and how
 
+A note on the precision figures below: they are the residuals OBSERVED when each
+result was produced - many from runs recorded in `tests/data` - not the
+tolerances the regression tests enforce. The tests assert looser bounds,
+typically 2-10 times wider (the MoM power balance is observed at 8e-6 and
+asserted at 1e-4; the hemisphere FDTD at 0.15% and 0.9%, asserted at 0.3% and
+2%), so that a grid or quadrature change does not break them. What the build
+guarantees is the assertion in the named test; the figure here is what was
+seen.
+
 ### Reproduced exactly from published worked examples
 
 | Source | Result |
 |---|---|
-| Balanis Ex 14.1 | Patch W = 1.186 cm, L = 0.906 cm |
+| Balanis Ex 14.1 | Patch W = 1.186 cm and `L_textbook` = 0.906 cm; the built `L`, resonant at f0 full-wave, is 0.855 cm |
 | Balanis Ex 14.2 | Inset edge resistance 228.35 Ω (to 1.7%) |
-| Balanis Ex 14.4 | Circular patch a = 0.525 cm |
+| Balanis Ex 14.4 | Circular patch `a_cavity` = 0.525 cm; the built `a`, resonant at f0 full-wave, is 0.508 cm |
 | Balanis Ch. 4 | Dipole R_r = 73.08 Ω, X = +42.52 Ω at λ/2 |
 | Pozar Ex 5.1 | L-section C = 0.92 pF / L = 38.98 nH, C = 2.60 pF / L = 46.14 nH |
 | Pozar Ex 5.2 | Stub tuner d = 0.110λ, l = 0.095λ; d = 0.259λ, l = 0.405λ |
-| Viezbicke NBS TN688 | Yagi gains 7.1–14.2 dBi, fit residual ≤ 0.18 dB |
+| Viezbicke NBS TN688 | Six optimised Yagis, tabulated 7.1–14.2 dB over a half-wave dipole (dBd, not dBi); re-solved by MoM they give 8.93–16.10 dBi, and the spec's gain meets those solved designs within 0.09 dB (`tests/test_yagi.py`) |
 | WR-90 datasheet | Cutoff 6.557 GHz, 0.108 dB/m, 1.05 MW, band 8.2–12.4 GHz |
 
 ### A full-wave reference of its own
@@ -437,12 +446,12 @@ being written into a spec.
 | `hyperbolic_dielectric_lens`, `metal_plate_lens` | Taper and spillover efficiency, beamwidth and aperture edge illumination from the feed taper and the lens's own ray mapping; the metal-plate lens's fold-back limit acos(n) | `otahub/num/lens.py` traces rays with Snell's law at the actual face (parallel to 1e-9, on the closed-form mapping to 1e-12) and integrates the traced ray tubes: efficiencies to 2e-4, beamwidth to 0.3 lambda/D, edge illumination to 0.02 dB |
 | Sectoral, conical and corrugated horns (beamwidths) | HPBW of each principal plane at any flare, from the aperture field with its quadratic phase error; NaN past the point where the beam breaks up | `otahub/num/horn_pattern.py` by quadrature, matching the E-plane pattern's Fresnel-integral closed form to 1e-10; fits to 0.5% (0.5% held out) over apertures of 1.5-40 wavelengths |
 | `conical_horn_dual_mode` | Efficiency (exact, as a ratio of four mode integrals), both beamwidths and the peak cross-polar level against the TM11 power fraction; the fractions that equalise the beams (0.097) and null the cross-polar field (0.13) | `otahub/num/horn_pattern.py` with TE11 + TM11 in phase at the aperture: its TE11 limit reproduces the scalar routine to 1e-9 and the textbook 0.837; beam fits to 0.002%, cross-polar table to 0.03 dB on held-out sizes. Efficiency 0.506 against an asserted 0.62, so the "+0.85 dB over a smooth horn" is a 0.27 dB loss; beams 78-82 lambda/D, not 68. The step is now solved by mode matching (`waveguide_step`, FDTD-checked by `bor_fdtd` to 0.06%); the phasing length and cross-polar bandwidth are first-order - the flare's mode conversion moves the aperture phase ~20 degrees on a 10-wavelength horn (stepped-cone cascade and whole-horn FDTD agree), and the -30 dB band is about 2% there, not 6% |
-| Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 to 0.02% for a vanishing patch, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
-| Rectangular, inset, CP, circular, triangular and shorted patches (directivity) | Broadside directivity as the thin-substrate value (all walls radiating) times a substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1 | `otahub/num/patch_sdm.py` full-wave: `patch_q`'s directivity within 0.3-0.9% on air, eps_r 2.2, FR-4 and 10.2. The two-slot formula was 7.5-13% low (side walls and substrate); the circular and triangular free-space edge models up to 18% low on thick board; the shorted patch's single slot 5-35% high |
+| Rectangular, circular, triangular and corner-truncated CP patches | Radiation Q and VSWR-2 bandwidth, each shape from its own cavity mode; the CP patch's Q0 and therefore its cut | `otahub/num/patch_q.py`: stored energy of the mode against the space wave of the patch current on its grounded substrate. Reproduces Jackson's c1 for a vanishing patch to 0.015% on air and 0.11-0.31% at eps_r 2.2-10.2, and on air the cavity model's edge-current directivities to 0.06%; fits to 0.6% (0.25% held out) |
+| Rectangular, inset, CP, circular, triangular and shorted patches (directivity) | Broadside directivity as the thin-substrate value (all walls radiating) times a substrate factor, NaN past h sqrt(eps_r)/lambda0 = 0.1 | Full-wave on rectangles only: `otahub/num/patch_sdm.py` puts `patch_q`'s directivity within 0.3-0.9% on air, eps_r 2.2, FR-4 and 10.2, which validates the method - cavity current through the slab - where it can be checked. The other shapes use the same method with their own modes; on air they meet their edge-current models (`tests/test_patch_q.py`), and the outline FDTD checks their resonance, not their directivity on a substrate. The two-slot formula was 7.5-13% low (side walls and substrate); the circular and triangular free-space edge models up to 18% low on thick board; the shorted patch's single slot 5-35% high |
 | `rectangular_patch`, `rectangular_patch_inset` (resonance, Q, surface waves) | L is now the length that resonates at f0 full-wave (the textbook design kept as L_textbook, where it resonates reported); full-wave radiation Q, surface-wave efficiency and a bandwidth counting it; the inset depth is the transmission-line fraction of the full-wave L | `patch_sdm` against `patch_fdtd` (0.013-0.02% in frequency, 0.15-0.2% in Q). The Hammerstad design resonates 0.5-7% LOW (the classic 2.4 GHz FR-4 patch at 2.33 GHz); the cavity-current Q ran 1.6-28% high; efficiency matches Jackson's thin-slab form to 0.5% |
 | `truncated_corner_cp_patch` (square side, Q0) | Q0 = full-wave radiation Q times surface-wave efficiency; the square side resonant at f_sq full-wave (textbook kept as L_textbook); the cut-to-split relation stays the cavity model's | `patch_sdm` on squares, `patch_fdtd` on one (0.007%, 0.17%). The old cavity-current radiation Q0 was 1-99% above the total - the surface wave it left out dominates on thick high-permittivity board - so the cut was too small; the textbook square 0.5-7% too large |
 | `quarter_wave_shorted_patch`, `stacked_patch` (lengths) | Both now build the rectangular patch's full-wave length ratio (textbook kept as L_textbook) | FDTD spot checks: the textbook shorted patch resonates 4-8% low, more than the full patch (the wall's inductance). A half-space FDTD survey of the shorted patch itself (eleven boards, eps_r 2.2-10.2, h sqrt(eps_r)/lambda0 to 0.095, extrapolated to zero cell size) found the full-patch correction alone still 1.2-11% low, not 1-3%, and gave the wall its own length factor: held-out boards now resonate at 0.988-1.000 f0. The then-default stack's two modes sit at 0.993 and 1.378 f0 and stay 25-38% apart at any size ratio at its 0.03-wavelength gap; the spec's 'make the parasitic smaller' was backwards. The two-layer MoM since solves the stack itself (§3, §5) |
-| `quarter_wave_shorted_patch` | Radiation Q and VSWR-2 bandwidth with the shorting wall's vertical current; the bandwidth relative to the full patch on the same board | `otahub/num/patch_q.py`: the wall's slab factor against a plane-wave boundary-value solve (1e-8); on air the shorted patch against the cavity model's magnetic currents on its three open walls, written independently (0.004%). Not half the full patch's bandwidth: 1.84 times it on air, equal near eps_r 2, 0.57 at eps_r 12. The side walls radiate a third of the power the old one-slot picture left out |
+| `quarter_wave_shorted_patch` | Radiation Q and VSWR-2 bandwidth with the shorting wall's vertical current; the bandwidth relative to the full patch on the same board | `otahub/num/patch_q.py`: the wall's slab factor against a plane-wave boundary-value solve (1e-8); on air the shorted patch against the cavity model's magnetic currents on its three open walls, written independently (0.002% at h = 0.002 lambda, 0.05% at 0.01). Not half the full patch's bandwidth: 1.84 times it on air, equal near eps_r 2, 0.57 at eps_r 12. The side walls radiate a third of the power the old one-slot picture left out |
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
 | `discone` | Low cutoff (slant at VSWR 2 in 50 ohm), continuous VSWR-2 bandwidth, worst in-band VSWR and directivity at f_low, tabulated over half angle 20-50 deg and disc ratio 0.6-0.9 with a stated coax-sized feed | `otahub/num/bor.py`, the exact axisymmetric surface solution: low cutoff extrapolated from two meshes (0.4%), 0.9% on six held-out designs; the spec's own dimensions, rebuilt and solved live, sit at VSWR 2 at f_low |
@@ -457,9 +466,12 @@ being written into a spec.
 | Rectangular patches (3 specs) | Directivity from the two-slot model, `2·D₁/(1 + G₁₂/G₁)` | Matches direct 2-D pattern integration to 0.000%; the narrow-slot limit gives exactly 3.0, a magnetic dipole doubled by the ground plane |
 | `triangular_patch` | Directivity from the triangle's OWN Neumann eigenfunction, three radiating walls | D → 3.0000039 as the patch shrinks — a horizontal magnetic dipole over a ground plane — which nothing in the derivation was arranged to produce; replaces a hard-coded 5.0 that was 43% low on air and 47% high on εr = 10.2 |
 
-**These fits are only as good as the model behind them.** Each is a
-closed-form or ray-optics idealisation, not a full-wave result, and the
-validity block on each archetype says where it stops.
+**These results are only as good as the model behind them.** Some rows are
+closed-form or ray-optics derivations; others are fits to the in-house
+full-wave solvers (MoM, body-of-revolution MoM, FDTD, mode matching), good
+to those solvers' own limits as given in this section. Neither kind is a
+measurement, and the validity block on each archetype says where its model
+stops.
 
 ---
 
@@ -474,10 +486,15 @@ validity block on each archetype says where it stops.
 **`halo_loop` was promoted out of this list**, the first low-confidence
 archetype taken end to end. Every number it asserts is now solved rather than assumed,
 by a method of moments whose bent-wire path is anchored by continuity to the
-straight dipole. The remaining eight cannot follow it yet for a reason that is
-the same in every case: they are patches, horns, reflectors or slots, and a
-thin-wire solver cannot reach them. `ferrite_rod_loop` additionally needs a
-ferrite material model.
+straight dipole. The remaining eight each lack something different, and
+not all of it is a solver: `cassegrain` needs physical optics for subreflector
+diffraction; `vivaldi_tsa`, `planar_monopole_circular` and
+`waveguide_longitudinal_slot` need a full-wave model of the whole structure
+(feed transition, impedance band, a slot in a real guide wall with its
+neighbours) that the in-house solvers do not cover; `ferrite_rod_loop` needs a
+ferrite material model; `pifa` a finite ground plane; and `stacked_patch` and
+`conical_horn_dual_mode` have full-wave solvers but per-design answers a spec
+cannot carry, as below.
 
 Two of those are new in session 5 and both are honest about why:
 `stacked_patch` now has its full-wave solver (§3): its geometry, directivity and

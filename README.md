@@ -191,8 +191,9 @@ python OTA_Hub_AntennaToolkit.py check    # every archetype against its citation
 python OTA_Hub_AntennaToolkit.py doctor   # structural faults in the specs
 ```
 
-Worked examples reproduced exactly: Balanis 14.1 (patch W/L), 14.2 (inset
-resistance), 14.4 (circular patch radius); Pozar 5.1 (L-section) and 5.2
+Worked examples reproduced exactly: Balanis 14.1 (patch W and L_textbook), 14.2
+(inset resistance), 14.4 (circular patch a_cavity) - the textbook dimensions are
+kept beside the full-wave ones the designs build; Pozar 5.1 (L-section) and 5.2
 (single-stub tuner); Kraus helix; Viezbicke NBS Yagi gains; WR-90 datasheet
 cutoff, attenuation and power. Dolph-Chebyshev sidelobes match their design
 level to 0.000 dB.
@@ -209,7 +210,7 @@ against an independent numerical model before being written into a spec:
 | Corner reflector image sets | Boundary condition on the plates | 1e-15 residual tangential E |
 | Diagonal horn aperture efficiency | Aperture integration | 8/π² = 0.8106 analytic vs 0.8110 numeric |
 | Diagonal and dual-mode horn beams, cross-polar levels | Two-component aperture transform (`horn_pattern`) | Diagonal efficiency to 1e-6 of its Fresnel form; TE11 limit to 1e-9 of the scalar routine |
-| Patch directivity (six shapes) | Spectral-domain MoM (`patch_sdm`), full-wave | Cavity current through the slab within 0.3-0.9%; two-slot formula 7.5-13% low |
+| Patch directivity | The cavity mode's current radiating through the grounded slab (`patch_q`), for every shape | Full-wave only on rectangles: the spectral-domain MoM (`patch_sdm`) meets it within 0.3-0.9% on air, εr 2.2, FR-4 and 10.2, where the two-slot formula is 7.5-13% low. Circular and triangular patches are checked on air against their edge-current models and full-wave for resonance only (outline FDTD) |
 | Rectangular patch resonance and Q | Spectral-domain MoM against FDTD ringdown (`patch_fdtd`) | 0.013-0.02% in frequency; the textbook design resonates 0.5-7% low |
 | Potter horn step | Mode matching (`waveguide_step`) against an axisymmetric FDTD (`bor_fdtd`) | 0.06% in TM11 share, 0.04 deg in phase |
 | Potter horn, whole chain | GSM cascade of step, phasing guide and cone (`waveguide_step.potter_aperture`) against `bor_fdtd` | Within 1° and 0.02 in share on the designed horn; the phasing guide resonates for TM11 |
@@ -219,7 +220,7 @@ against an independent numerical model before being written into a spec:
 | Strip ↔ tube equivalence (a = w/4, the slot family's basis) | Spectral and rooftop strip MoMs (`strip`) against a rim-resolved tube (`bor`) | Solvers agree to 0.05%; the strip resonates ~0.1 w longer (its ends), the length law stays inside the strip's feed spread |
 | Planar array with an element pattern | Azimuthal-harmonic power kernel (`arrays.elements`) | Brute-force sphere integral to 1e-6; ideal-element 24 × 24 array within 0.02-0.9% of 4πA·cosθ/λ² |
 | Circular Taylor aperture, thinned arrays | Hankel transform of the distribution; Monte Carlo over seeded thinnings (`arrays.layouts`) | Pattern to 1e-10; sampled -40 dB design within ~1 dB (equal-area radius); expected pattern and directivity within MC noise |
-| Hemispherical DRA resonance and Q | Mie magnetic-dipole resonance | Q ∝ εr^1.32, independently reproducing the published εr^1.3 |
+| Hemispherical DRA resonance and Q | Exact complex TE₁ pole of the equivalent sphere (Newton), and an FDTD ringdown of a staircased hemisphere | Fitted to 0.23% over εr 6–100; FDTD meets the pole to 0.15% in frequency. Q is not one power law: the local exponent runs 1.07 → 1.37 from εr 6 to 100 toward the magnetic dipole's εr^1.5 |
 
 ### Planar arrays
 
@@ -314,9 +315,11 @@ a minute, or four with the band.
 `tests/test_cross_consistency.py` checks archetypes against **each other**, at
 the places where the same physics reaches two specs by different routes: a
 quarter-wave monopole is exactly half a half-wave dipole, a folded dipole four
-times one, a turnstile's on-axis directivity equal to a single dipole's, a slot
-times its complementary dipole equal to η₀²/4, a conical monopole exactly half a
-biconical, a slot array's guide conductance identical to the single-slot spec's,
+times one, a turnstile's on-axis directivity equal to a single dipole's, the
+dipole constants a slot carries for its Babinet impedance equal to the ones the
+dipole spec computes (Babinet itself is the slot's definition, and a wire solver
+cannot test it), a conical monopole exactly half a biconical, a slot array's
+guide conductance identical to the single-slot spec's,
 the Potter horn's mode cutoffs equal to the circular-guide Bessel zeros, and the
 three dielectric-resonator shapes — solved by exact Mie theory, by published
 curve fits and by magnetic-wall algebra respectively — agreeing on volume within

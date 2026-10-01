@@ -97,3 +97,15 @@ def test_one_row_live():
     r = next(x for x in TABLE["rows"] if x["a"] == 0.005 and x["gap_over_a"] == 2.0)
     L, R = _res(lambda L: _gap(L, 0.005, 0.01, 0.0025))
     assert L == pytest.approx(r["L_0.0025"], abs=1e-6) and R == pytest.approx(r["R_0.0025"], abs=1e-4)
+
+
+@pytest.mark.slow
+def test_where_the_tube_never_resonates_neither_does_the_wire():
+    """a = 0.025 wavelengths fed across a/2: the table's one row with no resonance.
+    The wire's reactance tops out a few ohms short of zero, so the agreement is
+    the absence of a resonance, not a near miss of one."""
+    r = next(x for x in TABLE["rows"] if x["bor_L"] is None)
+    assert r["X_max_ohm"] < -5.0
+    for L in (0.46, r["L_at_X_max"], 0.53):
+        assert _gap(L, r["a"], r["gap_over_a"] * r["a"], 0.0025).imag < -5.0
+    assert _gap(r["L_at_X_max"], r["a"], r["gap_over_a"] * r["a"], 0.0025).imag == pytest.approx(r["X_max_ohm"], abs=0.05)
