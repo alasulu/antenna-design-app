@@ -37,6 +37,12 @@
           "typical": "C/(2*pi)"
         },
         {
+          "symbol": "wire_ratio_eta",
+          "name": "wire-to-loop radius ratio that meets eta_target",
+          "unit": "-",
+          "role": "derived"
+        },
+        {
           "symbol": "b",
           "name": "wire_radius",
           "unit": "m",
@@ -113,17 +119,32 @@
           ]
         },
         {
-          "output": "b",
-          "expr": "(N*(C_over_lambda*c/f0)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))/(2*pi*20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0))",
-          "units_out": "m",
-          "notes": "Wire radius needed to hit eta_target, from Rloss = Rr*(1/eta - 1) with Rloss = (N*C/(2*pi*b))*Rs. Inverts to b = N*C*Rs/(2*pi*Rr*(1/eta - 1)). Ignores proximity effect, so the real efficiency will be lower; for N>1 divide the resulting b by the expected proximity factor's square root or simply use the largest conductor that fits.",
+          "output": "wire_ratio_eta",
+          "expr": "exp(np.interp(0.0, log(20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0)/(N*np.sqrt(pi*f0*mu0*mu_r_c/sigma))) + ((0.0040410154) + (-0.60257704)*C_over_lambda**1 + (121.26893)*C_over_lambda**2 + (-390.0967)*C_over_lambda**3 + (3442.6857)*C_over_lambda**4 + (-8828.3606)*C_over_lambda**5 + (4188.5955)*C_over_lambda**6 + (26893.671)*C_over_lambda**7 + (32530.781)*C_over_lambda**8) + ((0.0043648896) + (-0.55982227)*C_over_lambda**1 + (85.187894)*C_over_lambda**2 + (-375.41977)*C_over_lambda**3 + (3299.1945)*C_over_lambda**4 + (-9784.5564)*C_over_lambda**5 + (8034.2243)*C_over_lambda**6 + (24637.944)*C_over_lambda**7 + (9415.7251)*C_over_lambda**8)*np.linspace(-6.90875578, -2.99373427, 4001)**1 + ((0.0014565443) + (-0.18808357)*C_over_lambda**1 + (24.843349)*C_over_lambda**2 + (-130.31608)*C_over_lambda**3 + (1158.7307)*C_over_lambda**4 + (-3863.5628)*C_over_lambda**5 + (4692.9623)*C_over_lambda**6 + (5716.425)*C_over_lambda**7 + (699.12435)*C_over_lambda**8)*np.linspace(-6.90875578, -2.99373427, 4001)**2 + ((0.00020843962) + (-0.027068833)*C_over_lambda**1 + (3.204879)*C_over_lambda**2 + (-19.26448)*C_over_lambda**3 + (173.50149)*C_over_lambda**4 + (-629.36141)*C_over_lambda**5 + (948.9271)*C_over_lambda**6 + (394.35643)*C_over_lambda**7)*np.linspace(-6.90875578, -2.99373427, 4001)**3 + ((1.0819889e-05) + (-0.0014115465)*C_over_lambda**1 + (0.15336442)*C_over_lambda**2 + (-1.0260811)*C_over_lambda**3 + (9.3448696)*C_over_lambda**4 + (-35.981657)*C_over_lambda**5 + (61.685967)*C_over_lambda**6)*np.linspace(-6.90875578, -2.99373427, 4001)**4 + np.linspace(-6.90875578, -2.99373427, 4001), np.linspace(-6.90875578, -2.99373427, 4001), -6.90775528, inf - inf))",
+          "units_out": "-",
           "depends_on": [
-            "N",
             "C_over_lambda",
+            "N",
+            "eta_target",
+            "f0",
+            "mu_r_c",
+            "sigma"
+          ],
+          "notes": "b/a such that the DRIVING-POINT radiation resistance - the fit analysis uses - over itself plus the skin loss N*Rs*a/b is eta_target: the log of the fit's correction plus log(b/a) rises monotonically across the fitted wire radii (slope 0.90 at least), so the equation is inverted by interpolation on 4001 points. Thinner wire, lower efficiency, so this is the thinnest wire that meets the target. If even b/a = 0.001, the thinnest the fit covers, beats the target, it is 0.001 and the efficiency comes out above eta_target; if the target needs a wire fatter than b/a = 0.05, NaN."
+        },
+        {
+          "output": "b",
+          "expr": "np.where((N < 1.5)*(wire_ratio_eta == wire_ratio_eta), wire_ratio_eta*C_over_lambda*c/(2*pi*f0), (N*(C_over_lambda*c/f0)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))/(2*pi*20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0)))",
+          "units_out": "m",
+          "notes": "Wire radius that meets eta_target against the loop's real driving-point resistance - wire_ratio_eta times the loop radius. It used to invert the uniform-current law, which understates the resistance (12-17% at 0.1 wavelengths, more beyond), so the wire came out fatter than needed and the efficiency overshot: 0.625 for a 0.5 target at 0.2 wavelengths, 0.772 at 0.3. Where the target needs a wire fatter than the fit covers, or for N > 1, it falls back to that uniform-current inversion, b = N*C*Rs/(2*pi*Rr*(1/eta - 1)), which then overstates the wire needed and which the analysis cannot check. Ignores proximity effect between turns.",
+          "depends_on": [
+            "C_over_lambda",
+            "N",
+            "eta_target",
             "f0",
             "mu_r_c",
             "sigma",
-            "eta_target"
+            "wire_ratio_eta"
           ]
         },
         {
@@ -291,13 +312,16 @@
         },
         {
           "metric": "quality_factor",
-          "expr": "input_reactance_driving_point_ohm/(input_resistance_driving_point_ohm + loss_resistance_ohm)",
+          "expr": "sqrt((input_resistance_driving_point_ohm*(4 + (-0.60257704)*(C*f0/c)**1 + (-0.55982227)*(C*f0/c)**1*log(2*pi*b/C)**1 + (-0.18808357)*(C*f0/c)**1*log(2*pi*b/C)**2 + (-0.027068833)*(C*f0/c)**1*log(2*pi*b/C)**3 + (-0.0014115465)*(C*f0/c)**1*log(2*pi*b/C)**4 + (242.53786)*(C*f0/c)**2 + (170.375788)*(C*f0/c)**2*log(2*pi*b/C)**1 + (49.686698)*(C*f0/c)**2*log(2*pi*b/C)**2 + (6.409758)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.30672884)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-1170.2901)*(C*f0/c)**3 + (-1126.25931)*(C*f0/c)**3*log(2*pi*b/C)**1 + (-390.94824)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-57.79344)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-3.0782433)*(C*f0/c)**3*log(2*pi*b/C)**4 + (13770.7428)*(C*f0/c)**4 + (13196.778)*(C*f0/c)**4*log(2*pi*b/C)**1 + (4634.9228)*(C*f0/c)**4*log(2*pi*b/C)**2 + (694.00596)*(C*f0/c)**4*log(2*pi*b/C)**3 + (37.3794784)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-44141.803)*(C*f0/c)**5 + (-48922.782)*(C*f0/c)**5*log(2*pi*b/C)**1 + (-19317.814)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-3146.80705)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-179.908285)*(C*f0/c)**5*log(2*pi*b/C)**4 + (25131.573)*(C*f0/c)**6 + (48205.3458)*(C*f0/c)**6*log(2*pi*b/C)**1 + (28157.7738)*(C*f0/c)**6*log(2*pi*b/C)**2 + (5693.5626)*(C*f0/c)**6*log(2*pi*b/C)**3 + (370.115802)*(C*f0/c)**6*log(2*pi*b/C)**4 + (188255.697)*(C*f0/c)**7 + (172465.608)*(C*f0/c)**7*log(2*pi*b/C)**1 + (40014.975)*(C*f0/c)**7*log(2*pi*b/C)**2 + (2760.49501)*(C*f0/c)**7*log(2*pi*b/C)**3 + (260246.248)*(C*f0/c)**8 + (75325.8008)*(C*f0/c)**8*log(2*pi*b/C)**1 + (5592.9948)*(C*f0/c)**8*log(2*pi*b/C)**2) + loss_resistance_ohm/2)**2 + (input_reactance_driving_point_ohm*(2 + (-0.30049186)*(C*f0/c)**1 + (-0.27914515)*(C*f0/c)**1*log(2*pi*b/C)**1 + (-0.093777031)*(C*f0/c)**1*log(2*pi*b/C)**2 + (-0.013495487)*(C*f0/c)**1*log(2*pi*b/C)**3 + (-0.00070371142)*(C*f0/c)**1*log(2*pi*b/C)**4 + (118.773546)*(C*f0/c)**2 + (85.69808)*(C*f0/c)**2*log(2*pi*b/C)**1 + (24.940246)*(C*f0/c)**2*log(2*pi*b/C)**2 + (3.2137678)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.153679164)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-583.78248)*(C*f0/c)**3 + (-561.72549)*(C*f0/c)**3*log(2*pi*b/C)**1 + (-194.959281)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-28.8175845)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-1.5347928)*(C*f0/c)**3*log(2*pi*b/C)**4 + (6862.1212)*(C*f0/c)**4 + (6579.5212)*(C*f0/c)**4*log(2*pi*b/C)**1 + (2311.04556)*(C*f0/c)**4*log(2*pi*b/C)**2 + (346.033984)*(C*f0/c)**4*log(2*pi*b/C)**3 + (18.636814)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-22046.452)*(C*f0/c)**5 + (-24420.372)*(C*f0/c)**5*log(2*pi*b/C)**1 + (-9638.343)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-1569.5974)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-89.720585)*(C*f0/c)**5*log(2*pi*b/C)**4 + (12719.0184)*(C*f0/c)**6 + (24171.6606)*(C*f0/c)**6*log(2*pi*b/C)**1 + (14072.8188)*(C*f0/c)**6*log(2*pi*b/C)**2 + (2842.1655)*(C*f0/c)**6*log(2*pi*b/C)**3 + (184.66014)*(C*f0/c)**6*log(2*pi*b/C)**4 + (93858.702)*(C*f0/c)**7 + (85938.279)*(C*f0/c)**7*log(2*pi*b/C)**1 + (19937.2866)*(C*f0/c)**7*log(2*pi*b/C)**2 + (1375.47305)*(C*f0/c)**7*log(2*pi*b/C)**3 + (129556.792)*(C*f0/c)**8 + (37513.8632)*(C*f0/c)**8*log(2*pi*b/C)**1 + (2786.88912)*(C*f0/c)**8*log(2*pi*b/C)**2))**2)/(2*(input_resistance_driving_point_ohm + loss_resistance_ohm))",
           "units_out": "-",
-          "notes": "Q = omega*L/(Rr + Rloss), the tuned (series-resonant) loop Q. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
+          "notes": "Q of the loop TUNED by its series capacitor at f0, from the frequency derivative of the tuned impedance (Yaghjian and Best's Q_Z = omega |Z'|/2R) at fixed geometry: the capacitor contributes X/omega to dX/domega and the loop itself X(1 + x dP/dx)/omega, where P is the reactance fit's exponent; the radiation resistance grows as R(4 + x dQ/dx)/omega and the skin loss as R_loss/(2 omega). For an ideal inductor that is omega L/(Rr + Rloss) again, but the real loop's reactance rises faster than omega L as it grows toward its first resonance, so X/R understated Q - by 39% at 0.3 wavelengths round and b/a = 0.01 (138.1 against 227.7), up to 56% for the thickest wire, and 4-6% already at 0.1 wavelengths. Checked against the Fourier-series loop solution swept at fixed geometry with the capacitor tuned at f0: within 0.53% over the fitted domain, and 0.7071/Q meets the swept VSWR-2 band as closely. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
           "depends_on": [
             "input_reactance_driving_point_ohm",
             "input_resistance_driving_point_ohm",
-            "loss_resistance_ohm"
+            "loss_resistance_ohm",
+            "C",
+            "b",
+            "f0"
           ]
         },
         {
@@ -391,12 +415,26 @@
             "loss_resistance_ohm": 0.3128566,
             "radiation_efficiency": 0.852411,
             "inductance_H": 7.33304e-07,
-            "quality_factor": 294.392,
-            "fractional_bandwidth_vswr2": 0.00240192,
+            "quality_factor": 402.467,
+            "fractional_bandwidth_vswr2": 0.00175694,
             "gain_dbi": 1.0674
           },
           "tol_pct": 2.5,
-          "source": "Balanis, Antenna Theory 4th ed., eqs. 5-24a and 2-90b; copper Rs = 2.609e-7*sqrt(f) (Efficiency, Q, bandwidth and gain now for the real loop: the Fourier-series solution gives 1.807+624.1j ohm at C = 0.2513 lambda, against the uniform-current 0.7876 ohm, so 0.8524 efficient with Q 294.4.)"
+          "source": "Balanis, Antenna Theory 4th ed., eqs. 5-24a and 2-90b; copper Rs = 2.609e-7*sqrt(f) (Efficiency, Q, bandwidth and gain now for the real loop: the Fourier-series solution gives 1.807+624.1j ohm at C = 0.2513 lambda, against the uniform-current 0.7876 ohm, so 0.8524 efficient. Q and the VSWR-2 band by sweeping that solution at fixed geometry, skin loss included and the series capacitor tuned at f0: Q_Z = omega|Z'|/2R = 402.5 and 0.1757% - where X/R gave 294.4, because the loop's reactance rises faster than omega L.)"
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.3,
+            "b": 0.0004771345159,
+            "N": 1
+          },
+          "expect": {
+            "quality_factor": 227.663,
+            "fractional_bandwidth_vswr2": 0.003106
+          },
+          "tol_pct": 1.0,
+          "source": "Wire radius 0.01 of the loop radius at 0.3 wavelengths round: the Fourier-series loop solution (otahub.num.loop_modal) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.3106% band, Q_Z = 227.66. X/R said Q 138.1 and a 0.512% band, 65% too wide."
         },
         {
           "given": {},
@@ -459,6 +497,36 @@
           },
           "tol_pct": 2.5,
           "source": "A loop of circumference 0.20 lambda, wire radius 0.002 of the loop radius, solved by the Fourier-series loop solution (otahub.num.loop_modal), not the fit: 0.50867+560.28j ohm, against the uniform-current law's 0.31583 ohm."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.2,
+            "eta_target": 0.5,
+            "N": 1
+          },
+          "expect": {
+            "wire_ratio_eta": 0.0086844,
+            "b": 0.000276242,
+            "radiation_efficiency": 0.5
+          },
+          "tol_pct": 1.0,
+          "source": "The wire that makes the loop 0.5 efficient at 0.2 wavelengths round, from the Fourier-series loop solution's own driving-point resistance (otahub.num.loop_modal) and copper skin loss, root-found (scipy brentq): b/a = 0.0086844. The old uniform-current inversion gave a fatter wire and an efficiency above target - 0.625 for this 0.5 at 0.2 wavelengths."
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C_over_lambda": 0.25,
+            "eta_target": 0.8,
+            "N": 1
+          },
+          "expect": {
+            "wire_ratio_eta": 0.00603321,
+            "b": 0.000719663,
+            "radiation_efficiency": 0.8
+          },
+          "tol_pct": 1.0,
+          "source": "The wire that makes the loop 0.8 efficient at 0.25 wavelengths round, from the Fourier-series loop solution's own driving-point resistance and copper skin loss, root-found (scipy brentq): b/a = 0.00603321."
         }
       ],
       "references": [
@@ -736,13 +804,16 @@
         },
         {
           "metric": "quality_factor",
-          "expr": "input_reactance_driving_point_ohm/(input_resistance_driving_point_ohm + loss_resistance_ohm)",
+          "expr": "sqrt((input_resistance_driving_point_ohm*(4 + (-0.20178092)*(4*s*f0/c)**1 + (-0.18278902)*(4*s*f0/c)**1*log(b/s)**1 + (-0.059737135)*(4*s*f0/c)**1*log(b/s)**2 + (-0.0083470121)*(4*s*f0/c)**1*log(b/s)**3 + (-0.0004235355)*(4*s*f0/c)**1*log(b/s)**4 + (136.765906)*(4*s*f0/c)**2 + (92.771918)*(4*s*f0/c)**2*log(b/s)**1 + (28.169192)*(4*s*f0/c)**2*log(b/s)**2 + (3.7392876)*(4*s*f0/c)**2*log(b/s)**3 + (0.18254417)*(4*s*f0/c)**2*log(b/s)**4 + (-400.92711)*(4*s*f0/c)**3 + (-373.47894)*(4*s*f0/c)**3*log(b/s)**1 + (-125.410953)*(4*s*f0/c)**3*log(b/s)**2 + (-17.912139)*(4*s*f0/c)**3*log(b/s)**3 + (-0.92489004)*(4*s*f0/c)**3*log(b/s)**4 + (5189.3284)*(4*s*f0/c)**4 + (4716.668)*(4*s*f0/c)**4*log(b/s)**1 + (1585.45936)*(4*s*f0/c)**4*log(b/s)**2 + (227.258192)*(4*s*f0/c)**4*log(b/s)**3 + (11.7752112)*(4*s*f0/c)**4*log(b/s)**4 + (-17590.0445)*(4*s*f0/c)**5 + (-17762.219)*(4*s*f0/c)**5*log(b/s)**1 + (-6477.402)*(4*s*f0/c)**5*log(b/s)**2 + (-980.645)*(4*s*f0/c)**5*log(b/s)**3 + (-52.790695)*(4*s*f0/c)**5*log(b/s)**4 + (24042.2898)*(4*s*f0/c)**6 + (27040.9416)*(4*s*f0/c)**6*log(b/s)**1 + (11613.5634)*(4*s*f0/c)**6*log(b/s)**2 + (1941.19536)*(4*s*f0/c)**6*log(b/s)**3 + (111.273588)*(4*s*f0/c)**6*log(b/s)**4 + (43325.2911)*(4*s*f0/c)**7 + (37819.3032)*(4*s*f0/c)**7*log(b/s)**1 + (7526.4462)*(4*s*f0/c)**7*log(b/s)**2 + (466.119304)*(4*s*f0/c)**7*log(b/s)**3 + (43918.496)*(4*s*f0/c)**8 + (6145.06864)*(4*s*f0/c)**8*log(b/s)**1 + (298.145576)*(4*s*f0/c)**8*log(b/s)**2) + loss_resistance_ohm/2)**2 + (input_reactance_driving_point_ohm*(2 + (-0.10003489)*(4*s*f0/c)**1 + (-0.091786407)*(4*s*f0/c)**1*log(b/s)**1 + (-0.030476094)*(4*s*f0/c)**1*log(b/s)**2 + (-0.0043364774)*(4*s*f0/c)**1*log(b/s)**3 + (-0.00022372549)*(4*s*f0/c)**1*log(b/s)**4 + (68.282882)*(4*s*f0/c)**2 + (48.397226)*(4*s*f0/c)**2*log(b/s)**1 + (14.5327144)*(4*s*f0/c)**2*log(b/s)**2 + (1.9243724)*(4*s*f0/c)**2*log(b/s)**3 + (0.093965626)*(4*s*f0/c)**2*log(b/s)**4 + (-194.381139)*(4*s*f0/c)**3 + (-182.741157)*(4*s*f0/c)**3*log(b/s)**1 + (-62.118036)*(4*s*f0/c)**3*log(b/s)**2 + (-9.0027435)*(4*s*f0/c)**3*log(b/s)**3 + (-0.47078634)*(4*s*f0/c)**3*log(b/s)**4 + (2495.81836)*(4*s*f0/c)**4 + (2287.13016)*(4*s*f0/c)**4*log(b/s)**1 + (778.10604)*(4*s*f0/c)**4*log(b/s)**2 + (113.12846)*(4*s*f0/c)**4*log(b/s)**3 + (5.9311652)*(4*s*f0/c)**4*log(b/s)**4 + (-8324.7195)*(4*s*f0/c)**5 + (-8484.9655)*(4*s*f0/c)**5*log(b/s)**1 + (-3145.4369)*(4*s*f0/c)**5*log(b/s)**2 + (-486.014885)*(4*s*f0/c)**5*log(b/s)**3 + (-26.56098)*(4*s*f0/c)**5*log(b/s)**4 + (10971.7188)*(4*s*f0/c)**6 + (12386.6394)*(4*s*f0/c)**6*log(b/s)**1 + (5497.24266)*(4*s*f0/c)**6*log(b/s)**2 + (953.27826)*(4*s*f0/c)**6*log(b/s)**3 + (55.829757)*(4*s*f0/c)**6*log(b/s)**4 + (21788.1524)*(4*s*f0/c)**7 + (20002.7177)*(4*s*f0/c)**7*log(b/s)**1 + (4170.69401)*(4*s*f0/c)**7*log(b/s)**2 + (256.026547)*(4*s*f0/c)**7*log(b/s)**3 + (23901.5024)*(4*s*f0/c)**8 + (3472.18056)*(4*s*f0/c)**8*log(b/s)**1 + (75.1430936)*(4*s*f0/c)**8*log(b/s)**2))**2)/(2*(input_resistance_driving_point_ohm + loss_resistance_ohm))",
           "units_out": "-",
-          "notes": "Q = omega*L/(Rr + Rloss).",
+          "notes": "Q of the loop TUNED by its series capacitor at f0, from the frequency derivative of the tuned impedance (Yaghjian and Best's Q_Z = omega |Z'|/2R) at fixed geometry: the capacitor contributes X/omega to dX/domega and the loop itself X(1 + x dP/dx)/omega, where P is the reactance fit's exponent; the radiation resistance grows as R(4 + x dQ/dx)/omega and the skin loss as R_loss/(2 omega). For an ideal inductor that is omega L/(Rr + Rloss) again, but the real loop's reactance rises faster than omega L as it grows toward its first resonance, so X/R understated Q - by 37% at 0.3 wavelengths of perimeter and b/s = 0.01 (183.9 against 291.1). Checked against the method of moments swept at fixed geometry with the capacitor tuned at f0: within 0.7% at seven designs across the fitted domain. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
           "depends_on": [
             "input_reactance_driving_point_ohm",
             "input_resistance_driving_point_ohm",
-            "loss_resistance_ohm"
+            "loss_resistance_ohm",
+            "s",
+            "b",
+            "f0"
           ]
         },
         {
@@ -860,6 +931,20 @@
           },
           "tol_pct": 3.0,
           "source": "A square loop of perimeter 0.20 lambda, wire radius 0.030 of the side, solved by the method of moments (otahub.num.mom), not the fit: 0.32649+250.88j ohm, against the uniform-current law's 0.19482 ohm."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "P_over_lambda": 0.3,
+            "b": 0.000749481145,
+            "N": 1
+          },
+          "expect": {
+            "quality_factor": 291.109,
+            "fractional_bandwidth_vswr2": 0.00242905
+          },
+          "tol_pct": 1.0,
+          "source": "Wire radius 0.01 of the side at 0.3 wavelengths of perimeter: the method of moments on the square (otahub.num.mom, 14 segments a side) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.2429% band, Q_Z = 291.11, where the same solution's X/(R + Rloss) is 183.9."
         }
       ],
       "references": [
@@ -2251,7 +2336,7 @@
         },
         {
           "symbol": "area_textbook_m2",
-          "unit": "m2",
+          "unit": "m^2",
           "role": "derived"
         }
       ],
@@ -2332,7 +2417,7 @@
         {
           "output": "area_m2",
           "expr": "s**2",
-          "units_out": "m2",
+          "units_out": "m^2",
           "depends_on": [
             "s"
           ],

@@ -28,10 +28,11 @@ def _mom_circle(Cl, b, nseg=64):
     return mom.solve(m, 0).input_impedance
 
 
-def _mom_square(P, b):
+def _mom_square(P, b, n=None):
     s = P / 4
-    n = max(8, min(40, int(s / (4 * b))))
-    n += n % 2
+    if n is None:
+        n = max(8, min(40, int(s / (4 * b))))
+        n += n % 2
     c = np.array([[-s / 2, -s / 2, 0], [s / 2, -s / 2, 0], [s / 2, s / 2, 0], [-s / 2, s / 2, 0], [-s / 2, -s / 2, 0]])
     pts = [c[0]] + [c[k] + (c[k + 1] - c[k]) * j / n for k in range(4) for j in range(1, n + 1)]
     m = mom.WireModel([mom.Wire(np.array(pts)[:-1], b, closed=True)])
@@ -77,3 +78,75 @@ def test_past_030_the_driving_point_is_nan(registry):
     d = registry["small_circular_loop"].synthesize(f0=300e6, C=0.33 * lam, b=0.001, N=1)
     assert math.isnan(d.metrics["input_resistance_driving_point_ohm"]) and math.isnan(d.metrics["radiation_efficiency"])
     assert d.metrics["radiation_resistance_ohm"] == pytest.approx(20 * math.pi ** 2 * 0.33 ** 4, rel=1e-6)
+
+
+# --------------------------------------------------------------- tuned loop
+
+MU0 = 4e-7 * math.pi
+RS = lambda f0: math.sqrt(math.pi * f0 * MU0 / 5.8e7)       # copper
+
+
+def _tuned_and_swept(zr, rl0):
+    """Q_Z and the VSWR-2 band of a loop series-tuned at f0, by sweeping its
+    impedance at fixed geometry: zr(k) is the lossless loop at k = f/f0, the skin
+    loss grows as sqrt(k) and the capacitor's reactance falls as 1/k."""
+    from scipy.optimize import brentq
+    x1 = zr(1.0).imag
+    z = lambda k: zr(k) + rl0 * math.sqrt(k) - 1j * x1 / k
+    r = z(1.0).real
+    q = abs(z(1 + 1e-4) - z(1 - 1e-4)) / 2e-4 / (2 * r)
+    gam = lambda k: abs((z(k) - r) / (z(k) + r))
+    v = lambda k: (1 + gam(k)) / (1 - gam(k)) - 2.0
+    return q, brentq(v, 1.0, 1 + 3 / q, xtol=1e-12) - brentq(v, 1 - 3 / q, 1.0, xtol=1e-12)
+
+
+@pytest.mark.parametrize("f0,Cl,ba", [(300e6, 0.3, 0.01), (3e6, 0.17, 0.004), (300e6, 0.1, 0.05), (300e6, 0.25, 0.001)])
+def test_the_tuned_circular_loop_q_is_its_swept_impedance(registry, f0, Cl, ba):
+    """X/R is the Q of an ideal inductor. The real loop's reactance rises faster
+    than omega L toward its first resonance, so the Q of the tuned loop - the
+    slope of its impedance - is higher, and its band narrower: at a third of
+    the way to resonance X/R overstated the VSWR-2 band by 65%."""
+    lam = C0 / f0
+    b = ba * Cl * lam / (2 * math.pi)
+    d = registry["small_circular_loop"].synthesize(f0=f0, C_over_lambda=Cl, b=b, N=1)
+    rl0 = Cl * lam * RS(f0) / (2 * math.pi * b)
+    q, bw = _tuned_and_swept(lambda k: loop_modal.input_impedance(Cl * k, ba * Cl * k / (2 * math.pi)), rl0)
+    assert d.metrics["quality_factor"] == pytest.approx(q, rel=6e-3)
+    assert d.metrics["fractional_bandwidth_vswr2"] == pytest.approx(bw, rel=6e-3)
+    if Cl >= 0.25:
+        old = d.metrics["input_reactance_driving_point_ohm"] / (
+            d.metrics["input_resistance_driving_point_ohm"] + d.metrics["loss_resistance_ohm"])
+        assert old < 0.8 * q
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("f0,P,bs", [(300e6, 0.3, 0.01), (30e6, 0.12, 0.03)])
+def test_the_tuned_square_loop_q_is_its_swept_impedance(registry, f0, P, bs):
+    lam = C0 / f0
+    s = P * lam / 4
+    d = registry["small_square_loop"].synthesize(f0=f0, P_over_lambda=P, b=bs * s, N=1)
+    rl0 = 4 * s * RS(f0) / (2 * math.pi * bs * s)
+    n = max(8, min(40, round(1 / (4 * bs))))                # fixed: the sweep scales the loop, not the mesh
+    n += n % 2
+    q, bw = _tuned_and_swept(lambda k: _mom_square(P * k, bs * P * k / 4, n), rl0)
+    assert d.metrics["quality_factor"] == pytest.approx(q, rel=8e-3)
+    assert d.metrics["fractional_bandwidth_vswr2"] == pytest.approx(bw, rel=8e-3)
+
+
+@pytest.mark.parametrize("f0,Cl,eta", [(300e6, 0.2, 0.5), (30e6, 0.15, 0.7), (3e6, 0.12, 0.25), (100e6, 0.25, 0.8)])
+def test_the_synthesised_wire_meets_the_efficiency_target_on_the_real_loop(registry, f0, Cl, eta):
+    """The wire was sized by the uniform-current law, which understates the
+    resistance, so it came out fat and the efficiency overshot - 0.625 for a 0.5
+    target. Checked forward: the real loop's resistance at the wire chosen."""
+    d = registry["small_circular_loop"].synthesize(f0=f0, C_over_lambda=Cl, eta_target=eta, N=1)
+    lam = C0 / f0
+    b = d.get("b")
+    r = loop_modal.input_impedance(Cl, b / lam).real
+    rl = Cl * lam * RS(f0) / (2 * math.pi * b)
+    assert r / (r + rl) == pytest.approx(eta, abs=0.003)
+
+
+def test_when_the_thinnest_fitted_wire_beats_the_target_it_is_used(registry):
+    d = registry["small_circular_loop"].synthesize(f0=300e6, C_over_lambda=0.3, eta_target=0.5, N=1)
+    assert d.get("wire_ratio_eta") == pytest.approx(0.001, rel=1e-6)
+    assert d.metrics["radiation_efficiency"] > 0.5
