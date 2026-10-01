@@ -32,7 +32,7 @@ from scipy import sparse
 from ..core.constants import ETA0
 
 __all__ = ["PlanarMesh", "structured", "merge", "strip_mesh", "gap_vector", "edge_gap_vector", "solve", "RwgSolution", "far_field",
-           "radiated_power", "tri_potentials"]
+           "radiated_power", "tri_potentials", "plate_monopole"]
 
 K = 2.0 * math.pi
 
@@ -346,3 +346,24 @@ def directivity(sol: RwgSolution, theta: float, phi: float, nth: int = 60, nph: 
     et, ep = far_field(sol, np.array([theta]), np.array([phi]))
     U = (abs(et[0]) ** 2 + abs(ep[0]) ** 2) * ETA0 * K ** 2 / (32 * math.pi ** 2)
     return 4 * math.pi * U / radiated_power(sol, nth, nph)
+
+
+def plate_monopole(W: float, L: float, p: float, w: float, cells: int = 14) -> complex:
+    """Input impedance of a W x L rectangular plate monopole a gap p above an
+    infinite ground, fed by a w-wide strip (lengths in wavelengths): by image, the
+    plate and its mirror in one plane, the strip across the 2p gap between them
+    driven over its length, and half the impedance of that dipole. The check on the
+    planar monopoles' equivalent-cylinder rule."""
+    h = min(W, L) / cells
+    parts = []
+    ny = max(4, int(math.ceil(L / h)))
+    for x0, x1 in ((-W / 2, -w / 2), (-w / 2, w / 2), (w / 2, W / 2)):
+        nx = max(1, int(math.ceil((x1 - x0) / h)))
+        for y0, y1 in ((p, p + L), (-p - L, -p)):
+            parts.append(structured(lambda u, v, x0=x0, x1=x1, y0=y0, y1=y1:
+                                    (x0 + (x1 - x0) * u, y0 + (y1 - y0) * v), nx, ny))
+    parts.append(structured(lambda u, v: (-w / 2 + w * u, -p + 2 * p * v), max(1, int(math.ceil(w / h))), 4))
+    mesh = merge(*parts)
+    c = mesh.nodes[mesh.tris].mean(1)
+    feed = np.flatnonzero((np.abs(c[:, 1]) < p) & (np.abs(c[:, 0]) < w / 2))
+    return solve(mesh, gap_vector(mesh, 0.0, 2 * p, direction=(0.0, 1.0), among=feed)).input_impedance / 2

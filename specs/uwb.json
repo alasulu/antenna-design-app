@@ -199,13 +199,13 @@
       "synthesis": [
         {
           "output": "r_disc",
-          "expr": "(7.2e7/f_low - p_gap)/3",
+          "expr": "(7.2e7/f_low - p_gap)/2.25",
           "units_out": "m",
           "depends_on": [
             "f_low",
             "p_gap"
           ],
-          "notes": "Inverts the standard empirical rule f_low[GHz] = 7.2/(L + r + p) with lengths in cm, where for a disc the effective height L = 2*r. In SI this reads f_low = 7.2e7/(2r + r + p), hence r = (7.2e7/f_low - p)/3. EMPIRICAL, roughly 10% accurate."
+          "notes": "Inverts the empirical rule f_low[GHz] = 7.2/(l + r_eq + p) with lengths in cm (Agrawall, Kumar and Ray 1998; Ray 2008), whose equivalent cylinder has the plate's height l and the radius that gives it the plate's AREA, 2 pi r_eq l = area: for a disc of radius r, l = 2r and r_eq = r/4. In SI f_low = 7.2e7/(2r + r/4 + p), hence r = (7.2e7/f_low - p)/2.25. This spec used r_eq = r, which made every disc 25% too small (a 1 GHz design started at 1.33 GHz). Checked full-wave (otahub.num.rwg, the plate and its ground-plane image, fed by a 2 mm strip across the 2 mm gap): a 31.3 mm square plate's VSWR-2 band starts at 1.96 GHz, where the equal-area rule puts 1.93 and the old half-width reading 1.50 (VSWR 4.6 there). Agrawall, Kumar and Ray's 25 mm disc measured 2.25 GHz: 2.47 by this rule, 1.87 by the old one. EMPIRICAL, roughly 10% accurate."
         }
       ],
       "analysis": [
@@ -219,7 +219,7 @@
         },
         {
           "metric": "f_low_check_hz",
-          "expr": "7.2e7/(3*r_disc + p_gap)",
+          "expr": "7.2e7/(2.25*r_disc + p_gap)",
           "units_out": "Hz",
           "depends_on": [
             "r_disc",
@@ -234,7 +234,13 @@
           "depends_on": [
             "r_disc"
           ],
-          "notes": "the disc is modelled as an equivalent cylindrical monopole of this height, which is where the empirical rule comes from"
+          "notes": "the disc is modelled as an equivalent cylindrical monopole of this height and the radius below, which is where the empirical rule comes from"
+        },
+        {
+          "metric": "equivalent_cylinder_radius_m",
+          "expr": "r_disc/4",
+          "units_out": "m",
+          "notes": "the equal-area radius: 2 pi (r/4)(2r) = pi r^2, the disc's own area"
         },
         {
           "metric": "bandwidth_ratio",
@@ -262,11 +268,11 @@
             "p_gap": 0.001
           },
           "expect": {
-            "r_disc_m": 0.0076667,
+            "r_disc_m": 0.0102222,
             "f_low_check_hz": 3000000000.0
           },
           "tol_pct": 1.0,
-          "source": "f_low = 3 GHz with a 1 mm feed gap gives r = (24.0 - 1.0)/3 = 7.67 mm by the 7.2/(L+r+p) rule. Ammann & Chen, Wideband monopole antennas for multi-band wireless systems, IEEE AP Magazine 45(2), 2003"
+          "source": "f_low = 3 GHz with a 1 mm feed gap gives r = (24.0 - 1.0)/2.25 = 10.22 mm by the 7.2/(l + r_eq + p) rule with the equal-area r_eq = r/4 (script). Ammann & Chen, Wideband monopole antennas for multi-band wireless systems, IEEE AP Magazine 45(2), 2003"
         },
         {
           "given": {
@@ -274,11 +280,11 @@
             "p_gap": 0.001
           },
           "expect": {
-            "r_disc_m": 0.0236667,
-            "disc_diameter_m": 0.0473333
+            "r_disc_m": 0.0315556,
+            "disc_diameter_m": 0.0631111
           },
           "tol_pct": 1.0,
-          "source": "Scaling check: 1 GHz needs r = (72.0 - 1.0)/3 = 23.67 mm."
+          "source": "Scaling check: 1 GHz needs r = (72.0 - 1.0)/2.25 = 31.56 mm (script)."
         }
       ],
       "references": [
@@ -1305,12 +1311,12 @@
         },
         {
           "metric": "bandwidth_ratio",
-          "expr": "np.interp(cone_half_angle_deg, [15, 20, 25, 30, 32, 32.5, 33, 34, 35, 40, 47, 55, 65], [1.2342, 1.4650, 8.3419, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 1.6445])",
+          "expr": "np.where((cone_half_angle_deg >= 14.999)*(cone_half_angle_deg <= 65.001), (np.interp(cone_half_angle_deg, [15, 20, 25, 30, 32, 32.5, 33, 34, 35, 40, 47, 55, 65], [1.2342, 1.4650, 8.3419, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 10.0000, 1.6445])), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "cone_half_angle_deg"
           ],
-          "notes": "SOLVED, tabulated: f_high/f_low for the continuous band with VSWR under 2 in 50 ohm; 10 means it ran past a decade. The indicative decade holds from 30 to 55 degrees. It fails both ways: 1.2-1.5:1 at 15-20 degrees, where the cone's impedance is too high for 50 ohm, 8.3:1 or more at 25 (the survey ended there), and 1.6:1 at 65, where it is too low. Below 15 degrees there is no 50 ohm band at all."
+          "notes": "SOLVED, tabulated: f_high/f_low for the continuous band with VSWR under 2 in 50 ohm; 10 means it ran past a decade. The indicative decade holds from 30 to 55 degrees. It fails both ways: 1.2-1.5:1 at 15-20 degrees, where the cone's impedance is too high for 50 ohm, 8.3:1 or more at 25 (the survey ended there), and 1.6:1 at 65, where it is too low. Below 15 degrees there is no 50 ohm band at all. NaN outside the tabulated 15-65 degrees: np.interp used to copy the 15-degree band down to any narrower cone."
         },
         {
           "metric": "worst_vswr_2_to_10_f_low",
@@ -1554,18 +1560,18 @@
       "synthesis": [
         {
           "output": "Lp",
-          "expr": "(7.2e7/f_low - p_gap)/(1 + aspect/2)",
+          "expr": "(7.2e7/f_low - p_gap)/(1 + aspect/(2*pi))",
           "units_out": "m",
           "depends_on": [
             "f_low",
             "p_gap",
             "aspect"
           ],
-          "notes": "Inverted from f_low = 7.2e7/(L + W/2 + p), the equivalent-cylinder rule. The half-width stands in for the equivalent cylinder radius, which is the reading that reproduces this family's disc monopole exactly: a disc of radius r has height 2r and half-width r, giving the same 3r."
+          "notes": "Inverted from f_low = 7.2e7/(L + r_eq + p), the equivalent-cylinder rule, with r_eq = W/(2 pi): the cylinder of the plate's height and AREA, 2 pi r_eq L = W L (Ray 2008). This spec used the half-width W/2, which undersized every plate 23% (a 1 GHz square started at 1.29 GHz). Checked full-wave (otahub.num.rwg, the plate and its ground-plane image, fed by a 2 mm strip across the 2 mm gap): a 31.3 mm square plate's VSWR-2 band starts at 1.96 GHz, where the equal-area rule puts 1.93 and the old half-width reading 1.50 (VSWR 4.6 there). Agrawall, Kumar and Ray's 25 mm disc measured 2.25 GHz: 2.47 by this rule, 1.87 by the old one."
         },
         {
           "output": "Wp",
-          "expr": "aspect*(7.2e7/f_low - p_gap)/(1 + aspect/2)",
+          "expr": "aspect*(7.2e7/f_low - p_gap)/(1 + aspect/(2*pi))",
           "units_out": "m",
           "depends_on": [
             "aspect",
@@ -1577,7 +1583,7 @@
       "analysis": [
         {
           "metric": "f_low_check_hz",
-          "expr": "7.2e7/(Lp + Wp/2 + p_gap)",
+          "expr": "7.2e7/(Lp + Wp/(2*pi) + p_gap)",
           "units_out": "Hz",
           "depends_on": [
             "Lp",
@@ -1588,7 +1594,7 @@
         },
         {
           "metric": "equivalent_cylinder_radius_m",
-          "expr": "Wp/2",
+          "expr": "Wp/(2*pi)",
           "units_out": "m",
           "depends_on": [
             "Wp"
@@ -1627,7 +1633,7 @@
         },
         {
           "metric": "f_high_estimate_hz",
-          "expr": "10*7.2e7/(Lp + Wp/2 + p_gap)",
+          "expr": "10*7.2e7/(Lp + Wp/(2*pi) + p_gap)",
           "units_out": "Hz",
           "depends_on": [
             "Lp",
@@ -1637,8 +1643,8 @@
         }
       ],
       "validity": [
-        "the 7.2e7/(L + W/2 + p) rule is empirical, good to roughly 10% on the lower corner",
-        "the half-width reading of the equivalent cylinder radius is chosen for consistency with this toolkit's disc monopole; other authors define it differently, so do not mix constants across sources",
+        "the 7.2e7/(L + W/(2 pi) + p) rule is empirical, good to roughly 10% on the lower corner (1.5% on a square plate full-wave)",
+        "the equivalent cylinder radius is the equal-area one, W/(2 pi), as the rule was derived; a plate much wider than tall fed from a narrow pin may never reach VSWR 2 at all (W = 2L from a 2 mm strip: VSWR 3.0 at best, full-wave) - wide plates need a tapered or bevelled feed region to use this band",
         "large ground plane assumed; small ground planes shift the corner and spoil the pattern",
         "bandwidth and directivity figures are indicative"
       ],
@@ -1650,12 +1656,12 @@
             "p_gap": 0.001
           },
           "expect": {
-            "Lp": 0.031333,
-            "Wp": 0.031333,
+            "Lp": 0.0405468,
+            "Wp": 0.0405468,
             "f_low_check_hz": 1500000000.0
           },
           "tol_pct": 0.5,
-          "source": "Square plate at 1.5 GHz: L + L/2 + 1 mm = 48 mm gives L = 31.33 mm. The forward check closing on 1.5 GHz confirms the inversion."
+          "source": "Square plate at 1.5 GHz: L + L/(2 pi) + 1 mm = 48 mm gives L = 40.55 mm (script). The forward check closing on 1.5 GHz confirms the inversion."
         },
         {
           "given": {
@@ -1664,10 +1670,10 @@
             "p_gap": 0.001
           },
           "expect": {
-            "height_over_lambda_low": 0.15678
+            "height_over_lambda_low": 0.202874
           },
           "tol_pct": 1.0,
-          "source": "The plate is only 0.157 wavelengths tall where a thin monopole would need 0.25 - the wide plate lowers the resonance by well over a third"
+          "source": "The plate is 0.203 wavelengths tall where a thin monopole would need 0.25 - the wide plate lowers the band edge by about a fifth (script)"
         },
         {
           "given": {
@@ -1676,11 +1682,11 @@
             "p_gap": 0.001
           },
           "expect": {
-            "Lp": 0.0235,
-            "Wp": 0.047
+            "Lp": 0.0356517,
+            "Wp": 0.0713034
           },
           "tol_pct": 0.5,
-          "source": "Doubling the width for the same cut-off shortens the plate to 23.5 mm: L + W/2 = L + L = 2L = 47 mm"
+          "source": "Doubling the width for the same cut-off shortens the plate to 35.65 mm: L (1 + 2/(2 pi)) = 47 mm (script)"
         }
       ],
       "references": [

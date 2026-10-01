@@ -81,13 +81,15 @@
         },
         {
           "output": "k0a",
-          "expr": "s_eps*exp((1.02304) + (0.350236)*ln_asp + (0.271024)*ln_asp**2 + (0.00205262)*ln_asp**3 + (-0.017396)*ln_asp**4 + (-0.00182836)*ln_asp**5 + (0.290705)*s_eps + (0.144353)*s_eps*ln_asp + (-0.634742)*s_eps*ln_asp**2 + (0.172021)*s_eps*ln_asp**3 + (-0.008381)*s_eps*ln_asp**4 + (-2.71456)*s_eps**2 + (-1.32213)*s_eps**2*ln_asp + (2.25359)*s_eps**2*ln_asp**2 + (-0.39462)*s_eps**2*ln_asp**3 + (4.85059)*s_eps**3 + (4.24017)*s_eps**3*ln_asp + (-3.55151)*s_eps**3*ln_asp**2 + (-0.962347)*s_eps**4 + (-3.70871)*s_eps**4*ln_asp + (-3.27732)*s_eps**5)",
+          "expr": "np.where((aspect >= 0.3999)*(aspect <= 4.0001)*(eps_r >= 5.999)*(eps_r <= 50.001), (s_eps*exp((1.02304) + (0.350236)*ln_asp + (0.271024)*ln_asp**2 + (0.00205262)*ln_asp**3 + (-0.017396)*ln_asp**4 + (-0.00182836)*ln_asp**5 + (0.290705)*s_eps + (0.144353)*s_eps*ln_asp + (-0.634742)*s_eps*ln_asp**2 + (0.172021)*s_eps*ln_asp**3 + (-0.008381)*s_eps*ln_asp**4 + (-2.71456)*s_eps**2 + (-1.32213)*s_eps**2*ln_asp + (2.25359)*s_eps**2*ln_asp**2 + (-0.39462)*s_eps**2*ln_asp**3 + (4.85059)*s_eps**3 + (4.24017)*s_eps**3*ln_asp + (-3.55151)*s_eps**3*ln_asp**2 + (-0.962347)*s_eps**4 + (-3.70871)*s_eps**4*ln_asp + (-3.27732)*s_eps**5)), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "s_eps",
-            "ln_asp"
+            "ln_asp",
+            "aspect",
+            "eps_r"
           ],
-          "notes": "FITTED TO FDTD. ln(sqrt(eps_r)*k0*a) as a polynomial in 1/sqrt(eps_r) and ln(a/h), fitted to 48 ringdowns of the puck on an infinite ground plane (otahub.num.dra.cylinder, at least 16 cells of radius, 8 of height) over eps_r 6-50 and a/h 0.4-6. Fit error 0.34% worst, 0.16% on 12 held-out ringdowns. The same solver reproduces the exact hemisphere pole to 0.15%, and refining the grid by half again moves k0*a by 0.1%. Replaces Mongia & Bhartia's published fit, which the ringdowns put from 9.4% low to 8.8% high: 6-9% low on every tall puck (a/h 0.5 and below) whatever the permittivity, and within 3% only for a/h 0.75-4 at eps_r >= 20."
+          "notes": "FITTED TO FDTD. ln(sqrt(eps_r)*k0*a) as a polynomial in 1/sqrt(eps_r) and ln(a/h), fitted to 48 ringdowns of the puck on an infinite ground plane (otahub.num.dra.cylinder, at least 16 cells of radius, 8 of height) over eps_r 6-50 and a/h 0.4-4, and NaN outside that: the flat pucks at a/h 5-6 the data keeps as 'outside' sit 1.9% (k0a) and 5.7% (Q) off this fit at eps_r 50 - this note used to say it covered a/h 6. Fit error 0.34% worst, 0.16% on 12 held-out ringdowns. The same solver reproduces the exact hemisphere pole to 0.15%, and refining the grid by half again moves k0*a by 0.1%. Replaces Mongia & Bhartia's published fit, which the ringdowns put from 9.4% low to 8.8% high: 6-9% low on every tall puck (a/h 0.5 and below) whatever the permittivity, and within 3% only for a/h 0.75-4 at eps_r >= 20."
         },
         {
           "output": "a",
@@ -122,13 +124,15 @@
         },
         {
           "metric": "radiation_q",
-          "expr": "exp((-1.84771) + (0.181958)*ln_asp + (-0.85526)*ln_asp**2 + (-0.0894566)*ln_asp**3 + (0.131825)*ln_asp**4 + (-0.00636239)*ln_asp**5 + (-0.940714)*s_eps + (-1.52259)*s_eps*ln_asp + (2.25578)*s_eps*ln_asp**2 + (0.14311)*s_eps*ln_asp**3 + (-0.296489)*s_eps*ln_asp**4 + (16.9062)*s_eps**2 + (9.09575)*s_eps**2*ln_asp + (-5.71571)*s_eps**2*ln_asp**2 + (0.262267)*s_eps**2*ln_asp**3 + (-33.9519)*s_eps**3 + (-23.2135)*s_eps**3*ln_asp + (4.38235)*s_eps**3*ln_asp**2 + (21.5858)*s_eps**4 + (22.0365)*s_eps**4*ln_asp + (3.84854)*s_eps**5)/s_eps**3",
+          "expr": "np.where((aspect >= 0.3999)*(aspect <= 4.0001)*(eps_r >= 5.999)*(eps_r <= 50.001), (exp((-1.84771) + (0.181958)*ln_asp + (-0.85526)*ln_asp**2 + (-0.0894566)*ln_asp**3 + (0.131825)*ln_asp**4 + (-0.00636239)*ln_asp**5 + (-0.940714)*s_eps + (-1.52259)*s_eps*ln_asp + (2.25578)*s_eps*ln_asp**2 + (0.14311)*s_eps*ln_asp**3 + (-0.296489)*s_eps*ln_asp**4 + (16.9062)*s_eps**2 + (9.09575)*s_eps**2*ln_asp + (-5.71571)*s_eps**2*ln_asp**2 + (0.262267)*s_eps**2*ln_asp**3 + (-33.9519)*s_eps**3 + (-23.2135)*s_eps**3*ln_asp + (4.38235)*s_eps**3*ln_asp**2 + (21.5858)*s_eps**4 + (22.0365)*s_eps**4*ln_asp + (3.84854)*s_eps**5)/s_eps**3), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "s_eps",
-            "ln_asp"
+            "ln_asp",
+            "aspect",
+            "eps_r"
           ],
-          "notes": "FITTED TO FDTD: Q = Re/(2 Im) of the same ringdowns, ln(Q/eps_r^1.5) fitted in the same two variables, 0.42% worst on the fitting set and 0.49% held out. The published fit it replaces runs from 26% low to 16% high: 6-26% low at eps_r 12 and below for a/h 0.75-4, where its eps_r^1.3 scaling no longer holds, and up to 16% high on the tallest pucks at high permittivity. It holds to about 3% only for a/h 0.75-2 at eps_r >= 20."
+          "notes": "FITTED TO FDTD: Q = Re/(2 Im) of the same ringdowns, ln(Q/eps_r^1.5) fitted in the same two variables, 0.42% worst on the fitting set and 0.49% held out. The published fit it replaces runs from 26% low to 16% high: 6-26% low at eps_r 12 and below for a/h 0.75-4, where its eps_r^1.3 scaling no longer holds, and up to 16% high on the tallest pucks at high permittivity. It holds to about 3% only for a/h 0.75-2 at eps_r >= 20. NaN outside eps_r 6-50 and a/h 0.4-4, the FDTD training domain."
         },
         {
           "metric": "fractional_bandwidth_vswr2",
