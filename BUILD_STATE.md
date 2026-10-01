@@ -3845,3 +3845,48 @@ added after it started pass on their own), 29,243 lines of Python, 25,799 of spe
 data, 1078/1078 known-case expectations in 450 cases, the doctor clean. Then the
 repository went public on GitHub as alasulu/antenna-design-app under the MIT
 licence, with a README written for people meeting the toolkit for the first time.
+
+## After publication: the PIFA's narrow strip, tests in the cloud, and 3-D models
+
+Asked for by the user once the repository was public: finish what had been
+left open, run the tests on GitHub rather than on a nearly full disk, export a
+3-D model (STL or STEP) of every antenna, let the user set the build's own
+specifications (substrate, copper, board) for every antenna, and show the
+result before exporting.
+
+- **PIFA, narrow corner strip.** The review had left its length NaN for any
+  strip narrower than the plate. A whole-plate FDTD survey (21 plates, 70
+  designs, each strip run corrected by its own plate's full-width run) shows the
+  strip adding strip_phi W to the electrical length, strip_phi close to
+  0.3 ln(W/Ws) - the strip's inductance. Fitted within 2.6% in frequency (3.2%
+  leaving plates out); a finer grid on one plate says the survey's own grid
+  error reaches about 4%, so the law is labelled indicative, about 5%. Two
+  held-out designs built in the FDTD land at -0.09% and -2.0%. The first survey
+  attempt lost 71 runs to one empty resonance window; the second saved every run
+  as it came and retried at other guesses.
+- **Tests in the cloud.** `.github/workflows/tests.yml`: the spec doctor and
+  every cited case, the quick tests, and the full suite, on every push. The
+  first Linux run found two round-off assumptions the Mac had hidden (an
+  impedance pinned to the last bit; a 1e-16 m residual compared across scales)
+  and both tests were made platform-robust.
+- **3-D models for all 72, as STL.** `otahub/export/mesh.py` builds solid bodies
+  on the manifold3d kernel (watertight, real booleans) and writes binary STL in
+  millimetres, one file per material plus a combined one; the 42 CST/HFSS models
+  are converted, and `mesh_builders.py` builds the other 30 from their designs
+  (horns, reflectors, lenses, travelling-wave and frequency-independent
+  antennas, the triangular and CP patches, the ferrite rod). Checked by
+  rendering a dozen and by tests: every model closed, files closed edge for edge,
+  key dimensions the design's. STEP was not done: it needs a CAD kernel of
+  hundreds of megabytes.
+- **Construction options.** Everything a build needs that a design does not fix
+  - wall, copper and plate thickness, wire, element and boom radii, feed guide
+  length, board margin, a printed antenna's substrate thickness, Dk and tan d -
+  is a declared option with a default and a plain statement of whether the
+  predicted performance accounts for it (usually: geometry only). CLI
+  `export --format stl --opt NAME=VALUE`, `--options` to list them; in the app,
+  a 3D model tab on every design page shows the solid as it will be saved,
+  rebuilt as requirements or options change, with Enlarge and Save STL.
+
+After it: 3385 tests - on GitHub's Linux runners the full suite 3360 passed and 25
+skipped in 32 min - 1081/1081 known-case expectations in 453 cases, the doctor
+clean, 31,142 lines of Python.
