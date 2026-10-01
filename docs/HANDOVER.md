@@ -446,7 +446,7 @@ being written into a spec.
 | `biconical` | Cutoff slant (VSWR 2 against its own Zc), continuous bandwidth, worst in-band VSWR and directivity at the cutoff, tabulated over 5-65 deg | `otahub/num/bor.py`, cutoff extrapolated from two meshes; the spec's own dimensions solved live sit at VSWR 2 at f0; the old wire-cage directivity sits 0.7-2.8% above the solid cone at a quarter wave |
 | `conical_monopole` | The same in 50 ohm, from the bicone by image theory, over 15-65 deg with extra nodes where the cutoff climbs steeply (32-34 deg) | As above; at 47 deg, where the monopole's Zc is 50 ohm, the two specs' cutoffs coincide and image theory holds to 5e-4 |
 | `discone` | Low cutoff (slant at VSWR 2 in 50 ohm), continuous VSWR-2 bandwidth, worst in-band VSWR and directivity at f_low, tabulated over half angle 20-50 deg and disc ratio 0.6-0.9 with a stated coax-sized feed | `otahub/num/bor.py`, the exact axisymmetric surface solution: low cutoff extrapolated from two meshes (0.4%), 0.9% on six held-out designs; the spec's own dimensions, rebuilt and solved live, sit at VSWR 2 at f_low |
-| `fresnel_zone_plate` | Aperture efficiency and gain from a cos^n feed through the plate's own zones (Kirchhoff, in-spec feed-angle integral); spillover; HPBW and 1 dB gain bandwidth fitted per plate type and, for the opaque plate, per parity of M | `otahub/num/zone_plate.py` integrates on a Cartesian grid over the plate: efficiency to 0.015%, the fits to 0.18% (beam) and 0.30% (bandwidth) on held-out 2-D runs; many zones under uniform light recover 1/π², 4/π², 8/π² |
+| `fresnel_zone_plate` | Aperture efficiency and gain from a cos^n feed through the plate's own zones (Kirchhoff, in-spec feed-angle integral); spillover; HPBW and 1 dB gain bandwidth fitted per plate type and per parity of M (the beam for the opaque plate only), a phase plate's steps held at fixed thickness across the band | `otahub/num/zone_plate.py` integrates on a Cartesian grid over the plate: efficiency to 0.015%, the fits to 0.18% (beam) and 0.30-0.35% (bandwidth) on held-out 2-D runs; many zones under uniform light recover 1/π², 4/π², 8/π² |
 | `hemispherical_dra` | k₀a and Q from the exact complex TE₁ pole of the equivalent sphere, fitted to 0.23% over εr 6–100 | Newton on the characteristic equation; `otahub/num/dra.py`'s FDTD ringdown of a staircased hemisphere lands on the pole to 0.15% in frequency and 0.9% in Q; Mongia & Bhartia's published fit is within 1.04%. The peak of the Mie coefficient b₁ on the real axis, used before, was 1.2% high and its half-power Q 12% low at εr = 10 |
 | `cylindrical_dra` | k₀a and radiation Q of the HE₁₁ mode over εr 6–50 and a/h 0.4–4 | Fitted to 48 FDTD ringdowns (`otahub/num/dra.py`): 0.34% in k₀a, 0.42% in Q; 0.16% / 0.49% on 12 held out. Mongia & Bhartia's published fits kept as a comparison: 9.4% low to 8.8% high in resonance, 26% low to 16% high in Q |
 | `rectangular_dra` | k₀d and radiation Q of the broadside mode (magnetic dipole along L), the other mode's frequency | Fitted to 150 FDTD ringdowns (`otahub/num/dra.py`) over εr 6–50 and both aspects 1–3: 0.15% in k₀d, 0.7% in Q, and within 0.13% / 0.65% on 33 held-out ones. The DWM, run the right way round, is kept as a reported comparison: 10.6% high to 6.2% low |
@@ -584,7 +584,10 @@ produce. Treat their numbers as indicative and verify in a full-wave solver.
 - **The Fresnel zone plate is scalar Kirchhoff diffraction through an
   infinitely thin plate.** Its gain, beam and bandwidth now come from the feed
   through the plate, but a real phase plate's thickness, its shadowing at
-  oblique incidence and polarisation are not modelled.
+  oblique incidence and polarisation are not modelled. Its steps are taken as
+  nondispersive dielectric of fixed thickness, whose phase grows with
+  frequency; until the Codex review the bandwidth held them at their design
+  phases, which made a four-zone plate's band 9-11% too narrow.
 
 ### Metrics labelled "indicative"
 

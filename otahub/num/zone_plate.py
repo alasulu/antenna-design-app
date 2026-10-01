@@ -28,17 +28,21 @@ def zone_radius(m: float, F: float) -> float:
     return math.sqrt(m * F + (m / 2.0) ** 2)
 
 
-def transmission(excess, levels: int):
-    """Plate transmission for a path excess (wavelengths) over the focal length.
+def transmission(excess, levels: int, freq: float = 1.0):
+    """Plate transmission for a path excess (design wavelengths) over the focal length.
 
     levels = 1: opaque rings on the odd half-wave zones, the central zone open.
     levels >= 2: each 1/levels-wavelength band of path is advanced by the same
     step, so the phase left behind is a sawtooth of height 2*pi/levels;
-    levels = 2 is the phase-reversal plate.
+    levels = 2 is the phase-reversal plate. The plate has only `levels`
+    thicknesses, the step index wrapping modulo `levels`; each is a fixed
+    thickness of nondispersive dielectric, so its phase advance is freq times
+    the design value at freq times the design frequency. (Unwrapped, the
+    steps would make an unzoned true-time-delay lens.)
     """
     if levels < 2:
         return (np.floor(2.0 * excess) % 2 < 0.5).astype(float)
-    return np.exp(2j * math.pi / levels * np.floor(levels * excess))
+    return np.exp(2j * math.pi * freq / levels * (np.floor(levels * excess) % levels))
 
 
 def plate_field(F: float, M: int, levels: int, n_feed: float, cells: int = 1600,
@@ -48,8 +52,9 @@ def plate_field(F: float, M: int, levels: int, n_feed: float, cells: int = 1600,
     feed's total power normalised to 1.
 
     freq is the operating frequency over the design frequency: the zones stay
-    where the design wavelength put them, the phase is that of the new one,
-    and lengths stay in DESIGN wavelengths (the gain functions rescale)."""
+    where the design wavelength put them, the propagation phase and the phase
+    of each fixed dielectric step are those of the new one, and lengths stay
+    in DESIGN wavelengths (the gain functions rescale)."""
     r_out = zone_radius(M, F)
     h = r_out / cells
     c = (np.arange(cells) + 0.5) * h
@@ -60,7 +65,7 @@ def plate_field(F: float, M: int, levels: int, n_feed: float, cells: int = 1600,
     cos_i = F / r
     # feed amplitude sqrt(U) with U = 2(n+1)cos^n / (4 pi), spherical spreading 1/r
     amp = np.sqrt(2.0 * (n_feed + 1.0) * cos_i ** n_feed / (4.0 * math.pi)) / r
-    field = amp * np.exp(-2j * math.pi * freq * r) * transmission(r - F, levels) * inside
+    field = amp * np.exp(-2j * math.pi * freq * r) * transmission(r - F, levels, freq) * inside
     return x, y, h * h, field, cos_i
 
 
@@ -76,15 +81,31 @@ def gain(F: float, M: int, levels: int, n_feed: float, cells: int = 1600,
 def gain_bandwidth(F: float, M: int, levels: int, n_feed: float, drop_db: float = 1.0,
                    cells: int = 800) -> float:
     """Fractional bandwidth over which the gain stays within drop_db of its
-    peak, the plate fixed and the feed pattern held constant."""
+    peak, the plate - zones and step thicknesses - fixed and the feed pattern
+    held constant."""
     from scipy.optimize import brentq, minimize_scalar
     g = lambda f: gain(F, M, levels, n_feed, cells, f)
     w = min(0.85, 3.0 / M)
-    peak = minimize_scalar(lambda f: -g(f), bounds=(1 - 0.3 / M, 1 + 0.3 / M), method="bounded").x
+    # the main response peaks within about 1/M of f0 (a four-level plate's above
+    # it): scan for it, then refine - a bounded search alone can stop on its edge
+    step = 0.1 / M
+    fs = 1.0 + step * np.arange(-int(min(w, 1.5 / M) / step), int(min(w, 1.5 / M) / step) + 1)
+    k = int(np.argmax([g(f) for f in fs]))
+    peak = minimize_scalar(lambda f: -g(f), bounds=(fs[max(k - 1, 0)], fs[min(k + 1, len(fs) - 1)]),
+                           method="bounded", options={"xatol": 1e-7}).x
     thr = g(peak) * 10 ** (-drop_db / 10)
-    lo = brentq(lambda f: g(f) - thr, 1 - w, peak)
-    hi = brentq(lambda f: g(f) - thr, peak, 1 + w)
-    return hi - lo
+
+    def edge(sign):
+        # walk out to the FIRST crossing; further out, other orders can rise again
+        a = peak
+        while abs(a - 1.0) < w:
+            b = a + sign * step
+            if g(b) < thr:
+                return brentq(lambda f: g(f) - thr, min(a, b), max(a, b), xtol=1e-9)
+            a = b
+        raise ValueError("no drop of %g dB within the search range" % drop_db)
+
+    return edge(+1) - edge(-1)
 
 
 def pattern(F: float, M: int, levels: int, n_feed: float, angles_deg, cells: int = 1200):

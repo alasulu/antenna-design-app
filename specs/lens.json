@@ -873,7 +873,7 @@
         },
         {
           "metric": "gain_bandwidth_1db",
-          "expr": "np.where(phase_levels < 2, np.where(M % 2 < 0.5, exp((0.0525464) + (-0.0409805)*c_rim + (0.00181377)*c_rim**2 + (-0.0574056)*inv_M + (0.183493)*inv_M*c_rim + (0.525912)*inv_M**2 + (0.00136624)*x_ft + (-0.0394449)*x_ft*c_rim + (-0.0417709)*x_ft*inv_M + (0.0307359)*x_ft**2), exp((0.0580041) + (-0.0259199)*c_rim + (-0.0151313)*c_rim**2 + (-1.12097)*inv_M + (0.145847)*inv_M*c_rim + (0.782598)*inv_M**2 + (0.0151645)*x_ft + (-0.0331866)*x_ft*c_rim + (-0.214037)*x_ft*inv_M + (0.0358922)*x_ft**2)), np.where(phase_levels < 3, exp((0.0396422) + (0.0041147)*c_rim + (-0.026499)*c_rim**2 + (0.0319526)*inv_M + (-0.0332071)*inv_M*c_rim + (-0.933916)*inv_M**2 + (-0.0118967)*x_ft + (-0.0180441)*x_ft*c_rim + (0.0457653)*x_ft*inv_M + (0.0285882)*x_ft**2), exp((0.046425) + (-0.00379299)*c_rim + (-0.0227346)*c_rim**2 + (-0.0460479)*inv_M + (0.0125861)*inv_M*c_rim + (-0.578297)*inv_M**2 + (-0.00431872)*x_ft + (-0.0210969)*x_ft*c_rim + (-0.00484573)*x_ft*inv_M + (0.030296)*x_ft**2)))/M",
+          "expr": "np.where(phase_levels < 2, np.where(M % 2 < 0.5, exp((0.0525464) + (-0.0409805)*c_rim + (0.00181377)*c_rim**2 + (-0.0574056)*inv_M + (0.183493)*inv_M*c_rim + (0.525912)*inv_M**2 + (0.00136624)*x_ft + (-0.0394449)*x_ft*c_rim + (-0.0417709)*x_ft*inv_M + (0.0307359)*x_ft**2), exp((0.0580041) + (-0.0259199)*c_rim + (-0.0151313)*c_rim**2 + (-1.12097)*inv_M + (0.145847)*inv_M*c_rim + (0.782598)*inv_M**2 + (0.0151645)*x_ft + (-0.0331866)*x_ft*c_rim + (-0.214037)*x_ft*inv_M + (0.0358922)*x_ft**2)), np.where(phase_levels < 3, np.where(M % 2 < 0.5, exp((0.0460455098) + (0.00118623264)*x_ft**1 + (0.0385144246)*x_ft**2 + (0.00257691521)*x_ft**3 + (-0.0300597124)*inv_M**1 + (-0.00118471463)*inv_M**1*x_ft**1 + (0.0047809425)*inv_M**1*x_ft**2 + (0.726715144)*inv_M**2 + (0.000305782904)*inv_M**2*x_ft**1 + (-0.52662663)*inv_M**3 + (0.00340496303)*c_rim**1 + (0.00296283787)*c_rim**1*x_ft**1 + (0.00753101254)*c_rim**1*x_ft**2 + (-0.057393265)*c_rim**1*inv_M**1 + (-0.0596601588)*c_rim**1*inv_M**1*x_ft**1 + (0.164649598)*c_rim**1*inv_M**2 + (0.00689698107)*c_rim**2 + (-0.00117683046)*c_rim**2*x_ft**1 + (0.0850651091)*c_rim**2*inv_M**1 + (-0.0446523979)*c_rim**3), exp((0.049739671) + (0.00325795746)*x_ft**1 + (0.0384653766)*x_ft**2 + (0.00245424295)*x_ft**3 + (-0.134335684)*inv_M**1 + (-0.0859856791)*inv_M**1*x_ft**1 + (-0.0144208471)*inv_M**1*x_ft**2 + (-1.48594245)*inv_M**2 + (-0.591211265)*inv_M**2*x_ft**1 + (-0.601525377)*inv_M**3 + (0.00541637245)*c_rim**1 + (0.00679715457)*c_rim**1*x_ft**1 + (0.00903087911)*c_rim**1*x_ft**2 + (0.0230012553)*c_rim**1*inv_M**1 + (-0.0243960399)*c_rim**1*inv_M**1*x_ft**1 + (0.225457242)*c_rim**1*inv_M**2 + (-0.00464629892)*c_rim**2 + (-0.00373093457)*c_rim**2*x_ft**1 + (0.0593602127)*c_rim**2*inv_M**1 + (-0.0325467138)*c_rim**3)), np.where(M % 2 < 0.5, exp((0.0224639621) + (-0.033060368)*x_ft**1 + (0.0244039319)*x_ft**2 + (0.000894311704)*x_ft**3 + (0.327653355)*inv_M**1 + (0.373241768)*inv_M**1*x_ft**1 + (0.096790029)*inv_M**1*x_ft**2 + (-0.34376754)*inv_M**2 + (-0.870232769)*inv_M**2*x_ft**1 + (1.74483537)*inv_M**3 + (0.047475613)*c_rim**1 + (0.0384177498)*c_rim**1*x_ft**1 + (0.0135967022)*c_rim**1*x_ft**2 + (-0.405686525)*c_rim**1*inv_M**1 + (-0.224275461)*c_rim**1*inv_M**1*x_ft**1 + (0.907942185)*c_rim**1*inv_M**2 + (-0.0340140648)*c_rim**2 + (-0.0160239313)*c_rim**2*x_ft**1 + (0.228087667)*c_rim**2*inv_M**1 + (-0.0310870761)*c_rim**3), exp((0.0285390056) + (-0.035433099)*x_ft**1 + (0.0228013731)*x_ft**2 + (0.00040434926)*x_ft**3 + (0.124606004)*inv_M**1 + (0.324253015)*inv_M**1*x_ft**1 + (0.0692063545)*inv_M**1*x_ft**2 + (-1.74626261)*inv_M**2 + (-1.79008599)*inv_M**2*x_ft**1 + (-0.721490067)*inv_M**3 + (0.0426771922)*c_rim**1 + (0.0391302939)*c_rim**1*x_ft**1 + (0.0152803327)*c_rim**1*x_ft**2 + (-0.326663218)*c_rim**1*inv_M**1 + (-0.173782414)*c_rim**1*inv_M**1*x_ft**1 + (1.14222344)*c_rim**1*inv_M**2 + (-0.0252128993)*c_rim**2 + (-0.0134203947)*c_rim**2*x_ft**1 + (0.180367453)*c_rim**2*inv_M**1 + (-0.0336292814)*c_rim**3))))/M",
           "units_out": "-",
           "depends_on": [
             "phase_levels",
@@ -882,7 +882,7 @@
             "inv_M",
             "c_rim"
           ],
-          "notes": "FITTED: the fractional band over which the gain stays within 1 dB of its peak, the plate fixed and the feed pattern held constant, from the same Kirchhoff integral swept in frequency. M times it runs 0.89-1.37 - so the old indicative 1/M was the right size, and is now computed; heavier feed tapers widen it. Worst fit error 0.70%, 0.30% held out. The 3 dB band is 1.69-1.81 times wider. A four-level plate built with each step compensating at the lower edge of its band peaks slightly ABOVE f0 - 6% at M = 4, 0.4% by M = 16 - which this band is measured around."
+          "notes": "FITTED: the fractional band over which the gain stays within 1 dB of its peak, the plate fixed - zones AND step thicknesses - and the feed pattern held constant, from the same Kirchhoff integral swept in frequency. A phase plate's steps are fixed thicknesses of nondispersive dielectric wrapped to `phase_levels` heights, so their phase grows with frequency; the fits used to hold the step phases at their design values, which narrowed the band at few zones - 0.255 against 0.280 for the default phase-reversal plate, 0.259 against 0.293 with four levels. One fit per plate type and per parity of M (the wrapped steps make odd and even zone counts differ, as the zero order does for the opaque plate): M times the band runs 0.97-1.35 for phase reversal and 0.99-1.54 for four levels, so the old indicative 1/M was the right size; heavier feed tapers widen it. Phase plates refitted on 1312 swept designs, 0.83% worst and 0.35% on 300 held out; the opaque plate's fit is unchanged (0.70%, 0.30% held out). The 3 dB band is 1.69-1.78 times wider. A four-level plate peaks ABOVE f0 - 7.7% at M = 4, 1.6% at 8, 0.4% at 16 - and the band is measured around that peak."
         },
         {
           "metric": "outer_zone_width_m",
@@ -903,7 +903,8 @@
         "beamwidth and bandwidth are fitted over F >= 3 wavelengths, 4 <= M <= 30, feed taper -3 to -24 dB and rim angle up to 60 degrees; the aperture efficiency and gain are computed, not fitted, and hold at any M",
         "phase_levels 1, 2 or 4; other level counts get the right efficiency and the four-level fits",
         "higher diffraction orders carry the remaining power into spurious foci, and those are real stray-signal paths",
-        "the outermost zone width sets manufacturability and must stay comfortably above the etching or machining tolerance"
+        "the outermost zone width sets manufacturability and must stay comfortably above the etching or machining tolerance",
+        "a phase plate's steps are taken as fixed thicknesses of NONDISPERSIVE dielectric, wrapped to phase_levels heights: their phase grows in proportion to frequency, which sets gain_bandwidth_1db. A dispersive material, or steps made some other way, changes each step's phase across the band and so the bandwidth"
       ],
       "known_cases": [
         {
@@ -1031,10 +1032,10 @@
           },
           "expect": {
             "hpbw_deg": 4.2441,
-            "gain_bandwidth_1db": 0.25509
+            "gain_bandwidth_1db": 0.28035
           },
           "tol_pct": 1.0,
-          "source": "Phase reversal: 4.244 degrees (68.0 lambda/D), and a 1 dB gain bandwidth of 0.255 from the 2-D integral swept in frequency - M times it is 1.02, which is why 1/M was a fair guess."
+          "source": "Phase reversal: 4.244 degrees (68.0 lambda/D), and a 1 dB gain bandwidth of 0.280 from the 2-D integral swept in frequency with the plate's step thickness fixed - M times it is 1.12, which is why 1/M was a fair guess. Holding the step's phase at pi instead, as the fit once did, gives 0.255."
         },
         {
           "given": {
@@ -1047,10 +1048,38 @@
           "expect": {
             "aperture_efficiency": 0.31414,
             "hpbw_deg": 2.3503,
-            "gain_bandwidth_1db": 0.11755
+            "gain_bandwidth_1db": 0.11698
           },
           "tol_pct": 1.0,
-          "source": "Nine zones at 60 GHz, F = 100 mm, phase reversal, and a -8 dB feed that falls between the fitting grid's tapers. 2-D integral: efficiency 0.3141, 2.350 degrees, 1 dB bandwidth 0.1176."
+          "source": "Nine zones at 60 GHz, F = 100 mm, phase reversal, and a -8 dB feed that falls between the fitting grid's tapers. 2-D integral: efficiency 0.3141, 2.350 degrees, 1 dB bandwidth 0.1170 with the step thickness fixed."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 4,
+            "phase_levels": 4,
+            "feed_taper_db": -10.0
+          },
+          "expect": {
+            "gain_bandwidth_1db": 0.29251
+          },
+          "tol_pct": 1.0,
+          "source": "Four levels, 4 zones, -10 dB feed: the 2-D Kirchhoff integral (otahub.num.zone_plate, 1000 x 1000 grid) swept in frequency with each step a fixed thickness of nondispersive dielectric, the step index wrapped to four heights: 1 dB band 0.2925, around a peak 7.7% above f0. Held at their design phases the steps gave 0.259."
+        },
+        {
+          "given": {
+            "f0": 30000000000.0,
+            "F": 0.15,
+            "M": 7,
+            "phase_levels": 4,
+            "feed_taper_db": -13.5
+          },
+          "expect": {
+            "gain_bandwidth_1db": 0.1592
+          },
+          "tol_pct": 1.0,
+          "source": "Four levels, 7 zones, -13.5 dB feed: the 2-D Kirchhoff integral (otahub.num.zone_plate, 1000 x 1000 grid) swept in frequency with each step a fixed thickness of nondispersive dielectric, the step index wrapped to four heights: 1 dB band 0.1592, an odd zone count between the fitting grid's tapers."
         }
       ],
       "references": [

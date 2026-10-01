@@ -98,3 +98,37 @@ def test_an_opaque_plate_beam_depends_on_the_parity_of_its_zone_count(registry):
     rev4 = zp.hpbw(Fl, 4, 2, n4, cells=800) * 2 * zp.zone_radius(4, Fl)
     rev5 = zp.hpbw(Fl, 5, 2, n5, cells=800) * 2 * zp.zone_radius(5, Fl)
     assert abs(rev4 / rev5 - 1) < 0.03
+
+
+def test_a_phase_step_is_a_fixed_thickness():
+    """Wrapped to `levels` heights, its phase grows with frequency: at f0 it is
+    the design staircase, at 2 f0 a phase-reversal step is a full turn."""
+    excess = np.array([0.1, 0.6, 1.1, 1.6, 2.35])
+    assert np.allclose(zp.transmission(excess, 2), [1, -1, 1, -1, 1])
+    assert np.allclose(zp.transmission(excess, 2, 2.0), 1.0)
+    assert np.allclose(zp.transmission(excess, 4, 1.1), np.exp(2j * np.pi * 1.1 / 4 * np.array([0, 2, 0, 2, 1])))
+
+
+@pytest.mark.slow
+def test_fixed_step_phases_understated_the_band_of_a_few_zone_plate():
+    """Codex's finding: holding each step's phase at its design value, as the fits
+    once did, gives the default phase-reversal plate a 1 dB band of 0.255 where
+    fixed thicknesses give 0.280."""
+    Fl, n = _arbiter_args(30e9, 0.15, 4, -10.0)
+    physical = zp.gain_bandwidth(Fl, 4, 2, n, 1.0, cells=500)
+    held = zp.transmission
+    try:
+        zp.transmission = lambda excess, levels, freq=1.0: held(excess, levels)
+        frozen = zp.gain_bandwidth(Fl, 4, 2, n, 1.0, cells=500)
+    finally:
+        zp.transmission = held
+    assert frozen == pytest.approx(0.2551, abs=1e-3)
+    assert physical == pytest.approx(0.2803, abs=1e-3)
+
+
+@pytest.mark.slow
+def test_a_four_level_plate_peaks_above_f0_and_its_band_is_found_there():
+    Fl, n = _arbiter_args(30e9, 0.15, 4, -10.0)
+    g = lambda f: zp.gain(Fl, 4, 4, n, 500, f)
+    assert g(1.077) > g(1.0) * 10 ** (0.2 / 10)
+    assert zp.gain_bandwidth(Fl, 4, 4, n, 1.0, cells=500) == pytest.approx(0.2925, abs=1e-3)
