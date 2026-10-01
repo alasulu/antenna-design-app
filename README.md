@@ -7,8 +7,8 @@
 72 antenna archetypes · arrays · waveguides · matching · CST & HFSS export · a desktop GUI
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-3356-2ea44f)
-![Known cases](https://img.shields.io/badge/cited%20expectations-1078%2F1078%20passing-2ea44f)
+[![tests](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml/badge.svg)](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml)
+![Known cases](https://img.shields.io/badge/cited%20expectations-1081%2F1081%20passing-2ea44f)
 ![Archetypes](https://img.shields.io/badge/archetypes-72-b8652f)
 ![GUI](https://img.shields.io/badge/GUI-PySide6-41CD52?logo=qt&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -56,8 +56,8 @@ says by how much and why.
 
 | | |
 |---|---|
-| **72** archetypes in **10** families | **450** cited known cases, **1078** expectations, all passing |
-| **21** in-house numerical solvers | **3356** automated tests |
+| **72** archetypes in **10** families | **453** cited known cases, **1081** expectations, all passing |
+| **21** in-house numerical solvers | **3358** automated tests |
 | CST and HFSS export for **42** archetypes | a PySide6 desktop GUI that draws every antenna from its own numbers |
 
 ## Quick start
@@ -206,8 +206,12 @@ other where the same physics reaches two specs by different routes; a
 electrical result to stay identical; and the whole codebase has been through an
 independent review with OpenAI Codex, every finding re-verified before it was fixed.
 
+Every push runs the whole suite in the cloud on GitHub Actions (the *tests* badge at the top):
+the spec doctor and every cited case, the quick tests, and the full suite with the solvers.
+To run it yourself:
+
 ```bash
-python -m pytest tests/                  # 3356 tests, about 25 minutes
+python -m pytest tests/                  # 3358 tests, about 25 minutes
 python -m pytest -m "not slow"           # the quick loop, about 30 seconds
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
@@ -274,7 +278,7 @@ not, the open discrepancies, and the future work.
 | [`otahub/export/`](otahub/export/) | CST and HFSS script generation |
 | [`otahub/cli/`](otahub/cli/), [`otahub/gui/`](otahub/gui/) | Command line and PySide6 desktop interface |
 | [`specs/`](specs/) | The 72 archetypes — format in [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
-| [`tests/`](tests/) | 3356 tests, plus the recorded solver runs they check against in `tests/data/` |
+| [`tests/`](tests/) | 3358 tests, plus the recorded solver runs they check against in `tests/data/` |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | Verification record, limits and future work |
 | [`BUILD_STATE.md`](BUILD_STATE.md) | The build log, round by round |
 

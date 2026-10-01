@@ -7,8 +7,8 @@ export to CST Studio or Ansys HFSS.
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2; a whole-project
 review with OpenAI's Codex followed (2026-10-01). **72 archetypes, 10 families,
-29,243 lines of Python, 25,799 lines of spec data, 3356 tests, 450 citable known
-cases holding 1078 expectations, all passing.**
+29,297 lines of Python, 25,857 lines of spec data, 3358 tests, 453 citable known
+cases holding 1081 expectations, all passing.**
 
 ---
 
