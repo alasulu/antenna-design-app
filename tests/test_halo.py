@@ -77,10 +77,10 @@ def test_the_nominal_ring_is_only_a_starting_point(registry):
     ratios = []
     for gap, a in CASES:
         d = _design(registry, gap, a)
-        ratios.append(d.get("resonant_circumference_m") / d.get("circumference_m"))
+        ratios.append(d.get("resonant_circumference_m") / d.get("circumference_textbook_m"))
     assert all(0.90 < r < 1.03 for r in ratios), ratios
     narrow = _design(registry, 0.010, 0.002)
-    assert narrow.get("resonant_circumference_m") < narrow.get("circumference_m")
+    assert narrow.get("resonant_circumference_m") < narrow.get("circumference_textbook_m")
 
 
 # ------------------------------------------------------ the spec against the solver

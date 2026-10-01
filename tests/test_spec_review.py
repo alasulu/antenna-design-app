@@ -103,3 +103,23 @@ def test_the_diagonal_horn_claims_no_gain_over_a_square_pyramidal_one(registry):
     assert "gain_advantage_over_pyramidal_db" not in d.metrics
     assert d.metrics["aperture_efficiency_with_phase_error"] == pytest.approx(
         hp.diagonal_efficiency(d.metrics["max_phase_error_wavelengths"]), rel=1e-5)
+
+
+@pytest.mark.parametrize("b_over_lambda", [1e-4, 1e-3])
+def test_a_loop_built_to_its_circumference_presents_the_impedance_reported(registry, b_over_lambda):
+    """C was the nominal 1.09 lambda while the impedance was the resonant loop's:
+    built to C it presented 162.5 + j130.5 ohm against a reported 138.3. C is the
+    resonant circumference now; the independent modal solver agrees."""
+    from otahub.num import loop_modal
+    lam = C / 3e8
+    d = registry["one_wavelength_circular_loop"].synthesize(f0=3e8, b=b_over_lambda * lam)
+    z = loop_modal.input_impedance(d.get("C") / lam, b_over_lambda)
+    assert z.real == pytest.approx(complex(d.metrics["input_impedance_ohm"]).real, rel=0.005)
+    assert abs(z.imag) < 0.01 * z.real
+    assert d.get("C_textbook") / lam == pytest.approx(1.09)
+
+
+def test_the_halo_closes_its_own_ring(registry):
+    """pi Dm was 1.0267 m where Lc + g was 0.9878 at 146 MHz."""
+    d = registry["halo_loop"].synthesize(f0=146e6, b=0.0041067)
+    assert math.pi * d.get("Dm") == pytest.approx(d.get("Lc") + d.get("g"), rel=1e-12)

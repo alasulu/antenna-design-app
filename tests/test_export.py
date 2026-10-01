@@ -34,11 +34,11 @@ CASES = {
     "biconical": {"f0": 1e9},
     "discone": {"f_low": 100e6},
     "small_circular_loop": {"f0": 10e6, "C_over_lambda": 0.1},
-    "one_wavelength_circular_loop": {"f0": 300e6},
+    "one_wavelength_circular_loop": {"f0": 300e6, "b": 0.001},
     "small_square_loop": {"f0": 10e6, "P_over_lambda": 0.1},
-    "quad_loop_square": {"f0": 144e6},
+    "quad_loop_square": {"f0": 144e6, "b": 0.0016},
     "alford_loop": {"f0": 300e6, "P_over_lambda": 0.5},
-    "halo_loop": {"f0": 144e6},
+    "halo_loop": {"f0": 144e6, "b": 0.004},
     "half_wave_slot": {"f0": 300e6},
     "folded_slot": {"f0": 300e6, "N": 2},
     "cavity_backed_slot": {"f0": 2.4e9},
@@ -337,7 +337,7 @@ def test_torus_reaches_both_backends_with_the_right_radii(registry):
     wrong size, and nothing in the file looks wrong."""
     from otahub.export.base import Torus
 
-    model = build(registry["one_wavelength_circular_loop"].synthesize(f0=300e6))
+    model = build(registry["one_wavelength_circular_loop"].synthesize(f0=300e6, b=0.001))
     tori = [s for s in model.solids if isinstance(s, Torus)]
     assert tori, "a circular loop must contain a torus"
     t = tori[0]
@@ -357,7 +357,7 @@ def test_loop_feed_gap_is_cut_not_merely_drawn(registry):
     from otahub.export.base import Subtract
 
     for key, given in (("small_circular_loop", {"f0": 10e6, "C_over_lambda": 0.1}),
-                       ("halo_loop", {"f0": 144e6})):
+                       ("halo_loop", {"f0": 144e6, "b": 0.004})):
         model = build(registry[key].synthesize(**given))
         subs = [op for op in model.operations if isinstance(op, Subtract)]
         assert subs, f"{key} must cut its feed gap"
@@ -371,7 +371,7 @@ def test_square_loop_sides_close_the_perimeter(registry):
     add up to the perimeter less the gap."""
     from otahub.export.base import Cylinder
 
-    design = registry["quad_loop_square"].synthesize(f0=144e6)
+    design = registry["quad_loop_square"].synthesize(f0=144e6, b=0.0016)
     model = build(design)
     cyls = [s for s in model.solids if isinstance(s, Cylinder)]
     assert len(cyls) == 5, "three whole sides plus a split fourth"
@@ -386,7 +386,7 @@ def test_halo_gap_comes_from_the_spec_not_from_the_builder(registry):
     is a design parameter, because its capacitance sets the resonance - and it is
     left open: the halo is fed at the middle of the conductor, opposite the tips,
     as the verified MoM model drives it. The port used to sit across the tip gap."""
-    design = registry["halo_loop"].synthesize(f0=144e6)
+    design = registry["halo_loop"].synthesize(f0=144e6, b=0.004)
     model = build(design)
     cut = next(s for s in model.solids if s.name == "tip_gap_cut")
     assert cut.y[1] - cut.y[0] == pytest.approx(design.get("g"), rel=1e-9)
@@ -556,7 +556,7 @@ def test_low_confidence_archetypes_say_so_in_their_exported_model(registry):
     for key, given in (("pifa", {"f0": 2.4e9, "h": 0.006}),
                        ("stacked_patch", {"f0": 2.4e9, "eps_r": 2.2, "h": 1.6e-3}),
                        ("planar_monopole_circular", {"f_low": 1.5e9}),
-                       ("halo_loop", {"f0": 144e6})):
+                       ("halo_loop", {"f0": 144e6, "b": 0.004})):
         model = build(registry[key].synthesize(**given))
         joined = " ".join(model.notes).lower()
         assert "confidence" in joined, f"{key} does not carry its low-confidence flag"

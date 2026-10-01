@@ -1864,33 +1864,43 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
+        },
+        {
+          "symbol": "C_textbook",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "a_textbook",
+          "unit": "m",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "C",
+          "output": "C_textbook",
           "expr": "1.09*c/f0",
           "units_out": "m",
-          "notes": "Resonant circumference. Thin-wire value; the loop is ~9% LONGER than one free-space wavelength. See thickness correction below.",
+          "notes": "The thin-wire 1.09 lambda: the textbook circumference, kept for comparison.",
           "depends_on": [
             "f0"
           ]
         },
         {
-          "output": "a",
-          "expr": "1.09*c/(2*pi*f0)",
+          "output": "a_textbook",
+          "expr": "C_textbook/(2*pi)",
           "units_out": "m",
           "notes": "Loop radius a = C/(2*pi) = 0.17348*lambda.",
           "depends_on": [
-            "f0"
+            "C_textbook"
           ]
         },
         {
           "output": "thickness_parameter",
-          "expr": "2*log(C/b)",
+          "expr": "2*log(C_textbook/b)",
           "units_out": "-",
           "depends_on": [
-            "C",
+            "C_textbook",
             "b"
           ],
           "notes": "The loop thickness parameter Omega = 2*ln(2*pi*a/b) = 2*ln(C/b). This spec previously used 2*ln(2*pi*C/b), which carries an extra factor of 2*pi inside the logarithm and so ran 3.676 high. Everything that depends on the conductor's fatness is a function of this one number."
@@ -1912,6 +1922,24 @@
           "depends_on": [
             "resonant_circumference_m"
           ]
+        },
+        {
+          "output": "C",
+          "expr": "resonant_circumference_m",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_circumference_m"
+          ],
+          "notes": "Mean circumference to build: where the driving-point reactance crosses zero. The primary dimension is the RESONANT one, so a loop built to it presents the impedance reported; the textbook value is kept as C_textbook (1.09 lambda). They used to be the other way round - the geometry nominal, the impedance for a different, resonant loop - and a loop cut to the nominal size presented 162.5 + j130.5 ohm on 1e-4 lambda wire instead."
+        },
+        {
+          "output": "a",
+          "expr": "C/(2*pi)",
+          "units_out": "m",
+          "depends_on": [
+            "C"
+          ],
+          "notes": "Mean radius of the loop built, C/(2 pi)."
         }
       ],
       "analysis": [
@@ -1973,7 +2001,7 @@
           "metric": "loss_resistance_ohm",
           "expr": "(C/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
           "units_out": "ohm",
-          "notes": "Skin-effect conductor loss over the whole circumference. This over-states the loss slightly because the current is not uniform.",
+          "notes": "Skin-effect conductor loss over the whole circumference. This over-states the loss slightly because the current is not uniform. On the conductor built, the resonant length.",
           "depends_on": [
             "C",
             "b",
@@ -2044,8 +2072,8 @@
             "f0": 300000000.0
           },
           "expect": {
-            "C_m": 1.0892459,
-            "a_m": 0.1733593
+            "C_textbook_m": 1.0892459,
+            "a_textbook_m": 0.1733593
           },
           "tol_pct": 0.5,
           "source": "C = 1.09*lambda at 300 MHz (lambda = 0.999308 m); Balanis 4th ed. Sec. 5.4, Figs. 5-19/5-20"
@@ -2055,8 +2083,8 @@
             "f0": 14200000.0
           },
           "expect": {
-            "C_m": 23.012226,
-            "a_m": 3.662607
+            "C_textbook_m": 23.012226,
+            "a_textbook_m": 3.662607
           },
           "tol_pct": 0.5,
           "source": "Same rule at 14.2 MHz (lambda = 21.1121 m)"
@@ -2210,51 +2238,57 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
+        },
+        {
+          "symbol": "P_textbook",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "s_textbook",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "area_textbook_m2",
+          "unit": "m2",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "P",
+          "output": "P_textbook",
           "expr": "1.0218*c/f0",
           "units_out": "m",
-          "notes": "Perimeter from the ARRL rule L(ft) = 1005/f(MHz), i.e. P = 306.324/f_MHz metres = 1.0218*lambda.",
+          "notes": "The ARRL rule, 1005/f(MHz) feet = 1.0218 lambda: kept for comparison.",
           "depends_on": [
             "f0"
           ]
         },
         {
-          "output": "s",
-          "expr": "1.0218*c/(4*f0)",
+          "output": "s_textbook",
+          "expr": "P_textbook/4",
           "units_out": "m",
           "notes": "Side length s = P/4 = 0.25545*lambda.",
           "depends_on": [
-            "f0"
+            "P_textbook"
           ]
         },
         {
-          "output": "d_diag",
-          "expr": "1.0218*c/(4*f0)*np.sqrt(2.0)",
-          "units_out": "m",
-          "notes": "Corner-to-corner diagonal, useful for mechanical layout (spreader length).",
-          "depends_on": [
-            "f0"
-          ]
-        },
-        {
-          "output": "area_m2",
-          "expr": "(1.0218*c/(4*f0))**2",
+          "output": "area_textbook_m2",
+          "expr": "s_textbook**2",
           "units_out": "m^2",
           "notes": "Enclosed area s^2.",
           "depends_on": [
-            "f0"
+            "s_textbook"
           ]
         },
         {
           "output": "thickness_parameter",
-          "expr": "2*log(P/b)",
+          "expr": "2*log(P_textbook/b)",
           "units_out": "-",
           "depends_on": [
-            "P",
+            "P_textbook",
             "b"
           ],
           "notes": "Omega = 2*ln(P/b), the loop thickness parameter written for a square, with P the NOMINAL perimeter so it depends only on the inputs. Everything that varies with conductor fatness is a function of this one number."
@@ -2275,6 +2309,42 @@
           "units_out": "m",
           "depends_on": [
             "resonant_perimeter_m"
+          ]
+        },
+        {
+          "output": "P",
+          "expr": "resonant_perimeter_m",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_perimeter_m"
+          ],
+          "notes": "Total perimeter to build: where the reactance crosses zero in free space. The primary dimension is the RESONANT one, so a loop built to it presents the impedance reported; the textbook value is kept as P_textbook (the ARRL 1.0218 lambda). They used to be the other way round - the geometry nominal, the impedance for a different, resonant loop - and a loop cut to the nominal size presented 107.1 - j108.5 ohm on 1e-4 lambda wire instead."
+        },
+        {
+          "output": "s",
+          "expr": "P/4",
+          "units_out": "m",
+          "depends_on": [
+            "P"
+          ],
+          "notes": "Side of the square built, P/4."
+        },
+        {
+          "output": "area_m2",
+          "expr": "s**2",
+          "units_out": "m2",
+          "depends_on": [
+            "s"
+          ],
+          "notes": "Enclosed area of the loop built."
+        },
+        {
+          "output": "d_diag",
+          "expr": "s*np.sqrt(2.0)",
+          "units_out": "m",
+          "notes": "Corner-to-corner diagonal, useful for mechanical layout (spreader length).",
+          "depends_on": [
+            "s"
           ]
         }
       ],
@@ -2327,7 +2397,7 @@
           "metric": "loss_resistance_ohm",
           "expr": "(4*s/(2*pi*b))*np.sqrt(pi*f0*mu0*mu_r_c/sigma)",
           "units_out": "ohm",
-          "notes": "Skin-effect loss over the full perimeter; conservative because the current is not uniform.",
+          "notes": "Skin-effect loss over the full perimeter; conservative because the current is not uniform. On the conductor built, the resonant length.",
           "depends_on": [
             "s",
             "b",
@@ -2409,8 +2479,8 @@
             "f0": 14200000.0
           },
           "expect": {
-            "P_m": 21.572113,
-            "s_m": 5.393028
+            "P_textbook_m": 21.572113,
+            "s_textbook_m": 5.393028
           },
           "tol_pct": 0.5,
           "source": "ARRL Antenna Book quad rule L(ft) = 1005/f(MHz) at 14.2 MHz: 70.77 ft = 21.572 m perimeter"
@@ -2420,9 +2490,9 @@
             "f0": 300000000.0
           },
           "expect": {
-            "P_m": 1.021093,
-            "s_m": 0.2552733,
-            "area_m2": 0.0651645
+            "P_textbook_m": 1.021093,
+            "s_textbook_m": 0.2552733,
+            "area_textbook_m2": 0.0651645
           },
           "tol_pct": 0.5,
           "source": "Same rule at 300 MHz; P/lambda = 1.0218"
@@ -2590,20 +2660,30 @@
           "role": "material",
           "description": "Relative permeability of the conductor",
           "typical": "1.0"
+        },
+        {
+          "symbol": "Dm_textbook",
+          "unit": "m",
+          "role": "derived"
+        },
+        {
+          "symbol": "circumference_textbook_m",
+          "unit": "m",
+          "role": "derived"
         }
       ],
       "synthesis": [
         {
-          "output": "Dm",
+          "output": "Dm_textbook",
           "expr": "0.5*c/(pi*f0)",
           "units_out": "m",
-          "notes": "Mean ring diameter from a half-wavelength circumference: D = 0.5*lambda/pi = 0.15915*lambda.",
+          "notes": "Mean diameter of a half-wavelength ring, 0.159 lambda: the textbook halo, kept for comparison.",
           "depends_on": [
             "f0"
           ]
         },
         {
-          "output": "circumference_m",
+          "output": "circumference_textbook_m",
           "expr": "0.5*c/f0",
           "units_out": "m",
           "notes": "Mean circumference, one half wavelength.",
@@ -2631,10 +2711,10 @@
         },
         {
           "output": "thickness_parameter",
-          "expr": "2*log(circumference_m/b)",
+          "expr": "2*log(circumference_textbook_m/b)",
           "units_out": "-",
           "depends_on": [
-            "circumference_m",
+            "circumference_textbook_m",
             "b"
           ],
           "notes": "Omega on the NOMINAL 0.5*lambda ring, so it depends only on the inputs and nothing here is circular."
@@ -2667,6 +2747,24 @@
           "depends_on": [
             "resonant_circumference_m"
           ]
+        },
+        {
+          "output": "Dm",
+          "expr": "resonant_mean_diameter_m",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_mean_diameter_m"
+          ],
+          "notes": "Mean diameter to build: the resonant ring, so pi Dm = Lc + g as the conductor and its gap close it. The primary dimension is the RESONANT one, so a loop built to it presents the impedance reported; the textbook value is kept as Dm_textbook (0.159 lambda). They used to be the other way round - the geometry nominal, the impedance for a different, resonant loop - and a loop cut to the nominal size presented a ring 4% larger than Lc + g at 146 MHz instead."
+        },
+        {
+          "output": "circumference_m",
+          "expr": "resonant_circumference_m",
+          "units_out": "m",
+          "depends_on": [
+            "resonant_circumference_m"
+          ],
+          "notes": "Mean circumference of the ring built, Lc + g."
         }
       ],
       "analysis": [
@@ -2804,8 +2902,8 @@
             "f0": 50100000.0
           },
           "expect": {
-            "Dm": 0.9523643,
-            "circumference_m": 2.991941
+            "Dm_textbook": 0.9523643,
+            "circumference_textbook_m": 2.991941
           },
           "tol_pct": 0.1,
           "source": "Nominal ring: half a wavelength of conductor bent round, so the mean circumference is lambda/2 = 2.991941 m at 50.10 MHz and the mean diameter is that over pi. These are the STARTING geometry; resonant_circumference_m is what actually resonates, and it lands within about 8% of this - smaller for a narrow gap, very slightly larger for a wide one on thin wire."
@@ -2815,8 +2913,8 @@
             "f0": 146000000.0
           },
           "expect": {
-            "Dm": 0.3268045,
-            "circumference_m": 1.026687
+            "Dm_textbook": 0.3268045,
+            "circumference_textbook_m": 1.026687
           },
           "tol_pct": 0.1,
           "source": "Nominal ring: half a wavelength of conductor bent round, so the mean circumference is lambda/2 = 1.026687 m at 146.00 MHz and the mean diameter is that over pi. These are the STARTING geometry; resonant_circumference_m is what actually resonates, and it lands within about 8% of this - smaller for a narrow gap, very slightly larger for a wide one on thin wire."
