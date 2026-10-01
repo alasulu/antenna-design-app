@@ -7,7 +7,7 @@ export to CST Studio or Ansys HFSS.
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2; a whole-project
 review with OpenAI's Codex followed (2026-10-01). **72 archetypes, 10 families,
-29,297 lines of Python, 25,857 lines of spec data, 3358 tests, 453 citable known
+31,142 lines of Python, 25,857 lines of spec data, 3379 tests, 453 citable known
 cases holding 1081 expectations, all passing.**
 
 ---
@@ -671,6 +671,26 @@ Spec errors the harness caught include a loop loss resistance out by **30.9×**,
 another by 3.3×, and several of my own arithmetic slips (WR-90 open-ended gain,
 Ruze at 100 GHz, DRA Q scaling, biconical Z_c).
 
+
+### 3-D solid models for all 72, as STL
+
+`otahub/export/mesh.py` builds every archetype as solid bodies on the
+manifold3d mesh kernel (watertight, real booleans) and writes binary STL in
+millimetres, one file per material plus a combined one. The 42 with a CST/HFSS
+builder are converted from that model (sheets given a copper thickness, flat
+discs too, air and cutting tools dropped, the conductor cut out of any
+dielectric it overlaps); `mesh_builders.py` builds the other 30 from each
+design's dimensions: horns (hollow, with a feed guide), the five reflectors and
+two corner reflectors, both lenses, the Yagi, LPDA, helices, V, rhombic and long
+wire, the bowtie, spirals and Vivaldi, the triangular and CP patches, the ferrite
+rod. What a design does not fix is a declared construction option (`mesh.Opt`)
+with a default and a statement of whether the predictions account for it - CLI
+`export --format stl --opt NAME=VALUE`, `--options` to list them; in the app, the
+design page's 3D model tab. Checked in `tests/test_mesh_export.py`: every
+archetype closed and positive in volume, the STL files closed edge for edge and
+in millimetres, key dimensions the design's, options moving what they say.
+STEP would need a CAD kernel (OpenCascade); STL was chosen to keep the install
+small.
 ### A CP patch that would have radiated linear polarisation
 
 `truncated_corner_cp_patch` asserted 3 of the 16 quantities it produced, the

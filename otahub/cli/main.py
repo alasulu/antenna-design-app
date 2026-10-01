@@ -283,6 +283,9 @@ def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
         print(f"synthesis failed: {exc}", file=sys.stderr)
         return 1
 
+    if args.format == "stl" or args.options:
+        return _export_solid(args, a, design)
+
     model = build(design)
     backend = {"cst": cst_backend, "hfss": hfss_backend}[args.format]
     text = backend.render(model)
@@ -297,6 +300,57 @@ def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
     if not model.built_geometry:
         print(f"\nNOTE: no solid geometry was generated for {a.key!r}; the file "
               f"defines parameters only.", file=sys.stderr)
+    return 0
+
+
+def _export_solid(args: argparse.Namespace, a, design) -> int:
+    """STL: the design as solid bodies, one file per material; or, with
+    --options, the construction options the model takes and their values."""
+    from ..export import mesh
+
+    if not mesh.available():
+        print("3-D export needs the manifold3d package: pip install manifold3d", file=sys.stderr)
+        return 1
+    opts = mesh.construction_options(a.key)
+    try:
+        given = _kv(args.opt, {o.name: o.unit for o in opts})
+    except argparse.ArgumentTypeError as exc:
+        print(f"bad --opt: {exc}", file=sys.stderr)
+        return 2
+    unknown = sorted(set(given) - {o.name for o in opts})
+    if unknown:
+        print(f"unknown option(s) {', '.join(unknown)}; {a.key} takes: {', '.join(o.name for o in opts)}",
+              file=sys.stderr)
+        return 2
+    options = mesh.Options(given)
+    if args.options:
+        values = mesh.option_values(design, options)
+        print(f"construction options for {a.key} (set with --opt NAME=VALUE):")
+        for o in opts:
+            val = values[o.name]
+            shown = ("design default" if not math.isfinite(val)
+                     else _fmt(val, "m") if o.unit == "m" else f"{val:.6g}")
+            mark = "*" if o.name in given else " "
+            print(f" {mark} {o.name:18s} {shown:>14s}  {o.label}")
+            print(f"   {'':18s} {'':>14s}  -> {o.effect}")
+        return 0
+    model = mesh.solid(design, options)
+    if not model.built:
+        for n in model.notes:
+            print(f"NOTE: {n}", file=sys.stderr)
+        print(f"no 3-D geometry for {a.key!r} with these requirements", file=sys.stderr)
+        return 1
+    if not args.output:
+        print("STL is binary: give a file with -o, e.g. -o antenna.stl", file=sys.stderr)
+        return 2
+    files = mesh.write_stl(model, args.output)
+    lo, hi = model.bounds()
+    size = " x ".join(f"{(h - l) * 1e3:.4g}" for l, h in zip(lo, hi))
+    for f in files:
+        print(f"wrote {f}  ({f.stat().st_size // 1024} kB)")
+    print(f"{model.title}: {len(model.bodies)} bodies, {size} mm, units millimetres")
+    for n in model.notes:
+        print(f"  - {n}")
     return 0
 
 
@@ -887,9 +941,13 @@ def build_parser() -> argparse.ArgumentParser:
     pd = sub.add_parser("doctor", help="report structural faults in the specs")
     pd.set_defaults(func=cmd_doctor)
 
-    pe = sub.add_parser("export", help="export a design to CST or HFSS")
+    pe = sub.add_parser("export", help="export a design to CST, HFSS or a 3-D STL model")
     pe.add_argument("key")
-    pe.add_argument("--format", choices=["cst", "hfss"], default="cst")
+    pe.add_argument("--format", choices=["cst", "hfss", "stl"], default="cst")
+    pe.add_argument("--opt", action="append", metavar="NAME=VALUE",
+                    help="a construction option for the 3-D model (wall=1mm, copper=35um, substrate_h=0.8mm)")
+    pe.add_argument("--options", action="store_true",
+                    help="list the construction options this antenna's 3-D model takes, with their values")
     pe.add_argument("--f0", type=parse_quantity, help="design frequency")
     pe.add_argument("--set", action="append", metavar="NAME=VALUE")
     pe.add_argument("-o", "--output", help="write to a file instead of stdout")

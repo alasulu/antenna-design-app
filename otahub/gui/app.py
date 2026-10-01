@@ -36,6 +36,7 @@ from ..waveguides.rectangular import WR_SERIES, recommended_band, standard
 from . import drawings
 from .models import (default_for, display_value, format_input, humanize, is_primary, key_figures,
                      matches, parse_quantity, requirement_fields, shown_unit, suggested_value)
+from .model3d import SolidPanel
 from .plots import (Canvas, plot_element_layout, plot_hemisphere_cuts,
                     plot_polar, plot_sweep)
 from .style import (ACCENT, FAINT, INK, LINE, MUTED, STYLE, SURFACE, WARN, WARN_SOFT,
@@ -601,12 +602,14 @@ class CatalogueTab(QWidget):
         sl.addWidget(self.sweep_canvas, 1)
 
         self.pattern_canvas = Canvas(polar=True)
+        self.solid_panel = SolidPanel()
 
         self.results = QTabWidget()
         self.results.addTab(self._wrap(self.geometry_table), "Dimensions")
         self.results.addTab(self._wrap(self.metrics_table), "Performance")
         self.results.addTab(self._wrap(sweep), "Sweep")
         self.results.addTab(self._wrap(self.pattern_canvas), "Pattern")
+        self.results.addTab(self._wrap(self.solid_panel), "3D model")
         self.results.addTab(self._wrap(self.notes), "Notes and validity")
         lay.addWidget(self.results, 6)
         return col
@@ -842,6 +845,7 @@ class CatalogueTab(QWidget):
             tile.hide()
 
         self.drawing.show_design(self.current.key, self.current.family, design_values(design))
+        self.solid_panel.set_design(design)
 
         messages = []
         if bad:

@@ -29,6 +29,7 @@
 - [Verified, not asserted](#verified-not-asserted)
 - [Arrays, waveguides and networks](#arrays-waveguides-and-networks)
 - [Export to CST Studio and Ansys HFSS](#export-to-cst-studio-and-ansys-hfss)
+- [3-D models (STL) and construction options](#3-d-models-stl-and-construction-options)
 - [What it will not do](#what-it-will-not-do)
 - [Project layout](#project-layout)
 - [Deep dives](#deep-dives)
@@ -45,7 +46,10 @@ your requirements (frequency, gain, substrate, impedance…), and it returns:
 - **the predicted performance** — impedance, directivity and gain, beamwidths,
   sidelobes, bandwidth, Q, efficiency — with the model behind each number named;
 - **a simulator model**: a CST Studio VBA macro or an Ansys HFSS script with the
-  design's variables, ports and frequency sweep already set up.
+  design's variables, ports and frequency sweep already set up;
+- **a 3-D solid model** of every one of the 72 antennas, previewed in the app and
+  saved as STL - one file per material - with the construction choices a build
+  needs (wall and copper thickness, wire radius, board margin, substrate) yours to set.
 
 What sets it apart is how hard it works to be **right** rather than plausible.
 Antenna formulas are full of coefficients that look correct and are not, so
@@ -57,15 +61,15 @@ says by how much and why.
 | | |
 |---|---|
 | **72** archetypes in **10** families | **453** cited known cases, **1081** expectations, all passing |
-| **21** in-house numerical solvers | **3358** automated tests |
-| CST and HFSS export for **42** archetypes | a PySide6 desktop GUI that draws every antenna from its own numbers |
+| **21** in-house numerical solvers | **3379** automated tests |
+| CST and HFSS export for **42** archetypes, **3-D STL for all 72** | a PySide6 desktop GUI that draws every antenna from its own numbers, in 2-D and 3-D |
 
 ## Quick start
 
 ```bash
 git clone https://github.com/alasulu/antenna-design-app.git
 cd antenna-design-app
-pip install -e ".[gui,dev]"          # numpy, scipy, matplotlib; PySide6 for the GUI; pytest
+pip install -e ".[gui,dev]"          # numpy, scipy, matplotlib; PySide6 + manifold3d for the GUI and 3-D; pytest
 ```
 
 Then either open the desktop app:
@@ -82,6 +86,8 @@ python OTA_Hub_AntennaToolkit.py synth half_wave_dipole --f0 2.4GHz     # design
 python OTA_Hub_AntennaToolkit.py synth rectangular_patch_inset --f0 2.4GHz --set eps_r=4.4 --set h=1.6mm
 python OTA_Hub_AntennaToolkit.py export rectangular_patch_inset --f0 2.4GHz \
     --set eps_r=4.4 --set h=0.0016 --format cst -o patch.bas            # a CST macro
+python OTA_Hub_AntennaToolkit.py export pyramidal_horn --f0 10GHz --set G_target=20 \
+    --format stl --opt wall=1.5mm -o horn.stl                           # a 3-D model
 python OTA_Hub_AntennaToolkit.py check                                  # every cited case
 ```
 
@@ -117,6 +123,9 @@ python OTA_Hub_AntennaToolkit.py doctor                                # structu
 <tr>
 <td width="50%"><img src="docs/images/design_yagi.png" alt="Yagi-Uda design page"><br><sub><b>Yagi-Uda.</b> The NBS Technical Note 688 designs, re-solved by the method of moments — NBS tabulates dBd, not dBi, and the spec now knows it.</sub></td>
 <td width="50%"><img src="docs/images/planar_array.png" alt="Planar array page"><br><sub><b>Planar array.</b> Rectangular or triangular lattices, tapers, steering, exact directivity and both principal cuts.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/images/design_3d.png" alt="3D model tab"><br><sub><b>3D model.</b> The solid that will be saved as STL - here a Cassegrain's main dish, hyperboloidal subreflector and feed horn - rebuilt as the requirements or the construction options change, with each option saying whether the predicted figures account for it.</sub></td>
 </tr>
 </table>
 
@@ -211,7 +220,7 @@ the spec doctor and every cited case, the quick tests, and the full suite with t
 To run it yourself:
 
 ```bash
-python -m pytest tests/                  # 3358 tests, about 25 minutes
+python -m pytest tests/                  # 3379 tests, about 25 minutes
 python -m pytest -m "not slow"           # the quick loop, about 30 seconds
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
@@ -252,6 +261,47 @@ gap, a notch width, a finite ground plane), it says so in the file header.
 > The exported scripts are checked structurally — geometry, connectivity, port
 > contact, booleans — but have not been run in CST or HFSS for this release.
 
+## 3-D models (STL) and construction options
+
+Every antenna has a solid model - the 42 with CST/HFSS builders and 30 more built
+for this (horns, reflectors, lenses, Yagis, log-periodics, helices, spirals,
+Vivaldis, corner reflectors, triangular and CP patches, the ferrite rod). The
+models are watertight meshes with real booleans (an inset notch is cut, a horn is
+hollow), built on the small [manifold3d](https://github.com/elalish/manifold)
+kernel, and written as binary STL in millimetres: one combined file for viewing
+and one per material for a solver - conductor, each dielectric, ferrite - with
+the conductor taking precedence where they would overlap.
+
+A design fixes the electrical dimensions; a build also needs things it does not
+fix. Those are **construction options**, each with a default and a plain
+statement of whether the predicted performance accounts for it:
+
+```text
+$ python OTA_Hub_AntennaToolkit.py export pyramidal_horn --f0 10GHz --set G_target=20 --options
+construction options for pyramidal_horn (set with --opt NAME=VALUE):
+   wall                     999.3 um  wall thickness
+                                      -> geometry only: the predicted performance does not depend on it
+   guide_length             29.98 mm  feed waveguide length
+                                      -> geometry only: the predictions take the aperture field as the horn's; a short guide lets evanescent modes reach the port in a solver
+   copper                      35 um  conductor sheet thickness
+                                      -> geometry only: the predictions treat printed conductors as infinitely thin
+   margin             design default  board / ground margin beyond the antenna
+                                      -> geometry only: the predictions assume an infinite board and ground where the spec does; blank keeps each design's own default
+```
+
+Printed antennas take copper thickness and board margin; those without a
+substrate in their spec (bowtie, spirals, Vivaldi) also take substrate
+thickness, Dk and loss tangent. For the patches, substrate thickness and
+permittivity are design inputs (`--set h=... --set eps_r=...`) because they set
+the dimensions. In the app, each antenna's **3D model** tab shows the solid as it
+will be saved, rebuilt as you change the requirements or the options, beside the
+predicted performance - so you see what you will build, and what the numbers do
+and do not assume, before exporting.
+
+STEP is not offered: writing B-rep needs a CAD kernel (OpenCascade, hundreds of
+megabytes). STL carries the same geometry as facets and imports into CST, HFSS,
+FreeCAD, Fusion 360, SolidWorks and any slicer or viewer.
+
 ## What it will not do
 
 Honesty about limits is part of the design. The toolkit:
@@ -275,14 +325,14 @@ not, the open discrepancies, and the future work.
 | [`otahub/arrays/`](otahub/arrays/) | Linear and planar arrays, element patterns, layouts, subarrays |
 | [`otahub/waveguides/`](otahub/waveguides/) | Guides and transmission lines |
 | [`otahub/utils/`](otahub/utils/) | Networks, matching, Touchstone |
-| [`otahub/export/`](otahub/export/) | CST and HFSS script generation |
+| [`otahub/export/`](otahub/export/) | CST and HFSS script generation; 3-D solid models and STL (`mesh.py`, `mesh_builders.py`) |
 | [`otahub/cli/`](otahub/cli/), [`otahub/gui/`](otahub/gui/) | Command line and PySide6 desktop interface |
 | [`specs/`](specs/) | The 72 archetypes — format in [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
-| [`tests/`](tests/) | 3358 tests, plus the recorded solver runs they check against in `tests/data/` |
+| [`tests/`](tests/) | 3379 tests, plus the recorded solver runs they check against in `tests/data/` |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | Verification record, limits and future work |
 | [`BUILD_STATE.md`](BUILD_STATE.md) | The build log, round by round |
 
-About 29,200 lines of Python (13,000 of them tests) and 25,800 lines of spec data.
+About 31,100 lines of Python (13,300 of them tests) and 25,800 lines of spec data.
 
 ## Deep dives
 
