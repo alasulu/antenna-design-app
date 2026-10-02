@@ -506,8 +506,9 @@ cannot carry, as below.
 Two of those are new in session 5 and both are honest about why:
 `stacked_patch` now has its full-wave solver (§3): its geometry, directivity and
 the best band a stack reaches on its board are solved, but not the given design's
-own band, which `otahub stack` solves per design - a rule over four boards
-(indicative) is what the spec can carry. `conical_horn_dual_mode` is most of the
+own band, which `otahub stack` solves per design - a rule over twenty boards, with
+the gap and parasitic that reach it (indicative, §6 item 9), is what the spec can
+carry. `conical_horn_dual_mode` is most of the
 way out: its aperture is derived for a given TM11 share (0.62 was 0.506, the gain
 "advantage" a loss), and its step is SOLVED by mode matching and checked by FDTD.
 It was then taken end to end (the last round before v1.0), and that keeps it low: the
@@ -943,12 +944,20 @@ a modest extension of them.
    it. Until then the stacked patch's bands assume a tuned series element (§3).
 8. **A dielectric gap in the stacked patch.** The solver takes any eps_r2; the
    survey and the spec's solved metrics cover an air gap only.
-9. **The stacked patch's best gap and parasitic as fitted rules.** They moved
-   between the four boards surveyed (0.07-0.09 wavelengths, 0.35-0.37 long), so
-   the spec carries the best band (8.4 times the single patch) but not the
-   design that reaches it; a survey over permittivity and thickness wide enough
-   to fit them would let it synthesise the best stack. Compute only
-   (`otahub.num.stacked`).
+9. ~~**The stacked patch's best gap and parasitic as fitted rules.**~~ **Done.**
+   A survey of twenty driven boards (eps_r 2.2-10.2, h sqrt(eps_r)/lambda
+   0.0185-0.0385, four held out; `tests/data/stacked_patch_rules.json`) with the
+   two-layer MoM found the best stack one narrow family - a 0.0675-0.085
+   wavelength air gap under a parasitic 0.36-0.375 wavelengths long - sitting at
+   a cliff: 0.005 wavelengths less gap leaves under a third of the band on 18 of
+   the 20 boards, 0.005 more keeps 83-97%. `stacked_patch` now synthesises the
+   fitted best moved back from the cliff (0.005 more gap, 0.005 shorter
+   parasitic), which keeps 91-99% of the best band on every board, and its best
+   band is a fit over the survey (2.5% held out) instead of 8.4 times the single
+   patch: the multiple runs 8.2-21, growing with permittivity, and the 8.4 left
+   a held-out board 26% short. `otahub stack` searches the survey's feeds (0.9
+   of the half length was missing). Still open: a dielectric gap (item 8), and
+   directivity beyond eps_r 4.4.
 10. **The surface-wave share of the circular and triangular patches' Q.** The
     FDTD's total Q is 0.54-0.90 of the cavity radiation Q; separating what goes
     into surface waves needs a far-field transform whose box may cross the

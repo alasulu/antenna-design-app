@@ -71,6 +71,28 @@ def test_the_command_on_a_narrow_sweep(capsys):
     assert 7.0 < 10 * math.log10(out["directivity"]) < 11.0
 
 
+@pytest.mark.slow
+def test_a_window_narrower_than_a_node_step_still_solves(capsys):
+    """A 2% window held one spline node (every 0.025 f0 from the low end), which no
+    spline takes; the nodes now run end to end, four at least."""
+    from otahub.cli.main import main
+    rc = main(["stack", "--f0", "2.4GHz", "--h", "1.6mm", "--gap", "0.09", "--ratio", "1.1",
+               "--lo", "0.99", "--hi", "1.01", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert 0.0 < out["best"]["bandwidth"][1] <= 0.02 + 1e-9
+
+
+def test_the_command_searches_the_surveys_feeds():
+    """The feed set the survey found its bests on - 0.9 of the half length is the best
+    on several boards and was missing from the command's (5% of the band on eps_r 10.2)."""
+    import inspect
+    from otahub.num import stacked
+    rules = json.loads((Path(__file__).parent / "data" / "stacked_patch_rules.json").read_text())
+    default = inspect.signature(stacked.design).parameters["xp_fractions"].default
+    assert list(default) == rules["settings"]["feeds"]
+    assert any(b["best"]["feed"] == 0.9 for b in rules["boards"])
+
 SURVEY = json.loads((Path(__file__).parent / "data" / "stacked_patch_design.json").read_text())
 LAM = 2.99792458e8 / 2.4e9
 
@@ -89,28 +111,35 @@ def test_the_spec_directivity_is_the_surveys(registry):
             assert d.metrics["directivity_dbi"] == pytest.approx(design["directivity_dbi"], abs=0.1), (board["name"], design)
 
 
-def test_the_best_band_is_about_eight_times_the_driven_patchs(registry):
-    ratios = []
+def test_the_first_surveys_bests_sit_at_or_below_the_new_law(registry):
+    """This survey searched four boards coarsely and set the best band at 8.4 times the
+    single patch. The 20-board survey (tests/data/stacked_patch_rules.json), with the gap
+    in 0.0025-wavelength steps, found the best sits at a cliff these steps straddled: its
+    law puts each of these boards 1-18% higher, never lower."""
     for board in SURVEY["boards"]:
         best = max(d["band"] for d in board["designs"])
         d = _synth(registry, board, board["designs"][0])
-        ratios.append(best / d.metrics["single_patch_bandwidth_vswr2"])
-        assert d.metrics["best_stack_bandwidth_vswr2"] == pytest.approx(best, rel=0.08), board["name"]
-    assert 7.5 < min(ratios) and max(ratios) < 9.2
-    fit = [r for r, b in zip(ratios, SURVEY["boards"]) if b["role"] == "fit"]
-    held = next(r for r, b in zip(ratios, SURVEY["boards"]) if b["role"] == "held out")
-    assert sum(fit) / len(fit) == pytest.approx(held, rel=0.08)          # the rule without it predicts it
+        law = d.metrics["best_stack_bandwidth_vswr2"]
+        assert 0.80 * law < best < 1.03 * law, board["name"]
+        assert 7.5 < law / d.metrics["single_patch_bandwidth_vswr2"] < 22
 
 
-def test_the_default_is_the_default_boards_best_and_the_old_one_was_not(registry):
+def test_the_default_is_the_new_rule_and_the_old_ones_were_not(registry):
+    """The spec now builds the 20-board rule's design - the best gap and parasitic moved
+    0.005 wavelengths from the cliff - not this survey's 0.09 and 1.1, nor the 0.03-gap
+    stack of old, which was a stack in name only."""
+    import json
+    rules = json.loads((Path(__file__).parent / "data" / "stacked_patch_rules.json").read_text())["rules"]
+    g, l = rules["best_gap"]["coef"], rules["best_l2"]["coef"]
     board = next(b for b in SURVEY["boards"] if b["name"] == "default")
-    best = max(board["designs"], key=lambda d: d["band"])
     spec = registry["stacked_patch"].synthesize(f0=2.4e9, eps_r=2.2, h=0.0016)
-    assert best["gap"] == pytest.approx(spec.get("h2") / LAM, rel=1e-6)
-    assert best["L2"] / best["L"] == pytest.approx(spec.get("size_ratio"), rel=1e-6)
+    t, u = 0.0016 * 2.4e9 * math.sqrt(2.2) / 2.99792458e8, 1 / 2.2
+    assert spec.get("h2") / LAM == pytest.approx(g[0] + g[1] * t + g[2] * u + g[3] * u * u + 0.005, rel=1e-6)
+    assert spec.get("L2") / LAM == pytest.approx(l[0] + l[1] * u + l[2] * u * u - 0.005, rel=1e-6)
     old = next(d for d in board["designs"] if abs(d["gap"] - 0.03) < 1e-9)
-    assert old["band"] < 1.1 * spec.metrics["single_patch_bandwidth_vswr2"]   # a stack in name only
-    assert best["band"] > 7 * old["band"]
+    assert old["band"] < 1.1 * spec.metrics["single_patch_bandwidth_vswr2"]       # a stack in name only
+    first_best = max(board["designs"], key=lambda d: d["band"])
+    assert first_best["band"] < 0.85 * spec.metrics["best_stack_bandwidth_vswr2"]  # the coarse search fell short
 
 
 def test_the_stored_survey_reproduces():

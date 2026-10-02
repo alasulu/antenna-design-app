@@ -125,7 +125,16 @@ def test_the_best_sits_at_a_cliff():
 
 
 def test_the_rule_keeps_the_band_on_every_board():
-    kept = {b["name"]: b["rule"]["band"] / b["best"]["band"] for b in BOARDS}
+    """Both bands read off the solved tables - the best as the largest entry of every
+    curve, the rule's as its own curve at its gap - and the summaries checked against
+    them, so an edited summary cannot pass for retention."""
+    kept = {}
+    for b in BOARDS:
+        best = max(max(curve) for curve in b["curves"].values())
+        rule = _band_at(b["rule"]["gaps"], b["rule"]["bands"], b["rule"]["gap"])
+        assert b["best"]["band"] == pytest.approx(best, abs=1e-9)
+        assert b["rule"]["band"] == pytest.approx(rule, abs=1e-9)
+        kept[b["name"]] = rule / best
     for b in BOARDS:
         t, u = b["t"], 1 / b["eps_r"]
         assert b["rule"]["gap"] == pytest.approx(gap_of(RULE_GAP, t, u), abs=1e-4)

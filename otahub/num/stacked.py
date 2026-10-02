@@ -76,13 +76,18 @@ def vswr_band(rf, z, x_nonres: float = 20.0, z0: float = 50.0, vswr: float = 2.0
 
 
 def design(eps_r: float, h: float, L: float, W: float, eps_r2: float, h2: float, L2: float, W2: float,
-           f0: float, a: float, xp_fractions=(0.45, 0.6, 0.72, 0.84, 0.95), r_lo: float = 0.8,
+           f0: float, a: float, xp_fractions=(0.45, 0.6, 0.72, 0.84, 0.9, 0.95), r_lo: float = 0.8,
            r_hi: float = 1.25, x_nonres=(10.0, 20.0, 35.0), progress=None) -> dict:
     """Solve a stack: the widest VSWR-2 band over the probe positions (fractions of the
     driven patch's half length), for each assumed non-resonant reactance, and the
-    broadside directivity of the probe-driven currents at the best band's centre."""
+    broadside directivity of the probe-driven currents at the best band's centre. The
+    probe set is the 20-board survey's (tests/data/stacked_patch_rules.json), 0.9
+    included - the best feed on several boards; bands are read every 0.0025 f0, where
+    the survey read them every 0.0005."""
     p = sdm.StackedPatch(eps_r, h, L, W, eps_r2, h2, L2, W2, **sdm.BASIS_FULL)
-    rs = np.arange(r_lo, r_hi + 1e-9, 0.025)
+    # spline nodes every 0.025 f0, both ends included and at least four of them: a
+    # window narrower than one step used to leave a single node, which no spline takes
+    rs = np.linspace(r_lo, r_hi, max(4, int(round((r_hi - r_lo) / 0.025)) + 1))
     rf = np.arange(r_lo, r_hi + 1e-9, 0.0025)
     xps = np.asarray(xp_fractions) * L / 2
     zi = impedance_sweep(p, f0, rs, xps, a, rf, progress)
