@@ -97,10 +97,15 @@ def test_the_h_plane_horn_keeps_the_aperture_power_form():
 
 def test_the_flange_transform_reproduces_the_te10_aperture_integral(registry):
     """Fed an ideal TE10 field, the aperture-plane transform (M = -z x E imaged through
-    the flange) must give what the spec integrates independently, whatever the box."""
+    the flange) must give the TE10 aperture's own directivity, integrated independently
+    (test_open_ended_waveguide's quadrature), whatever the box - and the spec is that
+    plus the flanged guide's excess from its FDTD survey, 0.22 dB here."""
+    from tests.test_open_ended_waveguide import _direct, _flange_excess_db
     a, b, N = 0.75, 0.35, 40
     xa, yb = int(round(a / 2 * N)), int(round(b / 2 * N))
+    te10 = 10 * math.log10(_direct(a, b))
     spec = registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=a * LAM, b_wg=b * LAM)
+    assert spec.metrics["directivity_dbi"] - te10 == pytest.approx(_flange_excess_db(a, b), abs=0.01)
     for m in (4, 10):
         box = hf.BoxTransform(xa + m, yb + m, 5, 1.0 / N, 0.5, k_plane=0)
         X, Y = np.meshgrid(np.arange(box.i0) + 0.5, np.arange(box.j0) + 0.5, indexing="ij")
@@ -108,7 +113,7 @@ def test_the_flange_transform_reproduces_the_te10_aperture_integral(registry):
         zero = np.zeros_like(ey)
         box.acc = {"zlo_Ex": zero, "zlo_Ey": ey, "zlo_Hx": zero, "zlo_Hy": zero}
         got = 10 * math.log10(box.directivity(n_theta=80, n_phi=96))
-        assert got == pytest.approx(spec.metrics["directivity_dbi"], abs=0.005), m
+        assert got == pytest.approx(te10, abs=0.005), m
 
 
 def test_the_old_flanged_guide_runs_converge_on_the_spec(registry):
