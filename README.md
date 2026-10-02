@@ -60,8 +60,8 @@ says by how much and why.
 
 | | |
 |---|---|
-| **72** archetypes in **10** families | **453** cited known cases, **1081** expectations, all passing |
-| **21** in-house numerical solvers | **3385** automated tests |
+| **72** archetypes in **10** families | **455** cited known cases, **1091** expectations, all passing |
+| **21** in-house numerical solvers | **3455** automated tests |
 | CST and HFSS export for **42** archetypes, **3-D STL for all 72** | a PySide6 desktop GUI that draws every antenna from its own numbers, in 2-D and 3-D |
 
 ## Quick start
@@ -220,7 +220,7 @@ the spec doctor and every cited case, the quick tests, and the full suite with t
 To run it yourself:
 
 ```bash
-python -m pytest tests/                  # 3385 tests, about 25 minutes
+python -m pytest tests/                  # 3455 tests, about 25 minutes
 python -m pytest -m "not slow"           # the quick loop, about 30 seconds
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
@@ -331,11 +331,11 @@ not, the open discrepancies, and the future work.
 | [`otahub/export/`](otahub/export/) | CST and HFSS script generation; 3-D solid models and STL (`mesh.py`, `mesh_builders.py`) |
 | [`otahub/cli/`](otahub/cli/), [`otahub/gui/`](otahub/gui/) | Command line and PySide6 desktop interface |
 | [`specs/`](specs/) | The 72 archetypes — format in [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
-| [`tests/`](tests/) | 3385 tests, plus the recorded solver runs they check against in `tests/data/` |
+| [`tests/`](tests/) | 3455 tests, plus the recorded solver runs they check against in `tests/data/` |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | Verification record, limits and future work |
 | [`BUILD_STATE.md`](BUILD_STATE.md) | The build log, round by round |
 
-About 31,100 lines of Python (13,300 of them tests) and 25,800 lines of spec data.
+About 32,500 lines of Python (14,200 of them tests) and 25,900 lines of spec data.
 
 ## Deep dives
 
