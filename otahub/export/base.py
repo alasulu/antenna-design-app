@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from ..core.archetype import DesignResult
+from .symbolic import constant, cos as _cos, maximum as _max, minimum as _min, sin as _sin
+from .symbolic import sqrt as _sqrt, variable
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,10 +152,29 @@ def _param(design: DesignResult, *names: str, default: float | None = None) -> f
     for name in names:
         value = design.get(name)
         if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return float(value)
+            return _declared(design, name, float(value))
     if default is not None:
         return default
     raise KeyError(f"design {design.archetype!r} has none of {names}")
+
+
+#: values in the design that the scripts do not declare as variables
+_UNDECLARED = ("k0", "lambda0")
+
+#: the speed of light, a length per time: lambda = _C0 / f stays a length
+_C0 = constant(2.99792458e8, (1, -1))
+
+
+def _declared(design: DesignResult, name: str, value: float) -> float:
+    """`value` as the variable `name` - so the scripts write what is built from it
+    as an expression in that variable - when the exported model declares `name`
+    with exactly this value; the bare number otherwise (a metric, say, which is
+    not exported, or a requirement a derived parameter of the same name shadows)."""
+    exported = {**design.requirements, **design.parameters}.get(name)
+    if (name in _UNDECLARED or isinstance(exported, bool) or not isinstance(exported, (int, float))
+            or float(exported) != value or not math.isfinite(value)):
+        return value
+    return variable(name, value, design.units.get(name, "Hz" if name == "f0" else ""))
 
 
 def _base_model(design: DesignResult, title: str) -> Model:
@@ -235,7 +256,7 @@ def _dipole(design: DesignResult) -> Model:
     model = _base_model(design, "Centre-fed dipole")
     total = _param(design, "L")
     radius = _param(design, "aw", default=total / 2000.0)
-    gap = max(total / 200.0, radius * 2.0)
+    gap = _max(total / 200.0, radius * 2.0)
     half = total / 2.0
     model.solids += [
         Cylinder("arm_upper", "PEC", "z", radius, (gap / 2.0, half)),
@@ -256,7 +277,7 @@ def _monopole(design: DesignResult) -> Model:
     model = _base_model(design, "Quarter-wave monopole over a ground plane")
     height = _param(design, "h")
     radius = _param(design, "aw", default=height / 1000.0)
-    gap = max(height / 100.0, radius * 2.0)
+    gap = _max(height / 100.0, radius * 2.0)
     ground = 4.0 * height
     model.solids += [
         Cylinder("monopole", "PEC", "z", radius, (gap, height + gap)),
@@ -282,7 +303,7 @@ def _patch(design: DesignResult) -> Model:
     length = _param(design, "L")
     h = _param(design, "h")
     eps_r = _param(design, "eps_r", default=4.4)
-    margin = max(w, length) * 0.6
+    margin = _max(w, length) * 0.6
     sub_w, sub_l = w + 2 * margin, length + 2 * margin
     model.solids += [
         Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
@@ -291,21 +312,21 @@ def _patch(design: DesignResult) -> Model:
               (0.0, 0.0)),
         Brick("patch", "PEC", (-w / 2, w / 2), (-length / 2, length / 2), (h, h)),
     ]
-    y0 = design.get("y0")
-    if isinstance(y0, (int, float)) and y0 > 0:
+    y0 = _param(design, "y0", default=0.0)
+    if y0 > 0:
         feed_w = h * 2.0
         model.solids.append(
             Brick("inset_notch", "VOID", (-feed_w * 1.5, feed_w * 1.5),
-                  (-length / 2, -length / 2 + float(y0)), (h, h)))
+                  (-length / 2, -length / 2 + y0), (h, h)))
         model.operations.append(Subtract("patch", ("inset_notch",)))     # it was never cut
         model.notes.append(
-            f"Inset notch cut {float(y0) * 1e3:.4g} mm deep. Notch WIDTH is not "
+            f"Inset notch cut {y0 * 1e3:.4g} mm deep. Notch WIDTH is not "
             "given by the transmission-line model and is set here to twice the "
             "substrate thickness; it affects the achieved impedance and should "
             "be tuned in the solver.")
     model.ports.append(DiscretePort(
-        "port1", (0.0, -length / 2 + float(y0 or 0.0), 0.0),
-        (0.0, -length / 2 + float(y0 or 0.0), h)))
+        "port1", (0.0, -length / 2 + y0, 0.0),
+        (0.0, -length / 2 + y0, h)))
     model.notes += [
         f"Substrate extended {margin * 1e3:.4g} mm beyond the patch on each side; "
         "the model assumes an infinite substrate and ground, so a finite board "
@@ -348,9 +369,9 @@ def _oewg(design: DesignResult) -> Model:
     a = _param(design, "a_wg")
     b = _param(design, "b_wg")
     length = 2.0 * a
-    t = min(a, b) / 20.0
-    lam = 2.99792458e8 / model.frequency_hz
-    flange = max(3.0 * lam, 2.0 * a)
+    t = _min(a, b) / 20.0
+    lam = _C0 / _declared(design, "f0", model.frequency_hz)
+    flange = _max(3.0 * lam, 2.0 * a)
     model.solids += [Brick("guide_interior", "VACUUM", (-a / 2, a / 2), (-b / 2, b / 2), (0.0, length))]
     model.solids += _guide_walls(a, b, t, (0.0, length))
     model.solids += [
@@ -374,7 +395,7 @@ def _folded_dipole(design: DesignResult) -> Model:
     total = _param(design, "L")
     sep = _param(design, "d_sep", default=total / 50.0)
     radius = _param(design, "aw", default=total / 2000.0)
-    gap = max(total / 200.0, radius * 2.0)
+    gap = _max(total / 200.0, radius * 2.0)
     half = total / 2.0
     n = max(2, int(round(_param(design, "N", default=2.0))))
     ys = [(i - (n - 1) / 2.0) * sep for i in range(n)]      # n conductors, sep apart
@@ -411,9 +432,9 @@ def _dipole_over_ground(design: DesignResult) -> Model:
     total = _param(design, "L")
     height = _param(design, "h")
     radius = _param(design, "aw", default=total / 2000.0)
-    gap = max(total / 200.0, radius * 2.0)
+    gap = _max(total / 200.0, radius * 2.0)
     half = total / 2.0
-    ground = max(4.0 * total, 4.0 * height)
+    ground = _max(4.0 * total, 4.0 * height)
     model.solids += [
         Cylinder("arm_plus", "PEC", "x", radius, (gap / 2.0, half), (0.0, height)),
         Cylinder("arm_minus", "PEC", "x", radius, (-half, -gap / 2.0), (0.0, height)),
@@ -437,7 +458,7 @@ def _turnstile(design: DesignResult) -> Model:
     model = _base_model(design, "Turnstile: crossed dipoles in quadrature")
     total = _param(design, "L")
     radius = _param(design, "aw", default=total / 2000.0)
-    gap = max(total / 200.0, radius * 2.0)
+    gap = _max(total / 200.0, radius * 2.0)
     half = total / 2.0
     offset = radius * 4.0
     model.solids += [
@@ -470,7 +491,7 @@ def _shorted_patch(design: DesignResult) -> Model:
     length = _param(design, "L")
     h = _param(design, "h")
     eps_r = _param(design, "eps_r", default=4.4)
-    margin = max(w, length) * 0.6
+    margin = _max(w, length) * 0.6
     sub_w, sub_l = w + 2 * margin, length + 2 * margin
     model.solids += [
         Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
@@ -497,7 +518,7 @@ def _probe_gap(probe_r: float, height: float) -> float:
     """The feed gap between the ground and a probe's foot: the probe used to stand
     on the unbroken ground (a short) with its port hanging below the plane in
     empty space. The port now bridges this gap, as a coaxial feed's does."""
-    return max(probe_r, height * 0.03)
+    return _max(probe_r, height * 0.03)
 
 
 @builder("rectangular_dra")
@@ -507,8 +528,8 @@ def _rect_dra(design: DesignResult) -> Model:
     length = _param(design, "Lr")
     d = _param(design, "d")
     eps_r = _param(design, "eps_r", default=10.0)
-    ground = max(w, length) * 4.0
-    probe_r = min(w, length) / 40.0
+    ground = _max(w, length) * 4.0
+    probe_r = _min(w, length) / 40.0
     model.solids += [
         Brick("ground", "PEC", (-ground / 2, ground / 2), (-ground / 2, ground / 2),
               (0.0, 0.0)),
@@ -599,7 +620,7 @@ def _conical_monopole(design: DesignResult) -> Model:
     base_d = _param(design, "base_diameter")
     top_d = _param(design, "cone_top_diameter", default=0.0)
     gap = _param(design, "feed_gap", default=height / 50.0)
-    ground = max(base_d * 3.0, height * 3.0)
+    ground = _max(base_d * 3.0, height * 3.0)
     model.solids += [
         Cylinder("ground", "PEC", "z", ground / 2.0, (0.0, 0.0)),
         Cone("cone", "PEC", "z", top_d / 2.0, base_d / 2.0, (gap, gap + height)),
@@ -626,9 +647,9 @@ def _biconical(design: DesignResult) -> Model:
     # builder used to halve it again - the spec's own old full-angle bug,
     # outliving its fix - and drew cones half as wide as the design.
     half_angle = _param(design, "theta_h", default=0.5236)
-    base_r = slant * math.sin(half_angle)
+    base_r = slant * _sin(half_angle)
     top_r = _param(design, "cone_top_diameter", default=0.0) / 2.0
-    height = (slant - top_r / math.sin(half_angle)) * math.cos(half_angle)
+    height = (slant - top_r / _sin(half_angle)) * _cos(half_angle)
     gap = _param(design, "feed_gap", default=height / 50.0)
     model.solids += [
         Cone("cone_upper", "PEC", "z", top_r, base_r, (gap / 2.0, gap / 2.0 + height)),
@@ -685,7 +706,7 @@ def _circular_loop(design: DesignResult) -> Model:
     model = _base_model(design, "Circular loop")
     radius = _param(design, "a")
     wire = _param(design, "b", "aw", default=radius / 100.0)
-    gap = max(radius / 50.0, wire * 3.0)
+    gap = _max(radius / 50.0, wire * 3.0)
     model.solids += [
         Torus("loop", "PEC", "z", radius, wire),
         Brick("feed_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
@@ -716,7 +737,7 @@ def _square_loop(design: DesignResult) -> Model:
     model = _base_model(design, "Square loop")
     side = _param(design, "s")
     wire = _param(design, "b", "aw", default=side / 200.0)
-    gap = max(side / 100.0, wire * 3.0)
+    gap = _max(side / 100.0, wire * 3.0)
     h = side / 2.0
     model.solids += [
         Cylinder("side_top", "PEC", "x", wire, (-h, h), (h, 0.0)),
@@ -751,7 +772,7 @@ def _halo_loop(design: DesignResult) -> Model:
     gap = _param(design, "g")
     radius = diameter / 2.0
     wire = _param(design, "b", "aw", default=radius / 60.0)
-    feed_gap = max(2.0 * wire, gap / 4.0)
+    feed_gap = _max(2.0 * wire, gap / 4.0)
     model.solids += [
         Torus("halo", "PEC", "z", radius, wire),
         Brick("tip_gap_cut", "VOID", (radius - 2 * wire, radius + 2 * wire),
@@ -854,7 +875,7 @@ def _cavity_backed_slot(design: DesignResult) -> Model:
     plate = 3.0 * length
     thick = plate / 2000.0
     cav_l = _param(design, "cavity_width", default=length * 1.25)
-    cav_w = max(width * 6.0, length * 0.3)
+    cav_w = _max(width * 6.0, length * 0.3)
     wall = thick
     zspan = (-depth - thick, -thick)
     model.solids += [
@@ -893,8 +914,8 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
     b = _param(design, "b_wg")
     slot_l = _param(design, "slot_length")
     slot_w = slot_l / 16.0
-    wall = min(a, b) / 20.0
-    run = max((count - 1) * spacing + 4 * slot_l, 4 * slot_l)
+    wall = _min(a, b) / 20.0
+    run = _max((count - 1) * spacing + 4 * slot_l, 4 * slot_l)
     centre = run / 2.0
     if shorted:
         run = centre + (count - 1) / 2.0 * spacing + spacing / 2.0
@@ -1029,8 +1050,8 @@ def _planar_monopole_rect(design: DesignResult) -> Model:
     height = _param(design, "Lp")
     width = _param(design, "Wp")
     gap = _param(design, "p_gap")
-    thick = max(width, height) / 500.0
-    ground = 4.0 * max(width, height)
+    thick = _max(width, height) / 500.0
+    ground = 4.0 * _max(width, height)
     model.solids += [
         Brick("ground_plane", "PEC", (-ground / 2, ground / 2),
               (-ground / 2, ground / 2), (-thick, 0.0)),
@@ -1114,7 +1135,7 @@ def _pifa(design: DesignResult) -> Model:
     width = _param(design, "W")
     height = _param(design, "h")
     short_w = _param(design, "Ws", default=width)
-    ground = max(4.0 * length, 4.0 * width)
+    ground = _max(4.0 * length, 4.0 * width)
     thick = height / 20.0
     model.solids += [
         Brick("ground_plane", "PEC", (-ground / 2, ground / 2),
@@ -1155,8 +1176,8 @@ def _stacked_patch(design: DesignResult) -> Model:
     h2 = _param(design, "h2")
     eps_r = _param(design, "eps_r", default=2.2)
     eps_r2 = _param(design, "eps_r2", default=1.0)
-    margin = max(w, length) * 0.6
-    sub_w, sub_l = max(w, w2) + 2 * margin, max(length, l2) + 2 * margin
+    margin = _max(w, length) * 0.6
+    sub_w, sub_l = _max(w, w2) + 2 * margin, _max(length, l2) + 2 * margin
     model.solids += [
         Brick("substrate", _dielectric(eps_r, design), (-sub_w / 2, sub_w / 2),
               (-sub_l / 2, sub_l / 2), (0.0, h)),
@@ -1198,11 +1219,13 @@ def _zone_plate(design: DesignResult) -> Model:
     contributions are the ones that would have arrived out of phase.
     """
     model = _base_model(design, "Fresnel zone plate")
-    f0 = float(design.requirements.get("f0", 1e9))
+    f0 = _declared(design, "f0", float(design.requirements.get("f0", 1e9)))
     focal = _param(design, "F")
     zones = int(round(_param(design, "M", default=4.0)))
-    lam = 2.99792458e8 / f0
-    radii = [math.sqrt(m * lam * focal + (m * lam / 2.0) ** 2)
+    lam = _C0 / f0
+    # sqrt(m lambda F + (m lambda/2)^2), with lambda taken outside the root so that
+    # what is under it is a pure number - as HFSS, which checks units, wants it
+    radii = [lam * _sqrt(m * focal / lam + (m / 2.0) ** 2)
              for m in range(0, zones + 1)]
     thick = radii[-1] / 200.0
     rings = 0
@@ -1283,8 +1306,8 @@ def _top_loaded(design: DesignResult) -> Model:
     hat_r = _param(design, "a_hat")
     wire = _param(design, "aw", default=height / 500.0)
     radials = max(2, int(round(_param(design, "hat_radials", default=8.0))))
-    gap = max(height / 200.0, wire * 3.0)
-    ground = max(6.0 * hat_r, 3.0 * height)
+    gap = _max(height / 200.0, wire * 3.0)
+    ground = _max(6.0 * hat_r, 3.0 * height)
     top = gap + height
     model.solids += [
         Cylinder("ground_plane", "PEC", "z", ground / 2.0, (-ground / 400.0, 0.0)),
@@ -1315,7 +1338,7 @@ def _loaded_monopole(design: DesignResult) -> Model:
     model = _base_model(design, "Inductively loaded monopole")
     height = _param(design, "h")
     wire = _param(design, "aw", default=height / 500.0)
-    gap = max(height / 200.0, wire * 3.0)
+    gap = _max(height / 200.0, wire * 3.0)
     coil_gap = height / 20.0
     ground = 3.0 * height
     model.solids += [
@@ -1354,7 +1377,7 @@ def _multiturn_loop(design: DesignResult) -> Model:
     turns = int(round(_param(design, "N", default=10.0)))
     wire = _param(design, "b", "aw", default=radius / 200.0)
     pitch = 3.0 * wire
-    gap = max(radius / 50.0, wire * 3.0)
+    gap = _max(radius / 50.0, wire * 3.0)
     for i in range(turns):
         z = (i - (turns - 1) / 2.0) * pitch
         model.solids.append(

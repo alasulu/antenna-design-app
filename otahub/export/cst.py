@@ -1,8 +1,9 @@
 """CST Studio Suite VBA macro generation.
 
 Emits a .bas macro that builds the model when run from CST's macro editor.
-Dimensions become named CST parameters so the geometry stays drivable from
-the parameter list rather than being frozen numbers.
+Dimensions become named CST parameters, and the solids are written as
+expressions in them wherever the builder derived them from design values, so
+editing a parameter (or letting CST's optimiser edit it) moves the geometry.
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import math
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
                    Subtract, Torus, Unite, dielectric_name, parse_dielectric)
+from .symbolic import Dialect, expression, number
 
 _MM = 1e3          # the macro works in millimetres
 
@@ -18,8 +20,33 @@ def _p(name: str) -> str:
     return f"{name}_mm"
 
 
+def _label(name: str, kind: str) -> str:
+    """The macro's parameter name for a design value of this kind."""
+    return _p(name) if kind == "length" else (f"{name}_GHz" if kind == "frequency" else name)
+
+
+def _token(name: str, unit: str) -> str:
+    """A parameter in an expression, as the value the builder saw: lengths in mm
+    and frequencies in GHz are what the macro's units make them already, but an
+    angle the spec gives in radians is declared in degrees."""
+    if (unit or "").strip() == "rad":
+        return f"{name}*{number(math.pi / 180.0)}"
+    return _label(name, unit_kind(unit))
+
+
+def _num(value: float, dim: tuple[int, int]) -> str:
+    """A constant in the macro's millimetres and gigahertz."""
+    return number(value * _MM ** dim[0] * 1e9 ** dim[1])
+
+
+#: CST's expressions are VBA's: Sqr is the square root
+_DIALECT = Dialect(var=_token, num=_num, calls={"sqrt": "Sqr", "sin": "Sin", "cos": "Cos", "abs": "Abs"})
+
+
 def _expr(value: float) -> str:
-    return f"{value * _MM:.6f}"
+    """A length in the macro's millimetres: an expression in the parameters where
+    the builder derived it from them, the number otherwise."""
+    return expression(value, _DIALECT) or number(value * _MM)
 
 
 def render(model: Model) -> str:
@@ -58,11 +85,9 @@ def render(model: Model) -> str:
         if name in ("lambda0",):
             continue
         kind, rendered = classify(name, value, model.units)
-        label = _p(name) if kind == "length" else (
-            f"{name}_GHz" if kind == "frequency" else name)
         unit_note = {"length": "mm", "frequency": "GHz", "angle": "deg"}.get(kind, "")
         suffix = f"    ' [{unit_note}]" if unit_note else ""
-        add(f'    StoreParameter "{label}", {rendered}{suffix}')
+        add(f'    StoreParameter "{_label(name, kind)}", {rendered}{suffix}')
     add("")
     freq = model.frequency_hz / 1e9
     lo, hi = (f / 1e9 for f in model.band_hz)
@@ -168,7 +193,7 @@ def _rotation_lines(solid) -> list[str]:
         f'        .Name "component1:{solid.name}"',
         '        .Origin "Free"',
         '        .Center "0", "0", "0"',
-        f'        .Angle "0", "0", "{solid.rotate_z:.9g}"',
+        f'        .Angle "0", "0", "{number(solid.rotate_z)}"',
         '        .MultipleObjects "False"',
         '        .GroupObjects "False"',
         '        .Repetitions "1"',
@@ -309,18 +334,24 @@ def classify(name: str, value: float, units: dict[str, str]) -> tuple[str, str]:
 
     Using the declared unit rather than guessing from magnitude: an earlier
     heuristic treated anything under 1000 as a length and wrote a 319 ohm
-    input resistance into the macro as "319105 mm".
+    input resistance into the macro as "319105 mm". Lengths, frequencies and
+    angles go to 15 figures: the geometry is expressions in them now, and six
+    decimals of a millimetre were a part in 10^5 of a 0.1 mm wire.
     """
     unit = (units.get(name) or "").strip()
-    if unit == "m":
-        return "length", f"{value * _MM:.6f}"
-    if unit == "Hz":
-        return "frequency", f"{value / 1e9:.9g}"
-    if unit in ("deg",):
-        return "angle", f"{value:.9g}"
-    if unit in ("rad",):
-        return "angle", f"{math.degrees(value):.9g}"
-    return "scalar", f"{value:.10g}"
+    kind = unit_kind(unit)
+    if kind == "length":
+        return kind, number(value * _MM)
+    if kind == "frequency":
+        return kind, number(value / 1e9)
+    if kind == "angle":
+        return kind, number(math.degrees(value) if unit == "rad" else value)
+    return kind, f"{value:.10g}"
+
+
+def unit_kind(unit: str) -> str:
+    """length, frequency, angle or scalar, from the unit the spec declares."""
+    return {"m": "length", "Hz": "frequency", "deg": "angle", "rad": "angle"}.get((unit or "").strip(), "scalar")
 
 
 def _wrap(text: str, width: int = 74) -> list[str]:

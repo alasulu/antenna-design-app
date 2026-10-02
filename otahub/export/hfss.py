@@ -2,19 +2,51 @@
 
 Emits an IronPython script for the HFSS scripting interface. Run it from
 Tools > Run Script inside Electronics Desktop, or with ansysedt -RunScript.
-Dimensions become design variables so the model stays parametric.
+Dimensions become design variables, and the solids are written as expressions
+in them wherever the builder derived them from design values, so the model
+stays parametric: editing a variable, or an Optimetrics sweep, moves it.
 """
 from __future__ import annotations
 
 from .base import (Brick, Cone, Cylinder, DiscretePort, Model, Sphere,
                    Subtract, Torus, Unite, dielectric_name, parse_dielectric)
-from .cst import classify
+from .cst import classify, unit_kind
+from .symbolic import Dialect, expression, number
 
 _MM = 1e3
 
 
 def _var(name: str) -> str:
     return name if name.isidentifier() else name.replace("-", "_")
+
+
+def _label(name: str, kind: str) -> str:
+    return _var(name) + ("_GHz" if kind == "frequency" else "")
+
+
+def _token(name: str, unit: str) -> str:
+    """A variable in an expression. HFSS keeps the unit a variable was declared
+    with and works in SI: a length stays itself, and so does an angle the spec
+    gives in radians (sin(30deg) is 0.5). A frequency becomes a bare number of
+    GHz, so that a wavelength needs no compound unit - 299.792458mm/(f0_GHz/1GHz) -
+    and an angle in degrees a bare number of degrees, which is what the builder saw."""
+    kind = unit_kind(unit)
+    label = _label(name, kind)
+    if kind == "frequency":
+        return f"{label}/1GHz"
+    return f"{label}/1deg" if (unit or "").strip() == "deg" else label
+
+
+def _num(value: float, dim: tuple[int, int]) -> str:
+    """A constant, its length unit attached since HFSS checks units - 1.5 mm is
+    "1.5mm" - and frequencies in bare GHz, as _token makes them."""
+    length = dim[0]
+    out = number(value * _MM ** length * 1e9 ** dim[1])
+    return out + ("mm" if length == 1 else ("*1mm" if length > 0 else "/1mm") * abs(length))
+
+
+_DIALECT = Dialect(var=_token, num=_num,
+                   calls={"sqrt": "sqrt", "sin": "sin", "cos": "cos", "abs": "abs"})
 
 
 def render(model: Model) -> str:
@@ -55,8 +87,7 @@ def render(model: Model) -> str:
             continue
         kind, rendered = classify(name, value, model.units)
         suffix = {"length": "mm", "frequency": "GHz", "angle": "deg"}.get(kind, "")
-        label = _var(name) + ("_GHz" if kind == "frequency" else "")
-        add(f'    ("{label}", "{rendered}{suffix}"),')
+        add(f'    ("{_label(name, kind)}", "{rendered}{suffix}"),')
     add("]")
     add("for vname, vvalue in variables:")
     add("    oDesign.ChangeProperty([")
@@ -205,7 +236,7 @@ def _render_solid(solid) -> str:
             lines += [
                 "oEditor.Rotate([",
                 f'    "NAME:Selections", "Selections:=", "{solid.name}", "NewPartsModelFlag:=", "Model"],',
-                f'    ["NAME:RotateParameters", "RotateAxis:=", "Z", "RotateAngle:=", "{solid.rotate_z:.9g}deg"])',
+                f'    ["NAME:RotateParameters", "RotateAxis:=", "Z", "RotateAngle:=", "{number(solid.rotate_z)}deg"])',
             ]
         return "\n".join(lines)
     if isinstance(solid, Cone):
@@ -298,7 +329,7 @@ def _port_sheet(port: DiscretePort) -> tuple[list[float], float, str]:
     got zero height, a y-directed one a sheet the line did not lie in."""
     d = [e - s for s, e in zip(port.start, port.end)]
     along = max(range(3), key=lambda i: abs(d[i]))
-    g = abs(d[along])
+    g = d[along] if d[along] >= 0 else -d[along]    # the sign is known: no abs() in the expression
     beside = 0 if along != 0 else 1                 # x beside a z or y line, y beside an x line
     normal = ({0, 1, 2} - {along, beside}).pop()
     corner = list(port.start)
@@ -345,7 +376,9 @@ def _material_name(material: str) -> str:
 
 
 def _mm(value: float) -> str:
-    return f"{value * _MM:.6f}mm"
+    """A length: an expression in the design variables where the builder derived
+    it from them, the number in millimetres otherwise."""
+    return expression(value, _DIALECT) or f"{number(value * _MM)}mm"
 
 
 def _wrap(text: str, width: int = 74) -> list[str]:

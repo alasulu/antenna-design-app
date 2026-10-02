@@ -283,8 +283,10 @@ def test_sphere_radius_reaches_both_backends(registry):
     model = build(registry["hemispherical_dra"].synthesize(f0=10e9, eps_r=10.0))
     spheres = [s for s in model.solids if isinstance(s, Sphere)]
     assert spheres, "the hemispherical DRA must contain a sphere"
-    radius_mm = spheres[0].radius * 1e3
-    assert f"{radius_mm:.6f}" in cst.render(model)
+    from tests.test_export_parametric import cst_value
+    text = cst.render(model)          # an expression in the macro's parameters now, not a number
+    radius = cst_value(text, re.search(r'\.CenterRadius "([^"]*)"', text)[1])
+    assert radius == pytest.approx(spheres[0].radius * 1e3, rel=1e-9)
     assert "CreateSphere" in hfss.render(model)
 
 
@@ -343,12 +345,17 @@ def test_torus_reaches_both_backends_with_the_right_radii(registry):
     t = tori[0]
     vba, py = cst.render(model), hfss.render(model)
     assert "With Torus" in vba and "CreateTorus" in py
+    # the fields are expressions in the declared variables: evaluate them
+    from tests.test_export_parametric import cst_value, hfss_value
+    torus = vba[vba.index("With Torus"):]
+    cst_field = lambda key: cst_value(vba, re.search(rf'\.{key} "([^"]*)"', torus)[1])
+    hfss_field = lambda key: hfss_value(py, re.search(rf'"{key}:=", "([^"]*)"', py)[1])
     # CST: outer and inner, derived
-    assert f"{(t.major_radius + t.minor_radius)*1e3:.6f}" in vba
-    assert f"{(t.major_radius - t.minor_radius)*1e3:.6f}" in vba
+    assert cst_field("Outerradius") == pytest.approx((t.major_radius + t.minor_radius) * 1e3, rel=1e-9)
+    assert cst_field("Innerradius") == pytest.approx((t.major_radius - t.minor_radius) * 1e3, rel=1e-9)
     # HFSS: major and minor, as given
-    assert f'"MajorRadius:=", "{t.major_radius*1e3:.6f}' in py
-    assert f'"MinorRadius:=", "{t.minor_radius*1e3:.6f}' in py
+    assert hfss_field("MajorRadius") == pytest.approx(t.major_radius, rel=1e-9)
+    assert hfss_field("MinorRadius") == pytest.approx(t.minor_radius, rel=1e-9)
 
 
 def test_loop_feed_gap_is_cut_not_merely_drawn(registry):
