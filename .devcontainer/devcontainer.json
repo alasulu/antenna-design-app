@@ -2,7 +2,7 @@
   // GitHub Codespaces: the toolkit with its desktop GUI on a virtual screen,
   // shown in the browser through noVNC on port 6080 (password: vscode).
   "name": "OTA Hub Antenna Toolkit",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "build": { "dockerfile": "Dockerfile" },
   "features": {
     "ghcr.io/devcontainers/features/desktop-lite:1": {}
   },
