@@ -219,6 +219,21 @@ def test_the_proposed_expression_is_the_te10_aperture_plus_the_excess():
     assert math.isnan(_proposed(10e9, 0.02286, 0.0160))          # b/a 0.7
 
 
+def _interpolated_excess(a, ratio):
+    """A known case's excess from the runs themselves: each survey run of the WR-family
+    aspects (b/a 4/9 and 1/2) less its fitted grid term, interpolated linearly in a/lambda,
+    then between the two aspects. It leans on the fit's grid term G, not on its polynomial F."""
+    G, q = FIT["G"], FIT["order"]
+    vals = []
+    for fam in ("A", "B"):
+        rs = sorted((r for r in RUNS if r.get("family") == fam and r.get("kind") == "survey"), key=lambda r: r["a"])
+        xs = [r["a"] for r in rs]
+        ys = [_delta(r) - (1 / r["N"]) ** q * (G[0] + G[1] * r["a"] + G[2] * r["b"] / r["a"]) for r in rs]
+        vals.append(float(np.interp(a, xs, ys)))
+    t = (ratio - 4 / 9) / (1 / 2 - 4 / 9)
+    return vals[0] + (vals[1] - vals[0]) * t
+
+
 @pytest.mark.parametrize("case", DATA["proposal"]["known_cases"], ids=lambda k: k["name"])
 def test_the_proposed_known_cases(case):
     """Each value is the TE10 integral at the exact guide plus the runs' own excess -
@@ -227,6 +242,7 @@ def test_the_proposed_known_cases(case):
     g = case["given"]
     a, b = g["a_wg"] * g["f0"] / C0, g["b_wg"] * g["f0"] / C0
     assert case["te10_dbi"] == pytest.approx(_te10_dbi(a, b), abs=1e-5)
+    assert case["excess_db"] == pytest.approx(_interpolated_excess(a, b / a), abs=2e-6)   # recomputed, not trusted
     D = case["expect"]["directivity_dbi"]
     assert D == pytest.approx(case["te10_dbi"] + case["excess_db"], abs=1e-4)
     assert case["expect"]["effective_to_physical_area"] == pytest.approx(10 ** (D / 10) / (4 * math.pi * a * b), rel=5e-5)

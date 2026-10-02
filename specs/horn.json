@@ -1541,14 +1541,14 @@
         },
         {
           "metric": "directivity_dbi",
-          "expr": "np.where((a_wg*f0/c >= 0.4999)*(a_wg*f0/c <= 1.0001)*(b_wg >= 0.2999*a_wg)*(b_wg <= 0.6001*a_wg), db10(exp((1.116208) + (-0.06935262)*(a_wg*f0/c) + (-0.06114084)*(b_wg*f0/c) + (0.5286404)*(a_wg*f0/c)**2 + (-0.0465706)*(a_wg*f0/c)*(b_wg*f0/c) + (1.59199)*(b_wg*f0/c)**2 + (-0.1464312)*(a_wg*f0/c)**3 + (-0.01398231)*(a_wg*f0/c)**2*(b_wg*f0/c) + (0.2666707)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-0.6105456)*(b_wg*f0/c)**3)), inf - inf)",
+          "expr": "np.where((a_wg*f0/c >= 0.4999)*(a_wg*f0/c <= 1.0001)*(b_wg >= 0.2999*a_wg)*(b_wg <= 0.6001*a_wg)*(b_wg*f0/c <= 0.5001), db10(exp((1.116208) + (-0.06935262)*(a_wg*f0/c) + (-0.06114084)*(b_wg*f0/c) + (0.5286404)*(a_wg*f0/c)**2 + (-0.0465706)*(a_wg*f0/c)*(b_wg*f0/c) + (1.59199)*(b_wg*f0/c)**2 + (-0.1464312)*(a_wg*f0/c)**3 + (-0.01398231)*(a_wg*f0/c)**2*(b_wg*f0/c) + (0.2666707)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-0.6105456)*(b_wg*f0/c)**3)) + ((0.134210016) + (-0.3485780121)*(a_wg*f0/c) + (-1.001342336)*(b_wg*f0/c) + (0.5353784576)*(a_wg*f0/c)**2 + (1.557799812)*(a_wg*f0/c)*(b_wg*f0/c) + (3.861215024)*(b_wg*f0/c)**2 + (-0.2372490073)*(a_wg*f0/c)**3 + (-0.9006310975)*(a_wg*f0/c)**2*(b_wg*f0/c) + (-0.6924157997)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-3.432143082)*(b_wg*f0/c)**3), inf - inf)",
           "units_out": "dBi",
           "depends_on": [
             "a_wg",
             "b_wg",
             "f0"
           ],
-          "notes": "SOLVED: the TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane, radiating into the half space - the x-directed magnetic current 2E over the plane, its pattern integrated over the hemisphere, and independently the same aperture as a dense grid of magnetic dipoles summed through the exact planar power kernel (otahub.arrays): the two agree to 0.003 dB, and a vanishing aperture returns the magnetic dipole's 4.77 dBi. Fitted over the single-mode range a/lambda 0.5-1 and b/a 0.3-0.6: 0.04% worst on 55 apertures, 0.02% on 10 held out; NaN outside. WR-90 has 5.82 dBi at 8.2 GHz, 6.31 at 10 and 7.08 at 12.4. This spec carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - which is the large-aperture limit and goes to zero for a small one, where the true value is 3; it was 1.0-3.3 dB low, and the 'published ~6 dBi' it set aside as flanged is right for the infinite ground plane this spec assumes. A full-wave FDTD of a WR-90 guide at 10 GHz in an infinite flange (otahub.num.horn_fdtd, flange=True; the transform radiates the aperture plane's own field, imaged through the flange) reads +0.17 dB above this pure-TE10 aperture on 40-56 cells a wavelength (0.173, 0.169, 0.167), compared at the dimensions it simulated: the aperture's edge fields and the evanescent modes the flange excites, which a TE10 aperture leaves out. An earlier record said +0.48 dB; its transform box cut through the flange and imaged through the wrong plane. One guide only, so this stays the aperture model's value; a survey over the band is future work."
+          "notes": "SOLVED: the flanged guide itself, over the single-mode band - TE10 above cutoff, below the TE20 cutoff (a < lambda) and the TE01 cutoff (b < lambda/2); NaN outside. The TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane - its pattern integrated over the hemisphere, and independently as a grid of magnetic dipoles through the exact planar power kernel (otahub.arrays), the two within 0.003 dB, fitted over a/lambda 0.5-1 and b/a 0.3-0.6 to 0.04% - plus what a full-wave FDTD of the guide in an infinite flange finds above it (otahub.num.horn_fdtd.sectoral_horn, flange=True: the far field of the aperture plane's own E imaged through the flange, exact for a flange): 0.06 dB near cutoff rising to 0.17-0.31 dB, more for a taller guide, whose excess peaks before a/lambda = 1 once b/a passes 0.42 (at 0.87 for b/a 0.6). It is the r^-1/3 field at the broad walls' edges and the evanescent modes the flange excites, which a pure TE10 aperture leaves out. From 132 runs over a/lambda 0.51-1 at b/a 0.3, 4/9, 1/2 and 0.6 (tests/data/oewg_flange_fdtd.json), every guide a whole number of cells: box, absorber, ring-down and guide length move it under 0.0002 dB; the grid does not - 36 cells across a reach 0.8 of it, 72 cells 0.9, at an order of 1.1-1.2 - so it is extrapolated to the continuum jointly with its cubic in a/lambda and b/lambda: 0.002 dB worst on 103 runs, 0.0005 on 9 guides held out (b/a 0.4, 0.45, 0.55): +-0.005 dB with the order on the WR-family guides, and +-0.01 dB at the tall-guide corner (b/a 0.6 near a/lambda 1), where two-grid extrapolations of the same guide spread 0.007 dB. A mode-matching model of the same aperture converges toward it from below (0.1423 against 0.1423 dB at a/lambda 0.6, b/a 4/9; within 0.003 dB at 0.75 and 1). WR-90 has 5.97 dBi at 8.2 GHz, 6.52 at 10 and 7.33 at 12.4 - 0.15, 0.21 and 0.25 dB above the TE10 aperture's 5.82, 6.31 and 7.08. An earlier record of +0.17 dB at 10 GHz on three grids compared guides whose b/a changed with the grid, which cancelled the refinement; one before it (+0.48 dB) cut its transform box through the flange. This spec once carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - the large-aperture limit, which vanishes for a small aperture; it was 1.3-3.5 dB low."
         },
         {
           "metric": "effective_to_physical_area",
@@ -1560,7 +1560,7 @@
             "b_wg",
             "f0"
           ],
-          "notes": "Effective aperture over physical, D/(4 pi A/lambda^2): 1.32 for WR-90 at 10 GHz, 1.75 at 8.2. Above 1 on a small aperture, which collects from more than its own area; it falls toward the taper efficiency 8/pi^2 as the aperture grows. (Named so because it is not an efficiency bounded by 1. This spec's 'aperture_efficiency' was 8/pi^2 whatever the size.)"
+          "notes": "Effective aperture over physical, D/(4 pi A/lambda^2): 1.38 for WR-90 at 10 GHz, 1.81 at 8.2. Above 1 on a small aperture, which collects from more than its own area; it falls toward the taper efficiency 8/pi^2 as the aperture grows. (Named so because it is not an efficiency bounded by 1. This spec's 'aperture_efficiency' was 8/pi^2 whatever the size.)"
         },
         {
           "metric": "gain_dbi",
@@ -1569,7 +1569,7 @@
           "depends_on": [
             "directivity_dbi"
           ],
-          "notes": "Directivity with the guide lossless and the aperture's reflection neglected - so optimistic by the mismatch loss, a few tenths of a dB for a flanged guide."
+          "notes": "Directivity with the guide lossless and the aperture's reflection neglected - so optimistic by the mismatch loss: |Gamma| 0.19-0.24 for a flanged WR-family guide at a/lambda 0.6-1, 0.16-0.26 dB (mode matching, indicative), and more toward cutoff."
         },
         {
           "metric": "cutoff_te10_hz",
@@ -1591,10 +1591,10 @@
         }
       ],
       "validity": [
-        "single-mode TE10 operation: f0 between the TE10 and TE20 cutoffs",
-        "aperture reflection is neglected, so the gain figure is optimistic by the mismatch loss (a few tenths of a dB)",
-        "an infinite ground plane is assumed; a bare guide end radiates backward as well",
-        "directivity is solved for the TE10 aperture in an infinite ground plane over a/lambda 0.5-1 and b/a 0.3-0.6; a bare guide end without a flange radiates backward and reads lower"
+        "single-mode TE10 operation: f0 above the TE10 cutoff and below both the TE20 cutoff (a < lambda) and the TE01 cutoff (b < lambda/2) - the directivity is NaN outside",
+        "aperture reflection is neglected, so the gain figure is optimistic by the mismatch loss (0.16-0.26 dB for a flanged guide at a/lambda 0.6-1, more toward cutoff)",
+        "an infinite flange is assumed; a bare guide end, or a finite flange, radiates backward as well and reads lower",
+        "directivity is solved for a guide in an infinite flange over a/lambda 0.5-1 and b/a 0.3-0.6 (FDTD runs from a/lambda 0.507); NaN outside"
       ],
       "known_cases": [
         {
@@ -1616,13 +1616,13 @@
             "b_wg": 0.01016
           },
           "expect": {
-            "directivity_dbi": 5.8192,
-            "gain_dbi": 5.8192,
+            "directivity_dbi": 5.9725,
+            "gain_dbi": 5.9725,
             "taper_efficiency": 0.810569,
-            "effective_to_physical_area": 1.74884
+            "effective_to_physical_area": 1.81171
           },
           "tol_pct": 0.5,
-          "source": "WR-90 at 8.2 GHz: an aperture 0.6253 x 0.2779 wavelengths. The TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere directly (not the fit): 5.8192 dBi, so 1.7488 of 4 pi A/lambda^2."
+          "source": "WR-90 8.2 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (5.8192 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.1534 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
           "given": {
@@ -1631,13 +1631,13 @@
             "b_wg": 0.01016
           },
           "expect": {
-            "directivity_dbi": 6.3086,
-            "gain_dbi": 6.3086,
+            "directivity_dbi": 6.5178,
+            "gain_dbi": 6.5178,
             "taper_efficiency": 0.810569,
-            "effective_to_physical_area": 1.3162
+            "effective_to_physical_area": 1.38115
           },
           "tol_pct": 0.5,
-          "source": "WR-90 at 10.0 GHz: an aperture 0.7625 x 0.3389 wavelengths. The TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere directly (not the fit): 6.3086 dBi, so 1.3162 of 4 pi A/lambda^2."
+          "source": "WR-90 10 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.3086 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2092 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
           "given": {
@@ -1646,13 +1646,13 @@
             "b_wg": 0.01016
           },
           "expect": {
-            "directivity_dbi": 7.0807,
-            "gain_dbi": 7.0807,
+            "directivity_dbi": 7.3345,
+            "gain_dbi": 7.3345,
             "taper_efficiency": 0.810569,
-            "effective_to_physical_area": 1.02255
+            "effective_to_physical_area": 1.08409
           },
           "tol_pct": 0.5,
-          "source": "WR-90 at 12.4 GHz: an aperture 0.9455 x 0.4202 wavelengths. The TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere directly (not the fit): 7.0807 dBi, so 1.0226 of 4 pi A/lambda^2."
+          "source": "WR-90 12.4 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (7.0807 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2538 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
           "given": {
@@ -1661,13 +1661,27 @@
             "b_wg": 0.015799
           },
           "expect": {
-            "directivity_dbi": 6.0887,
-            "gain_dbi": 6.0887,
+            "directivity_dbi": 6.2772,
+            "gain_dbi": 6.2772,
             "taper_efficiency": 0.810569,
-            "effective_to_physical_area": 1.46615
+            "effective_to_physical_area": 1.5312
           },
           "tol_pct": 0.5,
-          "source": "WR-137 at 6.0 GHz: an aperture 0.6975 x 0.3162 wavelengths. The TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere directly (not the fit): 6.0887 dBi, so 1.4662 of 4 pi A/lambda^2."
+          "source": "WR-137 6 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.0887 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.1885 dB). Gain equals directivity: the mismatch loss is not in it."
+        },
+        {
+          "given": {
+            "f0": 15000000000.0,
+            "a_wg": 0.015799,
+            "b_wg": 0.007899
+          },
+          "expect": {
+            "directivity_dbi": 6.8558,
+            "gain_dbi": 6.8558,
+            "effective_to_physical_area": 1.23488
+          },
+          "tol_pct": 0.5,
+          "source": "WR-62 15 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.6056 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2502 dB). Gain equals directivity: the mismatch loss is not in it."
         }
       ],
       "references": [

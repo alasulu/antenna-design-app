@@ -64,15 +64,26 @@ def test_two_routes_agree(a, b):
 
 @pytest.mark.parametrize("f0,A,B", [(9.0e9, 0.02286, 0.01016), (11.5e9, 0.02286, 0.01016),
                                     (5.5e9, 0.034849, 0.015799), (15e9, 0.015799, 0.007899)])
-def test_the_spec_is_the_integrated_aperture(registry, f0, A, B):
+def test_the_spec_is_the_integrated_aperture_plus_the_flanges_excess(registry, f0, A, B):
+    """The TE10 aperture integrated here, plus the flanged guide's excess as the FDTD
+    survey fitted it (tests/data/oewg_flange_fdtd.json, its own coefficients - not the
+    spec's string)."""
     d = registry["open_ended_waveguide"].synthesize(f0=f0, a_wg=A, b_wg=B)
-    D = _direct(A * f0 / C, B * f0 / C)
+    a, b = A * f0 / C, B * f0 / C
+    D = _direct(a, b) * 10 ** (_flange_excess_db(a, b) / 10)
     assert d.metrics["directivity_dbi"] == pytest.approx(10 * math.log10(D), abs=0.01)
-    assert d.metrics["effective_to_physical_area"] == pytest.approx(D / (4 * math.pi * A * B * (f0 / C) ** 2), rel=0.003)
+    assert d.metrics["effective_to_physical_area"] == pytest.approx(D / (4 * math.pi * a * b), rel=0.003)
 
 
-def test_the_old_formula_was_one_to_three_decibels_low(registry):
-    for f0, low in ((8.2e9, 3.3), (10e9, 2.1), (12.4e9, 1.0)):
+def _flange_excess_db(a, b):
+    import json
+    from pathlib import Path
+    fit = json.loads((Path(__file__).parent / "data" / "oewg_flange_fdtd.json").read_text())["fit"]
+    return sum(c * a ** i * b ** j for c, (i, j) in zip(fit["F"], fit["F_terms"]))
+
+
+def test_the_old_formula_was_one_to_three_and_a_half_decibels_low(registry):
+    for f0, low in ((8.2e9, 3.49), (10e9, 2.32), (12.4e9, 1.26)):
         d = registry["open_ended_waveguide"].synthesize(f0=f0, a_wg=0.02286, b_wg=0.01016)
         old = 10 * math.log10((8 / math.pi ** 2) * 4 * math.pi * 0.02286 * 0.01016 * (f0 / C) ** 2)
         assert d.metrics["directivity_dbi"] - old == pytest.approx(low, abs=0.06)
@@ -82,3 +93,6 @@ def test_the_old_formula_was_one_to_three_decibels_low(registry):
 def test_outside_the_single_mode_range_it_is_nan(registry):
     d = registry["open_ended_waveguide"].synthesize(f0=15e9, a_wg=0.02286, b_wg=0.01016)   # a = 1.14 lambda: TE20 propagates
     assert math.isnan(d.metrics["directivity_dbi"])
+    lam = C / 10e9                                   # a = 0.9, b = 0.54 lambda: TE01 propagates, though b/a is 0.6
+    assert math.isnan(registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=0.9 * lam, b_wg=0.54 * lam)
+                      .metrics["directivity_dbi"])

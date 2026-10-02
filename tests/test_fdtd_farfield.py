@@ -111,17 +111,19 @@ def test_the_flange_transform_reproduces_the_te10_aperture_integral(registry):
         assert got == pytest.approx(spec.metrics["directivity_dbi"], abs=0.005), m
 
 
-def test_a_flanged_guide_reads_a_sixth_of_a_decibel_above_the_te10_aperture(registry):
-    """Live at 40 cells a wavelength, and the finer grids from the data: the guide's own
-    aperture field (edge fields, the evanescent modes the flange excites) adds 0.17 dB
-    to the pure-TE10 aperture on three grids."""
-    runs = list(DATA["oewg"])
+def test_the_old_flanged_guide_runs_converge_on_the_spec(registry):
+    """Live at 40 cells a wavelength, and the finer grids from the data. These three
+    runs once read "+0.17 dB over the TE10 aperture on three grids"; their b/a changed
+    with the grid, which hid the refinement. The spec now carries the flanged guide's
+    continuum excess (tests/data/oewg_flange_fdtd.json), and these runs sit below it by
+    their grid's own error, 0.045 dB at 40 cells and shrinking as the cells do."""
+    runs = sorted(DATA["oewg"], key=lambda r: r["N"])
     a, b = 2 * round(0.02286 / LAM / 2 * 40) / 40, 2 * round(0.01016 / LAM / 2 * 40) / 40
     live = hf.sectoral_horn(a, b, a, b, 0.0, cells_per_lambda=40, guide_len=1.5, flange=True, periods=25)
     assert 10 * math.log10(live["directivity"]) == pytest.approx(next(r for r in runs if r["N"] == 40)["fdtd_dbi"], abs=1e-6)
-    for r in runs:
-        model = registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=r["a"] * LAM, b_wg=r["b"] * LAM)
-        assert 0.15 < r["fdtd_dbi"] - model.metrics["directivity_dbi"] < 0.19, r["N"]
+    gaps = [r["fdtd_dbi"] - registry["open_ended_waveguide"].synthesize(f0=10e9, a_wg=r["a"] * LAM, b_wg=r["b"] * LAM)
+            .metrics["directivity_dbi"] for r in runs]
+    assert all(-0.06 < g < -0.02 for g in gaps) and gaps[0] < gaps[1] < gaps[2]
 
 
 def test_the_pifa_directivity_is_the_fdtds(registry):

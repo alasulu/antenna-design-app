@@ -350,12 +350,17 @@ horn is the aperture in a ground plane (within 0.15 dB over a_wg 0.65-2
 wavelengths; the aperture-power form 0.7-1.6 dB low) and the H-plane horn keeps
 the aperture-power form (0.2-0.3 dB high at the default, on three grids); the
 PIFA's directivity on an infinite ground plane (3.4-4.6 dBi, at the horizon); and
-a flanged WR-90 guide, 0.17 dB above the pure-TE10 aperture on three grids - its
-edge fields - which the spec notes but, from one guide, does not adopt. (First
-recorded as 0.48 dB: that transform's box cut through the flange and took its
-images through the back short, and moved 0.36 dB with the box's size. A flange is
-now its own image plane and the aperture's field the only source, which fed an
-ideal TE10 field reproduces the spec's integral to 0.003 dB.)
+the flanged open-ended guide over its whole single-mode band, which the spec now
+carries: 0.06 dB above the pure-TE10 aperture near cutoff rising to 0.17-0.31 dB,
+more for a taller guide - its edge fields and the evanescent modes the flange
+excites - from 132 runs extrapolated to zero cell size (+-0.005 dB; +-0.01 at the
+tall-guide corner), with an indicative mode-matching model converging on it.
+(First recorded as 0.48 dB: that transform's box cut through the flange and took
+its images through the back short. Then as "+0.17 dB on three grids": those
+guides' b/a changed with the grid, which hid a refinement that reaches only 0.8
+of the continuum value at 36 cells across a. A flange is now its own image plane
+and the aperture's field the only source, which fed an ideal TE10 field
+reproduces the spec's integral to 0.003 dB.)
 
 **Limits that bite:** staircased walls, no dielectric under the box's faces,
 half a minute to a quarter of an hour a horn at 24-48 cells a wavelength, so the
@@ -948,10 +953,12 @@ a modest extension of them.
     FDTD's total Q is 0.54-0.90 of the cavity radiation Q; separating what goes
     into surface waves needs a far-field transform whose box may cross the
     substrate, or a MoM of these shapes.
-11. **A flanged open-ended waveguide over the band.** One FDTD guide (WR-90 at
-    10 GHz) reads 0.17 dB above the TE10 aperture the spec carries; a survey over
-    frequency and guide size would let the spec adopt it. Compute only
-    (`horn_fdtd.sectoral_horn(..., flange=True)`).
+11. ~~**A flanged open-ended waveguide over the band.**~~ **Done.** An FDTD
+    survey over a/lambda 0.5-1 and b/a 0.3-0.6 (`tests/data/oewg_flange_fdtd.json`)
+    gives the flanged guide's excess over the TE10 aperture, 0.06-0.31 dB, and
+    `open_ended_waveguide` carries it; its domain now also excludes b > lambda/2,
+    where TE01 propagates. Open: a finite flange or a bare guide end, and the
+    mode-matching model (indicative, not yet in `otahub/num`).
 12. **The spirals' feed region.** The planar solver shows their input impedance
     depends on it (154 - j67 to 188 - j43 ohm when only the inner radius
     changed), so Mushiake's 188 ohm stays labelled as the infinite sheet's; a
