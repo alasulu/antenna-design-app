@@ -245,9 +245,12 @@ python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
 ## Export to CST Studio and Ansys HFSS
 
 `export` writes a CST VBA macro or an HFSS IronPython script. Design values are
-declared as named variables in the simulator's units, the frequency sweep
-covers the design's band, dielectrics carry their loss tangent, and ports are
-placed between conductors.
+declared as named variables in the simulator's units, and the geometry is
+written as **expressions in those variables** - change `W_mm` in CST, or let its
+optimiser or an HFSS Optimetrics sweep change it, and the patch, its board and
+its feed move as the builder would move them. The frequency sweep covers the
+design's band, dielectrics carry their loss tangent (as numbers: change a
+material by re-exporting), and ports are placed between conductors.
 
 Geometry is built for **42 of the 72 archetypes** — every one whose construction
 is unambiguous from its dimensions: all wire antennas, seven patches, the three

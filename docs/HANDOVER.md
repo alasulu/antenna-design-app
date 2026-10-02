@@ -957,10 +957,19 @@ a modest extension of them.
     changed), so Mushiake's 188 ohm stays labelled as the infinite sheet's; a
     model of the actual feed - a coaxial line or balun at the centre - would give
     a solved input impedance.
-13. **Parametric export.** The CST and HFSS files declare every design value as
-    a variable but write the solids with the numbers, so editing a variable does
-    not move the geometry. Carrying expressions through the builders would let
-    the simulator's own optimiser drive the design.
+13. ~~**Parametric export.**~~ **Done.** The CST macro and the HFSS script write
+    every solid, radius, span and port as an expression in the variables they
+    declare (`otahub/export/symbolic.py`: a float that also carries its
+    expression and its dimension), so editing a variable, or letting CST's
+    optimiser or an Optimetrics sweep edit it, moves the geometry as re-running
+    the builder with that value would; max/min rules (feed gaps, margins) are
+    written as (a + b +- |a - b|)/2 so they switch in the simulator too. Checked
+    by `tests/test_export_parametric.py`, which reads both scripts back with its
+    own evaluator. Fixed at export: counts (turns, radials, zones), structural
+    choices, and MATERIALS - a dielectric's permittivity and loss tangent are
+    written as numbers (HFSS materials are project-level), so change them by
+    re-exporting. Variables are independent in the simulator: editing W does
+    not re-derive L as synthesis would. Not yet run in CST or HFSS.
 14. **The PIFA's narrow-strip law, refined.** A corner strip narrower than the
     plate now has a length - L + h + strip_phi W = 0.2425 lambda, strip_phi
     growing as ln(W/Ws) - fitted to a whole-plate FDTD survey (70 designs on 21
