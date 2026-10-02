@@ -3890,3 +3890,58 @@ result before exporting.
 After it: 3385 tests - on GitHub's Linux runners the full suite 3360 passed and 25
 skipped in 32 min - 1081/1081 known-case expectations in 453 cases, the doctor
 clean, 31,142 lines of Python.
+
+## After publication: three open items by parallel agents, each reviewed by Codex
+
+Asked for by the user: speed up what was left with parallel Claude agents, and
+use Codex where it helps. Three agents worked in their own git worktrees on
+three HANDOVER items that need only the solvers here - parametric export (13),
+the flanged open-ended guide over the band (11), the stacked patch's best gap
+and parasitic as rules (9). Each delivered code, data and a proposal; the spec
+changes were written here, not by the agents (the house rule), every agent
+branch was reviewed by Codex in a read-only sandbox, each finding re-verified
+before it was fixed, and the commits were cherry-picked onto master. Two agents
+were cut off by rate limits and resumed in place.
+
+- **Parametric export.** Both scripts declared every design value as a
+  variable but drew the solids with numbers, so editing W in CST or HFSS moved
+  nothing. Now every coordinate of the 42 builders is an expression in those
+  variables (`otahub/export/symbolic.py`: a float that also carries its
+  expression and dimension), max/min rules written as (a+b+-|a-b|)/2 so they
+  switch in the simulator too, and a test reads both scripts back with its own
+  evaluator. Found on the way: declared values rounded to 1e-6 mm, and 22
+  builders whose max()/min() picks were frozen at export. Codex: materials
+  stay numbers (HFSS materials are project-level) - documented, not changed.
+- **Flanged open-ended guide.** A 132-run FDTD survey over a/lambda 0.5-1 and
+  b/a 0.3-0.6 puts the flanged guide 0.06-0.31 dB above the TE10 aperture, not
+  a flat 0.17: the old three-grid record was a cancellation (its b/a changed
+  with the grid), and the grid converges only at order 1.1-1.2 (the edge
+  field). Checked independently by Richardson extrapolation per guide and by a
+  mode-matching model (indicative). `open_ended_waveguide` carries the fitted
+  excess. Codex found the "single-mode" gate admitted b > lambda/2, where TE01
+  propagates (in the spec before the survey too) - now NaN there; the bound
+  widened to 0.01 dB at the tall-guide corner; the known-case test recomputes
+  each excess from the bracketing runs.
+- **Stacked patch rules.** Twenty boards (eps_r 2.2-10.2, four held out) with
+  the two-layer MoM: the best stack is one family (gap 0.0675-0.085 lambda,
+  parasitic 0.36-0.375 lambda) sitting at a cliff - 0.005 lambda less gap
+  leaves under a third of the band on 18 of 20 boards. `stacked_patch` now
+  synthesises the fitted best moved 0.005 lambda back, which keeps 91-99% of
+  the best band on every board. The 8.4 x single-patch band rule was 26% short
+  on a held-out board (the multiple runs 8.2-21, growing with permittivity);
+  it is now a fit, 2.5% held out. Codex found `otahub stack` searched feeds
+  without 0.9 (the best on several boards, 5% of the band), a crash on windows
+  narrower than one spline step, and a retention test that trusted the
+  summaries - all fixed.
+
+Found by CI after the merge: the FDTD far-field test that feeds the aperture
+transform an ideal TE10 field compared it with the spec's directivity, which
+now includes the flange's excess (6.32 against 6.54 dBi); it now compares with
+an independent quadrature of the TE10 integral, and checks the spec is that
+plus the excess. The local checks before the merge had not run that file.
+
+After it: 3455 tests - on GitHub's Linux runners the full suite 3430 passed and 25
+skipped in 35 min - 1091/1091 known-case expectations in 455 cases (WR-62's
+flanged guide added; three solved stacked boards in place of two old best-band
+cases), the doctor clean, 32,512 lines of Python. HANDOVER items 9, 11 and 13
+marked done.
