@@ -78,7 +78,11 @@ def _horn(B: _B, a_g, b_g, a1, b1, flare, name="horn"):
     flare to the aperture (a1 x b1) at z = flare, walls `wall` thick."""
     t, lg = B.o["wall"], B.o["guide_length"]
     outer = hull(_rect(a_g + 2 * t, b_g + 2 * t, 0.0) + _rect(a1 + 2 * t, b1 + 2 * t, flare))
-    inner = hull(_rect(a_g, b_g, -t) + _rect(a1, b1, flare + t))
+    # the cutter runs a wall's thickness past both ends, its sections extrapolated along
+    # the flare, so the hollow is a_g x b_g at the throat and a1 x b1 at the aperture exactly
+    ext = lambda u0, u1, z: u0 + (u1 - u0) * z / flare
+    inner = hull(_rect(ext(a_g, a1, -t), ext(b_g, b1, -t), -t)
+                 + _rect(ext(a_g, a1, flare + t), ext(b_g, b1, flare + t), flare + t))
     guide = box((-a_g / 2 - t, a_g / 2 + t), (-b_g / 2 - t, b_g / 2 + t), (-lg, 0.0)) - \
         box((-a_g / 2, a_g / 2), (-b_g / 2, b_g / 2), (-lg - t, t))
     return (outer - inner) + guide
@@ -255,7 +259,13 @@ _DISH_OPTS = (
 )
 
 
-@mesh_builder("prime_focus_parabolic", options=_DISH_OPTS + (
+_PRIME_OPTS = (_DISH_OPTS[0], Opt("feed_diameter", "feed horn aperture", "m",
+                                   lambda v: float(v.get("d_blockage") or 0.0) or 2 * _lam(v),
+                                   "the predicted blockage is d_blockage, a central disc: this sets the drawn feed, "
+                                   "which defaults to it"))
+
+
+@mesh_builder("prime_focus_parabolic", options=_PRIME_OPTS + (
         Opt("struts", "number of feed struts", "-", lambda v: 4.0,
             "geometry only: strut blockage is not in the predictions (d_blockage is a central disc)"),
         Opt("strut_radius", "feed strut radius", "m", lambda v: _lam(v) / 4, GEO)))
@@ -265,7 +275,7 @@ def _prime(design, opts):
     F = B.num("focal_length_m", default=B.num("f_over_D", default=0.4) * D)
     t = B.o["thickness"]
     B.s.add("dish", "PEC", _dish_shell(F, D / 2, t))
-    fd = B.num("d_blockage", default=0.0) or B.o["feed_diameter"]
+    fd = B.o["feed_diameter"]
     B.s.add("feed", "PEC", _feed_horn(B, F, fd, up=False))
     n = int(round(B.o["struts"]))
     zr = D * D / (16 * F)
@@ -602,8 +612,9 @@ def _rhombic(design, opts):
 
 
 @mesh_builder("long_wire_travelling", options=(
-        Opt("height", "height above ground", "m", lambda v: _lam(v) / 4,
-            "the predictions are for the wire alone: the ground the spec does not model changes them"),
+        Opt("height", "height above ground", "m", lambda v: float(v.get("height") or _lam(v) / 4),
+            "defaults to the design's own height, which sets its predicted termination resistance; change it "
+            "there (--set height=...) for the predictions to follow - this option only places the wire"),
         Opt("ground_width", "ground plane width", "m", lambda v: _lam(v), "geometry only: an infinite ground is the "
             "usual assumption"),
         Opt("feed_gap", "feed and load gaps", "m", lambda v: _lam(v) / 100, GEO)))
@@ -615,8 +626,8 @@ def _long_wire(design, opts):
     B.s.add("ground", "PEC", box((-wg / 2, L + wg / 2), (-wg / 2, wg / 2), (-B.lam / 200, 0.0)))
     _wire_poly(B, [(0.0, 0.0, g), (0.0, 0.0, h), (L, 0.0, h), (L, 0.0, g)], a, "wire")
     B.note(f"A {L * 1e3:.4g} mm wire {h * 1e3:.4g} mm above a finite ground, fed across the gap at x = 0 and "
-           "loaded across the gap at x = L. The spec gives neither the height nor the ground: both are "
-           "construction options here, and its predictions are for the wire alone.")
+           "loaded across the gap at x = L. The spec's height sets its termination resistance; its pattern "
+           "and directivity are the wire's alone, without the ground.")
     B.opt_note("height", "ground_width", "feed_gap")
     return B.s
 
@@ -718,30 +729,38 @@ def _equi_spiral(design, opts):
             "geometry only: the predictions do not model the board (its Dk lowers the band edge)"),
         Opt("dk", "substrate permittivity (Dk)", "-", lambda v: 3.55, NOT_IN),
         Opt("tand", "substrate loss tangent", "-", lambda v: 0.0027, GEO),
+        Opt("back_length", "board behind the taper (slotline and cavity)", "m", lambda v: 0.2 * float(v["Lax"]),
+            "geometry only: the predictions assume an ideal broadband slotline termination"),
         Opt("cavity_radius", "slotline cavity radius", "m", lambda v: float(v["W_ap"]) / 12,
             "geometry only: the predictions assume an ideal broadband slotline termination")))
 def _vivaldi(design, opts):
     B = _B(design, opts, "Vivaldi tapered-slot antenna")
     L, Wap, ws = B.num("Lax"), B.num("W_ap"), B.num("w_slot", default=3e-4)
+    R = B.num("R_open", default=10.0)
     m = B.margin(0.1 * Wap)
     W = Wap + 2 * m
-    x0, x1 = 0.12 * L, 0.25 * L                       # cavity centre; the taper starts at x1
+    back = B.o["back_length"]
+    x0 = -back / 2                                    # the cavity's centre, behind the taper
     s0 = ws / 2
-    k = math.log((Wap / 2) / s0) / (L - x1)
-    xs = np.linspace(x1, L, 120)
-    top = [(x, s0 * math.exp(k * (x - x1))) for x in xs]
-    slot = [(x0, s0), *top, (L + 1e-3 * L, top[-1][1]), (L + 1e-3 * L, -top[-1][1]),
+    # the spec's taper, y = C1 exp(R z) + C2 from the throat (z = 0, y = s0) to the
+    # aperture (z = Lax, y = W_ap/2): R_open sets how fast it opens, the ends fix C1, C2
+    c1 = (Wap / 2 - s0) / math.expm1(R * L)
+    c2 = s0 - c1
+    xs = np.linspace(0.0, L, 160)
+    top = [(x, c1 * math.exp(R * x) + c2) for x in xs]
+    slot = [(x0, s0), *top, (L * 1.001, top[-1][1]), (L * 1.001, -top[-1][1]),
             *[(x, -y) for x, y in top[::-1]], (x0, -s0)]
-    metal = plate([(0.0, -W / 2), (L, -W / 2), (L, W / 2), (0.0, W / 2)], 0.0, B.copper) \
+    metal = plate([(-back, -W / 2), (L, -W / 2), (L, W / 2), (-back, W / 2)], 0.0, B.copper) \
         - plate(slot, -B.copper, 3 * B.copper) - rod((x0, 0.0, -B.copper), (x0, 0.0, 2 * B.copper), B.o["cavity_radius"], 48)
     B.s.add("metal", "PEC", metal)
     tand = B.o["tand"]
     B.s.add("substrate", f"eps_r={B.o['dk']:g}" + (f";tand={tand:g}" if tand > 0 else ""),
-            box((0.0, L), (-W / 2, W / 2), (-B.o["substrate_h"], 0.0)))
-    B.note(f"Coplanar Vivaldi {L * 1e3:.4g} x {W * 1e3:.4g} mm: a {ws * 1e3:.3g} mm slotline from a circular cavity "
-           f"at x = {x0 * 1e3:.4g} mm, flaring exponentially from x = {x1 * 1e3:.4g} mm to {Wap * 1e3:.4g} mm at "
-           "the end; the feed crosses the slot at the start of the taper.")
-    B.opt_note("substrate_h", "dk", "cavity_radius", "copper")
+            box((-back, L), (-W / 2, W / 2), (-B.o["substrate_h"], 0.0)))
+    B.note(f"Coplanar Vivaldi: the taper y = C1 exp(R z) + C2 with the design's R_open = {R:g} /m opens from a "
+           f"{ws * 1e3:.3g} mm slot at z = 0 to {Wap * 1e3:.4g} mm at z = Lax = {L * 1e3:.4g} mm (growth "
+           f"{math.exp(R * L):.4g}, the spec's taper ratio); behind it a slotline to a circular cavity. Board "
+           f"{(L + back) * 1e3:.4g} x {W * 1e3:.4g} mm; the feed crosses the slot at z = 0.")
+    B.opt_note("substrate_h", "dk", "back_length", "cavity_radius", "copper")
     return B.s
 
 
@@ -752,12 +771,17 @@ def _patch_on_board(B: _B, outline, probe_xy, size):
     m = B.margin(0.6 * size)
     xs, ys = [p[0] for p in outline], [p[1] for p in outline]
     lo, hi = (min(xs) - m, min(ys) - m), (max(xs) + m, max(ys) + m)
+    rp = B.o["probe_radius"]
+    hole = 2.3 * rp                                    # a 50-ohm coax outer for a PTFE-filled line
+    px, py = probe_xy
     B.s.add("substrate", _dielectric(eps, B.design), box((lo[0], hi[0]), (lo[1], hi[1]), (0.0, h)))
-    B.s.add("ground", "PEC", box((lo[0], hi[0]), (lo[1], hi[1]), (-B.copper, 0.0)))
+    B.s.add("ground", "PEC", box((lo[0], hi[0]), (lo[1], hi[1]), (-B.copper, 0.0))
+            - rod((px, py, -2 * B.copper), (px, py, B.copper), hole, 32))
     B.s.add("patch", "PEC", plate(outline, h, B.copper))
-    B.s.add("probe", "PEC", rod((probe_xy[0], probe_xy[1], 0.0), (probe_xy[0], probe_xy[1], h), B.o["probe_radius"], 24))
+    B.s.add("probe", "PEC", rod((px, py, -B.copper), (px, py, h), rp, 24))
     B.note(f"On {h * 1e3:.4g} mm of eps_r {eps:g} (the design's own substrate), board margin {m * 1e3:.4g} mm; "
-           "copper on both faces.")
+           f"copper on both faces. The probe passes through a {2 * hole * 1e3:.3g} mm clearance hole in the "
+           "ground (a coaxial feed): the port goes between the probe and the hole's rim.")
 
 
 _PATCH_OPTS = (
@@ -807,12 +831,20 @@ def _ferrite(design, opts):
     b = B.num("b", default=2e-4)
     mu = B.num("mu_i", default=125)
     B.s.add("rod", f"ferrite_mu_i={mu:g}", rod((-l / 2, 0.0, 0.0), (l / 2, 0.0, 0.0), d / 2, 48))
-    pitch = max(lc / N, 2.05 * b)
-    rc = d / 2 + b * 1.05
-    t = np.linspace(0.0, N, int(N * 24) + 1)
-    path = np.column_stack([-lc / 2 + pitch * t, rc * np.cos(2 * np.pi * t), rc * np.sin(2 * np.pi * t)])
-    B.s.add("coil", "PEC", tube(path, b, 10))
+    per_layer = max(1, int(lc // (2.05 * b)))          # turns that fit side by side along l_coil
+    layers = int(math.ceil(N / per_layer))
+    left = N
+    for k in range(layers):
+        n_k = min(per_layer, left)
+        left -= n_k
+        rc = d / 2 + b * 1.05 + k * 2.1 * b
+        length = lc * n_k / per_layer if layers > 1 else lc
+        pitch = length / n_k
+        t = np.linspace(0.0, n_k, int(n_k * 24) + 1)
+        path = np.column_stack([-length / 2 + pitch * t, rc * np.cos(2 * np.pi * t), rc * np.sin(2 * np.pi * t)])
+        B.s.add(f"coil{k + 1}", "PEC", tube(path, b, 10))
     B.note(f"Ferrite rod {l * 1e3:.4g} x {d * 1e3:.4g} mm (initial permeability {mu:g}) along x, wound with "
-           f"{N:g} turns of {2 * b * 1e3:.3g} mm wire over {N * pitch * 1e3:.4g} mm at its middle. The ferrite "
-           "file carries the rod; give it the material's permeability and loss in the solver.")
+           f"{N:g} turns of {2 * b * 1e3:.3g} mm wire over the design's l_coil = {lc * 1e3:.4g} mm at its middle"
+           + (f", in {layers} layers since they do not fit in one" if layers > 1 else "")
+           + ". The ferrite file carries the rod; give it the material's permeability and loss in the solver.")
     return B.s

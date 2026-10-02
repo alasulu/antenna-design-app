@@ -142,18 +142,25 @@ def _pifa_points():
 
 
 def test_the_pifa_strip_law_is_the_whole_plate_survey(registry):
-    """70 designs on 21 plates. The law's length, put back into L + h + strip_phi W,
-    resonates within 2.6% of where the FDTD put each plate (the survey's own grid
-    error, up to about 4% at a W/6 strip on the coarsest plate, is stated beside it)."""
+    """70 designs on 21 plates, normalised by each plate's full-width run. The
+    synthesised length is checked, and the frequency at which the spec would build
+    each surveyed plate is solved from the law: within 2.8% of where the FDTD put it
+    (relative to that normalisation - the spec's notes give the absolute caveat)."""
+    from scipy.optimize import brentq
     pifa = registry["pifa"]
     pts = list(_pifa_points())
     assert len(pts) == 70
     worst = 0.0
-    for h, W, L, r in pts:
-        d = pifa.synthesize(f0=C, h=h, W=W, Ws=r * W)            # f0 = c: lengths in wavelengths
-        phi = d.get("strip_phi")
-        worst = max(worst, abs((L + h + phi * W) / 0.2425 - 1))
-    assert worst < 0.027
+    for h, W, L, r in pts:                       # lengths in wavelengths at the corrected resonance
+        def gap(lam):                            # the spec's L at wavelength lam, minus the plate's
+            return pifa.synthesize(f0=C / lam, h=h, W=W, Ws=r * W).get("L") - L
+        assert abs(gap(1.0)) / L < 0.06
+        lams = np.linspace(0.93, 1.07, 29)       # a bracket inside the law's domain guard
+        g = [gap(x) for x in lams]
+        k = next(i for i in range(len(lams) - 1)
+                 if math.isfinite(g[i]) and math.isfinite(g[i + 1]) and g[i] * g[i + 1] <= 0)
+        worst = max(worst, abs(1 / brentq(gap, lams[k], lams[k + 1], xtol=1e-12) - 1))
+    assert worst < 0.029
 
 
 @pytest.mark.slow

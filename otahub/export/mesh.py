@@ -162,7 +162,9 @@ class Solid3D:
         metal = out.get("PEC")
         if metal is not None:
             for k in list(out):
-                if k != "PEC":
+                # cut only where they truly overlap: subtracting copper that merely touches
+                # a board face to face leaves degenerate slivers along the shared plane
+                if k != "PEC" and (out[k] ^ metal).volume() > 1e-9 * out[k].volume():
                     out[k] = out[k] - metal
         return {k: v for k, v in out.items() if not v.is_empty()}
 
@@ -211,12 +213,13 @@ def place(solid, origin=(0.0, 0.0, 0.0), direction=(0.0, 0.0, 1.0)):
 
 
 def box(x, y, z, min_thickness: float = SHEET):
-    """An axis-aligned block; a zero extent becomes `min_thickness`, centred on its plane."""
+    """An axis-aligned block; a ZERO extent (a sheet) becomes `min_thickness`, centred
+    on its plane. A finite extent, however small, is kept: a 70 um slot stays 70 um."""
     _need()
     lo, size = [], []
     for a, b in (x, y, z):
         a, b = min(a, b), max(a, b)
-        if b - a < min_thickness:
+        if b - a <= 1e-12 * max(1.0, abs(a), abs(b)):
             mid = (a + b) / 2
             a, b = mid - min_thickness / 2, mid + min_thickness / 2
         lo.append(a)
@@ -313,7 +316,8 @@ def _from_model(model, opts: Options | None = None) -> Solid3D:
     from .base import Brick, Cone, Cylinder, Sphere, Subtract, Torus, Unite
     opts = opts or Options()
     t_cu = opts.copper
-    model = _with_margin(model, opts.margin) if opts.margin is not None else model
+    if opts.margin is not None:
+        model = _with_margin(model, opts.margin, t_cu)
     axes = {"x": (1.0, 0.0, 0.0), "y": (0.0, 1.0, 0.0), "z": (0.0, 0.0, 1.0)}
 
     def point(axis, along, centre):
@@ -332,7 +336,7 @@ def _from_model(model, opts: Options | None = None) -> Solid3D:
             made[s.name] = box(s.x, s.y, s.z, thick)
         elif isinstance(s, Cylinder):
             a, b = s.span
-            if abs(b - a) < thick:                       # a flat disc: a patch, a ground
+            if abs(b - a) <= 1e-12 * max(1.0, abs(a), abs(b)):   # a flat disc: a patch, a ground
                 mid = (a + b) / 2
                 a, b = mid - thick / 2, mid + thick / 2
             made[s.name] = turn(rod(point(s.axis, a, s.centre), point(s.axis, b, s.centre), s.radius),
@@ -363,26 +367,24 @@ def _from_model(model, opts: Options | None = None) -> Solid3D:
 _BOARD_NAMES = ("substrate", "ground", "ground_plane", "gnd")
 
 
-def _with_margin(model, margin: float):
+def _with_margin(model, margin: float, t_cu: float = SHEET):
     """The model with its board and ground plane resized to the antenna's own
-    outline plus `margin` on every side."""
+    outline plus `margin` on every side. The outline is the plan view of every other
+    solid as actually built - rotated wires, horizontal hats and all - not of the
+    primitives' nominal extents."""
     from dataclasses import replace
     from .base import Brick, Cylinder
     board = [s for s in model.solids if s.name in _BOARD_NAMES]
     rest = [s for s in model.solids if s.name not in _BOARD_NAMES and s.material not in _NOT_SOLID]
     if not board or not rest:
         return model
+    bare = replace(model, solids=[s for s in model.solids if s.name not in _BOARD_NAMES],
+                   operations=[op for op in model.operations
+                               if op.target not in _BOARD_NAMES and not set(op.tools) & set(_BOARD_NAMES)])
     lo, hi = np.full(2, np.inf), np.full(2, -np.inf)
-    for s in rest:
-        if isinstance(s, Brick):
-            xs, ys = s.x, s.y
-        elif isinstance(s, Cylinder) and s.axis == "z":
-            xs = (s.centre[0] - s.radius, s.centre[0] + s.radius)
-            ys = (s.centre[1] - s.radius, s.centre[1] + s.radius)
-        else:
-            continue
-        lo = np.minimum(lo, [min(xs), min(ys)])
-        hi = np.maximum(hi, [max(xs), max(ys)])
+    for b in _from_model(bare, Options({"copper": t_cu})).bodies:
+        bb = np.asarray(b.solid.bounding_box(), float)
+        lo, hi = np.minimum(lo, bb[:2]), np.maximum(hi, bb[3:5])
     if not np.all(np.isfinite(lo)):
         return model
     new = []
@@ -390,7 +392,8 @@ def _with_margin(model, margin: float):
         if s in board and isinstance(s, Brick):
             s = replace(s, x=(lo[0] - margin, hi[0] + margin), y=(lo[1] - margin, hi[1] + margin))
         elif s in board and isinstance(s, Cylinder) and s.axis == "z":
-            s = replace(s, radius=float(max(abs(lo[0]), abs(hi[0]), abs(lo[1]), abs(hi[1]))) + margin)
+            corners = [math.hypot(x - s.centre[0], y - s.centre[1]) for x in (lo[0], hi[0]) for y in (lo[1], hi[1])]
+            s = replace(s, radius=max(corners) + margin)
         new.append(s)
     out = replace(model, solids=new)
     kept = [n for n in model.notes if not (n.startswith("Substrate extended") or "ground plane extends" in n)]

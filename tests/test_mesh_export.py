@@ -38,13 +38,14 @@ def _read_stl(path):
 
 
 def _closed(tris) -> bool:
-    """Every edge shared by exactly two triangles, in opposite directions."""
+    """Every edge shared by exactly two triangles, once in each direction: closed and
+    consistently oriented (a duplicated shell fails, which counting alone did not catch)."""
     key = lambda p: tuple(np.round(p, 5))
     edges = Counter()
     for t in tris:
         for i in range(3):
             edges[(key(t[i]), key(t[(i + 1) % 3]))] += 1
-    return all(edges.get((b, a), 0) == c for (a, b), c in edges.items())
+    return all(c == 1 and edges.get((b, a), 0) == 1 for (a, b), c in edges.items())
 
 
 def test_every_archetype_has_a_closed_solid(registry):
@@ -164,3 +165,83 @@ def test_the_gui_shows_the_model_and_saves_it(qapp, registry, tmp_path):
     lo, hi = mesh.solid(d, mesh.Options({"wall": 2e-3})).bounds()
     tris = _read_stl(files[0]).reshape(-1, 3)
     assert tris.max(0) - tris.min(0) == pytest.approx((hi - lo) * 1000, rel=1e-4)
+
+
+def test_a_duplicated_shell_is_not_closed():
+    tet = np.array([[[0, 0, 0], [0, 1, 0], [1, 0, 0]], [[0, 0, 0], [1, 0, 0], [0, 0, 1]],
+                    [[0, 0, 0], [0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]], float)
+    assert _closed(tet) and not _closed(np.concatenate([tet, tet]))
+
+
+# ---------------------------------------------------------------- the review's findings
+
+@pytest.mark.parametrize("key", ["triangular_patch", "truncated_corner_cp_patch"])
+def test_a_patch_probe_does_not_short_the_patch_to_ground(registry, key):
+    d = registry[key].synthesize(f0=2.4e9, eps_r=2.2, h=0.0016)
+    pieces = mesh.solid(d).materials()["PEC"].decompose()
+    assert len(pieces) == 2                     # ground; patch + probe through its clearance hole
+
+
+def test_the_horn_hollow_is_the_designed_aperture_and_throat(registry):
+    d = registry["pyramidal_horn"].synthesize(f0=10e9, G_target=20)
+    horn = mesh.solid(d).bodies[0].solid
+    for z, a, b in ((d.get("p_len") - 1e-7, d.get("a1"), d.get("b1")), (1e-7, d.get("a_wg"), d.get("b_wg"))):
+        inner = min((np.asarray(q) for q in horn.slice(z).to_polygons()), key=lambda q: np.ptp(q[:, 0]))
+        # the mesh keeps coordinates in single precision, and the slice sits 0.1 um into the flare
+        assert np.ptp(inner[:, 0]) == pytest.approx(a, rel=1e-5) and np.ptp(inner[:, 1]) == pytest.approx(b, rel=1e-5)
+
+
+def test_a_finite_thin_slot_keeps_its_width(registry):
+    d = registry["half_wave_slot"].synthesize(f0=100e9, w_over_L=0.05)
+    plate_ = mesh.solid(d).materials()["PEC"]
+    polys = plate_.slice(-1e-7).to_polygons()
+    hole = min((np.asarray(q) for q in polys), key=lambda q: np.ptp(q[:, 0]) * np.ptp(q[:, 1]))
+    assert min(np.ptp(hole[:, 0]), np.ptp(hole[:, 1])) == pytest.approx(d.get("w"), rel=1e-4)    # single precision
+
+
+def test_the_margin_covers_a_top_hat(registry):
+    a = registry["top_loaded_monopole"]
+    d = a.synthesize(**a.spec.known_cases[0].given)
+    s = mesh.solid(d, mesh.Options({"margin": 0.01}))
+    ground = next(b for b in s.bodies if b.name in ("ground", "ground_plane", "gnd")).solid.bounding_box()
+    others = [b.solid.bounding_box() for b in s.bodies if b.name not in ("ground", "ground_plane", "gnd")]
+    assert ground[3] >= max(o[3] for o in others) + 0.01 - 1e-9
+
+
+def test_the_vivaldi_opens_at_the_designs_rate(registry):
+    v = [mesh.solid(registry["vivaldi_tsa"].synthesize(f_low=1e9, Lax=0.3, R_open=R)).materials()["PEC"].volume()
+         for R in (10, 20)]
+    assert v[1] > v[0] * 1.05                   # a faster-opening slot leaves more copper near the throat
+
+
+def test_an_explicit_feed_size_wins_over_the_blockage_default(registry):
+    d = registry["prime_focus_parabolic"].synthesize(f0=10e9, D=1, d_blockage=0.1)
+    widths = []
+    for fd in (0.03, 0.2):
+        feed = next(b for b in mesh.solid(d, mesh.Options({"feed_diameter": fd})).bodies if b.name == "feed")
+        bb = feed.solid.bounding_box()
+        widths.append(bb[3] - bb[0])
+    assert widths[1] - widths[0] == pytest.approx(0.17, rel=1e-3)
+
+
+def test_the_ferrite_coil_keeps_its_length_and_centre(registry):
+    d = registry["ferrite_rod_loop"].synthesize(f0=1e6, N=60, l_coil=0.02, b=0.0002, l_rod=0.1, d_rod=0.01, mu_i=125)
+    coils = [b.solid.bounding_box() for b in mesh.solid(d).bodies if b.name.startswith("coil")]
+    assert len(coils) == 2                      # 60 turns of 0.4 mm wire need two layers on 20 mm
+    for bb in coils:
+        assert bb[0] == pytest.approx(-bb[3], abs=1e-6) and bb[3] - bb[0] <= 0.02 + 2 * 0.0002 + 1e-6
+
+
+def test_the_long_wire_sits_at_the_designs_height(registry):
+    d = registry["long_wire_travelling"].synthesize(f0=100e6, L_over_lambda=4, height=1.0, aw=0.001)
+    assert mesh.option_values(d)["height"] == pytest.approx(1.0)
+    assert mesh.solid(d).bounds()[1][2] == pytest.approx(1.0 + 0.001, rel=1e-9)
+
+
+def test_the_pifa_strip_is_at_a_corner(registry):
+    from otahub.export import build
+    d = registry["pifa"].synthesize(f0=1e9, h=0.012, W=0.036, Ws=0.006)
+    m = build(d)
+    wall = next(s for s in m.solids if s.name == "shorting_wall")
+    assert wall.x == pytest.approx((-0.018, -0.012))
+    assert m.ports[0].start[0] == pytest.approx(-0.015)

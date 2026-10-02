@@ -1121,11 +1121,14 @@ def _pifa(design: DesignResult) -> Model:
               (-ground / 2, ground / 2), (-thick, 0.0)),
         Brick("top_plate", "PEC", (-width / 2, width / 2),
               (-length / 2, length / 2), (height, height)),
-        Brick("shorting_wall", "PEC", (-short_w / 2, short_w / 2),
+        # at one CORNER of the shorted edge, where the spec's narrow-strip law was surveyed;
+        # a full-width strip spans the whole edge either way
+        Brick("shorting_wall", "PEC", (-width / 2, -width / 2 + short_w),
               (-length / 2, -length / 2), (0.0, height)),
     ]
+    feed_x = -width / 2 + short_w / 2                  # in line with the strip: 0 for a full-width one
     feed_y = -length / 2 + length * 0.15
-    model.ports.append(DiscretePort("port1", (0.0, feed_y, 0.0), (0.0, feed_y, height)))
+    model.ports.append(DiscretePort("port1", (feed_x, feed_y, 0.0), (feed_x, feed_y, height)))
     model.notes += [
         f"Shorting wall {short_w * 1e3:.4g} mm wide against a {width * 1e3:.4g} mm "
         "plate. That ratio is the PIFA's main tuning control: a full-width short "
