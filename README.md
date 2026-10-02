@@ -8,7 +8,8 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 [![tests](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml/badge.svg)](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml)
-![Known cases](https://img.shields.io/badge/cited%20expectations-1081%2F1081%20passing-2ea44f)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/alasulu/antenna-design-app?quickstart=1)
+![Known cases](https://img.shields.io/badge/cited%20expectations-1091%2F1091%20passing-2ea44f)
 ![Archetypes](https://img.shields.io/badge/archetypes-72-b8652f)
 ![GUI](https://img.shields.io/badge/GUI-PySide6-41CD52?logo=qt&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -65,6 +66,14 @@ says by how much and why.
 | CST and HFSS export for **42** archetypes, **3-D STL for all 72** | a PySide6 desktop GUI that draws every antenna from its own numbers, in 2-D and 3-D |
 
 ## Quick start
+
+**In the browser, nothing to install:** the *Open in GitHub Codespaces* badge above
+starts a cloud machine with the toolkit installed and the desktop app open on a
+virtual screen. Open port **6080** from the Ports tab, click Connect (password
+`vscode`), and the app is there; the terminal runs the command line. See
+[`.devcontainer/README.md`](.devcontainer/README.md).
+
+**On your own machine:**
 
 ```bash
 git clone https://github.com/alasulu/antenna-design-app.git

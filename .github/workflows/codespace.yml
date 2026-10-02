@@ -1,0 +1,41 @@
+name: codespace
+
+# Builds the Codespaces container, opens the desktop app on its virtual screen and
+# keeps a screenshot, so the "Open in GitHub Codespaces" link is known to work.
+on:
+  push:
+    paths: [".devcontainer/**", ".github/workflows/codespace.yml", "pyproject.toml"]
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    name: Codespace desktop opens the app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/alasulu/antenna-design-app-devcontainer
+          push: never
+          runCmd: |
+            set -e
+            bash .devcontainer/start-gui.sh
+            sleep 25
+            echo "--- app log"; cat /tmp/otahub-gui.log || true
+            pgrep -f "OTA_Hub_AntennaToolkit.py gui"
+            echo "noVNC: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:6080/vnc.html)"
+            python - <<'PY'
+            from PySide6.QtWidgets import QApplication
+            app = QApplication([])
+            shot = app.primaryScreen().grabWindow(0)
+            shot.save("codespace-desktop.png")
+            print("screen", shot.width(), "x", shot.height())
+            PY
+            python OTA_Hub_AntennaToolkit.py synth half_wave_dipole --f0 2.4GHz | head -20
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codespace-desktop
+          path: codespace-desktop.png
+          if-no-files-found: warn
