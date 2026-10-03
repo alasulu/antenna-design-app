@@ -51,3 +51,12 @@ def test_referenced_symbols_reports_actual_dependencies():
 def test_division_by_zero_is_reported_with_context():
     with pytest.raises(ExprError, match="division by zero"):
         evaluate("c / f0", {"f0": 0})
+
+
+def test_a_domain_error_is_reported_in_numpys_words():
+    """numpy's warning for log10(-5) cannot run in the evaluator's builtin-free frame,
+    and surfaced as "KeyError: '__import__'" - a message about nothing."""
+    from otahub.core.expr import ExprError, evaluate
+    for x, says in ((-5.0, "invalid value"), (0.0, "divide by zero")):
+        with pytest.raises(ExprError, match=says):
+            evaluate("log10(x)", {"x": x})

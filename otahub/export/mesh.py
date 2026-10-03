@@ -103,7 +103,9 @@ class Opt:
 #: options every antenna has
 COMMON = (
     Opt("copper", "conductor sheet thickness", "m", lambda v: SHEET,
-        "geometry only: the predictions treat printed conductors as infinitely thin"),
+        "printed and sheet conductors only (patches, grounds, strips, sheet arms) - wires, "
+        "tubes and solid walls keep their own sizes; geometry only: the predictions treat "
+        "printed conductors as infinitely thin"),
     Opt("margin", "board / ground margin beyond the antenna", "m", lambda v: float("nan"),
         "geometry only: the predictions assume an infinite board and ground where the spec does; "
         "blank keeps each design's own default"),
@@ -420,6 +422,45 @@ def mesh_builder(*keys: str, options: Sequence[Opt] = ()):
     return wrap
 
 
+#: options that may be zero (a margin of none, free-standing copper with no substrate,
+#: a probe on the centre line, a dish with no struts)
+_MAY_BE_ZERO = {"margin", "substrate_h", "probe_offset", "struts", "tand"}
+
+
+def option_problems(key: str, values: dict[str, float]) -> list[str]:
+    """What is wrong with the options a user set, in words; empty when they are usable.
+    Every value must be finite; sizes and counts positive (or zero where zero means
+    something); a fraction inside (0, 1); a permittivity at least 1."""
+    out = []
+    known = {o.name: o for o in construction_options(key)}
+    for name, v in values.items():
+        o = known.get(name)
+        if o is None:
+            out.append(f"{name} is not an option of {key}")
+            continue
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            out.append(f"{name} must be a number, not {v!r}")
+            continue
+        if name == "margin" and math.isnan(v):
+            continue                                   # NaN asks for the design's own margin
+        if not math.isfinite(v):
+            out.append(f"{name} must be finite, not {v}")
+        elif name == "probe_offset":
+            continue
+        elif name == "tooth" and not 0.0 < v < 1.0:
+            out.append(f"tooth is a fraction of the pitch, between 0 and 1, not {v:g}")
+        elif name == "dk" and v < 1.0:
+            out.append(f"dk is a relative permittivity, at least 1, not {v:g}")
+        elif name == "struts" and (v != int(v) or v > 64):
+            out.append(f"struts is a count from 0 to 64, not {v:g}")
+        elif v < 0 or (v == 0 and name not in _MAY_BE_ZERO):
+            out.append(f"{name} ({o.label}) must be {'zero or more' if name in _MAY_BE_ZERO else 'positive'}, "
+                       f"not {v:g}")
+    return out
+
+
 def construction_options(key: str) -> tuple[Opt, ...]:
     """Every option an archetype's solid model takes: its own, then the common ones."""
     from . import mesh_builders  # noqa: F401
@@ -433,7 +474,13 @@ def option_values(design: DesignResult, options: "Options | None" = None) -> dic
     given = options.values if options else {}
     out = {}
     for o in construction_options(design.archetype):
-        out[o.name] = float(given[o.name]) if o.name in given else float(o.default(v))
+        if o.name in given:
+            out[o.name] = float(given[o.name])
+            continue
+        try:
+            out[o.name] = float(o.default(v))
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            out[o.name] = float("nan")               # the design lacks what the default reads
     return out
 
 
@@ -445,10 +492,13 @@ def solid(design: DesignResult, options: Options | None = None) -> Solid3D:
     from .base import BUILDERS, build
     opts = options or Options()
     key = design.archetype
+    bad = option_problems(key, opts.values)
+    if bad:
+        return Solid3D(key, key, notes=[f"NO 3-D GEOMETRY: {'; '.join(bad)}."])
     if key in MESH_BUILDERS:
         try:
             out = MESH_BUILDERS[key](design, opts)
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, ArithmeticError) as exc:
             return Solid3D(key, key, notes=[f"NO 3-D GEOMETRY: {exc}."])
         return out if _finite(out) else Solid3D(key, out.title, notes=[
             "NO 3-D GEOMETRY: a dimension this design needs is unavailable (NaN)."])

@@ -189,8 +189,11 @@ class SolidPanel(QWidget):
                 edit.setProperty("invalid", "false")
                 continue
             try:
-                values[o.name] = parse_quantity(text, "" if o.unit == "-" else o.unit)
-                edit.setProperty("invalid", "false")
+                value = parse_quantity(text, "" if o.unit == "-" else o.unit)
+                values[o.name] = value
+                bad = mesh.option_problems(self._key, {o.name: value})
+                edit.setProperty("invalid", "true" if bad else "false")
+                edit.setToolTip(f"{o.label}\n\n" + ("; ".join(bad) if bad else o.effect))
             except ValueError:
                 edit.setProperty("invalid", "true")
             edit.style().unpolish(edit)
@@ -216,10 +219,14 @@ class SolidPanel(QWidget):
         if self._design is None or not mesh.available():
             return
         opts = self.options()
-        self._show_defaults(mesh.option_values(self._design, opts))
-        with mesh.preview():
-            model = mesh.solid(self._design, opts)
         self._stale = False
+        try:
+            self._show_defaults(mesh.option_values(self._design, opts))
+            with mesh.preview():
+                model = mesh.solid(self._design, opts)
+        except Exception as exc:  # noqa: BLE001 - a model that cannot be built must not stop the page
+            model = mesh.Solid3D(self._design.archetype, self._design.archetype,
+                                 notes=[f"NO 3-D GEOMETRY: {type(exc).__name__}: {exc}"])
         self._draw(model)
         notes = "".join(f"<li>{n}</li>" for n in model.notes)
         self.notes.setHtml(f"<ul style='margin:0'>{notes}</ul>")
@@ -273,7 +280,11 @@ class SolidPanel(QWidget):
             if not path:
                 return []
         model = mesh.solid(self._design, self.options())
-        files = mesh.write_stl(model, path)
+        try:
+            files = mesh.write_stl(model, path)
+        except OSError as exc:
+            self.status.setText(f"Nothing saved: {exc.strerror or exc} ({path}).")
+            return []
         if files:
             self.status.setText("Saved, in millimetres: " + ", ".join(f.name for f in files))
         else:

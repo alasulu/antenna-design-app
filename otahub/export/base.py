@@ -155,7 +155,7 @@ def _param(design: DesignResult, *names: str, default: float | None = None) -> f
             return _declared(design, name, float(value))
     if default is not None:
         return default
-    raise KeyError(f"design {design.archetype!r} has none of {names}")
+    raise KeyError(f"design {design.archetype!r} has no {' or '.join(names)}")
 
 
 #: values in the design that the scripts do not declare as variables
@@ -938,9 +938,6 @@ def _slotted_guide(design: DesignResult, title: str, count: int,
                   (z - slot_l / 2, z + slot_l / 2)))
     model.operations.append(Subtract("broad_wall", tuple(tools)))
     model.notes += [
-        f"Broad wall drawn {wall * 1e3:.4g} mm thick with the slots cut through "
-        "it. The other three walls are left to the surrounding PEC boundary, as "
-        "for open_ended_waveguide.",
         f"Slot width set to a sixteenth of its length ({slot_w * 1e3:.4g} mm); "
         "the spec gives only the length. Width affects bandwidth more than "
         "resonance, but it is a choice made here and not by the design.",
@@ -1440,9 +1437,10 @@ def build(design: DesignResult) -> Model:
     except KeyError as exc:
         model = _base_model(design, design.archetype)
         model.built_geometry = False
-        model.notes.append(
-            f"Geometry could not be built: {exc}. Supply the missing requirement "
-            "and re-synthesise. Parameters exported below.")
+        needs = design.missing_requirements()
+        ask = (f"It is waiting for {', '.join(needs)}: give {'it' if len(needs) == 1 else 'them'} "
+               "and re-synthesise." if needs else "Supply the missing requirement and re-synthesise.")
+        model.notes.append(f"Geometry could not be built: {exc}. {ask} Parameters exported below.")
         return model
     if not _all_finite(model.solids) or not _all_finite(model.ports):
         # a dimension the design declined to give (NaN outside a fit's domain, or a case

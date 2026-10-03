@@ -652,3 +652,25 @@ def test_redrawing_a_weighted_layout_keeps_one_colour_bar_and_draws(qapp):
     plot_element_layout(c, pos)                    # unweighted: no bar at all
     c.draw()
     assert len(c.figure.axes) == 1 and not c.colorbars
+
+
+@pytest.mark.parametrize("key", ["halo_loop", "one_wavelength_circular_loop", "quad_loop_square",
+                                 "small_square_loop", "alford_loop", "stacked_patch", "long_wire_travelling"])
+def test_loading_a_known_design_leaves_no_free_size_blank(window, key):
+    """Loading a case that does not give a free size (a loop's wire radius) blanked
+    the field, and the design and its 3-D model stopped short of it."""
+    cat = window.catalogue
+    cat.select_key(key)
+    idx = next(i for i in range(cat.examples.count()) if cat.examples.itemData(i) is not None)
+    cat._load_example(idx)
+    assert not [s for s, e in cat._fields.items() if not e.text().strip()]
+
+
+def test_non_finite_figures_read_as_words(window):
+    from otahub.gui.models import display_value
+    assert display_value("boresight_cross_pol_db", float("-inf"), "dB") == "−∞ dB"
+    arr = window.arrays
+    arr.n.setValue(2); arr.spacing.setValue(0.05); arr.scan.setValue(0.0)
+    arr.refresh()
+    shown = [arr.summary_table.item(r, 1).text() for r in range(arr.summary_table.rowCount())]
+    assert not any("nan" in t or "inf" in t for t in shown)

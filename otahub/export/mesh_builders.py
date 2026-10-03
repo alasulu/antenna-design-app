@@ -194,6 +194,9 @@ def _corrugated(design, opts):
     r_in, R = d_in / 2, dm / 2
     flare = (R - r_in) / math.tan(psi)
     t, lg, p = B.o["wall"], B.o["guide_length"], B.o["pitch"]
+    if not p > 0 or flare / p > 2000:
+        raise ValueError(f"a {p * 1e3:.4g} mm pitch puts {flare / p if p > 0 else float('inf'):.4g} "
+                         f"corrugations on the {flare * 1e3:.4g} mm flare; at most 2000 are built")
     wt = p * B.o["tooth"]
     r = lambda z: r_in + (R - r_in) * z / flare
     prof = [(r_in, -lg), (r_in, 0.0)]

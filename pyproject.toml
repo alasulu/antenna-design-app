@@ -10,7 +10,7 @@ readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Oğuzhan Alasulu"}]
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24", "scipy>=1.10", "matplotlib>=3.7"]
+dependencies = ["numpy>=2.0", "scipy>=1.13", "matplotlib>=3.7"]
 
 [project.optional-dependencies]
 mesh = ["manifold3d>=3.0"]

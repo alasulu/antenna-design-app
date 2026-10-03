@@ -97,3 +97,39 @@ def test_planar_uses_dy_and_the_real_steering_direction(capsys):
 def test_thinning_a_uniform_array_does_not_crash(capsys):
     assert main(["planar", "--nx", "4", "--ny", "4", "--thin", "7"]) == 0
     assert "nothing was thinned" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("argv, says", [
+    (["synth", "rectangular_patch_inset", "--f0", "2.4mm", "--set", "eps_r=4.4", "--set", "h=1.6mm"], "frequency"),
+    (["synth", "rectangular_patch_inset", "--f0", "2.4GHz", "--set", "eps_r=4.4mm", "--set", "h=1.6mm"], "no unit"),
+    (["synth", "rectangular_patch_inset", "--f0", "2.4GHz", "--set", "eps_r=4.4", "--set", "h=1.6GHz"], "is in m"),
+    (["synth", "rectangular_patch_inset", "--f0", "1e999", "--set", "eps_r=4.4", "--set", "h=1.6mm"], "finite"),
+    (["synth", "rectangular_patch_inset", "--f0=-2.4GHz", "--set", "eps_r=4.4", "--set", "h=1.6mm"], "positive"),
+])
+def test_a_value_in_the_wrong_kind_of_unit_is_refused(capsys, argv, says):
+    """`--f0 2.4mm` designed a 38 Gm patch at 2.4 mHz, and `h=1.6GHz` a substrate
+    1.6e9 m thick, both with exit 0: a suffix must measure what the value does."""
+    try:
+        rc = main(argv)
+    except SystemExit as exc:                       # argparse refuses --f0 itself
+        rc = exc.code
+    assert rc == 2
+    assert says in capsys.readouterr().err
+
+
+def test_an_unknown_antenna_or_an_unwritable_file_is_reported_not_raised(capsys, tmp_path):
+    assert main(["export", "rectangular_patch_insett", "--f0", "2.4GHz"]) == 2
+    assert "Did you mean: rectangular_patch_inset" in capsys.readouterr().err
+    gone = str(tmp_path / "no_such_dir" / "patch")
+    base = ["export", "rectangular_patch_inset", "--f0", "2.4GHz", "--set", "eps_r=4.4", "--set", "h=1.6mm"]
+    assert main(base + ["--format", "cst", "-o", gone + ".bas"]) == 1
+    assert "cannot write" in capsys.readouterr().err
+    pytest.importorskip("manifold3d")
+    assert main(base + ["--format", "stl", "-o", gone + ".stl"]) == 1
+    assert "cannot write" in capsys.readouterr().err
+
+
+def test_construction_options_given_to_a_script_are_said_to_be_ignored(capsys, tmp_path):
+    assert main(["export", "rectangular_patch_inset", "--f0", "2.4GHz", "--set", "eps_r=4.4", "--set", "h=1.6mm",
+                 "--format", "hfss", "--opt", "copper=1mm", "-o", str(tmp_path / "p.py")]) == 0
+    assert "ignored: copper=1mm" in capsys.readouterr().err

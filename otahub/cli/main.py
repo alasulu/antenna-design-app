@@ -20,6 +20,10 @@ _SUFFIX_SI = {
     "ohm": 1.0, "deg": math.pi / 180.0, "rad": 1.0, "S/m": 1.0,
 }
 _ANGLES = ("deg", "rad")
+#: what each suffix measures, so a value in the wrong kind of unit is refused
+_DIMENSION = {"GHz": "Hz", "MHz": "Hz", "kHz": "Hz", "Hz": "Hz",
+              "mm": "m", "cm": "m", "m": "m", "um": "m", "mil": "m", "in": "m",
+              "ohm": "ohm", "deg": "angle", "rad": "angle", "S/m": "S/m"}
 
 
 def _parse(text: str) -> tuple[float, str]:
@@ -31,6 +35,8 @@ def _parse(text: str) -> tuple[float, str]:
         value, suffix = float(m.group(1)), m.group(2)
     except ValueError:                       # "." and "1.2.3" pass the pattern
         raise argparse.ArgumentTypeError(f"cannot parse quantity {text!r}") from None
+    if not math.isfinite(value):
+        raise argparse.ArgumentTypeError(f"{text!r} is not a finite number")
     if not suffix:
         return value, ""
     for unit, factor in _SUFFIX_SI.items():          # exact, case-sensitive first
@@ -45,6 +51,23 @@ def _parse(text: str) -> tuple[float, str]:
 def parse_quantity(text: str) -> float:
     """Parse ``2.4GHz`` / ``1.6mm`` / ``3.5`` into an SI float (angles in rad)."""
     return _parse(text)[0]
+
+
+def _positive(dimension: str, name: str):
+    """An argparse type: a positive quantity, plain or with a suffix of this dimension."""
+    def parse(text: str) -> float:
+        value, suffix = _parse(text)
+        if suffix and _DIMENSION[suffix] != dimension:
+            raise argparse.ArgumentTypeError(f"{text!r} is not a {name}")
+        if not value > 0:
+            raise argparse.ArgumentTypeError(f"a {name} must be positive, not {text!r}")
+        return value
+    parse.__name__ = name                    # argparse names the type in its errors
+    return parse
+
+
+frequency = _positive("Hz", "frequency")
+length = _positive("m", "length")
 
 
 def _kv(pairs: list[str], units: dict[str, str] | None = None) -> dict[str, float]:
@@ -71,6 +94,9 @@ def _kv(pairs: list[str], units: dict[str, str] | None = None) -> dict[str, floa
         elif suffix in _ANGLES and declared not in ("", *_ANGLES):
             raise argparse.ArgumentTypeError(
                 f"{name} is in {declared}, not an angle; got {raw!r}")
+        elif suffix and declared and _DIMENSION[suffix] != declared:
+            raise argparse.ArgumentTypeError(
+                f"{name} is in {'no unit' if declared == '-' else declared}; got {raw!r}")
         out[name] = value
     return out
 
@@ -285,6 +311,9 @@ def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
 
     if args.format == "stl" or args.options:
         return _export_solid(args, a, design)
+    if args.opt:
+        print(f"--opt sets construction options of the STL model; the {args.format} script "
+              f"does not take them (ignored: {', '.join(args.opt)})", file=sys.stderr)
 
     model = build(design)
     backend = {"cst": cst_backend, "hfss": hfss_backend}[args.format]
@@ -292,7 +321,11 @@ def cmd_export(args: argparse.Namespace, reg: Registry) -> int:
 
     if args.output:
         path = Path(args.output)
-        path.write_text(text)
+        try:
+            path.write_text(text)
+        except OSError as exc:
+            print(f"cannot write {path}: {exc.strerror or exc}", file=sys.stderr)
+            return 1
         print(f"wrote {path}  ({len(text.splitlines())} lines)")
     else:
         print(text)
@@ -322,6 +355,10 @@ def _export_solid(args: argparse.Namespace, a, design) -> int:
         print(f"unknown option(s) {', '.join(unknown)}; {a.key} takes: {', '.join(o.name for o in opts)}",
               file=sys.stderr)
         return 2
+    bad = mesh.option_problems(a.key, given)
+    if bad:
+        print("bad --opt: " + "; ".join(bad), file=sys.stderr)
+        return 2
     options = mesh.Options(given)
     if args.options:
         values = mesh.option_values(design, options)
@@ -343,12 +380,17 @@ def _export_solid(args: argparse.Namespace, a, design) -> int:
     if not args.output:
         print("STL is binary: give a file with -o, e.g. -o antenna.stl", file=sys.stderr)
         return 2
-    files = mesh.write_stl(model, args.output)
+    try:
+        files = mesh.write_stl(model, args.output)
+    except OSError as exc:
+        print(f"cannot write {args.output}: {exc.strerror or exc}", file=sys.stderr)
+        return 1
     lo, hi = model.bounds()
     size = " x ".join(f"{(h - l) * 1e3:.4g}" for l, h in zip(lo, hi))
     for f in files:
         print(f"wrote {f}  ({f.stat().st_size // 1024} kB)")
-    print(f"{model.title}: {len(model.bodies)} bodies, {size} mm, units millimetres")
+    bodies = sum(1 for b in model.bodies if not b.solid.is_empty())
+    print(f"{model.title}: {bodies} bodies, {size} mm, units millimetres")
     for n in model.notes:
         print(f"  - {n}")
     return 0
@@ -919,7 +961,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pl = sub.add_parser("list", help="list archetypes")
     pl.add_argument("--family"); pl.add_argument("--search")
-    pl.add_argument("--covering", type=parse_quantity, metavar="FREQ",
+    pl.add_argument("--covering", type=frequency, metavar="FREQ",
                     help="only those valid at this frequency, e.g. 2.4GHz")
     pl.set_defaults(func=cmd_list)
 
@@ -928,7 +970,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     py = sub.add_parser("synth", help="synthesise a design")
     py.add_argument("key")
-    py.add_argument("--f0", type=parse_quantity, help="design frequency, e.g. 2.4GHz")
+    py.add_argument("--f0", type=frequency, help="design frequency, e.g. 2.4GHz")
     py.add_argument("--set", action="append", metavar="NAME=VALUE",
                     help="extra requirement, repeatable (e.g. --set eps_r=4.4)")
     py.add_argument("--json", action="store_true")
@@ -948,7 +990,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a construction option for the 3-D model (wall=1mm, copper=35um, substrate_h=0.8mm)")
     pe.add_argument("--options", action="store_true",
                     help="list the construction options this antenna's 3-D model takes, with their values")
-    pe.add_argument("--f0", type=parse_quantity, help="design frequency")
+    pe.add_argument("--f0", type=frequency, help="design frequency")
     pe.add_argument("--set", action="append", metavar="NAME=VALUE")
     pe.add_argument("-o", "--output", help="write to a file instead of stdout")
     pe.set_defaults(func=cmd_export)
@@ -957,7 +999,7 @@ def build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--r", type=float, required=True, help="load resistance [ohm]")
     pm.add_argument("--x", type=float, default=0.0, help="load reactance [ohm]")
     pm.add_argument("--z0", type=float, default=50.0, help="reference impedance")
-    pm.add_argument("--f0", type=parse_quantity, help="frequency for component values")
+    pm.add_argument("--f0", type=frequency, help="frequency for component values")
     pm.set_defaults(func=cmd_match)
 
     pui = sub.add_parser("gui", help="launch the graphical interface")
@@ -965,8 +1007,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     pg = sub.add_parser("guide", help="analyse a rectangular waveguide")
     pg.add_argument("name", help="WR designation, or 'list' for the whole series")
-    pg.add_argument("--f0", type=parse_quantity, help="operating frequency, e.g. 10GHz")
-    pg.add_argument("--f-max", type=parse_quantity, help="highest cutoff to list")
+    pg.add_argument("--f0", type=frequency, help="operating frequency, e.g. 10GHz")
+    pg.add_argument("--f-max", type=frequency, help="highest cutoff to list")
     pg.set_defaults(func=cmd_guide)
 
     pa = sub.add_parser("array", help="synthesise a linear array taper")
@@ -1030,7 +1072,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="return-loss threshold for calling something a resonance")
     pt.add_argument("--compare", default=None,
                     help="archetype key to compare the measurement against")
-    pt.add_argument("--at", type=parse_quantity, default=None,
+    pt.add_argument("--at", type=frequency, default=None,
                     help="frequency for the comparison; defaults to the best match")
     pt.add_argument("--set", action="append", metavar="NAME=VALUE",
                     help="requirement for the compared archetype")
@@ -1039,15 +1081,15 @@ def build_parser() -> argparse.ArgumentParser:
     pn = sub.add_parser("line", help="synthesise a transmission line")
     pn.add_argument("kind", help="microstrip | coax")
     pn.add_argument("--z0", type=float, help="target impedance [ohm]")
-    pn.add_argument("--w", type=parse_quantity, help="strip width, for analysis")
-    pn.add_argument("--h", type=parse_quantity, default=1.6e-3, help="substrate thickness")
+    pn.add_argument("--w", type=length, help="strip width, for analysis")
+    pn.add_argument("--h", type=length, default=1.6e-3, help="substrate thickness")
     pn.add_argument("--eps-r", dest="eps_r", type=float, default=4.4)
-    pn.add_argument("--f0", type=parse_quantity, help="frequency for guide wavelength")
+    pn.add_argument("--f0", type=frequency, help="frequency for guide wavelength")
     pn.set_defaults(func=cmd_line)
 
     ph = sub.add_parser("potter", help="solve a dual-mode (Potter) horn's step and phasing length jointly")
-    ph.add_argument("--f0", type=parse_quantity, required=True, help="design frequency, e.g. 10GHz")
-    ph.add_argument("--L", type=parse_quantity, required=True, help="slant length of the cone, e.g. 0.3m")
+    ph.add_argument("--f0", type=frequency, required=True, help="design frequency, e.g. 10GHz")
+    ph.add_argument("--L", type=length, required=True, help="slant length of the cone, e.g. 0.3m")
     ph.add_argument("--share", type=float, default=0.15, help="TM11 share of the aperture power (0.15)")
     ph.add_argument("--d-in", dest="d_in", type=float, default=1.1,
                     help="input guide diameter in wavelengths (1.1)")
@@ -1062,13 +1104,13 @@ def build_parser() -> argparse.ArgumentParser:
     ph.set_defaults(func=cmd_potter)
 
     sk = sub.add_parser("stack", help="solve a probe-fed stacked patch: its band and best probe position (slow)")
-    sk.add_argument("--f0", type=parse_quantity, required=True, help="design frequency, e.g. 2.4GHz")
+    sk.add_argument("--f0", type=frequency, required=True, help="design frequency, e.g. 2.4GHz")
     sk.add_argument("--eps-r", dest="eps_r", type=float, default=2.2, help="driven layer's permittivity (2.2)")
-    sk.add_argument("--h", type=parse_quantity, required=True, help="driven layer's thickness, e.g. 1.6mm")
+    sk.add_argument("--h", type=length, required=True, help="driven layer's thickness, e.g. 1.6mm")
     sk.add_argument("--eps-r2", dest="eps_r2", type=float, help="gap's permittivity (the spec's default)")
     sk.add_argument("--gap", type=float, help="gap in free-space wavelengths (the spec's default)")
     sk.add_argument("--ratio", type=float, help="parasitic size over driven (the spec's default)")
-    sk.add_argument("--probe-radius", dest="probe_radius", type=parse_quantity, default=0.65e-3,
+    sk.add_argument("--probe-radius", dest="probe_radius", type=length, default=0.65e-3,
                     help="probe radius (0.65 mm, an SMA pin)")
     sk.add_argument("--lo", type=float, default=0.8, help="sweep from this fraction of f0 (0.8)")
     sk.add_argument("--hi", type=float, default=1.25, help="sweep to this fraction of f0 (1.25)")
@@ -1084,6 +1126,12 @@ def main(argv: list[str] | None = None) -> int:
     if not len(reg) and not reg.load_errors:
         print("no specs found — is the spec directory populated?", file=sys.stderr)
         return 1
+    key = getattr(args, "key", None)
+    if isinstance(key, str) and reg.get(key) is None:
+        near = reg.suggest(key)
+        print(f"no archetype named {key!r}." + (f" Did you mean: {', '.join(near)}?" if near else
+                                               " See: otahub list"), file=sys.stderr)
+        return 2
     return args.func(args, reg)
 
 

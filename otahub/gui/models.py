@@ -260,6 +260,9 @@ def display_value(key: str, value, unit: str = "", sig: int = 5) -> str | None:
     value = float(value)
     if _math.isnan(value):
         return None
+    if _math.isinf(value):                  # a perfect null in dB, say: shown as such
+        u = shown_unit(unit)
+        return ("−∞" if value < 0 else "∞") + ((" " + u) if u and u != "°" else u)
     if ("fractional_bandwidth" in key or "bandwidth_vswr2" in key) and unit in ("-", "") and abs(value) < 5:
         return f"{value * 100:.3g} %"
     if key.endswith("bandwidth_ratio") and unit in ("-", "") and _math.isfinite(value):

@@ -245,3 +245,42 @@ def test_the_pifa_strip_is_at_a_corner(registry):
     wall = next(s for s in m.solids if s.name == "shorting_wall")
     assert wall.x == pytest.approx((-0.018, -0.012))
     assert m.ports[0].start[0] == pytest.approx(-0.015)
+
+
+@pytest.mark.parametrize("key, opt, value, says", [
+    ("corrugated_conical_horn", "pitch", 0.0, "positive"),
+    ("rectangular_patch_inset", "copper", 0.0, "positive"),
+    ("rectangular_patch_inset", "copper", -1.0, "positive"),
+    ("rectangular_patch_inset", "margin", -0.03, "zero or more"),
+    ("corrugated_conical_horn", "tooth", 1.5, "between 0 and 1"),
+    ("prime_focus_parabolic", "struts", 2.5, "count"),
+    ("prime_focus_parabolic", "struts", float("inf"), "finite"),
+])
+def test_an_unusable_option_is_refused_with_a_reason(registry, key, opt, value, says):
+    """A zero pitch looped forever (the GUI froze); copper of zero or below dropped every
+    conductor from the STL while the CLI reported success; a negative margin cut the board
+    under the patch. Each is now a note, and no model."""
+    assert any(says in p for p in mesh.option_problems(key, {opt: value}))
+    case = registry[key].spec.known_cases[0]
+    s = mesh.solid(registry[key].synthesize(**case.given), mesh.Options({opt: value}))
+    assert not s.built and says in s.notes[0]
+
+
+def test_a_pitch_too_fine_to_build_stops_at_once(registry):
+    d = registry["corrugated_conical_horn"].synthesize(f0=10e9, L=0.3, flare=0.1)
+    s = mesh.solid(d, mesh.Options({"pitch": 3.7e-9}))
+    assert not s.built and "at most 2000" in s.notes[0]
+
+
+def test_option_defaults_survive_an_incomplete_design(registry):
+    """`--options` on an E-plane horn without its guide width raised KeyError: 'a_wg'
+    (its b_wg option's default reads it), and in the GUI left the previous horn on screen."""
+    d = registry["e_plane_sectoral_horn"].synthesize(f0=10e9)
+    values = mesh.option_values(d)
+    assert math.isnan(values["b_wg"]) and values["wall"] > 0
+
+
+def test_a_loop_without_its_wire_radius_names_it(registry):
+    for key, f0 in (("halo_loop", 50.1e6), ("one_wavelength_circular_loop", 3e8), ("quad_loop_square", 14.2e6)):
+        s = mesh.solid(registry[key].synthesize(f0=f0))
+        assert not s.built and "waiting for b" in s.notes[0] and "('" not in s.notes[0]

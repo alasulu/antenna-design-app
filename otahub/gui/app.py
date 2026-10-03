@@ -16,7 +16,7 @@ import re
 import sys
 
 import numpy as np
-from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QLocale, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox, QDoubleSpinBox,
                                QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView,
@@ -135,6 +135,16 @@ def _card(layout: QLayout | None = None, name: str = "card") -> QFrame:
         frame.setLayout(layout)
     return frame
 
+
+
+def _shown(value, fmt: str, unit: str) -> str:
+    """An array figure for a table: a beamwidth the pattern does not have (no half-power
+    point, NaN) says so, and a sidelobe of -inf dB is no sidelobe at all."""
+    if math.isnan(value):
+        return "not defined"
+    if math.isinf(value):
+        return "none" if value < 0 and "dB" in unit else ("−∞" if value < 0 else "∞") + unit
+    return f"{value:{fmt}}{unit}"
 
 class FlowLayout(QLayout):
     """Lays its items out left to right and wraps them, like text."""
@@ -665,8 +675,8 @@ class CatalogueTab(QWidget):
             bl.setSpacing(3)
             top = QHBoxLayout()
             name = param.name or param.symbol
-            top.addWidget(_label(name[:1].upper() + name[1:] + (" *" if is_primary(param) else ""),
-                                 "fieldname"))
+            name = humanize(name) if "_" in name else name[:1].upper() + name[1:]
+            top.addWidget(_label(name + (" *" if is_primary(param) else ""), "fieldname"))
             top.addStretch(1)
             meta = param.symbol + (f"  ·  {shown_unit(param.unit)}" if param.unit and param.unit != "-" else "")
             top.addWidget(_label(meta, "fieldmeta"))
@@ -757,6 +767,9 @@ class CatalogueTab(QWidget):
             except ValueError:
                 pass
             edit.setText(text)
+        # a free size the case does not give (a loop's wire radius) gets the same
+        # suggestion it has when the page opens, not a blank that stops the design
+        self._suggest_blanks()
         self._synthesise()
 
     def _toggle_more(self) -> None:
@@ -1055,9 +1068,9 @@ class ArrayTab(QWidget):
 
         rows = [
             ("elements", str(s["elements"])),
-            ("directivity", f"{s['directivity_dbi']:.2f} dBi"),
-            ("half-power beamwidth", f"{s['hpbw_deg']:.3f}°"),
-            ("first sidelobe", f"{s['sidelobe_db']:.2f} dB"),
+            ("directivity", _shown(s["directivity_dbi"], ".2f", " dBi")),
+            ("half-power beamwidth", _shown(s["hpbw_deg"], ".3f", "°")),
+            ("first sidelobe", _shown(s["sidelobe_db"], ".2f", " dB")),
             ("taper efficiency", f"{s['taper_efficiency']:.4f}"),
             ("directivity given up", f"{-10 * math.log10(s['taper_efficiency']):.2f} dB"),
             ("max spacing, no grating lobe", f"{s['max_spacing_no_grating']:.4f} λ"),
@@ -1203,11 +1216,11 @@ class PlanarArrayTab(QWidget):
             ("elements", str(s["elements"])),
             ("aperture",
              f"{s['aperture_x_lambda']:.2f} × {s['aperture_y_lambda']:.2f} λ"),
-            ("directivity", f"{s['directivity_dbi']:.2f} dBi"),
-            ("beamwidth, scan plane", f"{s['hpbw_scan_plane_deg']:.3f}°"),
-            ("beamwidth, cross plane", f"{s['hpbw_cross_plane_deg']:.3f}°"),
-            ("sidelobe, scan plane", f"{s['sidelobe_scan_plane_db']:.2f} dB"),
-            ("sidelobe, cross plane", f"{s['sidelobe_cross_plane_db']:.2f} dB"),
+            ("directivity", _shown(s["directivity_dbi"], ".2f", " dBi")),
+            ("beamwidth, scan plane", _shown(s["hpbw_scan_plane_deg"], ".3f", "°")),
+            ("beamwidth, cross plane", _shown(s["hpbw_cross_plane_deg"], ".3f", "°")),
+            ("sidelobe, scan plane", _shown(s["sidelobe_scan_plane_db"], ".2f", " dB")),
+            ("sidelobe, cross plane", _shown(s["sidelobe_cross_plane_db"], ".2f", " dB")),
             ("taper efficiency", f"{s['taper_efficiency']:.4f}"),
             ("max spacing, no grating lobe", f"{limit:.4f} λ"),
         ]
@@ -1429,6 +1442,9 @@ class MainWindow(QMainWindow):
 
 
 def main(argv: list[str] | None = None) -> int:
+    # numbers read the same everywhere in the app: Python formats the tables with a
+    # point, so the spin boxes must not take the region's decimal comma
+    QLocale.setDefault(QLocale.c())
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("OTA Hub Antenna Toolkit")
     window = MainWindow()

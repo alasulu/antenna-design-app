@@ -171,7 +171,12 @@ def evaluate(expr: str, variables: Mapping[str, Any]) -> Any:
     namespace.update(variables)
     code = compile(tree, filename="<spec>", mode="eval")
     try:
-        value = eval(code, {"__builtins__": {}}, namespace)  # noqa: S307 - validated above
+        # numpy reports a domain error (log of a negative, 0/0) as a warning, and the
+        # warnings machinery cannot run inside this builtin-free frame - it surfaced as
+        # "KeyError: '__import__'". Raised as errors here instead: the same outcome
+        # (the rule fails), with numpy's own words for why.
+        with np.errstate(divide="raise", over="raise", invalid="raise"):
+            value = eval(code, {"__builtins__": {}}, namespace)  # noqa: S307 - validated above
     except ExprError:
         raise
     except ZeroDivisionError as exc:
