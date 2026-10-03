@@ -27,8 +27,9 @@ Python: `/Users/macbookair/miniconda3/bin/python` on the Mac, `python` elsewhere
   what settled it and what is still open. Keep the numbering.
 - BUILD_STATE.md: append a new "## ..." entry at the end; it is the last file updated in
   a round, in its own commit. End entries with the counts line
-  ("After it: N tests - on GitHub's Linux runners ... - N/N known-case expectations in
-  N cases, the doctor clean, N lines of Python.").
+  ("After it: N tests - on GitHub's Linux runners the quick and slow jobs N passed and
+  N skipped - N/N known-case expectations in N cases, the doctor clean, N lines of
+  Python.").
 - README: keep counts in sync in every place they appear (table, badges, test section,
   layout table, line counts).
 

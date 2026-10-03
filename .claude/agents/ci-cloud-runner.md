@@ -11,12 +11,15 @@ GitHub Codespaces for the public repo alasulu/antenna-design-app (branch master)
 codespace scope.
 
 ## Workflows
-- .github/workflows/tests.yml - three jobs on every push: "Specs (doctor + every cited
-  case)", "Quick tests (not slow)" (~20 min), "Full suite (solvers included)" (~35-45
-  min). Python 3.13, QT_QPA_PLATFORM=offscreen.
-- .github/workflows/codespace.yml - builds .devcontainer/ (Python 3.12, desktop-lite
-  noVNC on port 6080, password vscode), starts the GUI and uploads a screenshot
-  artifact "codespace-desktop".
+- .github/workflows/tests.yml - on every push (a newer push cancels the older run):
+  "Specs (doctor + every cited case)" (<1 min), "Quick tests (not slow), Python 3.10"
+  and "... Python 3.13" (~20 min each), and "Slow tests (full-wave solvers)" (-m slow,
+  ~30 min, Python 3.13). Quick + slow together are the whole suite; add their passed
+  counts for a total. QT_QPA_PLATFORM=offscreen; pytest -rs lists skip reasons.
+- .github/workflows/codespace.yml - builds .devcontainer/ (Python 3.12 image pinned by
+  digest, desktop-lite 1.2.10, noVNC on port 6080, password vscode), starts the GUI and
+  uploads a screenshot artifact "codespace-desktop". Runs only when .devcontainer/,
+  the workflow or pyproject.toml change.
 
 ## Watching and reading
 - Find a run: `gh run list --repo alasulu/antenna-design-app --limit 5 --json

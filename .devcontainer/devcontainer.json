@@ -4,7 +4,7 @@
   "name": "OTA Hub Antenna Toolkit",
   "build": { "dockerfile": "Dockerfile" },
   "features": {
-    "ghcr.io/devcontainers/features/desktop-lite:1": {}
+    "ghcr.io/devcontainers/features/desktop-lite:1.2.10": {}
   },
   "containerEnv": {
     "DISPLAY": ":1",

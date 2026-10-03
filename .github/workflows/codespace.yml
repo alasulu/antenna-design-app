@@ -7,13 +7,17 @@ on:
     paths: [".devcontainer/**", ".github/workflows/codespace.yml", "pyproject.toml"]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop:
     name: Codespace desktop opens the app
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/alasulu/antenna-design-app-devcontainer
@@ -33,7 +37,7 @@ jobs:
             print("screen", shot.width(), "x", shot.height())
             PY
             python OTA_Hub_AntennaToolkit.py synth half_wave_dipole --f0 2.4GHz | head -20
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: codespace-desktop

@@ -225,12 +225,12 @@ electrical result to stay identical; and the whole codebase has been through an
 independent review with OpenAI Codex, every finding re-verified before it was fixed.
 
 Every push runs the whole suite in the cloud on GitHub Actions (the *tests* badge at the top):
-the spec doctor and every cited case, the quick tests, and the full suite with the solvers.
-To run it yourself:
+the spec doctor and every cited case, the quick tests on Python 3.10 and 3.13, and the
+slow full-wave solver tests beside them. To run it yourself:
 
 ```bash
 python -m pytest tests/                  # 3455 tests, about 25 minutes
-python -m pytest -m "not slow"           # the quick loop, about 30 seconds
+python -m pytest -m "not slow"           # the quick loop, without the full-wave solver runs
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
 ```
