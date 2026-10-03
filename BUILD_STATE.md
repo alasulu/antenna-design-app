@@ -4005,3 +4005,47 @@ After it: 3502 tests - on GitHub's Linux runners the quick and slow jobs 3477 pa
 25 skipped, the quick ones on Python 3.10 and 3.13, in 27 minutes end to end -
 1091/1091 known-case expectations in 458 cases, the doctor
 clean, 32,874 lines of Python.
+
+## After the audit: the small loops' loss counted where the current is
+
+HANDOVER item 15, opened by the audit - a thick wire's terminal impedance,
+which the feed decides - led somewhere else first. Asking what does NOT depend
+on the feed found an error that did not need a thick wire at all.
+
+- **Efficiency and Q were counted at the wrong current.** A resistive wire
+  loses r |I|^2 wherever the current is, so a loop's efficiency is R_loop /
+  (R_loop + R_loss) with R_loop = 2 P_rad / <|I|^2>, the radiation resistance
+  referred to the loop's own mean-square current; its loaded Q is the lossless
+  radiation Q times that efficiency. small_circular_loop and small_square_loop
+  used the terminal resistance with the uniform-current loss added at the
+  terminals. As the current stops being uniform - the far side of a
+  0.3-wavelength loop carries 1.8 times the feed's current, and its terminal
+  resistance is 2.4 times R_loop - that read efficiency and Q 8-12% high
+  (0.852 and 402 for 0.760 and 359 at 0.25 wavelengths; the square's Q 291
+  for 262), and the wire sized for an efficiency target came out 30% too thin
+  (a loop built for 0.5 gives 0.41). The tests had checked the spec against a
+  "real loop" with the same terminal loss, so they agreed with it.
+- **What the feed does not decide.** R_loop and the radiation Q move 0.01%
+  with the Fourier solution's mode count and 0.2% with the MoM mesh, where the
+  terminal resistance moves 35% and 24%: the gap's capacitance only shares the
+  tuning. Both are now fits over the whole thin-wire domain, the thick corner
+  the terminal fits are NaN on included, and efficiency, Q, bandwidth, gain and
+  the circle's wire sizing (now closed form) rest on them.
+- **Directivity** was the infinitesimal loop's 1.5; the solved current gives
+  1.436 at 0.3 wavelengths and 0.47 on the axis. Fitted; gain follows.
+- **Checked three ways:** the Fourier loop solved with the wire's resistance
+  in every mode (energy balance to 1e-16; efficiency and Q_Z equal to the
+  identities to all printed digits); a physics-verifier agent with the loss
+  loaded into the MoM (the rooftop Gram matrix), every claim confirmed at four
+  designs and on the square; Codex over the whole change, which also found the
+  core and the GUI putting the textbook radiation resistance in for a NaN
+  terminal impedance, single-turn gates taking N = 0, and targets of 0 or 1
+  dividing by zero - fixed.
+- **Open:** a thick wire's terminal impedance (a physical gap); and the
+  resonant loops, which make the mirror-image error and understate efficiency
+  by about 2.5% (conservative).
+
+After it: 3536 tests - on GitHub's Linux runners the quick and slow jobs 3511 passed and
+25 skipped, the quick ones on Python 3.10 and 3.13, in 20 minutes end to end -
+1104/1104 known-case expectations in 464 cases, the doctor
+clean, 33,125 lines of Python.
