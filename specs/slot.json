@@ -87,18 +87,18 @@
         },
         {
           "output": "Rd_res",
-          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 5.0001), (-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "slot_t"
           ],
-          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override. The complementary strip itself, fed across gaps of a/2 to 4a, gives 72.4-73.7 ohm at w/L = 0.043 and 72.9-76.6 at 0.087: the fit sits 1.7-2.2% above its small-gap end."
+          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override. The complementary strip itself, fed across gaps of a/2 to 4a, gives 72.4-73.7 ohm at w/L = 0.043 and 72.9-76.6 at 0.087: the fit sits 1.7-2.2% above its small-gap end. NaN outside w/L 0.22 (the strip check's widest) down to a complementary radius of 1e-5 wavelengths (slot_t 5, the fit's thin end): resonant_dipole gates the same cubic, which read 16.7 ohm at 3.3e-8 wavelengths, and a w/L of 1e-6 here gave 38.8 ohm and a 915 ohm slot."
         },
         {
           "output": "L",
-          "expr": "np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 10.0001), np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0, inf - inf)",
           "units_out": "m",
-          "notes": "Resonant slot length. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Wider slots resonate shorter, exactly as fatter dipoles do. Against the complementary STRIP itself (otahub.num.strip), fed across gaps of a/2 to 4a: 0.4630-0.4655 lambda0 at w/L = 0.043, where the law gives 0.4650 - inside the strip's own feed spread, as at every width solved up to w/L = 0.22.",
+          "notes": "Resonant slot length. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Wider slots resonate shorter, exactly as fatter dipoles do. Against the complementary STRIP itself (otahub.num.strip), fed across gaps of a/2 to 4a: 0.4630-0.4655 lambda0 at w/L = 0.043, where the law gives 0.4650 - inside the strip's own feed spread, as at every width solved up to w/L = 0.22. NaN past w/L = 0.22 (slot_t < 1.588), the widest the complementary strip was checked at, and beyond the length law's thin end (slot_t > 10).",
           "depends_on": [
             "slot_t",
             "f0"
@@ -317,7 +317,7 @@
             "input_resistance_ohm": 468.1138
           },
           "tol_pct": 0.5,
-          "source": "Complementary dipole of radius a = w/4 = 0.00580 lambda0 at the default w/L = 0.05, with the slot length solved self-consistently: resonant_dipole's length law gives 0.46379 lambda0 and its solved resistance 75.80 ohm, so the resonant slot is 468.1 ohm. Exact-kernel MoM and Hallen's equation independently give 0.4645-0.4654 lambda0 and 74.0-75.4 ohm, a 471-479 ohm slot. lambda0 = 0.99930819 m at 300 MHz."
+          "source": "Complementary dipole of radius a = w/4 = 0.00580 lambda0 at the default w/L = 0.05, with the slot length solved self-consistently: resonant_dipole's length law gives 0.46379 lambda0 and its solved resistance 75.80 ohm, so the resonant slot is 468.1 ohm. Exact-kernel MoM and Hallen's equation independently give 0.4645-0.4654 lambda0 and 74.0-75.4 ohm, a 471-479 ohm slot. lambda0 = 0.99930819 m at 300 MHz. These evaluate the fitted laws (a pin of them, not an independent check); tests/test_slot_complement.py holds them to the two solvers."
         },
         {
           "given": {
@@ -464,21 +464,22 @@
       "synthesis": [
         {
           "output": "slot_length",
-          "expr": "0.48*c/f0",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 10.0001), np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0, inf - inf)",
           "units_out": "m",
           "depends_on": [
+            "slot_t",
             "f0"
           ],
-          "notes": "slightly under lambda/2, as with a dipole"
+          "notes": "Cut to resonance: by Babinet the slot resonates where its complementary dipole (a wire of radius a = w/4) does, so the length is resonant_dipole's length law at that radius, as half_wave_slot's - 0.4637 lambda0 at the default width. It was a flat 0.48 lambda0 while the resistance beside it was the resonant slot's: the exact-kernel method of moments on the complementary dipole puts the 0.48 lambda0 slot at 793-806 - j144-155 ohm one-sided, not resonant, and the 0.4637 lambda0 one at 954-966 + j19-24 ohm. NaN past w/L = 0.22."
         },
         {
           "output": "slot_width",
-          "expr": "0.05*(0.48*c/f0)",
+          "expr": "0.05*(0.47*c/f0)",
           "units_out": "m",
           "depends_on": [
             "f0"
           ],
-          "notes": "width sets the bandwidth; 5% of the length is a typical starting point"
+          "notes": "5% of a nominal 0.47 lambda0 length - half_wave_slot's default width, which sets the bandwidth; it is taken on the nominal length, not on slot_length itself, so the two are not circular."
         },
         {
           "output": "cavity_width",
@@ -520,12 +521,12 @@
         },
         {
           "output": "Rd_res",
-          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 5.0001), (-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "slot_t"
           ],
-          "notes": "The complementary dipole's resistance at its own resonance, the same solved law half_wave_slot uses."
+          "notes": "The complementary dipole's resistance at its own resonance, the same solved law half_wave_slot uses. NaN outside w/L 0.22 down to a complementary radius of 1e-5 wavelengths, as half_wave_slot's."
         }
       ],
       "analysis": [
@@ -533,7 +534,7 @@
           "metric": "input_resistance_ohm",
           "expr": "eta0**2/(2.0*Rd_res)",
           "units_out": "ohm",
-          "notes": "The slot radiating into one half space, at resonance, with the cavity an open circuit behind it: eta0^2/(2 Rd_res), 935 ohm at w/L = 0.05 - half_wave_slot's one-sided figure. It was 2 x 363 = 726 ohm, which doubled the resistance of an exactly-half-wave slot that is NOT resonant (363 - j211 ohm). The cavity's own susceptance, nonzero away from the design frequency or for any other depth, is not in this figure.",
+          "notes": "The slot radiating into one half space, at resonance, with the cavity an open circuit behind it: eta0^2/(2 Rd_res), 936 ohm at w/L = 0.05 - half_wave_slot's one-sided figure. The method of moments on the complementary dipole puts the resonant slot 2-3% higher (954-966 ohm), the same spread half_wave_slot's resistance carries. It was 2 x 363 = 726 ohm, which doubled the resistance of an exactly-half-wave slot that is NOT resonant (363 - j211 ohm). The cavity's own susceptance, nonzero away from the design frequency or for any other depth, is not in this figure.",
           "depends_on": [
             "Rd_res"
           ]
@@ -558,6 +559,15 @@
           "expr": "0.05",
           "units_out": "-",
           "notes": "Indicative: the quarter-wave cavity is resonant, so the cavity-backed slot trades roughly half the open slot's bandwidth for its unidirectional pattern."
+        },
+        {
+          "metric": "slot_length_textbook_m",
+          "expr": "0.48*c/f0",
+          "units_out": "m",
+          "depends_on": [
+            "f0"
+          ],
+          "notes": "The flat 0.48 lambda0 this spec used to build, kept for comparison: 3.5% longer than resonance at the default width."
         }
       ],
       "validity": [
@@ -571,15 +581,15 @@
             "f0": 1000000000.0
           },
           "expect": {
-            "slot_length_m": 0.1439,
+            "slot_length_m": 0.139006,
             "cavity_depth_m": 0.135586,
             "cavity_depth_over_lambda": 0.452267,
             "cavity_depth_free_space_m": 0.0749481,
             "directivity_dbi": 5.15143,
-            "input_resistance_ohm": 934.861
+            "input_resistance_ohm": 935.7
           },
           "tol_pct": 1.0,
-          "source": "1 GHz: 0.48 lambda slot = 143.9 mm; a 0.6 lambda wide cavity's TE10 guide wavelength is lambda0/sqrt(1 - (1/1.2)^2) = 1.809 lambda0, so a quarter of it is 0.4523 lambda0 = 135.59 mm (the free-space lambda0/4 is 74.95 mm); one-sided resonant resistance eta0^2/(2 Rd_res) = 934.86 ohm with Rd_res = 75.907 ohm at a = w/4 (script). Directivity twice the open slot's. Balanis, Antenna Theory 4th ed., Ch. 12, for the configuration."
+          "source": "1 GHz, slot width 0.05 x 0.47 lambda0 = 7.045 mm, complementary radius a = w/4: resonant_dipole's length law at slot_t = log10(lambda0/a) = 2.23099 gives 0.463674 lambda0 = 139.006 mm, and its resistance law 75.839 ohm, so the one-sided resonant resistance is eta0^2/(2 x 75.839) = 935.70 ohm (both laws evaluated by script; they pin the fitted laws, which test_slot_complement checks against two wire solvers). The exact-kernel method of moments on the complementary dipole at that length gives 954-966 + j19-24 ohm one-sided; at the old 0.48 lambda0 (143.90 mm) it gives 793-806 - j144-155 ohm. A 0.6 lambda wide cavity's TE10 guide wavelength is lambda0/sqrt(1 - (1/1.2)^2) = 1.809 lambda0, so a quarter of it is 0.4523 lambda0 = 135.59 mm (the free-space lambda0/4 is 74.95 mm). Directivity twice the open slot's. Balanis, Antenna Theory 4th ed., Ch. 12, for the configuration."
         }
       ],
       "references": [
@@ -1446,22 +1456,22 @@
         },
         {
           "output": "Rd_res",
-          "expr": "(-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517)",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 5.0001), (-1.1600283)*slot_t**3 + (13.113005)*slot_t**2 + (-48.593749)*slot_t + (131.86517), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "slot_t"
           ],
-          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override. The complementary strip itself, fed across gaps of a/2 to 4a, gives 72.4-73.7 ohm at w/L = 0.043 and 72.9-76.6 at 0.087: the fit sits 1.7-2.2% above its small-gap end."
+          "notes": "Driving-point resistance of the complementary dipole at its own resonance, from resonant_dipole's solved fit at the same thickness: 73.7 ohm at w/L = 0.02, 75.8 at 0.05. It replaces a flat 67 ohm, which was lower than a dipole of ANY thickness presents at resonance. The two independent solvers put it 0.6-2.5% lower than the fit (72.2-72.6 ohm at w/L = 0.02, 74.0-75.4 at 0.05; delta-gap resistance creeps with the mesh), so the slot resistances derived from it are good to about 3%. Supply Rd_res to override. The complementary strip itself, fed across gaps of a/2 to 4a, gives 72.4-73.7 ohm at w/L = 0.043 and 72.9-76.6 at 0.087: the fit sits 1.7-2.2% above its small-gap end. NaN outside w/L 0.22 (the strip check's widest) down to a complementary radius of 1e-5 wavelengths (slot_t 5, the fit's thin end): resonant_dipole gates the same cubic, which read 16.7 ohm at 3.3e-8 wavelengths, and a w/L of 1e-6 here gave 38.8 ohm and a 915 ohm slot."
         },
         {
           "output": "L",
-          "expr": "np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0",
+          "expr": "np.where((slot_t >= 1.5879)*(slot_t <= 10.0001), np.where(slot_t <= 4.7716, -0.0040566*slot_t**2 + 0.0378414*slot_t + 0.3994411, 0.5 - (0.0491870991 + (-0.0103837204)/slot_t)/(slot_t - 0.966943327)) * c / f0, inf - inf)",
           "units_out": "m",
           "depends_on": [
             "slot_t",
             "f0"
           ],
-          "notes": "Same resonant length as a plain slot of the same width - folding changes the impedance, not the resonance. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Against the complementary STRIP itself (otahub.num.strip), fed across gaps of a/2 to 4a: 0.4630-0.4655 lambda0 at w/L = 0.043, where the law gives 0.4650 - inside the strip's own feed spread, as at every width solved up to w/L = 0.22."
+          "notes": "Same resonant length as a plain slot of the same width - folding changes the impedance, not the resonance. By Babinet a slot resonates where its complementary dipole does, and that dipole is a wire of radius a = w/4. This spec used to carry a flat 0.4785*lambda0, attributed to King's data, which is the resonant length of a much THINNER dipole. The length now comes from resonant_dipole's own length law at the complementary radius: 0.4855 lambda0 at w/L = 0.001, 0.4755 lambda0 at w/L = 0.01, 0.4709 lambda0 at w/L = 0.02, 0.4637 lambda0 at w/L = 0.05. Checked with two independent solvers, exact-kernel method of moments and Hallen's equation, on meshes each can be trusted at: 0.4704-0.4711 at w/L = 0.02 and 0.4645-0.4654 at 0.05. The law is inside 0.1% at the narrower width and 0.2-0.4% short at the default. Against the complementary STRIP itself (otahub.num.strip), fed across gaps of a/2 to 4a: 0.4630-0.4655 lambda0 at w/L = 0.043, where the law gives 0.4650 - inside the strip's own feed spread, as at every width solved up to w/L = 0.22. NaN past w/L = 0.22 (slot_t < 1.588), the widest the complementary strip was checked at, and beyond the length law's thin end (slot_t > 10)."
         },
         {
           "output": "w",

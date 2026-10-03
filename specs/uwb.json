@@ -610,7 +610,7 @@
           "metric": "directivity_dbi",
           "expr": "np.where((abs(a_growth - 0.221) < 0.0023)*(f_high/f_low >= 9.9)*(f_high/f_low <= 20.2), db10(3.34031), inf - inf)",
           "units_out": "dBi",
-          "notes": "SOLVED by the planar method of moments (otahub.num.rwg) for a = 0.221 and a 10:1 to 20:1 band: broadside directivity at 3 f_low, the band's geometric middle - 5.24 dBi per side, not the 1.8 dBi (1.5) this spec carried. It rises across the band: 2.7 at 1, 3.6 at 1.5, 4.2 at 2, 5.2 at 3, 6.0 at 4 f_low (dBi). NaN for geometries not solved.",
+          "notes": "SOLVED by the planar method of moments (otahub.num.rwg) for a = 0.221 and a 10:1 to 20:1 band: broadside directivity at 3 f_low, the band's geometric middle - 5.24 dBi per side, not the 1.8 dBi (1.5) this spec carried. It rises across the band: 2.7 at 1, 3.6 at 1.5, 4.2 at 2, 5.2 at 3, 6.0 at 4 f_low (dBi). NaN for geometries not solved. The gate leaves rounding room: a_growth within 1% of 0.221 and bands of 9.9:1 to 20.2:1 return the solved value.",
           "depends_on": [
             "a_growth",
             "f_high",
@@ -626,14 +626,14 @@
             "f_high",
             "f_low"
           ],
-          "notes": "SOLVED (rwg, a bisection of direct solves): the frequency, in units of f_low, where the boresight axial ratio falls through 3 dB - 2.285. This spec sets f_low where the outer circumference is one wavelength; there the axial ratio is 21 dB, so the circularly polarised band starts 129% higher. Size the outer radius for this edge, not for f_low, when circular polarisation is the requirement."
+          "notes": "SOLVED (rwg, a bisection of direct solves): the frequency, in units of f_low, where the boresight axial ratio falls through 3 dB - 2.285. This spec sets f_low where the outer circumference is one wavelength; there the axial ratio is 21 dB, so the circularly polarised band starts 129% higher. Size the outer radius for this edge, not for f_low, when circular polarisation is the requirement. The gate leaves rounding room: a_growth within 1% of 0.221 and bands of 9.9:1 to 20.2:1 return the solved value."
         }
       ],
       "validity": [
         "the defining property is that the shape is specified entirely by angles, so performance is frequency independent only where the structure is untruncated",
         "both band edges come from truncation: the outer radius at the low end, the feed region at the high end",
         "self-complementary impedance requires equal arm and gap angular widths",
-        "directivity, axial ratio and the circular-polarisation band edge are solved (otahub.num.rwg) for a free-standing zero-thickness spiral with a = 0.221 and a 10:1 to 20:1 band; NaN otherwise"
+        "directivity, axial ratio and the circular-polarisation band edge are solved (otahub.num.rwg) for a free-standing zero-thickness spiral with a = 0.221 and a 10:1 to 20:1 band (within 1% of a and of the band ratio's ends, as rounding room); NaN otherwise"
       ],
       "known_cases": [
         {

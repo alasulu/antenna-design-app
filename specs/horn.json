@@ -679,14 +679,14 @@
         },
         {
           "metric": "hpbw_e_deg",
-          "expr": "np.where(max_phase_error_wavelengths <= 0.44, np.where(b1*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.4432817) + (-0.029927334)*(1/(b1*f0/c)**2) + (0.0013194971)*(1/(b1*f0/c)**2)**2 + (-0.078895529)*(max_phase_error_wavelengths) + (0.19843387)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2) + (-0.18053404)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2)**2 + (2.8362577)*(max_phase_error_wavelengths)**2 + (-6.2620256)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2) + (5.5838119)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2)**2 + (-28.413124)*(max_phase_error_wavelengths)**3 + (69.623815)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2) + (-62.438081)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2)**2 + (148.32566)*(max_phase_error_wavelengths)**4 + (-355.32811)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2) + (315.52597)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2)**2 + (-353.67691)*(max_phase_error_wavelengths)**5 + (834.70045)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2) + (-733.77554)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2)**2 + (325.72237)*(max_phase_error_wavelengths)**6 + (-740.81574)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2) + (640.54085)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2)**2)/(b1*f0/c), -1, 1))), inf - inf), inf - inf)",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.44, np.where((b1*f0/c >= 1.5)*(b1*f0/c <= 40.0001), 2*deg(arcsin(np.clip(((0.4432817) + (-0.029927334)*(1/(b1*f0/c)**2) + (0.0013194971)*(1/(b1*f0/c)**2)**2 + (-0.078895529)*(max_phase_error_wavelengths) + (0.19843387)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2) + (-0.18053404)*(max_phase_error_wavelengths)*(1/(b1*f0/c)**2)**2 + (2.8362577)*(max_phase_error_wavelengths)**2 + (-6.2620256)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2) + (5.5838119)*(max_phase_error_wavelengths)**2*(1/(b1*f0/c)**2)**2 + (-28.413124)*(max_phase_error_wavelengths)**3 + (69.623815)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2) + (-62.438081)*(max_phase_error_wavelengths)**3*(1/(b1*f0/c)**2)**2 + (148.32566)*(max_phase_error_wavelengths)**4 + (-355.32811)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2) + (315.52597)*(max_phase_error_wavelengths)**4*(1/(b1*f0/c)**2)**2 + (-353.67691)*(max_phase_error_wavelengths)**5 + (834.70045)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2) + (-733.77554)*(max_phase_error_wavelengths)**5*(1/(b1*f0/c)**2)**2 + (325.72237)*(max_phase_error_wavelengths)**6 + (-740.81574)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2) + (640.54085)*(max_phase_error_wavelengths)**6*(1/(b1*f0/c)**2)**2)/(b1*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "b1",
             "f0",
             "max_phase_error_wavelengths"
           ],
-          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a uniform line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.23% worst on 207 patterns, 0.23% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 54 lambda/b1 this spec carried is right at the optimum flare (53.8-53.9 here) and nowhere else: 50.7 with no phase error, 63.7 at s = 0.4 (flare 1.26) - and it turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.44, where the beam has all but broken up: at s = 0.47 the half-power point jumps from 87 to 126 lambda/b1 as the main lobe splits."
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a uniform line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.23% worst on 207 patterns, 0.23% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 54 lambda/b1 this spec carried is right at the optimum flare (53.8-53.9 here) and nowhere else: 50.7 with no phase error, 63.7 at s = 0.4 (flare 1.26) - and it turns NaN below an aperture of 1.5 wavelengths and above 40, where the fit has no data, and past a phase error of 0.44, where the beam has all but broken up: at s = 0.47 the half-power point jumps from 87 to 126 lambda/b1 as the main lobe splits."
         }
       ],
       "validity": [
@@ -959,14 +959,14 @@
         },
         {
           "metric": "hpbw_h_deg",
-          "expr": "np.where(max_phase_error_wavelengths <= 0.8, np.where(a1*f0/c >= 1.5, 2*deg(arcsin(np.clip(((0.59371314) + (-0.071210198)*(1/(a1*f0/c)**2) + (0.0042006186)*(1/(a1*f0/c)**2)**2 + (0.13014621)*(max_phase_error_wavelengths) + (-0.22354295)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2) + (0.021966359)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2)**2 + (-2.1034288)*(max_phase_error_wavelengths)**2 + (4.7186406)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2) + (-1.5181772)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2)**2 + (18.278612)*(max_phase_error_wavelengths)**3 + (-37.301577)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2) + (16.808954)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2)**2 + (-56.869215)*(max_phase_error_wavelengths)**4 + (122.31357)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2) + (-66.880651)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2)**2 + (82.18282)*(max_phase_error_wavelengths)**5 + (-179.6673)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2) + (110.22427)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2)**2 + (-41.597238)*(max_phase_error_wavelengths)**6 + (92.029456)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2) + (-61.209904)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2)**2)/(a1*f0/c), -1, 1))), inf - inf), inf - inf)",
+          "expr": "np.where(max_phase_error_wavelengths <= 0.8, np.where((a1*f0/c >= 1.5)*(a1*f0/c <= 40.0001), 2*deg(arcsin(np.clip(((0.59371314) + (-0.071210198)*(1/(a1*f0/c)**2) + (0.0042006186)*(1/(a1*f0/c)**2)**2 + (0.13014621)*(max_phase_error_wavelengths) + (-0.22354295)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2) + (0.021966359)*(max_phase_error_wavelengths)*(1/(a1*f0/c)**2)**2 + (-2.1034288)*(max_phase_error_wavelengths)**2 + (4.7186406)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2) + (-1.5181772)*(max_phase_error_wavelengths)**2*(1/(a1*f0/c)**2)**2 + (18.278612)*(max_phase_error_wavelengths)**3 + (-37.301577)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2) + (16.808954)*(max_phase_error_wavelengths)**3*(1/(a1*f0/c)**2)**2 + (-56.869215)*(max_phase_error_wavelengths)**4 + (122.31357)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2) + (-66.880651)*(max_phase_error_wavelengths)**4*(1/(a1*f0/c)**2)**2 + (82.18282)*(max_phase_error_wavelengths)**5 + (-179.6673)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2) + (110.22427)*(max_phase_error_wavelengths)**5*(1/(a1*f0/c)**2)**2 + (-41.597238)*(max_phase_error_wavelengths)**6 + (92.029456)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2) + (-61.209904)*(max_phase_error_wavelengths)**6*(1/(a1*f0/c)**2)**2)/(a1*f0/c), -1, 1))), inf - inf), inf - inf)",
           "units_out": "deg",
           "depends_on": [
             "a1",
             "f0",
             "max_phase_error_wavelengths"
           ],
-          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a cosine-tapered line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.27% worst on 207 patterns, 0.28% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 78 lambda/a1 this spec carried is right at the optimum (77.6-77.9 here): 68 with no phase error, 107 at t = 0.6 and 147 at the flare of 1.4 a known case below uses. It turns NaN below an aperture of 1.5 wavelengths, where the fit has no data, and past a phase error of 0.8, where the fit stops; the beam keeps broadening smoothly past it."
+          "notes": "SOLVED by aperture integration (otahub.num.horn_pattern: a cosine-tapered line aperture, quadratic phase, Huygens obliquity) and fitted as the half-power point U = D sin(theta_h) in edge phase error and 1/D^2 over D = 1.5-40 wavelengths: 0.27% worst on 207 patterns, 0.28% on 5 held out. HPBW = 2 asin(U/D), so the sine mapping is exact for small apertures. The flat 78 lambda/a1 this spec carried is right at the optimum (77.6-77.9 here): 68 with no phase error, 107 at t = 0.6 and 147 at the flare of 1.4 a known case below uses. It turns NaN below an aperture of 1.5 wavelengths and above 40, where the fit has no data, and past a phase error of 0.8, where the fit stops; the beam keeps broadening smoothly past it."
         }
       ],
       "validity": [
@@ -1541,14 +1541,14 @@
         },
         {
           "metric": "directivity_dbi",
-          "expr": "np.where((a_wg*f0/c >= 0.4999)*(a_wg*f0/c <= 1.0001)*(b_wg >= 0.2999*a_wg)*(b_wg <= 0.6001*a_wg)*(b_wg*f0/c <= 0.5001), db10(exp((1.116208) + (-0.06935262)*(a_wg*f0/c) + (-0.06114084)*(b_wg*f0/c) + (0.5286404)*(a_wg*f0/c)**2 + (-0.0465706)*(a_wg*f0/c)*(b_wg*f0/c) + (1.59199)*(b_wg*f0/c)**2 + (-0.1464312)*(a_wg*f0/c)**3 + (-0.01398231)*(a_wg*f0/c)**2*(b_wg*f0/c) + (0.2666707)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-0.6105456)*(b_wg*f0/c)**3)) + ((0.134210016) + (-0.3485780121)*(a_wg*f0/c) + (-1.001342336)*(b_wg*f0/c) + (0.5353784576)*(a_wg*f0/c)**2 + (1.557799812)*(a_wg*f0/c)*(b_wg*f0/c) + (3.861215024)*(b_wg*f0/c)**2 + (-0.2372490073)*(a_wg*f0/c)**3 + (-0.9006310975)*(a_wg*f0/c)**2*(b_wg*f0/c) + (-0.6924157997)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-3.432143082)*(b_wg*f0/c)**3), inf - inf)",
+          "expr": "np.where((a_wg*f0/c > 0.5)*(a_wg*f0/c <= 1.0001)*(b_wg >= 0.2999*a_wg)*(b_wg <= 0.6001*a_wg)*(b_wg*f0/c <= 0.5001), db10(exp((1.116208) + (-0.06935262)*(a_wg*f0/c) + (-0.06114084)*(b_wg*f0/c) + (0.5286404)*(a_wg*f0/c)**2 + (-0.0465706)*(a_wg*f0/c)*(b_wg*f0/c) + (1.59199)*(b_wg*f0/c)**2 + (-0.1464312)*(a_wg*f0/c)**3 + (-0.01398231)*(a_wg*f0/c)**2*(b_wg*f0/c) + (0.2666707)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-0.6105456)*(b_wg*f0/c)**3)) + ((0.134210016) + (-0.3485780121)*(a_wg*f0/c) + (-1.001342336)*(b_wg*f0/c) + (0.5353784576)*(a_wg*f0/c)**2 + (1.557799812)*(a_wg*f0/c)*(b_wg*f0/c) + (3.861215024)*(b_wg*f0/c)**2 + (-0.2372490073)*(a_wg*f0/c)**3 + (-0.9006310975)*(a_wg*f0/c)**2*(b_wg*f0/c) + (-0.6924157997)*(a_wg*f0/c)*(b_wg*f0/c)**2 + (-3.432143082)*(b_wg*f0/c)**3), inf - inf)",
           "units_out": "dBi",
           "depends_on": [
             "a_wg",
             "b_wg",
             "f0"
           ],
-          "notes": "SOLVED: the flanged guide itself, over the single-mode band - TE10 above cutoff, below the TE20 cutoff (a < lambda) and the TE01 cutoff (b < lambda/2); NaN outside. The TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane - its pattern integrated over the hemisphere, and independently as a grid of magnetic dipoles through the exact planar power kernel (otahub.arrays), the two within 0.003 dB, fitted over a/lambda 0.5-1 and b/a 0.3-0.6 to 0.04% - plus what a full-wave FDTD of the guide in an infinite flange finds above it (otahub.num.horn_fdtd.sectoral_horn, flange=True: the far field of the aperture plane's own E imaged through the flange, exact for a flange): 0.06 dB near cutoff rising to 0.17-0.31 dB, more for a taller guide, whose excess peaks before a/lambda = 1 once b/a passes 0.42 (at 0.87 for b/a 0.6). It is the r^-1/3 field at the broad walls' edges and the evanescent modes the flange excites, which a pure TE10 aperture leaves out. From 132 runs over a/lambda 0.51-1 at b/a 0.3, 4/9, 1/2 and 0.6 (tests/data/oewg_flange_fdtd.json), every guide a whole number of cells: box, absorber, ring-down and guide length move it under 0.0002 dB; the grid does not - 36 cells across a reach 0.8 of it, 72 cells 0.9, at an order of 1.1-1.2 - so it is extrapolated to the continuum jointly with its cubic in a/lambda and b/lambda: 0.002 dB worst on 103 runs, 0.0005 on 9 guides held out (b/a 0.4, 0.45, 0.55): +-0.005 dB with the order on the WR-family guides, and +-0.01 dB at the tall-guide corner (b/a 0.6 near a/lambda 1), where two-grid extrapolations of the same guide spread 0.007 dB. A mode-matching model of the same aperture converges toward it from below (0.1423 against 0.1423 dB at a/lambda 0.6, b/a 4/9; within 0.003 dB at 0.75 and 1). WR-90 has 5.97 dBi at 8.2 GHz, 6.52 at 10 and 7.33 at 12.4 - 0.15, 0.21 and 0.25 dB above the TE10 aperture's 5.82, 6.31 and 7.08. An earlier record of +0.17 dB at 10 GHz on three grids compared guides whose b/a changed with the grid, which cancelled the refinement; one before it (+0.48 dB) cut its transform box through the flange. This spec once carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - the large-aperture limit, which vanishes for a small aperture; it was 1.3-3.5 dB low."
+          "notes": "SOLVED: the flanged guide itself, over the single-mode band - TE10 above cutoff, below the TE20 cutoff (a < lambda) and the TE01 cutoff (b < lambda/2); NaN outside. The TE10 aperture (E across b, cos(pi x/a) across a) in an infinite ground plane - its pattern integrated over the hemisphere, and independently as a grid of magnetic dipoles through the exact planar power kernel (otahub.arrays), the two within 0.003 dB, fitted over a/lambda 0.5-1 and b/a 0.3-0.6 to 0.04% - plus what a full-wave FDTD of the guide in an infinite flange finds above it (otahub.num.horn_fdtd.sectoral_horn, flange=True: the far field of the aperture plane's own E imaged through the flange, exact for a flange): 0.06 dB near cutoff rising to 0.17-0.31 dB, more for a taller guide, whose excess peaks before a/lambda = 1 once b/a passes 0.42 (at 0.87 for b/a 0.6). It is the r^-1/3 field at the broad walls' edges and the evanescent modes the flange excites, which a pure TE10 aperture leaves out. From 132 runs over a/lambda 0.51-1 at b/a 0.3, 4/9, 1/2 and 0.6 (tests/data/oewg_flange_fdtd.json), every guide a whole number of cells: box, absorber, ring-down and guide length move it under 0.0002 dB; the grid does not - 36 cells across a reach 0.8 of it, 72 cells 0.9, at an order of 1.1-1.2 - so it is extrapolated to the continuum jointly with its cubic in a/lambda and b/lambda: 0.002 dB worst on 103 runs, 0.0005 on 9 guides held out (b/a 0.4, 0.45, 0.55): +-0.005 dB with the order on the WR-family guides, and +-0.01 dB for the tallest guides (b/a 0.6, where two-grid extrapolations of the same guide spread 0.007 dB; above a/lambda 0.83 such a guide lets TE01 through and reads NaN). Below a/lambda 0.507, the lowest guide run, it is extrapolated: the excess models spread up to 0.009 dB at the a/lambda 0.5, b/a 0.3 corner. NaN at and below cutoff (a/lambda 0.5). A mode-matching model of the same aperture converges toward it from below (0.1423 against 0.1423 dB at a/lambda 0.6, b/a 4/9; within 0.003 dB at 0.75 and 1). WR-90 has 5.97 dBi at 8.2 GHz, 6.52 at 10 and 7.33 at 12.4 - 0.15, 0.21 and 0.25 dB above the TE10 aperture's 5.82, 6.31 and 7.08. An earlier record of +0.17 dB at 10 GHz on three grids compared guides whose b/a changed with the grid, which cancelled the refinement; one before it (+0.48 dB) cut its transform box through the flange. This spec once carried (8/pi^2) 4 pi a b/lambda^2 - 2.48, 4.20 and 6.07 dBi - the large-aperture limit, which vanishes for a small aperture; it was 1.3-3.5 dB low."
         },
         {
           "metric": "effective_to_physical_area",
@@ -1621,7 +1621,7 @@
             "taper_efficiency": 0.810569,
             "effective_to_physical_area": 1.81171
           },
-          "tol_pct": 0.5,
+          "tol_pct": 0.1,
           "source": "WR-90 8.2 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (5.8192 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.1534 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
@@ -1636,7 +1636,7 @@
             "taper_efficiency": 0.810569,
             "effective_to_physical_area": 1.38115
           },
-          "tol_pct": 0.5,
+          "tol_pct": 0.1,
           "source": "WR-90 10 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.3086 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2092 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
@@ -1651,7 +1651,7 @@
             "taper_efficiency": 0.810569,
             "effective_to_physical_area": 1.08409
           },
-          "tol_pct": 0.5,
+          "tol_pct": 0.1,
           "source": "WR-90 12.4 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (7.0807 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2538 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
@@ -1666,7 +1666,7 @@
             "taper_efficiency": 0.810569,
             "effective_to_physical_area": 1.5312
           },
-          "tol_pct": 0.5,
+          "tol_pct": 0.1,
           "source": "WR-137 6 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.0887 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.1885 dB). Gain equals directivity: the mismatch loss is not in it."
         },
         {
@@ -1680,7 +1680,7 @@
             "gain_dbi": 6.8558,
             "effective_to_physical_area": 1.23488
           },
-          "tol_pct": 0.5,
+          "tol_pct": 0.1,
           "source": "WR-62 15 GHz: the TE10 aperture in an infinite ground plane, its pattern integrated over the hemisphere (6.6056 dBi), plus the flanged guide's own excess from the FDTD survey in tests/data/oewg_flange_fdtd.json - the bracketing runs, each less its fitted grid term, interpolated in a/lambda and b/a, not the fitted polynomial (0.2502 dB). Gain equals directivity: the mismatch loss is not in it."
         }
       ],

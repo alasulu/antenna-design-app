@@ -200,7 +200,7 @@
         },
         {
           "metric": "eta_blockage",
-          "expr": "(1 - np.trapezoid(np.cos(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))**(feed_n/2)*np.tan(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001)/2), np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))/np.trapezoid(np.cos(np.linspace(0, feed_theta0, 4001))**(feed_n/2)*np.tan(np.linspace(0, feed_theta0, 4001)/2), np.linspace(0, feed_theta0, 4001)))**2",
+          "expr": "np.where((d_blockage >= 0)*(d_blockage < D), (1 - np.trapezoid(np.cos(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))**(feed_n/2)*np.tan(np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001)/2), np.linspace(0, 2*np.arctan(d_blockage/(4*f_over_D*D)), 4001))/np.trapezoid(np.cos(np.linspace(0, feed_theta0, 4001))**(feed_n/2)*np.tan(np.linspace(0, feed_theta0, 4001)/2), np.linspace(0, feed_theta0, 4001)))**2, inf - inf)",
           "units_out": "-",
           "depends_on": [
             "d_blockage",
@@ -209,7 +209,7 @@
             "feed_n",
             "feed_theta0"
           ],
-          "notes": "The square of the fraction of the aperture FIELD outside a central blocked disc of diameter d_blockage, under the same cos^n feed that sets the taper: the disc shadows rays leaving the feed within 2*atan(d_blockage/(4F)) of the axis. The old (1 - (d/D)^2)^2 assumed uniform illumination, but the disc covers the brightest part of a tapered aperture - 0.965 against 0.980 at d/D = 0.1, f/D = 0.4 and -11 dB, 0.868 against 0.922 at d/D = 0.2. A central disc only: strut shadows are not discs."
+          "notes": "The square of the fraction of the aperture FIELD outside a central blocked disc of diameter d_blockage, under the same cos^n feed that sets the taper: the disc shadows rays leaving the feed within 2*atan(d_blockage/(4F)) of the axis. The old (1 - (d/D)^2)^2 assumed uniform illumination, but the disc covers the brightest part of a tapered aperture - 0.965 against 0.980 at d/D = 0.1, f/D = 0.4 and -11 dB, 0.868 against 0.922 at d/D = 0.2. A central disc only: strut shadows are not discs. NaN for a blockage as wide as the dish or wider: past D the integral counted the blocked field again and the gain rose with the blocker (28 dBi at 1.5 D)."
         },
         {
           "metric": "eta_ruze",
@@ -1844,7 +1844,7 @@
           "metric": "gain_advantage_over_prime_focus_db",
           "expr": "taper_penalty_vs_symmetric_db - db10((1 - np.trapezoid(np.cos(np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001))**(feed_n/2)*np.tan(np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001)/2), np.linspace(0, 2*atan(0.1*np.tan(theta_star/2)), 4001))/np.trapezoid(np.cos(np.linspace(0, theta_star, 4001))**(feed_n/2)*np.tan(np.linspace(0, theta_star, 4001)/2), np.linspace(0, theta_star, 4001)))**2)",
           "units_out": "dB",
-          "notes": "Against a prime-focus dish with the same feed and rim angle and a 0.1 D central blockage: the blockage recovered - weighted by the tapered aperture field, as prime_focus_parabolic now weights it, 0.10 dB under a -3 dB feed taper to 0.24 dB under -20 dB, where the uniform-illumination rule said 0.09 throughout - less the taper penalty. Behind at short focal lengths - 0.40-0.61 dB at parent f/D = 0.3, 0.14-0.30 dB at 0.4, 0.05 dB at the default design - about even at 0.5-0.7, and ahead by up to 0.21 dB for long, gently offset dishes. The offset buys sidelobes and noise temperature more than gain.",
+          "notes": "Against a prime-focus dish with the same feed and rim angle and a 0.1 D central blockage: the blockage recovered - weighted by the tapered aperture field, as prime_focus_parabolic now weights it, 0.10 dB under a -3 dB feed taper to 0.24 dB under -20 dB, where the uniform-illumination rule said 0.09 throughout - less the taper penalty. Behind at short focal lengths - 0.40-0.61 dB at parent f/D = 0.3, 0.14-0.30 dB at 0.4, 0.05 dB at the default design - from 0.16 dB behind to 0.03 dB ahead at 0.5, 0.03 behind to 0.16 ahead at 0.7, and ahead by up to 0.21 dB for long, gently offset dishes (feed taper -20 to -3 dB, h0/D 0.55-1.2). The offset buys sidelobes and noise temperature more than gain.",
           "depends_on": [
             "taper_penalty_vs_symmetric_db",
             "theta_star",
@@ -1919,11 +1919,9 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "taper_penalty_vs_symmetric_db": -0.200464,
-            "gain_advantage_over_prime_focus_db": -0.045613
+            "taper_penalty_vs_symmetric_db": -0.200464
           },
           "tol_pct": 1.0,
-          "tol_abs": 0.01,
           "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.964972) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         },
         {
@@ -1954,11 +1952,9 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "taper_penalty_vs_symmetric_db": -0.44964,
-            "gain_advantage_over_prime_focus_db": -0.282115
+            "taper_penalty_vs_symmetric_db": -0.44964
           },
           "tol_pct": 1.0,
-          "tol_abs": 0.01,
           "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.962160) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         },
         {
@@ -1989,12 +1985,55 @@
             "eps_rms": 0.0
           },
           "expect": {
-            "taper_penalty_vs_symmetric_db": -0.130516,
-            "gain_advantage_over_prime_focus_db": 0.006062
+            "taper_penalty_vs_symmetric_db": -0.130516
           },
           "tol_pct": 1.0,
-          "tol_abs": 0.01,
           "source": "The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.969041) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.5,
+            "h0_over_D": 0.6,
+            "feed_taper_db": -10.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "gain_advantage_over_prime_focus_db": -0.045613
+          },
+          "tol_abs": 0.005,
+          "source": "The gain advantage alone, in a case of its own: it is near zero, so it takes an absolute tolerance that must not loosen the taper penalty beside it - 0.005 dB, the spec's fitted aperture efficiency's own error (the f/D 0.4 case reads 0.0028 dB from the integral). The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.964972) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.4,
+            "h0_over_D": 0.8,
+            "feed_taper_db": -12.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "gain_advantage_over_prime_focus_db": -0.282115
+          },
+          "tol_abs": 0.005,
+          "source": "The gain advantage alone, in a case of its own: it is near zero, so it takes an absolute tolerance that must not loosen the taper penalty beside it - 0.005 dB, the spec's fitted aperture efficiency's own error (the f/D 0.4 case reads 0.0028 dB from the integral). The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.962160) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
+        },
+        {
+          "given": {
+            "f0": 12000000000.0,
+            "D": 1.0,
+            "f_over_D_parent": 0.7,
+            "h0_over_D": 1.0,
+            "feed_taper_db": -8.0,
+            "eps_rms": 0.0
+          },
+          "expect": {
+            "gain_advantage_over_prime_focus_db": 0.006062
+          },
+          "tol_abs": 0.005,
+          "source": "The gain advantage alone, in a case of its own: it is near zero, so it takes an absolute tolerance that must not loosen the taper penalty beside it - 0.005 dB, the spec's fitted aperture efficiency's own error (the f/D 0.4 case reads 0.0028 dB from the integral). The same design against a symmetric dish with the same feed and rim angle - taper efficiency by 2-D aperture integration against the symmetric aperture's, and the symmetric dish's 0.1 D blockage (0.969041) by quadrature of its tapered aperture field - held to 0.01 dB absolute, because a near-zero dB difference makes a relative tolerance meaningless."
         }
       ],
       "references": [

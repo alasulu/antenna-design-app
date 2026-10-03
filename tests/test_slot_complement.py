@@ -76,3 +76,15 @@ def test_the_old_flat_constants_were_thirteen_percent_high(registry):
     rs = [r for _, r in _arbiters(round(d.parameters["w"] / 4 / lam, 6))]
     assert ETA0 ** 2 / (4 * max(rs)) > 465.0 and ETA0 ** 2 / (4 * min(rs)) < 485.0
     assert 529.57 / d.metrics["resonant_resistance_ohm"] > 1.10
+
+
+def test_the_cavity_slot_is_cut_to_resonance(registry):
+    """cavity_backed_slot built a flat 0.48 lambda0 slot and reported the RESONANT slot's
+    resistance beside it; the method of moments puts that slot at about 800 - j150 ohm.
+    It now takes half_wave_slot's length law, which the two solvers bracket."""
+    d = registry["cavity_backed_slot"].synthesize(f0=F)
+    lam = C0 / F
+    a = round(d.parameters["slot_width"] / 4 / lam, 6)
+    lengths = [length for length, _ in _arbiters(a)]
+    assert d.parameters["slot_length"] / lam == pytest.approx(sum(lengths) / len(lengths), rel=0.005)
+    assert all(0.48 / length - 1 > 0.025 for length in lengths)      # the old slot was 3% long

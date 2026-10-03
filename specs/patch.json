@@ -1447,7 +1447,7 @@
         },
         {
           "output": "L",
-          "expr": "np.where(Ws >= 0.999*W, np.where(W <= 1.6*(0.2425*c/f0 - h), 0.2425*c/f0 - h, inf - inf), np.where((Ws/W >= 0.033)*((h*f0/c) >= 0.0135)*((h*f0/c) <= 0.065)*((W*f0/c) >= 0.054)*((W*f0/c) <= 0.2175)*((0.2425*c/f0 - h - W*strip_phi) > 0)*(W <= 1.6*(0.2425*c/f0 - h - W*strip_phi)), (0.2425*c/f0 - h - W*strip_phi), inf - inf))",
+          "expr": "np.where(Ws > 1.001*W, inf - inf, np.where(Ws >= 0.999*W, np.where(((h*f0/c) >= 0.0135)*((h*f0/c) <= 0.065)*((W*f0/c) >= 0.054)*((W*f0/c) <= 0.2175)*(W <= 1.6*(0.2425*c/f0 - h)), 0.2425*c/f0 - h, inf - inf), np.where((Ws/W >= 0.033)*((h*f0/c) >= 0.0135)*((h*f0/c) <= 0.065)*((W*f0/c) >= 0.054)*((W*f0/c) <= 0.2175)*((0.2425*c/f0 - h - W*strip_phi) > 0)*(W <= 1.6*(0.2425*c/f0 - h - W*strip_phi)), (0.2425*c/f0 - h - W*strip_phi), inf - inf)))",
           "units_out": "m",
           "depends_on": [
             "f0",
@@ -1456,7 +1456,7 @@
             "Ws",
             "strip_phi"
           ],
-          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law. A NARROWER strip at one corner lengthens the current path: L + h + strip_phi W = 0.2425 lambda, strip_phi growing as ln(W/Ws). From a survey with the whole-plate FDTD (otahub.num.patch_fdtd.pifa_ringdown): 21 plates (h 0.014-0.065, W 0.054-0.22 wavelengths, W/L up to 1.5), each with a full-width short and corner strips of 1/2 to 1/30 of its width, 70 designs; every strip run's frequency is corrected by its own plate's full-width run against the 0.2425 calibration. Against that normalised survey the law's length resonates within 2.8% (the frequency solved from the law, 3.2% with each plate left out of the fit). That is accuracy RELATIVE to the normalisation, which assumes each plate's full-width resonance obeys the 0.2425 calibration - fitted on two plates. The survey's 3-4 cells across h cannot confirm that beyond a few percent: on the one plate run at two grids, refining moves the full-width resonance up 2.5% and a W/6 strip's down 0.8% (both extrapolated), opposite ways, so the ratio the law rests on is itself uncertain by about 3% there. Read the narrow-strip length as INDICATIVE, its absolute frequency uncertain by up to about 8%; the full-width length keeps its own calibration. For comparison, reusing the full-width length - what this spec did - put those plates 5-98% high in frequency; the textbook pin rule L + W + h = lambda/4 3-39% low; Taga and Tsunekawa's interpolation between the two within 5% (rms 2.6%). NaN outside the survey: strips under 0.033 W, h outside 0.0135-0.065 and W outside 0.054-0.2175 wavelengths, or - for any strip, full-width included - a plate wider than 1.6 times its length, where the survey's full-width plates resonated in another mode, up to 43% away."
+          "notes": "INDICATIVE, FDTD-calibrated: L + h = 0.2425 wavelengths for a full-width short, not the quarter wave of the textbook rule (Hirasawa & Haneishi). A half-space FDTD of the plate on air (otahub.num.patch_fdtd.shorted_ringdown, taken to zero cell size) puts two quite different plates - h = 0.036 lambda with W = 0.12 lambda, and h = 0.02 lambda with W = 0.2 lambda - at L + h = 0.2428 and 0.2423 wavelengths of their own resonance: the lambda/4 rule builds a plate that resonates 3% low. The spectral MoM (otahub.num.patch_sdm) puts the unshorted plate of twice the length 6.7% and 3.1% higher than the FDTD's shorted one - the shorting wall's inductance, as for the shorted patch on a substrate. Two designs, so the constant is a calibration, not a law. A NARROWER strip at one corner lengthens the current path: L + h + strip_phi W = 0.2425 lambda, strip_phi growing as ln(W/Ws). From a survey with the whole-plate FDTD (otahub.num.patch_fdtd.pifa_ringdown): 21 plates (h 0.014-0.065, W 0.054-0.22 wavelengths, W/L up to 1.5), each with a full-width short and corner strips of 1/2 to 1/30 of its width, 70 designs; every strip run's frequency is corrected by its own plate's full-width run against the 0.2425 calibration. Against that normalised survey the law's length resonates within 2.8% (the frequency solved from the law, 3.4% with each plate left out of the fit). That is accuracy RELATIVE to the normalisation, which assumes each plate's full-width resonance obeys the 0.2425 calibration - fitted on two plates. The survey's 3-4 cells across h cannot confirm that beyond a few percent: on the one plate run at two grids, refining moves the full-width resonance up 2.5% and a W/6 strip's down 0.8% (both extrapolated), opposite ways, so the ratio the law rests on is itself uncertain by about 3% there. Read the narrow-strip length as INDICATIVE, its absolute frequency uncertain by up to about 8%; the full-width length keeps its own calibration. For comparison, reusing the full-width length - what this spec did - put those plates 5-98% high in frequency; the textbook pin rule L + W + h = lambda/4 3-39% low; Taga and Tsunekawa's interpolation between the two within 5% (rms 2.6%). NaN outside the survey, for the full-width short as for a strip: strips under 0.033 W or wider than the plate, h outside 0.0135-0.065 and W outside 0.054-0.2175 wavelengths, or a plate wider than 1.6 times its length, where the survey's full-width plates resonated in another mode, up to 43% away."
         }
       ],
       "analysis": [
@@ -3070,7 +3070,7 @@
             "h",
             "f0"
           ],
-          "notes": "Space-wave over space plus surface-wave power of the square, full-wave (0.10% worst on 68 full-wave solutions, 0.13% on 8 held out), capped at 1. The surface wave damps each mode as surely as radiation does, so it belongs in Q0."
+          "notes": "FITTED to full-wave solutions: Space-wave over space plus surface-wave power of the square, full-wave (0.10% worst on 68 full-wave solutions, 0.13% on 8 held out), capped at 1. The surface wave damps each mode as surely as radiation does, so it belongs in Q0."
         },
         {
           "output": "Q0",
@@ -3506,14 +3506,14 @@
           "name": "patch separation",
           "unit": "-",
           "role": "assumption",
-          "description": "air gap between the patches, in free-space wavelengths; 0.09 is the solved best on 1.6 mm eps_r 2.2 at 2.4 GHz (0.07-0.09 on the four boards surveyed)"
+          "description": "air gap between the patches, in free-space wavelengths; synthesised from the driven board (the 20-board survey's best, 0.0675-0.085, moved 0.005 back from the cliff below it) - 0.081 on 1.6 mm eps_r 2.2 at 2.4 GHz; give it to override"
         },
         {
           "symbol": "size_ratio",
           "name": "upper/lower patch size",
           "unit": "-",
           "role": "assumption",
-          "description": "parasitic length over driven length (widths scale alike); 1.1 is the solved best on the default board. The best parasitic was 0.35-0.37 free-space wavelengths long on every board surveyed, so a denser driven layer, whose patch is shorter, wants a larger ratio"
+          "description": "parasitic length over driven length (widths scale alike); synthesised so the parasitic is the survey's best 0.36-0.375 wavelengths less 0.005 - 1.145 on the default board. A denser driven layer, whose patch is shorter, wants a larger ratio; give it to override"
         },
         {
           "symbol": "W",
@@ -3719,7 +3719,7 @@
         },
         {
           "metric": "best_stack_bandwidth_vswr2",
-          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 10.21)*((h*f0*sqrt(eps_r)/c) >= 0.0185)*((h*f0*sqrt(eps_r)/c) <= 0.0385), exp((-3.71399) + (-0.74744)/eps_r + (-6.64815)/eps_r**2 + ((-2.01502) + (-1.98111)/eps_r)*log(h*f0*sqrt(eps_r)/c) + (-0.51475)*log(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
+          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 10.21)*((h*f0*sqrt(eps_r)/c) >= 0.01849)*((h*f0*sqrt(eps_r)/c) <= 0.03851), exp((-3.71399) + (-0.74744)/eps_r + (-6.64815)/eps_r**2 + ((-2.01502) + (-1.98111)/eps_r)*log(h*f0*sqrt(eps_r)/c) + (-0.51475)*log(h*f0*sqrt(eps_r)/c)**2), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "eps_r2",
@@ -3727,11 +3727,11 @@
             "h",
             "f0"
           ],
-          "notes": "INDICATIVE, and not this design's own band: the widest VSWR-2 band about f0 that the best air gap and parasitic reach on this driven board, probe-fed with a series element tuned for the band (its own reactance not solved). Solved by the two-layer spectral MoM with a probe over gap (0.0025-wavelength steps) and parasitic length (0.005) on 20 boards, eps_r 2.2-10.2 and h sqrt(eps_r)/lambda 0.0185-0.0385; fitted in ln(band) to 4.1%, 2.5% on 4 boards held out. 8.2 to 21 times the single patch's band, more on higher permittivity: the 8.4 this spec used came from four boards searched more coarsely, whose bests sat at the cliff's lip and came out 1-18% short. The design this spec builds (the rules for h2_over_lambda and size_ratio) reaches 91-99% of it. NaN outside the surveyed boards or with a dielectric gap."
+          "notes": "INDICATIVE, and not this design's own band: the widest VSWR-2 band about f0 that the best air gap and parasitic reach on this driven board, probe-fed with a series element tuned for the band (its own reactance not solved). Solved by the two-layer spectral MoM with a probe over gap (0.0025-wavelength steps) and parasitic length (0.005) on 20 boards, eps_r 2.2-10.2 and h sqrt(eps_r)/lambda 0.0185-0.0385; fitted in ln(band) to 4.1%, 2.5% on 4 boards held out. 8.2 to 21 times the single patch's band, more on higher permittivity: the 8.4 this spec used came from four boards searched more coarsely, whose bests sat at the cliff's lip and came out 1-18% short. The design this spec builds (the rules for h2_over_lambda and size_ratio) reaches 91-99% of it. NaN outside the surveyed boards or with a dielectric gap. The gate takes the survey's edge boards with rounding room: h = t lambda/sqrt(eps_r) at t = 0.0185 computed back to 0.018499999999999996 and the edge board itself read NaN. One board (eps_r 3, t 0.0185) has a three-way tie for its best band (0.110 at gap/parasitic 0.08/0.365, 0.0825/0.36 and 0.0825/0.365); the fits take the stored first."
         },
         {
           "metric": "directivity_dbi",
-          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 4.41)*((h*f0*sqrt(eps_r)/c) >= 0.0185)*((h*f0*sqrt(eps_r)/c) <= 0.0385)*(L2*f0/c >= 0.3)*(L2*f0/c <= 0.42)*(W2*f0/c >= 0.37)*(W2*f0/c <= 0.52)*(h2*f0/c >= 0.029)*(h2*f0/c <= 0.121), (3.70680535) + (12.0049464)*(L2*f0/c) + (0.769237233)*(W2*f0/c) + (16.1746653)*(h2*f0/c) + (-84.3701756)*(h2*f0/c)**2, inf - inf)",
+          "expr": "np.where((abs(eps_r2 - 1) < 1e-6)*(eps_r >= 2.19)*(eps_r <= 4.41)*((h*f0*sqrt(eps_r)/c) >= 0.01849)*((h*f0*sqrt(eps_r)/c) <= 0.03851)*(L2*f0/c >= 0.3)*(L2*f0/c <= 0.42)*(W2*f0/c >= 0.37)*(W2*f0/c <= 0.52)*(h2*f0/c >= 0.029)*(h2*f0/c <= 0.121), (3.70680535) + (12.0049464)*(L2*f0/c) + (0.769237233)*(W2*f0/c) + (16.1746653)*(h2*f0/c) + (-84.3701756)*(h2*f0/c)**2, inf - inf)",
           "units_out": "dBi",
           "depends_on": [
             "L2",
@@ -3742,13 +3742,13 @@
             "h",
             "f0"
           ],
-          "notes": "SOLVED: broadside directivity at f0 of the currents the probe drives on both patches (the two-layer spectral MoM, its far field balancing its own reaction to 1e-14). It follows the parasitic's size and hardly the board or the feed: 8.0 dBi for the stack this spec used to default to, 9.06 at the new default, 8.7-9.4 over parasitics 0.33-0.37 wavelengths long. Fitted in the parasitic's length and width and the gap over 44 designs on three boards (0.09 dB worst); a fourth board held out, 0.07 dB. NaN for a dielectric gap or outside the designs solved. It replaces a 7.5 (8.75 dBi) placeholder. At each surveyed board's best design the solved directivity is 9.16-9.41 dBi for eps_r 2.2-10.2; inside this fit's eps_r 2.2-4.4 it matches them to 0.015 dB, beyond it reads 0.04-0.13 dB low, so its domain stays at 4.4."
+          "notes": "SOLVED: broadside directivity at f0 of the currents the probe drives on both patches (the two-layer spectral MoM, its far field balancing its own reaction to 1e-14). It follows the parasitic's size and hardly the board or the feed: 8.0 dBi for the stack this spec used to default to, 9.06 at the 0.09-gap, 1.1-ratio default that followed, 9.23 at the design the rules now build on that board, 8.7-9.4 over parasitics 0.33-0.37 wavelengths long. Fitted in the parasitic's length and width and the gap over 44 designs on three boards (0.09 dB worst); a fourth board held out, 0.07 dB. NaN for a dielectric gap or outside the designs solved. It replaces a 7.5 (8.75 dBi) placeholder. At each surveyed board's best design the solved directivity is 9.16-9.41 dBi for eps_r 2.2-10.2; inside this fit's eps_r 2.2-4.4 it matches them to 0.015 dB, beyond it reads 0.04-0.13 dB low, so its domain stays at 4.4."
         }
       ],
       "validity": [
-        "the design's own band is not in this spec: best_stack_bandwidth_vswr2 is what the best gap and parasitic achieve on the board (indicative, a rule over four solved boards), and `otahub stack` solves the design as given",
-        "gap and size ratio interact strongly: on the default board 0.09 and 1.1 give 11.5% about f0, a ratio of 1.2 gives no band at f0, and the 0.03 and 0.95 this spec used to default to give 1.5%",
-        "solved for an air gap (eps_r2 = 1) over driven layers of eps_r 2.2-4.4 and h sqrt(eps_r)/lambda 0.019-0.038; a dielectric gap is not solved here",
+        "the design's own band is not in this spec: best_stack_bandwidth_vswr2 is what the best gap and parasitic achieve on the board (indicative, a fit over twenty solved boards), and `otahub stack` solves the design as given",
+        "gap and size ratio interact strongly: on the default board the old 0.09 and 1.1 give 11.5% about f0, a ratio of 1.2 gives no band at f0, and the 0.03 and 0.95 this spec used to default to give 1.5%",
+        "solved for an air gap (eps_r2 = 1) over driven layers of h sqrt(eps_r)/lambda 0.0185-0.0385: the band and the gap and parasitic rules over eps_r 2.2-10.2, the directivity over eps_r 2.2-4.4; a dielectric gap is not solved here",
         "the probe's own reactance is not solved (the FDTD puts it near 13-14 ohm on the default board, the parallel-plate formula at 27); the bands assume a series capacitor tuned for it",
         "L is the driven patch's full-wave length on its own; the parasitic moves the stack's two modes, which the two-layer spectral MoM solves (checked by FDTD to 0.2% on both)",
         "the air gap and parasitic the spec builds (h2_over_lambda, size_ratio) are fitted to the best band on driven boards eps_r 2.2-10.2 and h sqrt(eps_r)/lambda 0.0185-0.0385, then moved 0.005 wavelengths from the cliff at the best; outside those boards they hold the survey's edge values. Err toward more gap when building: less gap loses the band fast"
