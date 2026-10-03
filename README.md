@@ -9,7 +9,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 [![tests](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml/badge.svg)](https://github.com/alasulu/antenna-design-app/actions/workflows/tests.yml)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/alasulu/antenna-design-app?quickstart=1)
-![Known cases](https://img.shields.io/badge/cited%20expectations-1091%2F1091%20passing-2ea44f)
+![Known cases](https://img.shields.io/badge/cited%20expectations-1104%2F1104%20passing-2ea44f)
 ![Archetypes](https://img.shields.io/badge/archetypes-72-b8652f)
 ![GUI](https://img.shields.io/badge/GUI-PySide6-41CD52?logo=qt&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -61,8 +61,8 @@ says by how much and why.
 
 | | |
 |---|---|
-| **72** archetypes in **10** families | **458** cited known cases, **1091** expectations, all passing |
-| **21** in-house numerical solvers | **3502** automated tests |
+| **72** archetypes in **10** families | **464** cited known cases, **1104** expectations, all passing |
+| **21** in-house numerical solvers | **3536** automated tests |
 | CST and HFSS export for **42** archetypes, **3-D STL for all 72** | a PySide6 desktop GUI that draws every antenna from its own numbers, in 2-D and 3-D |
 
 ## Quick start
@@ -212,8 +212,10 @@ and the commit history:
 - The 90° corner reflector's array factor put a **null where its optimum is**.
 - The textbook PIFA rule (L + h = λ/4) builds a plate that resonates **3% low**; a
   half-space FDTD puts it at 0.2425 λ.
-- A small loop's tuned Q taken as X/R was up to **56% low** near a third of a
-  wavelength, because the real loop's reactance climbs faster than ωL.
+- A small loop's tuned Q taken as X/R was up to **39% low** at 0.3 wavelengths round,
+  because the real loop's reactance climbs faster than ωL - and its efficiency and Q
+  read **8-12% high** while the wire loss was counted at the feed's current: the far
+  side of such a loop carries 1.8 times as much.
 - A prime-focus dish's blockage is **0.965, not 0.980**: the feed shadows the
   brightest part of a tapered aperture.
 - Viezbicke's NBS Yagi gains are **dBd**, not dBi — about 2 dB a spec had lost.
@@ -229,7 +231,7 @@ the spec doctor and every cited case, the quick tests on Python 3.10 and 3.13, a
 slow full-wave solver tests beside them. To run it yourself:
 
 ```bash
-python -m pytest tests/                  # 3502 tests, about 25 minutes
+python -m pytest tests/                  # 3536 tests, about 25 minutes
 python -m pytest -m "not slow"           # the quick loop, without the full-wave solver runs
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
@@ -341,11 +343,11 @@ not, the open discrepancies, and the future work.
 | [`otahub/export/`](otahub/export/) | CST and HFSS script generation; 3-D solid models and STL (`mesh.py`, `mesh_builders.py`) |
 | [`otahub/cli/`](otahub/cli/), [`otahub/gui/`](otahub/gui/) | Command line and PySide6 desktop interface |
 | [`specs/`](specs/) | The 72 archetypes — format in [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
-| [`tests/`](tests/) | 3502 tests, plus the recorded solver runs they check against in `tests/data/` |
+| [`tests/`](tests/) | 3536 tests, plus the recorded solver runs they check against in `tests/data/` |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | Verification record, limits and future work |
 | [`BUILD_STATE.md`](BUILD_STATE.md) | The build log, round by round |
 
-About 32,900 lines of Python (14,400 of them tests) and 26,000 lines of spec data.
+About 33,100 lines of Python (14,600 of them tests) and 26,100 lines of spec data.
 
 ## Deep dives
 

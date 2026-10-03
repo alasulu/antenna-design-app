@@ -7,8 +7,8 @@ export to CST Studio or Ansys HFSS.
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2; a whole-project
 review with OpenAI's Codex followed (2026-10-01), and an audit by the project's own
-agents (2026-10-03). **72 archetypes, 10 families, 32,874 lines of Python, 25,976
-lines of spec data, 3502 tests, 458 citable known cases holding 1091 expectations,
+agents (2026-10-03). **72 archetypes, 10 families, 33,125 lines of Python, 26,100
+lines of spec data, 3536 tests, 464 citable known cases holding 1104 expectations,
 all passing.**
 
 ---
@@ -855,7 +855,7 @@ known case only checks what it asserts.
 | Spec | Error |
 |---|---|
 | `leaky_wave_line_source` | "Directivity" `2(L/λ)·cosθ·(1−e^(−2αL))` was 5 dB low at the default (10.7 dBi against 15.7 by direct integration). It used the free-space line source's 2L/λ for a slit radiating into a half space, a planar aperture's cosθ foreshortening that a line source does not have (its beam narrows in the scan plane and opens round the axis, so directivity holds as it scans), and the load loss, which belongs in the gain. Now 4L/λ times the exponential aperture's taper efficiency, fitted to the integral within 3.5% (1.1% held out), plus a separate gain. The beamwidth now carries the leak's taper (0.922 at the default αL, not 0.88) |
-| `small_circular_loop`, `small_square_loop` | Both used the uniform-current laws out to a third of a wavelength round, the circle saying the quartic resistance law was within 2.3% there - a comparison with the uniform-current integral, not with a real loop. Solved with its actual current (the Fourier-series loop solution; the MoM for the square, which meets it on the circle to 0.1-0.8%) the loop's resistance is 12-17% above the law at 0.1 wavelengths (the specs' own default) and 3-15 times it at a third: the current's cos(phi) part radiates like an electric dipole. Both now carry the driving point, fitted to those solutions up to 0.30 (1.6-2.2%), and build efficiency, gain, impedance, Q, bandwidth and the tuning capacitor on it. The Codex review then found two places still on the old model: Q was X/R, an ideal inductor's, while the real loop's reactance climbs faster than omega L, so at 0.3 wavelengths the tuned Q was up to 56% low and the VSWR-2 band 65% too wide - Q is now the slope of the tuned impedance, within 0.53% of the swept modal solution; and the circle sized its wire from the uniform-current law, so a 0.5 efficiency target came out 0.625 - it now inverts the driving-point resistance |
+| `small_circular_loop`, `small_square_loop` | Both used the uniform-current laws out to a third of a wavelength round, the circle saying the quartic resistance law was within 2.3% there - a comparison with the uniform-current integral, not with a real loop. Solved with its actual current (the Fourier-series loop solution; the MoM for the square, which meets it on the circle to 0.1-0.8%) the loop's resistance is 12-17% above the law at 0.1 wavelengths (the specs' own default) and 3-15 times it at a third: the current's cos(phi) part radiates like an electric dipole. Both now carry the driving point, fitted to those solutions up to 0.30 (1.6-2.2%), and build efficiency, gain, impedance, Q, bandwidth and the tuning capacitor on it. The Codex review then found two places still on the old model: Q was X/R, an ideal inductor's, while the real loop's reactance climbs faster than omega L, so at 0.3 wavelengths the tuned Q was up to 56% low and the VSWR-2 band 65% too wide - Q is now the slope of the tuned impedance, within 0.53% of the swept modal solution; and the circle sized its wire from the uniform-current law, so a 0.5 efficiency target came out 0.625 - it now inverts the driving-point resistance. Since (2026-10-03) efficiency, Q and the wire rest on the radiation resistance referred to the loop's own current instead - the terminal one, with the loss added at the terminals, read them 8-12% high (§6 item 15) |
 | `multiturn_small_loop` | Two things. It tuned with Wheeler's current-sheet inductance, good for coils longer than about 0.8 of their radius, while its own close winding (l = 2.2 N b) makes them a few tenths of that: against N coaxial rings (Maxwell's mutual inductances; within 0.8% of Wheeler on long coils and 0.1% of the MoM on a 4-turn loop) Wheeler reads up to 52% low there (up to 21% on the spec's own designs tried), so the tuning capacitor came out that much too big. And every electrical law assumes a uniform current, which the MoM on closed windings shows holding (within about 15%) only to 0.05 wavelengths of wire - while the spec's own 50 ohm design at C = 0.1 lambda asked for 51 turns and 5.1 wavelengths, and Balanis's Example 5.2 has 2. Now the ring-model inductance tunes it, and the electrical metrics are NaN past 0.06 wavelengths of wire, with the textbook law kept alongside |
 | `open_ended_waveguide` | Gain `(8/π²)·4πab/λ²`, the large-aperture limit, which vanishes for a small aperture (where the directivity is a magnetic dipole's 3): WR-90 read 2.48/4.20/6.07 dBi at 8.2/10/12.4 GHz where its TE10 aperture in the infinite ground plane the spec assumes has 5.82/6.31/7.08 - 1.0-3.3 dB low, while the spec set aside the published ~6 dBi as "flanged". Now the aperture integrated over the hemisphere, confirmed by a planar-kernel sum to 0.003 dB, fitted to 0.04%; its effective area is D/(4πab/λ²) = 1.32 times its physical one for WR-90 at 10 GHz (the old 'aperture efficiency' was 8/π² whatever the size) |
 | `yagi_uda` | Gain fitted to NBS Technical Note 688's optimised designs and labelled dBi - but NBS tabulates gain over a half-wave dipole, so the spec read 1.9-2.1 dB low. The six designs solved in free space by the MoM and, independently, by coupled Hallen equations (agreeing within 0.08 dB) give 8.9-16.1 dBi; NBS's figures read as dBd sit within a third of a decibel of them. The E-plane beamwidth `55/sqrt(boom)` was 27-45% too wide on short booms, the director-count rule missed three of six designs, and front-to-back was quoted as −20 dB |
@@ -998,15 +998,33 @@ a modest extension of them.
     to about 8%. The same survey at two resolutions, extrapolated per plate,
     would tighten it; so would strips away from the corner, which it does not
     cover.
-15. **A small loop's feed gap.** The audit of 2026-10-03 found the driving-point
-    impedance of a thick wire on a larger loop set by the feed model rather than
-    the loop: at C = 0.3 lambda and b/a = 0.05 the Fourier series gives 8.1,
-    10.9 and 18.8 - j1021 ohm at 40, 60 and 120 modes, and the MoM moves with its
-    mesh as much (the square loop from 4.3 to 283 ohm). The fits are NaN past
-    (C/lambda)^2 (b/a) = 0.0009 (circle) and (P/lambda)^2 (b/s) = 0.0012 or
-    b/s = 1/32 (square). A finite gap - a physical width and its capacitance -
-    in either solver, surveyed over the old domain, would give those loops an
-    impedance of their own. Compute only (`otahub.num.loop_modal`, `mom`).
+15. **A small loop's feed gap.** Partly settled. The audit of 2026-10-03 found
+    a thick wire's terminal impedance set by the feed model (at C = 0.3 lambda,
+    b/a = 0.05 the Fourier series gives 8.1, 10.9 and 18.8 - j1021 ohm at 40,
+    60 and 120 modes; the square's MoM 4.3 to 283 ohm with the mesh), and the
+    terminal fits are NaN there. Following it up found what does NOT depend on
+    the feed - and what the specs had wrong on any wire: a resistive wire loses
+    r |I|^2 wherever the current is, so efficiency is R_loop / (R_loop + R_loss)
+    with R_loop referred to the loop's mean-square current, and the loaded Q is
+    the lossless radiation Q times that efficiency. Both specs had used the
+    terminal resistance with the loss added at the terminals; once the current
+    is not uniform (the far side of a 0.3-wavelength loop carries 1.8 times the
+    feed's current) that read efficiency and Q 8-12% high and sized the wire 30%
+    too thin. R_loop and the radiation Q move 0.01% with the feed model and 0.2%
+    with the MoM mesh, so both specs now carry them as fits
+    (`tests/data/small_loop_current.json`) and efficiency, Q, bandwidth, gain
+    and wire sizing hold over the whole thin-wire domain, the thick corner
+    included; checked against the loop solved with its loss in every mode and
+    against the MoM with the loss in its matrix. Still open: the terminal
+    impedance of a thick wire, which needs a physical gap modelled (its width
+    and capacitance). Related, and open: the resonant loops still put the
+    uniform-current loss at the terminals, where their feed current EXCEEDS the
+    mean-square current (<|I|^2>/|I_feed|^2 = 0.50 for the full-wave circle and
+    the quad, 0.54 for the halo), so they understate efficiency - 0.949 for
+    0.974 (one-wavelength circle, b = 1e-4 lambda), 0.943 for 0.970 (quad),
+    0.975 for 0.987 (halo), Codex's solved figures. Conservative, as their notes
+    say; the loop-current treatment, with that factor surveyed over each one's
+    wire range, would make it exact.
 
 The re-audit is never finished: every archetype passes the cases it declares,
 which is not the same as being right, and the survey that ranks archetypes by
