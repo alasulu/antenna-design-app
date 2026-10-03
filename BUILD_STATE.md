@@ -3945,3 +3945,63 @@ skipped in 35 min - 1091/1091 known-case expectations in 455 cases (WR-62's
 flanged guide added; three solved stacked boards in place of two old best-band
 cases), the doctor clean, 32,512 lines of Python. HANDOVER items 9, 11 and 13
 marked done.
+
+## After publication: the project audited by its own agents
+
+The user asked for agents from public collections and then for the project to be
+checked with them. None of the collections fitted a numerical antenna toolkit
+(web-stack roles; agent-reach, a social-media reader, not adopted), so seven
+project agents were written in `.claude/agents/` - physics verifier, house-rules
+reviewer, solver-survey runner, CI runner, GUI, export and docs engineers - each
+carrying the house rules and none allowed to edit specs. Eight ran in parallel as
+read-only auditors on a fresh clone (the Desktop copy's files had been evicted to
+iCloud and git stalled on them), with Codex taking the 32 archetypes unchanged
+since v2.0. Five were cut off by a usage limit and resumed. Every finding was
+reproduced here before it was fixed; one (a DRA volume in mm^3) was declined.
+
+What held: Codex recomputed 131 expectations on 30 archetypes from first
+principles, all within tolerance; the two physics verifiers reproduced every
+known case of the open guide, the dishes, the zone plate, the dipole length law,
+the small loops' Q and wire inversion, the PIFA coefficients and the stacked
+patch, mostly to 1e-5; 69 of 72 STL models are closed and non-overlapping (the
+other three wait, correctly, for a wire radius) and all 42 parametric scripts
+follow their variables.
+
+What did not:
+
+- **A cavity-backed slot reported as resonant that was not.** It was built a
+  flat 0.48 lambda0 long beside the resonant slot's 935 ohm; the MoM puts that
+  slot at about 800 - j150 ohm. Now cut to resonance (0.4637 lambda0), checked
+  against the two wire solvers.
+- **Thick-wire small loops whose impedance the feed decides.** At C = 0.3
+  lambda and b/a = 0.05 the Fourier series gives 8.1, 10.9, then 18.8 - j1021
+  ohm at 40, 60, 120 modes; the square loop's MoM 4.3 to 283 ohm with the
+  mesh. The fits had frozen one feed model; they are now NaN where the feed
+  moves the answer by more than a few percent, and a finite-gap model is
+  HANDOVER item 15. A single-turn wire sizing that fell back to a 36 m wire
+  for a 0.16 m loop is NaN too.
+- **Fits running past their data:** slot resistance and length (w/L 1e-6 read
+  a 915 ohm slot), the zone plate at one zone (45% high, 65% low), a blocker
+  wider than the dish (gain rising with it), the open guide below cutoff,
+  sectoral beamwidths past 40 wavelengths, the PIFA's full-width short on any
+  plate, and the stacked patch's own edge board lost to round-off.
+- **Tolerances that hid things:** the offset dish's shared 0.01 dB tol_abs,
+  once split, showed a 0.0028 dB fit error; the open guide's cases were six
+  times looser than its claimed accuracy.
+- **Software:** a corrugation pitch of 0 froze the app; copper of 0 emptied
+  the STL while the CLI reported success; --f0 2.4mm designed a 38 Gm patch;
+  `--options` and the 3-D tab crashed on an incomplete design; "Load a known
+  design" blanked free sizes on 7 antennas; a domain error read
+  "KeyError: '__import__'"; numpy 1.x was allowed but cannot run the code.
+- **CI:** duplicate full runs on rapid pushes, the full job repeating the
+  quick one, Python 3.10 claimed and never tested, a codespace image floating
+  on a tag (which had broken it once), Node 20 actions. Now: superseded runs
+  cancelled, slow tests beside the quick ones on 3.10 and 3.13, the image
+  pinned by digest.
+- **Docs:** HANDOVER's counts two rounds stale, an Ex 14.2 "1.7%" that is
+  0.066%, the PIFA's accuracy stated three ways.
+
+After it: 3502 tests - on GitHub's Linux runners the quick and slow jobs 3477 passed and
+25 skipped, the quick ones on Python 3.10 and 3.13, in 27 minutes end to end -
+1091/1091 known-case expectations in 458 cases, the doctor
+clean, 32,874 lines of Python.
