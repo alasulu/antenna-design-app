@@ -62,7 +62,12 @@ resonance from 3.7 radii per segment down to 0.8 (reactance within 0.6 ohm at a
 fixed length, where the reduced kernel falls 16 ohm), its resistance creeping 3%
 as the delta gap sharpens. Bends and junctions keep the reduced kernel. It is
 off by default so every result derived with the reduced kernel reproduces bit
-for bit; on thin wire the two differ by about 0.35%. What it does NOT cure is
+for bit; on a thin straight wire the two differ by about 0.35%. On a closed
+polygon - a loop - the mix of the exact self kernel with the reduced kernel
+between bent neighbours does not converge: a loop's reactance and Q creep with
+the mesh (+1.1% in Q from 24 to 192 segments at b/a 0.008, 2-3% on fat wire),
+where the reduced kernel alone converges monotonically onto the Fourier-series
+solution. Use the default for loops. What it does NOT cure is
 the delta gap itself on a very fat wire: at a = 0.015 lambda neither kernel
 converges, and that needs a finite-gap feed model.
 

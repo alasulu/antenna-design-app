@@ -37,12 +37,6 @@
           "typical": "C/(2*pi)"
         },
         {
-          "symbol": "wire_ratio_fit",
-          "name": "wire-to-loop radius ratio the driving-point fit inverts to",
-          "unit": "-",
-          "role": "derived"
-        },
-        {
           "symbol": "wire_ratio_eta",
           "name": "wire-to-loop radius ratio that meets eta_target",
           "unit": "-",
@@ -125,8 +119,8 @@
           ]
         },
         {
-          "output": "wire_ratio_fit",
-          "expr": "exp(np.interp(0.0, log(20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0)/(N*np.sqrt(pi*f0*mu0*mu_r_c/sigma))) + ((0.0040410154) + (-0.60257704)*C_over_lambda**1 + (121.26893)*C_over_lambda**2 + (-390.0967)*C_over_lambda**3 + (3442.6857)*C_over_lambda**4 + (-8828.3606)*C_over_lambda**5 + (4188.5955)*C_over_lambda**6 + (26893.671)*C_over_lambda**7 + (32530.781)*C_over_lambda**8) + ((0.0043648896) + (-0.55982227)*C_over_lambda**1 + (85.187894)*C_over_lambda**2 + (-375.41977)*C_over_lambda**3 + (3299.1945)*C_over_lambda**4 + (-9784.5564)*C_over_lambda**5 + (8034.2243)*C_over_lambda**6 + (24637.944)*C_over_lambda**7 + (9415.7251)*C_over_lambda**8)*np.linspace(-6.90875578, -2.99373427, 4001)**1 + ((0.0014565443) + (-0.18808357)*C_over_lambda**1 + (24.843349)*C_over_lambda**2 + (-130.31608)*C_over_lambda**3 + (1158.7307)*C_over_lambda**4 + (-3863.5628)*C_over_lambda**5 + (4692.9623)*C_over_lambda**6 + (5716.425)*C_over_lambda**7 + (699.12435)*C_over_lambda**8)*np.linspace(-6.90875578, -2.99373427, 4001)**2 + ((0.00020843962) + (-0.027068833)*C_over_lambda**1 + (3.204879)*C_over_lambda**2 + (-19.26448)*C_over_lambda**3 + (173.50149)*C_over_lambda**4 + (-629.36141)*C_over_lambda**5 + (948.9271)*C_over_lambda**6 + (394.35643)*C_over_lambda**7)*np.linspace(-6.90875578, -2.99373427, 4001)**3 + ((1.0819889e-05) + (-0.0014115465)*C_over_lambda**1 + (0.15336442)*C_over_lambda**2 + (-1.0260811)*C_over_lambda**3 + (9.3448696)*C_over_lambda**4 + (-35.981657)*C_over_lambda**5 + (61.685967)*C_over_lambda**6)*np.linspace(-6.90875578, -2.99373427, 4001)**4 + np.linspace(-6.90875578, -2.99373427, 4001), np.linspace(-6.90875578, -2.99373427, 4001), -6.90775528, inf - inf))",
+          "output": "wire_ratio_eta",
+          "expr": "np.where((abs(N - 1) < 1e-9)*(C_over_lambda <= 0.3001)*(eta_target > 0)*(eta_target < 1)*(np.sqrt(pi*f0*mu0*mu_r_c/sigma)/((20*pi**2*C_over_lambda**4*exp((-0.0344071148)*C_over_lambda**1 + (4.22693769)*C_over_lambda**2 + (-1.76692031)*C_over_lambda**3))*(1.0/np.clip(eta_target, 1e-12, 1.0 - 1e-12) - 1.0)) <= 0.0501), np.maximum(np.sqrt(pi*f0*mu0*mu_r_c/sigma)/((20*pi**2*C_over_lambda**4*exp((-0.0344071148)*C_over_lambda**1 + (4.22693769)*C_over_lambda**2 + (-1.76692031)*C_over_lambda**3))*(1.0/np.clip(eta_target, 1e-12, 1.0 - 1e-12) - 1.0)), 0.001), inf - inf)",
           "units_out": "-",
           "depends_on": [
             "C_over_lambda",
@@ -136,21 +130,11 @@
             "mu_r_c",
             "sigma"
           ],
-          "notes": "b/a such that the DRIVING-POINT radiation resistance - the fit analysis uses - over itself plus the skin loss N*Rs*a/b is eta_target: the log of the fit's correction plus log(b/a) rises monotonically across the fitted wire radii (slope 0.90 at least), so the equation is inverted by interpolation on 4001 points. Thinner wire, lower efficiency, so this is the thinnest wire that meets the target. If even b/a = 0.001, the thinnest the fit covers, beats the target, it is 0.001 and the efficiency comes out above eta_target; if the target needs a wire fatter than b/a = 0.05, NaN."
-        },
-        {
-          "output": "wire_ratio_eta",
-          "expr": "np.where(C_over_lambda**2*wire_ratio_fit <= 0.0009001, wire_ratio_fit, inf - inf)",
-          "units_out": "-",
-          "depends_on": [
-            "C_over_lambda",
-            "wire_ratio_fit"
-          ],
-          "notes": "wire_ratio_fit where the driving-point resistance it inverts is defined: NaN past (C/lambda)^2 (b/a) = 0.0009, where a thick wire's impedance depends on the feed model (input_resistance_driving_point_ohm)."
+          "notes": "b/a for which the loop's radiation efficiency is eta_target, in closed form: the efficiency is R_loop / (R_loop + Rs a / b) with R_loop the radiation resistance referred to the loop's mean-square current (radiation_resistance_loop_current_ohm), which does not depend on the wire (0.42% over b/a 0.001-0.05), so b/a = Rs / (R_loop (1/eta - 1)). Against the lossy loop solved directly (otahub.num.loop_modal, the wire's resistance in every mode, the efficiency found by root-finding) it is within 0.15%. It used to invert the TERMINAL resistance, which runs high of R_loop as the current stops being uniform - 1.4 times at 0.2 wavelengths, 2.4 at 0.3 - so the wire came out too thin: b/a 0.0087 for a 0.5 target at 0.2 wavelengths, where 0.0123 is needed. NaN past b/a = 0.05 (a thin wire no more) and beyond 0.30 wavelengths. Where a wire thinner than b/a = 0.001 would already meet the target, it is 0.001 - the thinnest the Q fit covers - and the efficiency comes out above eta_target. NaN for a target of 0 or 1 or outside."
         },
         {
           "output": "b",
-          "expr": "np.where(N < 1.5, wire_ratio_eta*C_over_lambda*c/(2*pi*f0), (N*(C_over_lambda*c/f0)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))/(2*pi*20*pi**2*N**2*C_over_lambda**4*(1.0/eta_target - 1.0)))",
+          "expr": "np.where((abs(N - 1) < 1e-9), wire_ratio_eta*C_over_lambda*c/(2*pi*f0), np.where((N > 1.5)*(eta_target > 0)*(eta_target < 1), (N*(C_over_lambda*c/f0)*np.sqrt(pi*f0*mu0*mu_r_c/sigma))/(2*pi*20*pi**2*N**2*C_over_lambda**4*(1.0/np.clip(eta_target, 1e-12, 1.0 - 1e-12) - 1.0)), inf - inf))",
           "units_out": "m",
           "notes": "Wire radius that meets eta_target against the loop's real driving-point resistance - wire_ratio_eta times the loop radius. It used to invert the uniform-current law, which understates the resistance (12-17% at 0.1 wavelengths, more beyond), so the wire came out fatter than needed and the efficiency overshot: 0.625 for a 0.5 target at 0.2 wavelengths, 0.772 at 0.3. For a single turn whose target needs a wire fatter than the fit covers, it is NaN: the uniform-current fallback it used gave a 36 m wire for a 0.16 m loop at eta 0.5, inf at 1.0 and a negative radius past it. For N > 1 it falls back to that uniform-current inversion, b = N*C*Rs/(2*pi*Rr*(1/eta - 1)), which then overstates the wire needed and which the analysis cannot check. Ignores proximity effect between turns.",
           "depends_on": [
@@ -176,7 +160,7 @@
         },
         {
           "output": "X_tune",
-          "expr": "np.where((N < 1.5)*(C*f0/c <= 0.3001)*(2*pi*b/C >= 0.000999)*(2*pi*b/C <= 0.0501)*((C*f0/c)**2*(2*pi*b/C) <= 0.0009001), (2*pi*f0*mu0*N**2*(C/(2*pi))*(log(4*C/(pi*b)) - 2))*exp((0.021344268) + (0.01621772)*log(2*pi*b/C) + (0.0045962678)*log(2*pi*b/C)**2 + (0.00057425813)*log(2*pi*b/C)**3 + (2.6641312e-05)*log(2*pi*b/C)**4 + (-0.30049186)*(C*f0/c) + (-0.27914515)*(C*f0/c)*log(2*pi*b/C) + (-0.093777031)*(C*f0/c)*log(2*pi*b/C)**2 + (-0.013495487)*(C*f0/c)*log(2*pi*b/C)**3 + (-0.00070371142)*(C*f0/c)*log(2*pi*b/C)**4 + (59.386773)*(C*f0/c)**2 + (42.84904)*(C*f0/c)**2*log(2*pi*b/C) + (12.470123)*(C*f0/c)**2*log(2*pi*b/C)**2 + (1.6068839)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.076839582)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-194.59416)*(C*f0/c)**3 + (-187.24183)*(C*f0/c)**3*log(2*pi*b/C) + (-64.986427)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-9.6058615)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-0.5115976)*(C*f0/c)**3*log(2*pi*b/C)**4 + (1715.5303)*(C*f0/c)**4 + (1644.8803)*(C*f0/c)**4*log(2*pi*b/C) + (577.76139)*(C*f0/c)**4*log(2*pi*b/C)**2 + (86.508496)*(C*f0/c)**4*log(2*pi*b/C)**3 + (4.6592035)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-4409.2904)*(C*f0/c)**5 + (-4884.0744)*(C*f0/c)**5*log(2*pi*b/C) + (-1927.6686)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-313.91948)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-17.944117)*(C*f0/c)**5*log(2*pi*b/C)**4 + (2119.8364)*(C*f0/c)**6 + (4028.6101)*(C*f0/c)**6*log(2*pi*b/C) + (2345.4698)*(C*f0/c)**6*log(2*pi*b/C)**2 + (473.69425)*(C*f0/c)**6*log(2*pi*b/C)**3 + (30.77669)*(C*f0/c)**6*log(2*pi*b/C)**4 + (13408.386)*(C*f0/c)**7 + (12276.897)*(C*f0/c)**7*log(2*pi*b/C) + (2848.1838)*(C*f0/c)**7*log(2*pi*b/C)**2 + (196.49615)*(C*f0/c)**7*log(2*pi*b/C)**3 + (16194.599)*(C*f0/c)**8 + (4689.2329)*(C*f0/c)**8*log(2*pi*b/C) + (348.36114)*(C*f0/c)**8*log(2*pi*b/C)**2), inf - inf)",
+          "expr": "np.where((abs(N - 1) < 1e-9)*(C*f0/c <= 0.3001)*(2*pi*b/C >= 0.000999)*(2*pi*b/C <= 0.0501)*((C*f0/c)**2*(2*pi*b/C) <= 0.0009001), (2*pi*f0*mu0*N**2*(C/(2*pi))*(log(4*C/(pi*b)) - 2))*exp((0.021344268) + (0.01621772)*log(2*pi*b/C) + (0.0045962678)*log(2*pi*b/C)**2 + (0.00057425813)*log(2*pi*b/C)**3 + (2.6641312e-05)*log(2*pi*b/C)**4 + (-0.30049186)*(C*f0/c) + (-0.27914515)*(C*f0/c)*log(2*pi*b/C) + (-0.093777031)*(C*f0/c)*log(2*pi*b/C)**2 + (-0.013495487)*(C*f0/c)*log(2*pi*b/C)**3 + (-0.00070371142)*(C*f0/c)*log(2*pi*b/C)**4 + (59.386773)*(C*f0/c)**2 + (42.84904)*(C*f0/c)**2*log(2*pi*b/C) + (12.470123)*(C*f0/c)**2*log(2*pi*b/C)**2 + (1.6068839)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.076839582)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-194.59416)*(C*f0/c)**3 + (-187.24183)*(C*f0/c)**3*log(2*pi*b/C) + (-64.986427)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-9.6058615)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-0.5115976)*(C*f0/c)**3*log(2*pi*b/C)**4 + (1715.5303)*(C*f0/c)**4 + (1644.8803)*(C*f0/c)**4*log(2*pi*b/C) + (577.76139)*(C*f0/c)**4*log(2*pi*b/C)**2 + (86.508496)*(C*f0/c)**4*log(2*pi*b/C)**3 + (4.6592035)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-4409.2904)*(C*f0/c)**5 + (-4884.0744)*(C*f0/c)**5*log(2*pi*b/C) + (-1927.6686)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-313.91948)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-17.944117)*(C*f0/c)**5*log(2*pi*b/C)**4 + (2119.8364)*(C*f0/c)**6 + (4028.6101)*(C*f0/c)**6*log(2*pi*b/C) + (2345.4698)*(C*f0/c)**6*log(2*pi*b/C)**2 + (473.69425)*(C*f0/c)**6*log(2*pi*b/C)**3 + (30.77669)*(C*f0/c)**6*log(2*pi*b/C)**4 + (13408.386)*(C*f0/c)**7 + (12276.897)*(C*f0/c)**7*log(2*pi*b/C) + (2848.1838)*(C*f0/c)**7*log(2*pi*b/C)**2 + (196.49615)*(C*f0/c)**7*log(2*pi*b/C)**3 + (16194.599)*(C*f0/c)**8 + (4689.2329)*(C*f0/c)**8*log(2*pi*b/C) + (348.36114)*(C*f0/c)**8*log(2*pi*b/C)**2), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "C",
@@ -211,7 +195,7 @@
         },
         {
           "metric": "input_resistance_driving_point_ohm",
-          "expr": "np.where((N < 1.5)*(C*f0/c <= 0.3001)*(2*pi*b/C >= 0.000999)*(2*pi*b/C <= 0.0501)*((C*f0/c)**2*(2*pi*b/C) <= 0.0009001), (20*pi**2*N**2*(C*f0/c)**4)*exp((0.0040410154) + (0.0043648896)*log(2*pi*b/C) + (0.0014565443)*log(2*pi*b/C)**2 + (0.00020843962)*log(2*pi*b/C)**3 + (1.0819889e-05)*log(2*pi*b/C)**4 + (-0.60257704)*(C*f0/c) + (-0.55982227)*(C*f0/c)*log(2*pi*b/C) + (-0.18808357)*(C*f0/c)*log(2*pi*b/C)**2 + (-0.027068833)*(C*f0/c)*log(2*pi*b/C)**3 + (-0.0014115465)*(C*f0/c)*log(2*pi*b/C)**4 + (121.26893)*(C*f0/c)**2 + (85.187894)*(C*f0/c)**2*log(2*pi*b/C) + (24.843349)*(C*f0/c)**2*log(2*pi*b/C)**2 + (3.204879)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.15336442)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-390.0967)*(C*f0/c)**3 + (-375.41977)*(C*f0/c)**3*log(2*pi*b/C) + (-130.31608)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-19.26448)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-1.0260811)*(C*f0/c)**3*log(2*pi*b/C)**4 + (3442.6857)*(C*f0/c)**4 + (3299.1945)*(C*f0/c)**4*log(2*pi*b/C) + (1158.7307)*(C*f0/c)**4*log(2*pi*b/C)**2 + (173.50149)*(C*f0/c)**4*log(2*pi*b/C)**3 + (9.3448696)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-8828.3606)*(C*f0/c)**5 + (-9784.5564)*(C*f0/c)**5*log(2*pi*b/C) + (-3863.5628)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-629.36141)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-35.981657)*(C*f0/c)**5*log(2*pi*b/C)**4 + (4188.5955)*(C*f0/c)**6 + (8034.2243)*(C*f0/c)**6*log(2*pi*b/C) + (4692.9623)*(C*f0/c)**6*log(2*pi*b/C)**2 + (948.9271)*(C*f0/c)**6*log(2*pi*b/C)**3 + (61.685967)*(C*f0/c)**6*log(2*pi*b/C)**4 + (26893.671)*(C*f0/c)**7 + (24637.944)*(C*f0/c)**7*log(2*pi*b/C) + (5716.425)*(C*f0/c)**7*log(2*pi*b/C)**2 + (394.35643)*(C*f0/c)**7*log(2*pi*b/C)**3 + (32530.781)*(C*f0/c)**8 + (9415.7251)*(C*f0/c)**8*log(2*pi*b/C) + (699.12435)*(C*f0/c)**8*log(2*pi*b/C)**2), inf - inf)",
+          "expr": "np.where((abs(N - 1) < 1e-9)*(C*f0/c <= 0.3001)*(2*pi*b/C >= 0.000999)*(2*pi*b/C <= 0.0501)*((C*f0/c)**2*(2*pi*b/C) <= 0.0009001), (20*pi**2*N**2*(C*f0/c)**4)*exp((0.0040410154) + (0.0043648896)*log(2*pi*b/C) + (0.0014565443)*log(2*pi*b/C)**2 + (0.00020843962)*log(2*pi*b/C)**3 + (1.0819889e-05)*log(2*pi*b/C)**4 + (-0.60257704)*(C*f0/c) + (-0.55982227)*(C*f0/c)*log(2*pi*b/C) + (-0.18808357)*(C*f0/c)*log(2*pi*b/C)**2 + (-0.027068833)*(C*f0/c)*log(2*pi*b/C)**3 + (-0.0014115465)*(C*f0/c)*log(2*pi*b/C)**4 + (121.26893)*(C*f0/c)**2 + (85.187894)*(C*f0/c)**2*log(2*pi*b/C) + (24.843349)*(C*f0/c)**2*log(2*pi*b/C)**2 + (3.204879)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.15336442)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-390.0967)*(C*f0/c)**3 + (-375.41977)*(C*f0/c)**3*log(2*pi*b/C) + (-130.31608)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-19.26448)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-1.0260811)*(C*f0/c)**3*log(2*pi*b/C)**4 + (3442.6857)*(C*f0/c)**4 + (3299.1945)*(C*f0/c)**4*log(2*pi*b/C) + (1158.7307)*(C*f0/c)**4*log(2*pi*b/C)**2 + (173.50149)*(C*f0/c)**4*log(2*pi*b/C)**3 + (9.3448696)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-8828.3606)*(C*f0/c)**5 + (-9784.5564)*(C*f0/c)**5*log(2*pi*b/C) + (-3863.5628)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-629.36141)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-35.981657)*(C*f0/c)**5*log(2*pi*b/C)**4 + (4188.5955)*(C*f0/c)**6 + (8034.2243)*(C*f0/c)**6*log(2*pi*b/C) + (4692.9623)*(C*f0/c)**6*log(2*pi*b/C)**2 + (948.9271)*(C*f0/c)**6*log(2*pi*b/C)**3 + (61.685967)*(C*f0/c)**6*log(2*pi*b/C)**4 + (26893.671)*(C*f0/c)**7 + (24637.944)*(C*f0/c)**7*log(2*pi*b/C) + (5716.425)*(C*f0/c)**7*log(2*pi*b/C)**2 + (394.35643)*(C*f0/c)**7*log(2*pi*b/C)**3 + (32530.781)*(C*f0/c)**8 + (9415.7251)*(C*f0/c)**8*log(2*pi*b/C) + (699.12435)*(C*f0/c)**8*log(2*pi*b/C)**2), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "C",
@@ -219,7 +203,31 @@
             "b",
             "N"
           ],
-          "notes": "What the real loop radiates at its terminals, lossless: the loop solved with its actual current, not a uniform one - the Fourier-series loop solution (otahub.num.loop_modal), which the method of moments meets to 0.1-0.8% on thin wire - and fitted over circumference 0.01 and wire radius 0.001-0.05 of the loop radius up to 0.30 wavelengths (1.6% worst, 1.6% held out). The uniform-current law beside it is within 5% only to about 0.05 wavelengths round; it is 12-17% low at 0.1 wavelengths, and at the lambda/3 this spec used to call its limit the real loop has 3-15 times the law's resistance. The cos(phi) part of the current radiates like an electric dipole, whose resistance grows as the size squared, not to the fourth, so it takes over fast. NaN past 0.30. NaN where (C/lambda)^2 (b/a) exceeds 0.0009 (C 0.3 lambda with b/a 0.01, 0.2 with 0.02, 0.1 with 0.05 or more): a thick wire on a larger loop has no single driving-point impedance - the delta gap's parallel capacitance depends on how the feed is modelled. Both solutions move with it: the Fourier series by 1.0-35% in R between 40 and 60 modes across the old domain's corner (C 0.3, b/a 0.05: 8.1, 10.9, then 18.8 - j1021 ohm at 120 modes), the method of moments by as much between 12 and 48 segments; inside the boundary they move under 2.5%. A finite physical gap, modelled, would give such a loop its own impedance."
+          "notes": "What the real loop radiates at its terminals, lossless: the loop solved with its actual current, not a uniform one - the Fourier-series loop solution (otahub.num.loop_modal), which the method of moments meets to 0.1-0.8% on thin wire - and fitted over circumference 0.01 and wire radius 0.001-0.05 of the loop radius up to 0.30 wavelengths (1.6% worst, 1.6% held out). The uniform-current law beside it is within 5% only to about 0.05 wavelengths round; it is 12-17% low at 0.1 wavelengths, and at the lambda/3 this spec used to call its limit the real loop has 3-15 times the law's resistance. The cos(phi) part of the current radiates like an electric dipole, whose resistance grows as the size squared, not to the fourth, so it takes over fast. NaN past 0.30. NaN where (C/lambda)^2 (b/a) exceeds 0.0009 (C 0.3 lambda with b/a 0.01, 0.2 with 0.02, 0.1 with 0.05 or more): a thick wire on a larger loop has no single driving-point impedance - the delta gap's parallel capacitance depends on how the feed is modelled. Both solutions move with it: the Fourier series by 1.0-35% in R between 40 and 60 modes across the old domain's corner (C 0.3, b/a 0.05: 8.1, 10.9, then 18.8 - j1021 ohm at 120 modes), the method of moments by as much between 12 and 48 segments; inside the boundary they move under 2.5% with the mode count - but across feed models (finite gaps of 4-16 wire radii, the method of moments' meshes) by up to about 10% either way at its corner (5.2-6.4 ohm at C 0.3, b/a 0.01), so read the terminal value there as indicative. A finite physical gap, modelled, would give such a loop its own impedance. This is the TERMINAL value for a delta gap, what an impedance meter across the gap would read; efficiency, Q and the wire sizing use radiation_resistance_loop_current_ohm instead, which holds on any wire."
+        },
+        {
+          "metric": "radiation_resistance_loop_current_ohm",
+          "expr": "np.where((abs(N - 1) < 1e-9)*((C*f0/c) <= 0.3001)*(2*pi*b/C <= 0.0501), 20*pi**2*(C*f0/c)**4*exp((-0.0344071148)*(C*f0/c)**1 + (4.22693769)*(C*f0/c)**2 + (-1.76692031)*(C*f0/c)**3), inf - inf)",
+          "units_out": "ohm",
+          "depends_on": [
+            "C",
+            "f0",
+            "b",
+            "N"
+          ],
+          "notes": "The radiation resistance referred to the loop's MEAN-SQUARE current, 2 P_rad / <|I|^2> - the one efficiency needs, because the wire loses r |I|^2 wherever the current is. FITTED to the loop solved with its real current (otahub.num.loop_modal; the method of moments' far-field power agrees to 0.2-1%) over C/lambda 0.01-0.30: 0.23% worst, 0.20% on held-out sizes; the wire hardly enters (0.42% over b/a 0.001-0.05), and neither does the feed (0.01% between 40 and 60 modes, where the terminal resistance moves 35%). It is the uniform-current 20 pi^2 (C/lambda)^4 at small sizes and 1.38 times it at 0.3 wavelengths, where the far side carries 1.8 times the feed's current and the TERMINAL resistance is 2.4 times this. NaN past b/a = 0.05 and beyond 0.30 wavelengths."
+        },
+        {
+          "metric": "radiation_quality_factor",
+          "expr": "np.where((abs(N - 1) < 1e-9)*((C*f0/c) >= 0.0099)*((C*f0/c) <= 0.3001)*(2*pi*b/C >= 0.000999)*(2*pi*b/C <= 0.0501), exp((0.395971669) + (-0.629072433)*log(2*pi*b/C)**1 + (-0.0656027853)*log(2*pi*b/C)**2 + (-0.00297460182)*log(2*pi*b/C)**3 + (-0.00758341175)*(C*f0/c)**1 + (-0.00118490441)*(C*f0/c)**1*log(2*pi*b/C)**1 + (-0.00010959631)*(C*f0/c)**1*log(2*pi*b/C)**2 + (-3.3666136e-06)*(C*f0/c)**1*log(2*pi*b/C)**3 + (-2.50460634)*(C*f0/c)**2 + (0.389502984)*(C*f0/c)**2*log(2*pi*b/C)**1 + (0.0530745524)*(C*f0/c)**2*log(2*pi*b/C)**2 + (0.00265705889)*(C*f0/c)**2*log(2*pi*b/C)**3 + (-1.38624667)*(C*f0/c)**3 + (-0.28886398)*(C*f0/c)**3*log(2*pi*b/C)**1 + (-0.0345002126)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-0.00152603992)*(C*f0/c)**3*log(2*pi*b/C)**3 + (1.44483691)*(C*f0/c)**4 + (-0.88932355)*(C*f0/c)**4*log(2*pi*b/C)**1 + (-0.139121595)*(C*f0/c)**4*log(2*pi*b/C)**2 + (-0.00766931463)*(C*f0/c)**4*log(2*pi*b/C)**3)/(C*f0/c)**3, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "C",
+            "f0",
+            "b",
+            "N"
+          ],
+          "notes": "Q of the lossless loop tuned by a series capacitor at its gap: Yaghjian and Best's Q_Z, from the slope of the solved impedance with the capacitor's own reactance slope. FITTED as ln(Q (C/lambda)^3), quartic in C/lambda and cubic in ln(b/a), over C/lambda 0.01-0.30 and b/a 0.001-0.05: 0.10% worst, 0.10% held out. It does not depend on the feed (0.00% between 40 and 60 modes): the gap's capacitance only shares the tuning with the capacitor, so this holds on the thick wire where the terminal impedance does not."
         },
         {
           "metric": "input_reactance_driving_point_ohm",
@@ -280,27 +288,31 @@
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "input_resistance_driving_point_ohm/(input_resistance_driving_point_ohm + loss_resistance_ohm)",
+          "expr": "radiation_resistance_loop_current_ohm/(radiation_resistance_loop_current_ohm + loss_resistance_ohm)",
           "units_out": "-",
-          "notes": "e_cd = R/(R + Rloss) with R the real loop's driving-point radiation resistance (the uniform-current law understates it by 12-17% at 0.1 wavelengths). Optimistic otherwise: excludes proximity effect, tuning-capacitor ESR and nearby-object loss.",
+          "notes": "P_rad / (P_rad + P_loss) with the loss spread round the loop as the current is: R_loop / (R_loop + loss_resistance_ohm), exact for a uniform resistance per length (the lossy loop solved directly agrees to all digits). It was the TERMINAL resistance over itself plus the uniform-current loss, which counted the loss at the feed's current while the radiation was counted at the terminals too: 12% high at 0.25 wavelengths (0.852 for 0.760), 8% at 0.1 with a thick wire. Valid on the thick wire too. Optimistic otherwise: it excludes proximity effect, tuning-capacitor ESR and loss in nearby objects.",
           "depends_on": [
-            "input_resistance_driving_point_ohm",
+            "radiation_resistance_loop_current_ohm",
             "loss_resistance_ohm"
           ]
         },
         {
           "metric": "directivity_dbi",
-          "expr": "10*np.log10(1.5)",
+          "expr": "np.where((C*f0/c) <= 0.3001, 10*np.log10(1.5*exp((-0.691584325)*(C*f0/c)**2 + (0.544785985)*(C*f0/c)**3 + (0.46268718)*(C*f0/c)**4)), inf - inf)",
           "units_out": "dBi",
-          "notes": "D0 = 1.5 exactly (sin^2(theta) pattern, identical to a Hertzian dipole), i.e. 1.7609 dBi. Maximum lies IN the plane of the loop; there is a null on the loop axis.",
-          "depends_on": []
+          "notes": "Peak directivity of the loop's solved current, in the plane of the loop. FITTED as ln(D/1.5) in the second to fourth powers of the size (C/lambda) to the method of moments up to 0.30 wavelengths: 0.015% worst; the wire moves it about 0.1%. It is the infinitesimal loop's 1.5 at small sizes and falls to 1.436 at 0.3 wavelengths (0.19 dB down), where the current's cos(phi) part also fills the axis: 0.47 broadside to the loop, not a null. NaN beyond 0.30.",
+          "depends_on": [
+            "C",
+            "f0"
+          ]
         },
         {
           "metric": "gain_dbi",
-          "expr": "10*np.log10(1.5*radiation_efficiency)",
+          "expr": "directivity_dbi + 10*np.log10(radiation_efficiency)",
           "units_out": "dBi",
-          "notes": "G = e_cd * D0.",
+          "notes": "Directivity of the solved current times the radiation efficiency.",
           "depends_on": [
+            "directivity_dbi",
             "radiation_efficiency"
           ]
         },
@@ -317,27 +329,24 @@
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "(input_resistance_driving_point_ohm + loss_resistance_ohm) + 1j*input_reactance_driving_point_ohm",
+          "expr": "input_resistance_driving_point_ohm*(1 + loss_resistance_ohm/radiation_resistance_loop_current_ohm) + 1j*input_reactance_driving_point_ohm",
           "units_out": "ohm",
-          "notes": "Untuned terminal impedance of the real loop: driving-point radiation resistance plus conductor loss, and the driving-point reactance. NaN past 0.30 wavelengths.",
+          "notes": "At the terminals, wire loss included: the loss referred to the terminal current is the uniform figure times R_terminal / R_loop (the current is larger away from the feed), so R = R_terminal (1 + R_loss / R_loop) - the lossy loop solved directly agrees to 1e-5. Thin wire only, as the terminal resistance is.",
           "depends_on": [
             "input_resistance_driving_point_ohm",
             "loss_resistance_ohm",
+            "radiation_resistance_loop_current_ohm",
             "input_reactance_driving_point_ohm"
           ]
         },
         {
           "metric": "quality_factor",
-          "expr": "sqrt((input_resistance_driving_point_ohm*(4 + (-0.60257704)*(C*f0/c)**1 + (-0.55982227)*(C*f0/c)**1*log(2*pi*b/C)**1 + (-0.18808357)*(C*f0/c)**1*log(2*pi*b/C)**2 + (-0.027068833)*(C*f0/c)**1*log(2*pi*b/C)**3 + (-0.0014115465)*(C*f0/c)**1*log(2*pi*b/C)**4 + (242.53786)*(C*f0/c)**2 + (170.375788)*(C*f0/c)**2*log(2*pi*b/C)**1 + (49.686698)*(C*f0/c)**2*log(2*pi*b/C)**2 + (6.409758)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.30672884)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-1170.2901)*(C*f0/c)**3 + (-1126.25931)*(C*f0/c)**3*log(2*pi*b/C)**1 + (-390.94824)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-57.79344)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-3.0782433)*(C*f0/c)**3*log(2*pi*b/C)**4 + (13770.7428)*(C*f0/c)**4 + (13196.778)*(C*f0/c)**4*log(2*pi*b/C)**1 + (4634.9228)*(C*f0/c)**4*log(2*pi*b/C)**2 + (694.00596)*(C*f0/c)**4*log(2*pi*b/C)**3 + (37.3794784)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-44141.803)*(C*f0/c)**5 + (-48922.782)*(C*f0/c)**5*log(2*pi*b/C)**1 + (-19317.814)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-3146.80705)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-179.908285)*(C*f0/c)**5*log(2*pi*b/C)**4 + (25131.573)*(C*f0/c)**6 + (48205.3458)*(C*f0/c)**6*log(2*pi*b/C)**1 + (28157.7738)*(C*f0/c)**6*log(2*pi*b/C)**2 + (5693.5626)*(C*f0/c)**6*log(2*pi*b/C)**3 + (370.115802)*(C*f0/c)**6*log(2*pi*b/C)**4 + (188255.697)*(C*f0/c)**7 + (172465.608)*(C*f0/c)**7*log(2*pi*b/C)**1 + (40014.975)*(C*f0/c)**7*log(2*pi*b/C)**2 + (2760.49501)*(C*f0/c)**7*log(2*pi*b/C)**3 + (260246.248)*(C*f0/c)**8 + (75325.8008)*(C*f0/c)**8*log(2*pi*b/C)**1 + (5592.9948)*(C*f0/c)**8*log(2*pi*b/C)**2) + loss_resistance_ohm/2)**2 + (input_reactance_driving_point_ohm*(2 + (-0.30049186)*(C*f0/c)**1 + (-0.27914515)*(C*f0/c)**1*log(2*pi*b/C)**1 + (-0.093777031)*(C*f0/c)**1*log(2*pi*b/C)**2 + (-0.013495487)*(C*f0/c)**1*log(2*pi*b/C)**3 + (-0.00070371142)*(C*f0/c)**1*log(2*pi*b/C)**4 + (118.773546)*(C*f0/c)**2 + (85.69808)*(C*f0/c)**2*log(2*pi*b/C)**1 + (24.940246)*(C*f0/c)**2*log(2*pi*b/C)**2 + (3.2137678)*(C*f0/c)**2*log(2*pi*b/C)**3 + (0.153679164)*(C*f0/c)**2*log(2*pi*b/C)**4 + (-583.78248)*(C*f0/c)**3 + (-561.72549)*(C*f0/c)**3*log(2*pi*b/C)**1 + (-194.959281)*(C*f0/c)**3*log(2*pi*b/C)**2 + (-28.8175845)*(C*f0/c)**3*log(2*pi*b/C)**3 + (-1.5347928)*(C*f0/c)**3*log(2*pi*b/C)**4 + (6862.1212)*(C*f0/c)**4 + (6579.5212)*(C*f0/c)**4*log(2*pi*b/C)**1 + (2311.04556)*(C*f0/c)**4*log(2*pi*b/C)**2 + (346.033984)*(C*f0/c)**4*log(2*pi*b/C)**3 + (18.636814)*(C*f0/c)**4*log(2*pi*b/C)**4 + (-22046.452)*(C*f0/c)**5 + (-24420.372)*(C*f0/c)**5*log(2*pi*b/C)**1 + (-9638.343)*(C*f0/c)**5*log(2*pi*b/C)**2 + (-1569.5974)*(C*f0/c)**5*log(2*pi*b/C)**3 + (-89.720585)*(C*f0/c)**5*log(2*pi*b/C)**4 + (12719.0184)*(C*f0/c)**6 + (24171.6606)*(C*f0/c)**6*log(2*pi*b/C)**1 + (14072.8188)*(C*f0/c)**6*log(2*pi*b/C)**2 + (2842.1655)*(C*f0/c)**6*log(2*pi*b/C)**3 + (184.66014)*(C*f0/c)**6*log(2*pi*b/C)**4 + (93858.702)*(C*f0/c)**7 + (85938.279)*(C*f0/c)**7*log(2*pi*b/C)**1 + (19937.2866)*(C*f0/c)**7*log(2*pi*b/C)**2 + (1375.47305)*(C*f0/c)**7*log(2*pi*b/C)**3 + (129556.792)*(C*f0/c)**8 + (37513.8632)*(C*f0/c)**8*log(2*pi*b/C)**1 + (2786.88912)*(C*f0/c)**8*log(2*pi*b/C)**2))**2)/(2*(input_resistance_driving_point_ohm + loss_resistance_ohm))",
+          "expr": "radiation_quality_factor*radiation_efficiency",
           "units_out": "-",
-          "notes": "Q of the loop TUNED by its series capacitor at f0, from the frequency derivative of the tuned impedance (Yaghjian and Best's Q_Z = omega |Z'|/2R) at fixed geometry: the capacitor contributes X/omega to dX/domega and the loop itself X(1 + x dP/dx)/omega, where P is the reactance fit's exponent; the radiation resistance grows as R(4 + x dQ/dx)/omega and the skin loss as R_loss/(2 omega). For an ideal inductor that is omega L/(Rr + Rloss) again, but the real loop's reactance rises faster than omega L as it grows toward its first resonance, so X/R understated Q - by 39% at 0.3 wavelengths round and b/a = 0.01 (138.1 against 227.7), up to 56% for the thickest wire, and 4-6% already at 0.1 wavelengths. Checked against the Fourier-series loop solution swept at fixed geometry with the capacitor tuned at f0: within 0.53% over the fitted domain, and 0.7071/Q meets the swept VSWR-2 band as closely. Ignores capacitor ESR, which often dominates in a real transmitting loop. At the thickest wire inside the domain (b/a 0.05 at C 0.1 lambda) the feed model moves Q by up to about 3% (1156 here, 1121-1129 for finite gaps of 2-4 wire radii).",
+          "notes": "Loaded Q of the tuned loop: the lossless radiation Q times the radiation efficiency - the stored energy is the same, the power lost is the radiated over the efficiency. The lossy loop's own Q_Z (the wire's resistance in every mode, scaled as sqrt(f) across the derivative) agrees to all digits printed. It was built on the terminal resistance with the loss added at the terminals, and read 8-12% high where the current is not uniform (402 for 359 at 0.25 wavelengths). X/R at the terminals - an ideal inductor's Q - understates it: 4-6% at 0.1 wavelengths round, 15-18% at 0.2 and 36-39% at 0.3, because the real loop's reactance rises faster than omega L as it grows toward its first resonance. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
           "depends_on": [
-            "input_reactance_driving_point_ohm",
-            "input_resistance_driving_point_ohm",
-            "loss_resistance_ohm",
-            "C",
-            "b",
-            "f0"
+            "radiation_quality_factor",
+            "radiation_efficiency"
           ]
         },
         {
@@ -370,10 +379,11 @@
         },
         {
           "metric": "effective_aperture_m2",
-          "expr": "1.5*(c/f0)**2/(4*pi)*radiation_efficiency",
+          "expr": "10**(directivity_dbi/10)*(c/f0)**2/(4*pi)*radiation_efficiency",
           "units_out": "m^2",
           "notes": "Ae = G*lambda^2/(4*pi). For receiving use with the externally-noise-limited argument in the ferrite archetype.",
           "depends_on": [
+            "directivity_dbi",
             "f0",
             "radiation_efficiency"
           ]
@@ -386,8 +396,9 @@
         "PROXIMITY EFFECT: for a single isolated turn the given Rloss is correct; whenever conductors are near each other (N>1, or a loop close to a ground plane/shield) the true loss is Rloss*(1 + Rp/R0) with Rp/R0 typically 0.5-4 (Balanis Fig. 5-9). This spec returns the Rp/R0 = 0 value",
         "free space; a real loop near ground or lossy dielectric loses far more than Rloss predicts",
         "excludes tuning-capacitor ESR, solder-joint and connector resistance, which often exceed the conductor loss in a high-Q transmitting loop",
-        "the uniform-current laws (radiation_resistance_ohm, the tuning inductance) hold within 5% only to about 0.05 wavelengths round; the driving-point metrics, and everything built on them, are fitted to the loop solved with its real current up to 0.30 wavelengths and are NaN beyond; and they are NaN where (C/lambda)^2 (b/a) > 0.0009, where a thick wire's driving-point impedance depends on the feed gap, which is not modelled",
-        "the driving-point metrics are for a single turn (N = 1) and are NaN otherwise; bunched turns are the multiturn_small_loop archetype"
+        "the uniform-current laws (radiation_resistance_ohm, the tuning inductance) hold within 5% only to about 0.05 wavelengths round; radiation_resistance_loop_current_ohm, radiation_quality_factor and what is built on them (efficiency, Q, bandwidth, gain, the wire sizing) are fitted to the loop solved with its real current up to 0.30 wavelengths and b/a 0.05, and are NaN beyond; the terminal impedance (input_resistance_driving_point_ohm, X_tune, C_tune, input_impedance_ohm) is NaN where (C/lambda)^2 (b/a) > 0.0009 as well, where a thick wire's terminal impedance depends on the feed gap, which is not modelled",
+        "the driving-point metrics are for a single turn (N = 1) and are NaN otherwise; bunched turns are the multiturn_small_loop archetype",
+        "efficiency and Q assume the tuning capacitor sits across the feed gap, as the solved loops have it; a capacitor opposite the feed - a common layout - changes the current's shape and so both"
       ],
       "known_cases": [
         {
@@ -429,14 +440,14 @@
             "surface_resistance_ohm": 0.002608951,
             "skin_depth_m": 6.6093e-06,
             "loss_resistance_ohm": 0.3128566,
-            "radiation_efficiency": 0.852411,
+            "radiation_efficiency": 0.760154,
             "inductance_H": 7.33304e-07,
-            "quality_factor": 402.467,
-            "fractional_bandwidth_vswr2": 0.00175694,
-            "gain_dbi": 1.0674
+            "quality_factor": 358.906,
+            "fractional_bandwidth_vswr2": 0.00197017,
+            "gain_dbi": 0.42641
           },
-          "tol_pct": 2.5,
-          "source": "Balanis, Antenna Theory 4th ed., eqs. 5-24a and 2-90b; copper Rs = 2.609e-7*sqrt(f) (Efficiency, Q, bandwidth and gain now for the real loop: the Fourier-series solution gives 1.807+624.1j ohm at C = 0.2513 lambda, against the uniform-current 0.7876 ohm, so 0.8524 efficient. Q and the VSWR-2 band by sweeping that solution at fixed geometry, skin loss included and the series capacitor tuned at f0: Q_Z = omega|Z'|/2R = 402.5 and 0.1757% - where X/R gave 294.4, because the loop's reactance rises faster than omega L.)"
+          "tol_pct": 1.0,
+          "source": "Balanis, Antenna Theory 4th ed., eqs. 5-24a and 2-90b; copper Rs = 2.609e-7*sqrt(f) (Efficiency, Q, bandwidth and gain now for the real loop: the Fourier-series solution gives 1.807+624.1j ohm at C = 0.2513 lambda, against the uniform-current 0.7876 ohm, so 0.8524 efficient. Q and the VSWR-2 band by sweeping that solution at fixed geometry, skin loss included and the series capacitor tuned at f0: Q_Z = omega|Z'|/2R = 402.5 and 0.1757% - where X/R gave 294.4, because the loop's reactance rises faster than omega L.) Efficiency, Q, bandwidth and gain re-solved: the lossy loop solved directly (otahub.num.loop_modal with the wire's resistance in every mode, Q_Z from its slope) gives 0.760154 and 358.906; the 0.852411 and 402.467 this case held counted the loss at the terminal current. Gain with the solved current's own directivity (method of moments, 96 segments, 1.45124 at this size, not the infinitesimal 1.5): 10 log10(1.45124 x 0.760154) = 0.42641 dBi."
         },
         {
           "given": {
@@ -446,19 +457,22 @@
             "N": 1
           },
           "expect": {
-            "quality_factor": 227.663,
-            "fractional_bandwidth_vswr2": 0.003106
+            "quality_factor": 203.707,
+            "fractional_bandwidth_vswr2": 0.00347119
           },
           "tol_pct": 1.0,
-          "source": "Wire radius 0.01 of the loop radius at 0.3 wavelengths round: the Fourier-series loop solution (otahub.num.loop_modal) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.3106% band, Q_Z = 227.66. X/R said Q 138.1 and a 0.512% band, 65% too wide."
+          "source": "Wire radius 0.01 of the loop radius at 0.3 wavelengths round: the Fourier-series loop solution (otahub.num.loop_modal) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.3106% band, Q_Z = 227.66. X/R said Q 138.1 and a 0.512% band, 65% too wide. Re-solved with the wire's loss in every mode of the loop: Q_Z 203.707 (it held 227.663, the loss counted at the terminal current)."
         },
         {
-          "given": {},
-          "expect": {
-            "directivity_dbi": 1.7609126
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.02
           },
           "tol_pct": 0.1,
-          "source": "Balanis, Antenna Theory 4th ed., eq. 5-27 (D0 = 3/2)"
+          "expect": {
+            "directivity_dbi": 1.759075
+          },
+          "source": "A small circle (0.02 wavelengths): the method of moments' peak directivity 1.499365, the infinitesimal loop's 1.5 (1.7609 dBi) to within 0.03%."
         },
         {
           "given": {
@@ -522,12 +536,12 @@
             "N": 1
           },
           "expect": {
-            "wire_ratio_eta": 0.0086844,
-            "b": 0.000276242,
+            "wire_ratio_eta": 0.01233937,
+            "b": 0.0003925027,
             "radiation_efficiency": 0.5
           },
           "tol_pct": 1.0,
-          "source": "The wire that makes the loop 0.5 efficient at 0.2 wavelengths round, from the Fourier-series loop solution's own driving-point resistance (otahub.num.loop_modal) and copper skin loss, root-found (scipy brentq): b/a = 0.0086844. The old uniform-current inversion gave a fatter wire and an efficiency above target - 0.625 for this 0.5 at 0.2 wavelengths."
+          "source": "The wire that makes the lossy loop's solved efficiency exactly 0.5 (otahub.num.loop_modal with the wire's resistance in every mode, brentq on b/a): b/a = 0.01233937, b = 0.0003925027 m. The closed form is within 0.15%. The old inversion, through the terminal resistance, built b/a 0.0086844 / 0.00603321 - too thin."
         },
         {
           "given": {
@@ -537,12 +551,52 @@
             "N": 1
           },
           "expect": {
-            "wire_ratio_eta": 0.00603321,
-            "b": 0.000719663,
+            "wire_ratio_eta": 0.01077339,
+            "b": 0.001285089,
             "radiation_efficiency": 0.8
           },
           "tol_pct": 1.0,
-          "source": "The wire that makes the loop 0.8 efficient at 0.25 wavelengths round, from the Fourier-series loop solution's own driving-point resistance and copper skin loss, root-found (scipy brentq): b/a = 0.00603321."
+          "source": "The wire that makes the lossy loop's solved efficiency exactly 0.8 (otahub.num.loop_modal with the wire's resistance in every mode, brentq on b/a): b/a = 0.01077339, b = 0.001285089 m. The closed form is within 0.15%. The old inversion, through the terminal resistance, built b/a 0.0086844 / 0.00603321 - too thin."
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C": 0.899377374,
+            "b": 0.007157017738855413,
+            "N": 1
+          },
+          "tol_pct": 1.0,
+          "expect": {
+            "radiation_efficiency": 0.976948,
+            "quality_factor": 158.836,
+            "radiation_resistance_loop_current_ohm": 2.21136
+          },
+          "source": "A thick wire on a large loop, b/a = 0.05 at 0.3 wavelengths, 100 MHz copper - where the terminal impedance depends on the feed and is NaN: the lossy loop solved directly gives efficiency 0.976948 and Q_Z 158.836, and its loop-current radiation resistance is 2.21136 ohm (the fit, through the middle of the 0.42% the wire spreads it, reads 0.25% low)."
+        },
+        {
+          "given": {
+            "f0": 100000000.0,
+            "C_over_lambda": 0.3,
+            "eta_target": 0.97,
+            "N": 1
+          },
+          "tol_pct": 1.0,
+          "expect": {
+            "wire_ratio_eta": 0.03816277,
+            "b": 0.005462632
+          },
+          "source": "A 0.97 efficiency at 0.3 wavelengths and 100 MHz needs b/a = 0.03816277 (5.46 mm): brentq on the lossy loop's solved efficiency. Thick enough that the old fit's domain corner had cut it off."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "C_over_lambda": 0.3
+          },
+          "tol_pct": 0.1,
+          "expect": {
+            "directivity_dbi": 1.57078
+          },
+          "source": "A circle of 0.3 wavelengths: the method of moments (b = 0.01 of the loop radius, 64 segments, 120 x 160 directions) gives a peak directivity of 1.435747, 0.19 dB under the infinitesimal loop's 1.5 that gain and aperture used to assume."
         }
       ],
       "references": [
@@ -669,7 +723,7 @@
         },
         {
           "output": "X_tune",
-          "expr": "np.where((N < 1.5)*(4*s*f0/c <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0313)*((4*s*f0/c)**2*(b/s) <= 0.0012001), (2*pi*f0*(2*mu0*N**2*s/pi)*(log(s/b) - 0.77401))*exp((0.37171555) + (0.25729117)*log(b/s) + (0.067493486)*log(b/s)**2 + (0.0079020688)*log(b/s)**3 + (0.00034690511)*log(b/s)**4 + (-0.10003489)*(4*s*f0/c) + (-0.091786407)*(4*s*f0/c)*log(b/s) + (-0.030476094)*(4*s*f0/c)*log(b/s)**2 + (-0.0043364774)*(4*s*f0/c)*log(b/s)**3 + (-0.00022372549)*(4*s*f0/c)*log(b/s)**4 + (34.141441)*(4*s*f0/c)**2 + (24.198613)*(4*s*f0/c)**2*log(b/s) + (7.2663572)*(4*s*f0/c)**2*log(b/s)**2 + (0.9621862)*(4*s*f0/c)**2*log(b/s)**3 + (0.046982813)*(4*s*f0/c)**2*log(b/s)**4 + (-64.793713)*(4*s*f0/c)**3 + (-60.913719)*(4*s*f0/c)**3*log(b/s) + (-20.706012)*(4*s*f0/c)**3*log(b/s)**2 + (-3.0009145)*(4*s*f0/c)**3*log(b/s)**3 + (-0.15692878)*(4*s*f0/c)**3*log(b/s)**4 + (623.95459)*(4*s*f0/c)**4 + (571.78254)*(4*s*f0/c)**4*log(b/s) + (194.52651)*(4*s*f0/c)**4*log(b/s)**2 + (28.282115)*(4*s*f0/c)**4*log(b/s)**3 + (1.4827913)*(4*s*f0/c)**4*log(b/s)**4 + (-1664.9439)*(4*s*f0/c)**5 + (-1696.9931)*(4*s*f0/c)**5*log(b/s) + (-629.08738)*(4*s*f0/c)**5*log(b/s)**2 + (-97.202977)*(4*s*f0/c)**5*log(b/s)**3 + (-5.312196)*(4*s*f0/c)**5*log(b/s)**4 + (1828.6198)*(4*s*f0/c)**6 + (2064.4399)*(4*s*f0/c)**6*log(b/s) + (916.20711)*(4*s*f0/c)**6*log(b/s)**2 + (158.87971)*(4*s*f0/c)**6*log(b/s)**3 + (9.3049595)*(4*s*f0/c)**6*log(b/s)**4 + (3112.5932)*(4*s*f0/c)**7 + (2857.5311)*(4*s*f0/c)**7*log(b/s) + (595.81343)*(4*s*f0/c)**7*log(b/s)**2 + (36.575221)*(4*s*f0/c)**7*log(b/s)**3 + (2987.6878)*(4*s*f0/c)**8 + (434.02257)*(4*s*f0/c)**8*log(b/s) + (9.3928867)*(4*s*f0/c)**8*log(b/s)**2), inf - inf)",
+          "expr": "np.where((abs(N - 1) < 1e-9)*(4*s*f0/c <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0313)*((4*s*f0/c)**2*(b/s) <= 0.0012001), (2*pi*f0*(2*mu0*N**2*s/pi)*(log(s/b) - 0.77401))*exp((0.37171555) + (0.25729117)*log(b/s) + (0.067493486)*log(b/s)**2 + (0.0079020688)*log(b/s)**3 + (0.00034690511)*log(b/s)**4 + (-0.10003489)*(4*s*f0/c) + (-0.091786407)*(4*s*f0/c)*log(b/s) + (-0.030476094)*(4*s*f0/c)*log(b/s)**2 + (-0.0043364774)*(4*s*f0/c)*log(b/s)**3 + (-0.00022372549)*(4*s*f0/c)*log(b/s)**4 + (34.141441)*(4*s*f0/c)**2 + (24.198613)*(4*s*f0/c)**2*log(b/s) + (7.2663572)*(4*s*f0/c)**2*log(b/s)**2 + (0.9621862)*(4*s*f0/c)**2*log(b/s)**3 + (0.046982813)*(4*s*f0/c)**2*log(b/s)**4 + (-64.793713)*(4*s*f0/c)**3 + (-60.913719)*(4*s*f0/c)**3*log(b/s) + (-20.706012)*(4*s*f0/c)**3*log(b/s)**2 + (-3.0009145)*(4*s*f0/c)**3*log(b/s)**3 + (-0.15692878)*(4*s*f0/c)**3*log(b/s)**4 + (623.95459)*(4*s*f0/c)**4 + (571.78254)*(4*s*f0/c)**4*log(b/s) + (194.52651)*(4*s*f0/c)**4*log(b/s)**2 + (28.282115)*(4*s*f0/c)**4*log(b/s)**3 + (1.4827913)*(4*s*f0/c)**4*log(b/s)**4 + (-1664.9439)*(4*s*f0/c)**5 + (-1696.9931)*(4*s*f0/c)**5*log(b/s) + (-629.08738)*(4*s*f0/c)**5*log(b/s)**2 + (-97.202977)*(4*s*f0/c)**5*log(b/s)**3 + (-5.312196)*(4*s*f0/c)**5*log(b/s)**4 + (1828.6198)*(4*s*f0/c)**6 + (2064.4399)*(4*s*f0/c)**6*log(b/s) + (916.20711)*(4*s*f0/c)**6*log(b/s)**2 + (158.87971)*(4*s*f0/c)**6*log(b/s)**3 + (9.3049595)*(4*s*f0/c)**6*log(b/s)**4 + (3112.5932)*(4*s*f0/c)**7 + (2857.5311)*(4*s*f0/c)**7*log(b/s) + (595.81343)*(4*s*f0/c)**7*log(b/s)**2 + (36.575221)*(4*s*f0/c)**7*log(b/s)**3 + (2987.6878)*(4*s*f0/c)**8 + (434.02257)*(4*s*f0/c)**8*log(b/s) + (9.3928867)*(4*s*f0/c)**8*log(b/s)**2), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "s",
@@ -704,7 +758,7 @@
         },
         {
           "metric": "input_resistance_driving_point_ohm",
-          "expr": "np.where((N < 1.5)*(4*s*f0/c <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0313)*((4*s*f0/c)**2*(b/s) <= 0.0012001), (31171.0*N**2*(s**2*f0**2/c**2)**2)*exp((0.00084807562) + (0.0013832342)*log(b/s) + (0.00044708811)*log(b/s)**2 + (6.1810041e-05)*log(b/s)**3 + (3.1070424e-06)*log(b/s)**4 + (-0.20178092)*(4*s*f0/c) + (-0.18278902)*(4*s*f0/c)*log(b/s) + (-0.059737135)*(4*s*f0/c)*log(b/s)**2 + (-0.0083470121)*(4*s*f0/c)*log(b/s)**3 + (-0.0004235355)*(4*s*f0/c)*log(b/s)**4 + (68.382953)*(4*s*f0/c)**2 + (46.385959)*(4*s*f0/c)**2*log(b/s) + (14.084596)*(4*s*f0/c)**2*log(b/s)**2 + (1.8696438)*(4*s*f0/c)**2*log(b/s)**3 + (0.091272085)*(4*s*f0/c)**2*log(b/s)**4 + (-133.64237)*(4*s*f0/c)**3 + (-124.49298)*(4*s*f0/c)**3*log(b/s) + (-41.803651)*(4*s*f0/c)**3*log(b/s)**2 + (-5.970713)*(4*s*f0/c)**3*log(b/s)**3 + (-0.30829668)*(4*s*f0/c)**3*log(b/s)**4 + (1297.3321)*(4*s*f0/c)**4 + (1179.167)*(4*s*f0/c)**4*log(b/s) + (396.36484)*(4*s*f0/c)**4*log(b/s)**2 + (56.814548)*(4*s*f0/c)**4*log(b/s)**3 + (2.9438028)*(4*s*f0/c)**4*log(b/s)**4 + (-3518.0089)*(4*s*f0/c)**5 + (-3552.4438)*(4*s*f0/c)**5*log(b/s) + (-1295.4804)*(4*s*f0/c)**5*log(b/s)**2 + (-196.129)*(4*s*f0/c)**5*log(b/s)**3 + (-10.558139)*(4*s*f0/c)**5*log(b/s)**4 + (4007.0483)*(4*s*f0/c)**6 + (4506.8236)*(4*s*f0/c)**6*log(b/s) + (1935.5939)*(4*s*f0/c)**6*log(b/s)**2 + (323.53256)*(4*s*f0/c)**6*log(b/s)**3 + (18.545598)*(4*s*f0/c)**6*log(b/s)**4 + (6189.3273)*(4*s*f0/c)**7 + (5402.7576)*(4*s*f0/c)**7*log(b/s) + (1075.2066)*(4*s*f0/c)**7*log(b/s)**2 + (66.588472)*(4*s*f0/c)**7*log(b/s)**3 + (5489.812)*(4*s*f0/c)**8 + (768.13358)*(4*s*f0/c)**8*log(b/s) + (37.268197)*(4*s*f0/c)**8*log(b/s)**2), inf - inf)",
+          "expr": "np.where((abs(N - 1) < 1e-9)*(4*s*f0/c <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0313)*((4*s*f0/c)**2*(b/s) <= 0.0012001), (31171.0*N**2*(s**2*f0**2/c**2)**2)*exp((0.00084807562) + (0.0013832342)*log(b/s) + (0.00044708811)*log(b/s)**2 + (6.1810041e-05)*log(b/s)**3 + (3.1070424e-06)*log(b/s)**4 + (-0.20178092)*(4*s*f0/c) + (-0.18278902)*(4*s*f0/c)*log(b/s) + (-0.059737135)*(4*s*f0/c)*log(b/s)**2 + (-0.0083470121)*(4*s*f0/c)*log(b/s)**3 + (-0.0004235355)*(4*s*f0/c)*log(b/s)**4 + (68.382953)*(4*s*f0/c)**2 + (46.385959)*(4*s*f0/c)**2*log(b/s) + (14.084596)*(4*s*f0/c)**2*log(b/s)**2 + (1.8696438)*(4*s*f0/c)**2*log(b/s)**3 + (0.091272085)*(4*s*f0/c)**2*log(b/s)**4 + (-133.64237)*(4*s*f0/c)**3 + (-124.49298)*(4*s*f0/c)**3*log(b/s) + (-41.803651)*(4*s*f0/c)**3*log(b/s)**2 + (-5.970713)*(4*s*f0/c)**3*log(b/s)**3 + (-0.30829668)*(4*s*f0/c)**3*log(b/s)**4 + (1297.3321)*(4*s*f0/c)**4 + (1179.167)*(4*s*f0/c)**4*log(b/s) + (396.36484)*(4*s*f0/c)**4*log(b/s)**2 + (56.814548)*(4*s*f0/c)**4*log(b/s)**3 + (2.9438028)*(4*s*f0/c)**4*log(b/s)**4 + (-3518.0089)*(4*s*f0/c)**5 + (-3552.4438)*(4*s*f0/c)**5*log(b/s) + (-1295.4804)*(4*s*f0/c)**5*log(b/s)**2 + (-196.129)*(4*s*f0/c)**5*log(b/s)**3 + (-10.558139)*(4*s*f0/c)**5*log(b/s)**4 + (4007.0483)*(4*s*f0/c)**6 + (4506.8236)*(4*s*f0/c)**6*log(b/s) + (1935.5939)*(4*s*f0/c)**6*log(b/s)**2 + (323.53256)*(4*s*f0/c)**6*log(b/s)**3 + (18.545598)*(4*s*f0/c)**6*log(b/s)**4 + (6189.3273)*(4*s*f0/c)**7 + (5402.7576)*(4*s*f0/c)**7*log(b/s) + (1075.2066)*(4*s*f0/c)**7*log(b/s)**2 + (66.588472)*(4*s*f0/c)**7*log(b/s)**3 + (5489.812)*(4*s*f0/c)**8 + (768.13358)*(4*s*f0/c)**8*log(b/s) + (37.268197)*(4*s*f0/c)**8*log(b/s)**2), inf - inf)",
           "units_out": "ohm",
           "depends_on": [
             "s",
@@ -712,7 +766,31 @@
             "b",
             "N"
           ],
-          "notes": "What the real loop radiates at its terminals, lossless: the loop solved with its actual current, not a uniform one - the method of moments on the square of wire (otahub.num.mom, which meets the Fourier-series solution of the circular loop to 0.1-0.8% on thin wire) - and fitted over perimeter 0.01 and wire radius 0.001-0.05 of the side up to 0.30 wavelengths (2.2% worst, 1.1% held out). The uniform-current law beside it is within 5% only to about 0.06 wavelengths of perimeter; it is 11-13% low at 0.1 wavelengths, and at the lambda/3 this spec used to call its limit the real loop has 3-15 times the law's resistance. The cos(phi) part of the current radiates like an electric dipole, whose resistance grows as the size squared, not to the fourth, so it takes over fast. NaN past 0.30. NaN past b/s = 1/32, where even eight segments a side are shorter than four wire radii and no mesh the thin-wire kernel trusts exists, and where (P/lambda)^2 (b/s) exceeds 0.0012: on meshes of segments four radii or longer the delta-gap resistance moves 1.4-6% inside that (it creeps with the mesh, as any delta-gap MoM resistance does), 9% and more beyond it, and at P 0.3, b/s 0.05 from 4.3 to 283 ohm - a thick wire on a larger loop has no driving-point impedance without its feed gap modelled."
+          "notes": "What the real loop radiates at its terminals, lossless: the loop solved with its actual current, not a uniform one - the method of moments on the square of wire (otahub.num.mom, which meets the Fourier-series solution of the circular loop to 0.1-0.8% on thin wire) - and fitted over perimeter 0.01 and wire radius 0.001-0.05 of the side up to 0.30 wavelengths (2.2% worst, 1.1% held out). The uniform-current law beside it is within 5% only to about 0.06 wavelengths of perimeter; it is 11-13% low at 0.1 wavelengths, and at the lambda/3 this spec used to call its limit the real loop has 3-15 times the law's resistance. The cos(phi) part of the current radiates like an electric dipole, whose resistance grows as the size squared, not to the fourth, so it takes over fast. NaN past 0.30. NaN past b/s = 1/32, where even eight segments a side are shorter than four wire radii and no mesh the thin-wire kernel trusts exists, and where (P/lambda)^2 (b/s) exceeds 0.0012: on meshes of segments four radii or longer the delta-gap resistance moves 1.4-6% inside that (it creeps with the mesh, as any delta-gap MoM resistance does), 9% and more beyond it, and at P 0.3, b/s 0.05 from 4.3 to 283 ohm - a thick wire on a larger loop has no driving-point impedance without its feed gap modelled. This is the TERMINAL value for a delta gap; efficiency and Q use radiation_resistance_loop_current_ohm instead, which holds on any wire the survey covers."
+        },
+        {
+          "metric": "radiation_resistance_loop_current_ohm",
+          "expr": "np.where((abs(N - 1) < 1e-9)*((4*s*f0/c) <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0501), 121.7617*(4*s*f0/c)**4*exp((-0.0233200149)*(4*s*f0/c)**1 + (0.00323434948)*(4*s*f0/c)**1*log(b/s)**1 + (0.000166366058)*(4*s*f0/c)**1*log(b/s)**2 + (2.67597356)*(4*s*f0/c)**2 + (-0.580784774)*(4*s*f0/c)**2*log(b/s)**1 + (-0.0335673053)*(4*s*f0/c)**2*log(b/s)**2 + (-0.0868275373)*(4*s*f0/c)**3 + (0.578241554)*(4*s*f0/c)**3*log(b/s)**1 + (0.0308417673)*(4*s*f0/c)**3*log(b/s)**2), inf - inf)",
+          "units_out": "ohm",
+          "depends_on": [
+            "s",
+            "f0",
+            "b",
+            "N"
+          ],
+          "notes": "The radiation resistance referred to the loop's MEAN-SQUARE current, 2 P_rad / <|I|^2> - the one efficiency needs, the wire losing r |I|^2 wherever the current is. FITTED to the method of moments on the square (segments s/(4b), 8-40 a side) over P/lambda 0.01-0.30 and b/s 0.001-0.05: 0.07% worst, 0.10% on held-out sizes. It moves under 0.2% with the mesh where the terminal resistance creeps 24% (P 0.3, b/s 0.05). The uniform-current 31171 s^4/lambda^4 at small sizes; at 0.3 wavelengths 1.37-1.46 times it, the thicker wire the lower, and the terminal resistance 2.3-3.6 times this. NaN outside the survey."
+        },
+        {
+          "metric": "radiation_quality_factor",
+          "expr": "np.where((abs(N - 1) < 1e-9)*((4*s*f0/c) >= 0.0099)*((4*s*f0/c) <= 0.3001)*(b/s >= 0.000999)*(b/s <= 0.0501), exp((0.101696479) + (-0.869795603)*log(b/s)**1 + (-0.0979137803)*log(b/s)**2 + (-0.00457163872)*log(b/s)**3 + (-0.00891912928)*(4*s*f0/c)**1 + (-0.00352146341)*(4*s*f0/c)**1*log(b/s)**1 + (-0.000533626021)*(4*s*f0/c)**1*log(b/s)**2 + (-3.19023383e-05)*(4*s*f0/c)**1*log(b/s)**3 + (-0.798334442)*(4*s*f0/c)**2 + (1.22387918)*(4*s*f0/c)**2*log(b/s)**1 + (0.15005712)*(4*s*f0/c)**2*log(b/s)**2 + (0.00711582547)*(4*s*f0/c)**2*log(b/s)**3 + (-1.43092946)*(4*s*f0/c)**3 + (-0.487277591)*(4*s*f0/c)**3*log(b/s)**1 + (-0.0601655033)*(4*s*f0/c)**3*log(b/s)**2 + (-0.00308755899)*(4*s*f0/c)**3*log(b/s)**3 + (-1.20212117)*(4*s*f0/c)**4 + (-1.84613658)*(4*s*f0/c)**4*log(b/s)**1 + (-0.23875704)*(4*s*f0/c)**4*log(b/s)**2 + (-0.0115274873)*(4*s*f0/c)**4*log(b/s)**3)/(4*s*f0/c)**3, inf - inf)",
+          "units_out": "-",
+          "depends_on": [
+            "s",
+            "f0",
+            "b",
+            "N"
+          ],
+          "notes": "Q of the lossless square tuned by a series capacitor at its gap (Yaghjian and Best's Q_Z, the capacitor's reactance slope included), the mesh held while the frequency moves. FITTED as ln(Q (P/lambda)^3), quartic in P/lambda and cubic in ln(b/s): 0.16% worst, 0.16% held out. Under 0.2% with the mesh, on the thick wire too."
         },
         {
           "metric": "input_reactance_driving_point_ohm",
@@ -772,27 +850,31 @@
         },
         {
           "metric": "radiation_efficiency",
-          "expr": "input_resistance_driving_point_ohm/(input_resistance_driving_point_ohm + loss_resistance_ohm)",
+          "expr": "radiation_resistance_loop_current_ohm/(radiation_resistance_loop_current_ohm + loss_resistance_ohm)",
           "units_out": "-",
-          "notes": "e_cd = R/(R + Rloss) with R the real loop's driving-point radiation resistance (the uniform-current law understates it by 12-17% at 0.1 wavelengths). Optimistic otherwise: excludes proximity effect, tuning-capacitor ESR and nearby-object loss.",
+          "notes": "P_rad / (P_rad + P_loss) with the loss spread round the loop as the current is: R_loop / (R_loop + loss_resistance_ohm). It was the terminal resistance over itself plus the uniform-current loss, which counted the loss at the feed's current: 0.93 for 0.83 at P = 0.3 wavelengths, b/s = 0.01. Valid on the thick wire too. Optimistic otherwise: it excludes proximity effect, tuning-capacitor ESR and loss in nearby objects.",
           "depends_on": [
-            "input_resistance_driving_point_ohm",
+            "radiation_resistance_loop_current_ohm",
             "loss_resistance_ohm"
           ]
         },
         {
           "metric": "directivity_dbi",
-          "expr": "10*np.log10(1.5)",
+          "expr": "np.where((4*s*f0/c) <= 0.3001, 10*np.log10(1.5*exp((-0.728843941)*(4*s*f0/c)**2 + (0.614895884)*(4*s*f0/c)**3 + (0.535724399)*(4*s*f0/c)**4)), inf - inf)",
           "units_out": "dBi",
-          "notes": "D0 = 1.5 (1.7609 dBi), identical to the circular small loop -- shape does not affect the pattern in the small-loop limit.",
-          "depends_on": []
+          "notes": "Peak directivity of the loop's solved current, in the plane of the loop. FITTED as ln(D/1.5) in the second to fourth powers of the size (P/lambda) to the method of moments up to 0.30 wavelengths: 0.015% worst; the wire moves it about 0.1%. It is the infinitesimal loop's 1.5 at small sizes and falls to 1.436 at 0.3 wavelengths (0.19 dB down), where the current's cos(phi) part also fills the axis: 0.47 broadside to the loop, not a null. NaN beyond 0.30.",
+          "depends_on": [
+            "s",
+            "f0"
+          ]
         },
         {
           "metric": "gain_dbi",
-          "expr": "10*np.log10(1.5*radiation_efficiency)",
+          "expr": "directivity_dbi + 10*np.log10(radiation_efficiency)",
           "units_out": "dBi",
-          "notes": "G = e_cd*D0.",
+          "notes": "Directivity of the solved current times the radiation efficiency.",
           "depends_on": [
+            "directivity_dbi",
             "radiation_efficiency"
           ]
         },
@@ -809,27 +891,24 @@
         },
         {
           "metric": "input_impedance_ohm",
-          "expr": "(input_resistance_driving_point_ohm + loss_resistance_ohm) + 1j*input_reactance_driving_point_ohm",
+          "expr": "input_resistance_driving_point_ohm*(1 + loss_resistance_ohm/radiation_resistance_loop_current_ohm) + 1j*input_reactance_driving_point_ohm",
           "units_out": "ohm",
-          "notes": "Untuned terminal impedance of the real loop: driving-point radiation resistance plus conductor loss, and the driving-point reactance. NaN past 0.30 wavelengths.",
+          "notes": "At the terminals, wire loss included: the loss referred to the terminal current is the uniform figure times R_terminal / R_loop, so R = R_terminal (1 + R_loss / R_loop). Thin wire only, as the terminal resistance is.",
           "depends_on": [
             "input_resistance_driving_point_ohm",
             "loss_resistance_ohm",
+            "radiation_resistance_loop_current_ohm",
             "input_reactance_driving_point_ohm"
           ]
         },
         {
           "metric": "quality_factor",
-          "expr": "sqrt((input_resistance_driving_point_ohm*(4 + (-0.20178092)*(4*s*f0/c)**1 + (-0.18278902)*(4*s*f0/c)**1*log(b/s)**1 + (-0.059737135)*(4*s*f0/c)**1*log(b/s)**2 + (-0.0083470121)*(4*s*f0/c)**1*log(b/s)**3 + (-0.0004235355)*(4*s*f0/c)**1*log(b/s)**4 + (136.765906)*(4*s*f0/c)**2 + (92.771918)*(4*s*f0/c)**2*log(b/s)**1 + (28.169192)*(4*s*f0/c)**2*log(b/s)**2 + (3.7392876)*(4*s*f0/c)**2*log(b/s)**3 + (0.18254417)*(4*s*f0/c)**2*log(b/s)**4 + (-400.92711)*(4*s*f0/c)**3 + (-373.47894)*(4*s*f0/c)**3*log(b/s)**1 + (-125.410953)*(4*s*f0/c)**3*log(b/s)**2 + (-17.912139)*(4*s*f0/c)**3*log(b/s)**3 + (-0.92489004)*(4*s*f0/c)**3*log(b/s)**4 + (5189.3284)*(4*s*f0/c)**4 + (4716.668)*(4*s*f0/c)**4*log(b/s)**1 + (1585.45936)*(4*s*f0/c)**4*log(b/s)**2 + (227.258192)*(4*s*f0/c)**4*log(b/s)**3 + (11.7752112)*(4*s*f0/c)**4*log(b/s)**4 + (-17590.0445)*(4*s*f0/c)**5 + (-17762.219)*(4*s*f0/c)**5*log(b/s)**1 + (-6477.402)*(4*s*f0/c)**5*log(b/s)**2 + (-980.645)*(4*s*f0/c)**5*log(b/s)**3 + (-52.790695)*(4*s*f0/c)**5*log(b/s)**4 + (24042.2898)*(4*s*f0/c)**6 + (27040.9416)*(4*s*f0/c)**6*log(b/s)**1 + (11613.5634)*(4*s*f0/c)**6*log(b/s)**2 + (1941.19536)*(4*s*f0/c)**6*log(b/s)**3 + (111.273588)*(4*s*f0/c)**6*log(b/s)**4 + (43325.2911)*(4*s*f0/c)**7 + (37819.3032)*(4*s*f0/c)**7*log(b/s)**1 + (7526.4462)*(4*s*f0/c)**7*log(b/s)**2 + (466.119304)*(4*s*f0/c)**7*log(b/s)**3 + (43918.496)*(4*s*f0/c)**8 + (6145.06864)*(4*s*f0/c)**8*log(b/s)**1 + (298.145576)*(4*s*f0/c)**8*log(b/s)**2) + loss_resistance_ohm/2)**2 + (input_reactance_driving_point_ohm*(2 + (-0.10003489)*(4*s*f0/c)**1 + (-0.091786407)*(4*s*f0/c)**1*log(b/s)**1 + (-0.030476094)*(4*s*f0/c)**1*log(b/s)**2 + (-0.0043364774)*(4*s*f0/c)**1*log(b/s)**3 + (-0.00022372549)*(4*s*f0/c)**1*log(b/s)**4 + (68.282882)*(4*s*f0/c)**2 + (48.397226)*(4*s*f0/c)**2*log(b/s)**1 + (14.5327144)*(4*s*f0/c)**2*log(b/s)**2 + (1.9243724)*(4*s*f0/c)**2*log(b/s)**3 + (0.093965626)*(4*s*f0/c)**2*log(b/s)**4 + (-194.381139)*(4*s*f0/c)**3 + (-182.741157)*(4*s*f0/c)**3*log(b/s)**1 + (-62.118036)*(4*s*f0/c)**3*log(b/s)**2 + (-9.0027435)*(4*s*f0/c)**3*log(b/s)**3 + (-0.47078634)*(4*s*f0/c)**3*log(b/s)**4 + (2495.81836)*(4*s*f0/c)**4 + (2287.13016)*(4*s*f0/c)**4*log(b/s)**1 + (778.10604)*(4*s*f0/c)**4*log(b/s)**2 + (113.12846)*(4*s*f0/c)**4*log(b/s)**3 + (5.9311652)*(4*s*f0/c)**4*log(b/s)**4 + (-8324.7195)*(4*s*f0/c)**5 + (-8484.9655)*(4*s*f0/c)**5*log(b/s)**1 + (-3145.4369)*(4*s*f0/c)**5*log(b/s)**2 + (-486.014885)*(4*s*f0/c)**5*log(b/s)**3 + (-26.56098)*(4*s*f0/c)**5*log(b/s)**4 + (10971.7188)*(4*s*f0/c)**6 + (12386.6394)*(4*s*f0/c)**6*log(b/s)**1 + (5497.24266)*(4*s*f0/c)**6*log(b/s)**2 + (953.27826)*(4*s*f0/c)**6*log(b/s)**3 + (55.829757)*(4*s*f0/c)**6*log(b/s)**4 + (21788.1524)*(4*s*f0/c)**7 + (20002.7177)*(4*s*f0/c)**7*log(b/s)**1 + (4170.69401)*(4*s*f0/c)**7*log(b/s)**2 + (256.026547)*(4*s*f0/c)**7*log(b/s)**3 + (23901.5024)*(4*s*f0/c)**8 + (3472.18056)*(4*s*f0/c)**8*log(b/s)**1 + (75.1430936)*(4*s*f0/c)**8*log(b/s)**2))**2)/(2*(input_resistance_driving_point_ohm + loss_resistance_ohm))",
+          "expr": "radiation_quality_factor*radiation_efficiency",
           "units_out": "-",
-          "notes": "Q of the loop TUNED by its series capacitor at f0, from the frequency derivative of the tuned impedance (Yaghjian and Best's Q_Z = omega |Z'|/2R) at fixed geometry: the capacitor contributes X/omega to dX/domega and the loop itself X(1 + x dP/dx)/omega, where P is the reactance fit's exponent; the radiation resistance grows as R(4 + x dQ/dx)/omega and the skin loss as R_loss/(2 omega). For an ideal inductor that is omega L/(Rr + Rloss) again, but the real loop's reactance rises faster than omega L as it grows toward its first resonance, so X/R understated Q - by 37% at 0.3 wavelengths of perimeter and b/s = 0.01 (183.9 against 291.1). Checked against the method of moments swept at fixed geometry with the capacitor tuned at f0: within 0.7% at seven designs across the fitted domain. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
+          "notes": "Loaded Q of the tuned square: the lossless radiation Q times the radiation efficiency (the stored energy unchanged, the power lost the radiated over the efficiency). It was built on the terminal resistance with the loss added at the terminals, and read 11% high at P = 0.3 wavelengths (291 for 262). X/R at the terminals - an ideal inductor's Q - understates it, because the real loop's reactance rises faster than omega L as it grows toward its first resonance. Ignores capacitor ESR, which often dominates in a real transmitting loop.",
           "depends_on": [
-            "input_reactance_driving_point_ohm",
-            "input_resistance_driving_point_ohm",
-            "loss_resistance_ohm",
-            "s",
-            "b",
-            "f0"
+            "radiation_quality_factor",
+            "radiation_efficiency"
           ]
         },
         {
@@ -855,8 +934,9 @@
         "skin-effect loss expression requires b/delta > ~3",
         "proximity effect and corner current crowding not modelled -- treat Rloss as a lower bound",
         "free space",
-        "the uniform-current laws (radiation_resistance_ohm, the tuning inductance) hold within 5% only to about 0.06 wavelengths of perimeter; the driving-point metrics, and everything built on them, are fitted to the loop solved with its real current up to 0.30 wavelengths and are NaN beyond; and they are NaN past b/s = 1/32 or (P/lambda)^2 (b/s) = 0.0012, where a thick wire's driving-point impedance depends on the feed gap, which is not modelled",
-        "the driving-point metrics are for a single turn (N = 1) and are NaN otherwise; bunched turns are the multiturn_small_loop archetype"
+        "the uniform-current laws (radiation_resistance_ohm, the tuning inductance) hold within 5% only to about 0.06 wavelengths of perimeter; radiation_resistance_loop_current_ohm, radiation_quality_factor and what is built on them (efficiency, Q, bandwidth, gain) are fitted to the square solved with its real current up to 0.30 wavelengths and b/s 0.05, and are NaN beyond; the terminal impedance (input_resistance_driving_point_ohm, X_tune, C_tune, input_impedance_ohm) is NaN past b/s = 1/32 or (P/lambda)^2 (b/s) = 0.0012 as well, where it depends on the feed gap, which is not modelled",
+        "the driving-point metrics are for a single turn (N = 1) and are NaN otherwise; bunched turns are the multiturn_small_loop archetype",
+        "efficiency and Q assume the tuning capacitor sits across the feed gap, as the solved loops have it; a capacitor opposite the feed - a common layout - changes the current's shape and so both"
       ],
       "known_cases": [
         {
@@ -899,12 +979,15 @@
           "source": "Grover, Inductance Calculations, square of round wire; constant -0.77401 derived from partial inductances"
         },
         {
-          "given": {},
-          "expect": {
-            "directivity_dbi": 1.7609126
+          "given": {
+            "f0": 300000000.0,
+            "P_over_lambda": 0.02
           },
           "tol_pct": 0.1,
-          "source": "Balanis 4th ed. eq. 5-27; small-loop directivity is shape-independent"
+          "expect": {
+            "directivity_dbi": 1.759018
+          },
+          "source": "A small square (0.02 wavelengths): the method of moments' peak directivity 1.499346, the infinitesimal loop's 1.5 (1.7609 dBi) to within 0.03%."
         },
         {
           "given": {
@@ -956,11 +1039,52 @@
             "N": 1
           },
           "expect": {
-            "quality_factor": 291.109,
-            "fractional_bandwidth_vswr2": 0.00242905
+            "quality_factor": 262.07,
+            "fractional_bandwidth_vswr2": 0.00269819,
+            "radiation_efficiency": 0.829517
           },
           "tol_pct": 1.0,
-          "source": "Wire radius 0.01 of the side at 0.3 wavelengths of perimeter: the method of moments on the square (otahub.num.mom, 14 segments a side) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.2429% band, Q_Z = 291.11, where the same solution's X/(R + Rloss) is 183.9."
+          "source": "Wire radius 0.01 of the side at 0.3 wavelengths of perimeter: the method of moments on the square (otahub.num.mom, 14 segments a side) swept at fixed geometry with copper skin loss and a series capacitor tuned at f0 crosses VSWR 2 at a 0.2429% band, Q_Z = 291.11, where the same solution's X/(R + Rloss) is 183.9. Re-solved with the loss counted where the current is: the method of moments on the square (26 segments a side, s/(4b)) gives R_loop 1.39975 ohm and a lossless Q_Z of 315.927, so with copper at 300 MHz efficiency 0.829517 and Q 262.07; the 291.109 this case held counted the loss at the terminal current."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "s": 0.0749481145,
+            "b": 0.00374740572,
+            "N": 1
+          },
+          "tol_pct": 1.0,
+          "expect": {
+            "radiation_efficiency": 0.959292,
+            "quality_factor": 187.05,
+            "radiation_resistance_loop_current_ohm": 1.35583
+          },
+          "source": "A thick wire, b/s = 0.05 at P = 0.3 wavelengths, 300 MHz copper, where the terminal impedance depends on the feed and is NaN: the method of moments (8 segments a side) gives R_loop 1.35583 ohm and a lossless Q_Z of 194.993, so efficiency 0.959292 and Q 187.05."
+        },
+        {
+          "given": {
+            "f0": 30000000.0,
+            "s": 0.374740572,
+            "b": 0.00749481145,
+            "N": 1
+          },
+          "tol_pct": 1.0,
+          "expect": {
+            "radiation_efficiency": 0.596844,
+            "quality_factor": 1591.2
+          },
+          "source": "P = 0.15 wavelengths, b/s = 0.02 at 30 MHz copper: the method of moments (12 segments a side) gives R_loop 0.0673388 ohm and a lossless Q_Z of 2666.03, so efficiency 0.596844 and Q 1591.2."
+        },
+        {
+          "given": {
+            "f0": 300000000.0,
+            "P_over_lambda": 0.3
+          },
+          "tol_pct": 0.1,
+          "expect": {
+            "directivity_dbi": 1.566996
+          },
+          "source": "A square of 0.3 wavelengths: the method of moments (b = 0.01 of the side, 16 segments a side, 120 x 160 directions) gives a peak directivity of 1.434497, 0.19 dB under the infinitesimal loop's 1.5 that gain and aperture used to assume."
         }
       ],
       "references": [

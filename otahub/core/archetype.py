@@ -82,7 +82,13 @@ class DesignResult:
         from - or None when the design predicts none. With `at_hz`, only a
         prediction for that frequency (within 1%) counts: a figure solved at
         f_low says nothing about 1.3 f_low."""
+        declared = False                     # a terminal figure the design has, even as NaN
         for r_name, x_name in self._IMPEDANCE_SOURCES:
+            if r_name == "radiation_resistance_ohm" and declared:
+                # the textbook figure is a terminal only for a design that predicts no
+                # other: where the terminal prediction is NaN (a thick-wire loop, whose
+                # terminal impedance the feed decides) it is not standing in for it
+                return None
             if at_hz is not None:
                 valid = self.get("f_low") if r_name.endswith("_f_low_ohm") else self.get("f0")
                 if isinstance(valid, (int, float)) and abs(at_hz / valid - 1.0) > 0.01:
@@ -90,6 +96,7 @@ class DesignResult:
             r = self.metrics.get(r_name)
             if r is None:
                 continue
+            declared = True
             try:
                 z = complex(r)
             except (TypeError, ValueError):

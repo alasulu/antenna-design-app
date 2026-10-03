@@ -63,8 +63,9 @@ def test_touchstone_comparison_uses_the_complex_driving_point_impedance(tmp_path
                  "--set", "C_over_lambda=0.1", "--set", "N=1", "--set", "b=2mm"]) == 0
     out = capsys.readouterr().out
     assert "input_impedance_ohm" in out
-    assert "resistance off by +0.00%" in out
-    assert "reactance by +0 ohm" in out or "reactance by -0 ohm" in out   # the j204 is there
+    import re
+    m = re.search(r"resistance off by ([+-][0-9.]+)%, reactance by ([+-][0-9.e+-]+) ohm", out)
+    assert m and abs(float(m.group(1))) < 0.005 and abs(float(m.group(2))) < 1e-6   # the j204 is there
 
 
 def test_a_reference_impedance_is_not_a_terminal_and_f_low_is_not_every_frequency(registry):

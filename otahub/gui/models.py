@@ -315,10 +315,14 @@ def key_figures(metrics: dict, units: dict) -> list[tuple[str, str, str]]:
     for the input impedance."""
     out = []
     for label, patterns in KEY_FIGURES:
+        seen = False
         for pat in patterns:
             hit = next((k for k in metrics if _re.search(pat, k)), None)
             if hit is None:
                 continue
+            if label == "Impedance" and hit == "radiation_resistance_ohm" and seen:
+                break                    # a terminal figure exists but is NaN: no textbook stand-in
+            seen = True
             text = display_value(hit, metrics[hit], units.get(hit, ""), sig=4)
             if text is None:
                 continue
