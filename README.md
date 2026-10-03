@@ -61,8 +61,8 @@ says by how much and why.
 
 | | |
 |---|---|
-| **72** archetypes in **10** families | **455** cited known cases, **1091** expectations, all passing |
-| **21** in-house numerical solvers | **3455** automated tests |
+| **72** archetypes in **10** families | **458** cited known cases, **1091** expectations, all passing |
+| **21** in-house numerical solvers | **3502** automated tests |
 | CST and HFSS export for **42** archetypes, **3-D STL for all 72** | a PySide6 desktop GUI that draws every antenna from its own numbers, in 2-D and 3-D |
 
 ## Quick start
@@ -116,7 +116,7 @@ python OTA_Hub_AntennaToolkit.py line microstrip --z0 50 --h 1.6mm --eps-r 4.4
 python OTA_Hub_AntennaToolkit.py match --r 200 --x -100 --z0 100 --f0 500MHz
 python OTA_Hub_AntennaToolkit.py touchstone measured.s1p --compare half_wave_dipole
 python OTA_Hub_AntennaToolkit.py potter --f0 10GHz --L 0.3 --band      # a dual-mode horn's step and phasing, solved jointly
-python OTA_Hub_AntennaToolkit.py stack --f0 2.4GHz --h 1.6mm -v        # a stacked patch's band and probe position
+python OTA_Hub_AntennaToolkit.py stack --f0 2.4GHz --h 1.6mm -v        # a stacked patch's band and probe position (a full-wave solve: minutes)
 python OTA_Hub_AntennaToolkit.py doctor                                # structural faults in the specs
 ```
 
@@ -229,7 +229,7 @@ the spec doctor and every cited case, the quick tests on Python 3.10 and 3.13, a
 slow full-wave solver tests beside them. To run it yourself:
 
 ```bash
-python -m pytest tests/                  # 3455 tests, about 25 minutes
+python -m pytest tests/                  # 3502 tests, about 25 minutes
 python -m pytest -m "not slow"           # the quick loop, without the full-wave solver runs
 python OTA_Hub_AntennaToolkit.py check   # every archetype against its citations
 python OTA_Hub_AntennaToolkit.py doctor  # structural faults in the specs
@@ -277,7 +277,8 @@ gap, a notch width, a finite ground plane), it says so in the file header.
 
 Every antenna has a solid model - the 42 with CST/HFSS builders and 30 more built
 for this (horns, reflectors, lenses, Yagis, log-periodics, helices, spirals,
-Vivaldis, corner reflectors, triangular and CP patches, the ferrite rod). The
+Vivaldis, corner reflectors, the bowtie, the long-wire, V and rhombic antennas,
+triangular and CP patches, the ferrite rod). The
 models are watertight meshes with real booleans (an inset notch is cut, a horn is
 hollow), built on the small [manifold3d](https://github.com/elalish/manifold)
 kernel, and written as binary STL in millimetres: one combined file for viewing
@@ -340,11 +341,11 @@ not, the open discrepancies, and the future work.
 | [`otahub/export/`](otahub/export/) | CST and HFSS script generation; 3-D solid models and STL (`mesh.py`, `mesh_builders.py`) |
 | [`otahub/cli/`](otahub/cli/), [`otahub/gui/`](otahub/gui/) | Command line and PySide6 desktop interface |
 | [`specs/`](specs/) | The 72 archetypes — format in [`specs/SPEC_FORMAT.md`](specs/SPEC_FORMAT.md) |
-| [`tests/`](tests/) | 3455 tests, plus the recorded solver runs they check against in `tests/data/` |
+| [`tests/`](tests/) | 3502 tests, plus the recorded solver runs they check against in `tests/data/` |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | Verification record, limits and future work |
 | [`BUILD_STATE.md`](BUILD_STATE.md) | The build log, round by round |
 
-About 32,500 lines of Python (14,200 of them tests) and 25,900 lines of spec data.
+About 32,900 lines of Python (14,400 of them tests) and 26,000 lines of spec data.
 
 ## Deep dives
 
@@ -412,7 +413,7 @@ error where a file is genuinely ambiguous.
 Maxwell's equations have no preferred length: multiply every frequency by S,
 divide every length by S, scale conductivity by S, and an antenna's electrical
 behaviour must be identical. `tests/test_scale_invariance.py` applies that to
-the 1043 quantities with a declared unit across all 72 archetypes. It needs no textbook, which is what
+the 1046 quantities with a declared unit across all 72 archetypes. It needs no textbook, which is what
 makes it worth running over formulas whose known cases were written by the same
 hand — it has caught a patch radius carried in centimetres and labelled
 dimensionless, which had passed its own cited cases since the first session.

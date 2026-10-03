@@ -6,9 +6,10 @@ export to CST Studio or Ansys HFSS.
 
 Built across five sessions on 2026-09-13/14 and a build loop; v1.0 was tagged
 on 2026-09-27, and v2.0 on 2026-09-30 at the end of Finish line 2; a whole-project
-review with OpenAI's Codex followed (2026-10-01). **72 archetypes, 10 families,
-31,142 lines of Python, 25,857 lines of spec data, 3385 tests, 453 citable known
-cases holding 1081 expectations, all passing.**
+review with OpenAI's Codex followed (2026-10-01), and an audit by the project's own
+agents (2026-10-03). **72 archetypes, 10 families, 32,874 lines of Python, 25,976
+lines of spec data, 3502 tests, 458 citable known cases holding 1091 expectations,
+all passing.**
 
 ---
 
@@ -69,7 +70,7 @@ seen.
 | Source | Result |
 |---|---|
 | Balanis Ex 14.1 | Patch W = 1.186 cm and `L_textbook` = 0.906 cm; the built `L`, resonant at f0 full-wave, is 0.855 cm |
-| Balanis Ex 14.2 | Inset edge resistance 228.35 Ω (to 1.7%) |
+| Balanis Ex 14.2 | Inset edge resistance 228.35 Ω (to 0.066%) |
 | Balanis Ex 14.4 | Circular patch `a_cavity` = 0.525 cm; the built `a`, resonant at f0 full-wave, is 0.508 cm |
 | Balanis Ch. 4 | Dipole R_r = 73.08 Ω, X = +42.52 Ω at λ/2 |
 | Pozar Ex 5.1 | L-section C = 0.92 pF / L = 38.98 nH, C = 2.60 pF / L = 46.14 nH |
@@ -388,7 +389,7 @@ conductivity by S, and the antenna is electrically identical: directivity,
 beamwidths, impedances and efficiency unchanged, lengths down by S, areas by S².
 Every quantity must follow the power of S its declared unit implies.
 
-**1043 quantities across all 72 archetypes** (of 1066 with a declared unit; the
+**1046 quantities across all 72 archetypes** (of 1070 with a declared unit; the
 rest are NaN or zero at the audit's designs), checked without a single reference
 number. This is the counterweight to the `known_cases` harness, which can only
 check what a human chose to assert — and which the same human wrote the formulas
@@ -866,7 +867,7 @@ known case only checks what it asserts.
 | `circular_patch`, `triangular_patch` | Both sized the patch by the cavity model with a fringing correction and called the resonance an upper bound on thick board, without a solver of their shape to say by how much. The FDTD with the outline staircased onto the grid, over eps_r 2.2-10.2 and h sqrt(eps_r)/lambda0 up to 0.095, extrapolated from three to five cell sizes: the disc resonates about 1% low on thin board and 2-7% low on thick, the triangle 1-5% low on thin board (its a + h/sqrt(eps_r) is weakest at low permittivity) and 2-7% on thick. The specs build the cavity size times a fitted factor; held-out boards built to it land within 1% of f0. Staircased outlines converge unevenly, so the factor is about 1% good |
 | `e_plane_sectoral_horn` | Its gain was the aperture-power form, which takes the radiated power to be the power crossing the aperture - wrong across the unflared a_wg, which is waveguide-sized. The FDTD of the whole free-standing horn with a far-field box (§3), on five horns over a_wg 0.65-2 wavelengths, meets the aperture in a ground plane to -0.14 to +0.09 dB and puts the aperture-power form 0.7-1.6 dB low (the Huygens aperture 0.6-1.1). `gain_dbi` is now the aperture-power gain plus the ground-plane model's difference - smooth in the three shape numbers plus a one-wavelength ripple from the b1 edges, fitted to 0.04 dB - 15.6 dBi at the default where it said 14.4; the old figure is kept as `gain_aperture_power_dbi`. Its H-plane sibling was right: the FDTD puts it 0.2-0.3 dB below the aperture-power form |
 | `pifa` | Its directivity was a 4.0 dBi placeholder, since the FDTD had no far field. With the box transform (§3), on an infinite ground plane with a full-width short: 3.4-4.6 dBi over h 0.02-0.05 and W 0.06-0.2 wavelengths, peaking at the horizon along the plate (the open edge is a horizontal magnetic current doubled by the ground), and 1.2-2.8 dBi straight up. The placeholder fell inside the range by luck; both are now fitted, with a known case from a direct run |
-| `stacked_patch` | Its default stack (a 0.03-wavelength air gap, parasitic 0.95 of the driven patch) was not double-tuned: its modes sit at 0.993 and 1.378 f0 (FDTD and the two-layer MoM agree), and its VSWR-2 band about f0 is 1.5%, where the spec said 11.9% - a 'bandwidth multiplier' of 2.4 from published designs applied at the total height, 1.1-3 times high even at each board's best design. Solved over gap and parasitic on four boards, the best band is 7.8-8.9 times the driven patch's own (8.4, the rule now carried; fitted on three, it predicted the fourth 7% low); on the default board it is 11.5% about f0 at a 0.09 gap and ratio 1.1, now the defaults, confirmed by FDTD (12.5% against 12.3% at its own centre). A ratio of 1.2 has no band at f0 at all. The directivity placeholder (8.75 dBi) is solved: 9.06 at the new default, fitted to 0.09 dB (0.07 held out). The probe the exporter guessed at a quarter length sits at 0.9 of the half length |
+| `stacked_patch` | Its default stack (a 0.03-wavelength air gap, parasitic 0.95 of the driven patch) was not double-tuned: its modes sit at 0.993 and 1.378 f0 (FDTD and the two-layer MoM agree), and its VSWR-2 band about f0 is 1.5%, where the spec said 11.9% - a 'bandwidth multiplier' of 2.4 from published designs applied at the total height, 1.1-3 times high even at each board's best design. Solved over gap and parasitic on four boards, the best band is 7.8-8.9 times the driven patch's own (8.4, the rule then carried - since replaced by a twenty-board fit, §6 item 9; fitted on three, it predicted the fourth 7% low); on the default board it is 11.5% about f0 at a 0.09 gap and ratio 1.1, now the defaults, confirmed by FDTD (12.5% against 12.3% at its own centre). A ratio of 1.2 has no band at f0 at all. The directivity placeholder (8.75 dBi) is solved: 9.06 at the new default, fitted to 0.09 dB (0.07 held out). The probe the exporter guessed at a quarter length sits at 0.9 of the half length |
 | `waveguide_slot_array_travelling_wave` | The same three mistakes in discrete form, 3.5 dB low at the default (14.5 dBi against 18.0 exact). Now 4Nd/λ, within 2% of the array computed exactly with the slot's element pattern, and NaN once a grating lobe is real, where the array loses 11-45%. The grating-lobe limit is 1/(1 + |sinθ|) wavelengths of spacing, not 1. The beamwidth used (N−1)·d for the aperture and read 2-10% wide |
 
 ### Test-guard and CLI bugs found in session 5
@@ -989,11 +990,23 @@ a modest extension of them.
 14. **The PIFA's narrow-strip law, refined.** A corner strip narrower than the
     plate now has a length - L + h + strip_phi W = 0.2425 lambda, strip_phi
     growing as ln(W/Ws) - fitted to a whole-plate FDTD survey (70 designs on 21
-    plates, `tests/data/pifa_strip_fdtd.json`) and labelled indicative, good to
-    about 5%: the survey ran at 3-4 cells across h, and on its coarsest plate a
-    finer grid moves a W/6 strip's resonance by about 4% once extrapolated. The
-    same survey at two resolutions, extrapolated per plate, would tighten it;
-    so would strips away from the corner, which it does not cover.
+    plates, `tests/data/pifa_strip_fdtd.json`) and labelled indicative: against
+    the survey it resonates within 2.8% (3.4% with each plate left out), but the
+    survey ran at 3-4 cells across h, and on the one plate run at two grids a
+    finer grid moves the full-width resonance up 2.5% and a W/6 strip's down
+    0.8%, so the ratio the law rests on moves about 3% - absolute frequency good
+    to about 8%. The same survey at two resolutions, extrapolated per plate,
+    would tighten it; so would strips away from the corner, which it does not
+    cover.
+15. **A small loop's feed gap.** The audit of 2026-10-03 found the driving-point
+    impedance of a thick wire on a larger loop set by the feed model rather than
+    the loop: at C = 0.3 lambda and b/a = 0.05 the Fourier series gives 8.1,
+    10.9 and 18.8 - j1021 ohm at 40, 60 and 120 modes, and the MoM moves with its
+    mesh as much (the square loop from 4.3 to 283 ohm). The fits are NaN past
+    (C/lambda)^2 (b/a) = 0.0009 (circle) and (P/lambda)^2 (b/s) = 0.0012 or
+    b/s = 1/32 (square). A finite gap - a physical width and its capacitance -
+    in either solver, surveyed over the old domain, would give those loops an
+    impedance of their own. Compute only (`otahub.num.loop_modal`, `mom`).
 
 The re-audit is never finished: every archetype passes the cases it declares,
 which is not the same as being right, and the survey that ranks archetypes by
